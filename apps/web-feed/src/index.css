@@ -1,12 +1,14 @@
 /* UI B — Trip Feed: warm, rounded, image-forward, phone-width column. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
+  --feed-page: #efe6df;
   --feed-bg: #fff7f2;
   --feed-card: #ffffff;
   --feed-fg: #2b2320;
   --feed-dim: #8a7d76;
   --feed-accent: #ff6b4a;
   --feed-line: #f0e2d9;
+  --feed-danger: #d1442a;
   font-family:
     "Inter",
     system-ui,
@@ -16,17 +18,31 @@
     sans-serif;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --feed-page: #14100e;
+    --feed-bg: #1d1714;
+    --feed-card: #26201c;
+    --feed-fg: #f3ece7;
+    --feed-dim: #b0a29a;
+    --feed-accent: #ff7d5c;
+    --feed-line: #362c26;
+    --feed-danger: #ff8566;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #efe6df;
+  background: var(--feed-page);
   color: var(--feed-fg);
 }
 
 .feed {
+  position: relative;
   max-width: 26rem;
   min-height: 100vh;
   margin: 0 auto;
@@ -41,18 +57,32 @@ body {
   padding: 1.75rem 1.25rem;
 }
 
+.feed__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .feed__eyebrow {
   color: var(--feed-accent);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  margin: 0;
 }
 
 .feed__title {
   font-size: 1.55rem;
   line-height: 1.2;
   margin: 0.25rem 0 1.25rem;
+}
+
+.feed__muted {
+  color: var(--feed-dim);
+  line-height: 1.5;
 }
 
 .feed__card {
@@ -66,8 +96,7 @@ body {
 .feed__card-media {
   font-size: 3rem;
   text-align: center;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #ffe3d6, #ffd0c2);
+  padding: 1.25rem;
 }
 
 .feed__card-body {
@@ -77,8 +106,68 @@ body {
   line-height: 1.5;
 }
 
+.feed__alt {
+  margin-top: 1.25rem;
+  color: var(--feed-dim);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.feed__alt a {
+  color: var(--feed-accent);
+  font-weight: 600;
+}
+
+.feed__form-error {
+  color: var(--feed-danger);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+/* --- Shared form primitives, themed for the Feed --- */
+.feed [data-gtp-field] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.feed [data-gtp-label] {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.feed [data-gtp-input] {
+  background: var(--feed-card);
+  border: 1px solid var(--feed-line);
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem;
+  color: var(--feed-fg);
+  font: inherit;
+}
+
+.feed [data-gtp-input]:focus-visible {
+  outline: 2px solid var(--feed-accent);
+  outline-offset: 1px;
+}
+
+.feed [data-gtp-input][data-invalid] {
+  border-color: var(--feed-danger);
+}
+
+.feed [data-gtp-field-error] {
+  color: var(--feed-danger);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.feed [data-gtp-field-hint] {
+  color: var(--feed-dim);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
 .feed [data-gtp-button] {
-  margin-top: 1.5rem;
   width: 100%;
   background: var(--feed-accent);
   color: #fff;
@@ -90,11 +179,38 @@ body {
   cursor: pointer;
 }
 
-.feed__meta {
-  margin-top: 1.5rem;
-  color: var(--feed-dim);
-  font-size: 0.75rem;
-  text-align: center;
+.feed [data-gtp-button][data-variant="ghost"],
+.feed [data-gtp-button][data-variant="secondary"] {
+  background: transparent;
+  color: var(--feed-accent);
+  border: 1px solid var(--feed-accent);
+}
+
+.feed [data-gtp-button]:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.feed__wizard-nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* --- FAB + bottom tabs --- */
+.feed__fab {
+  position: sticky;
+  bottom: 4.5rem;
+  align-self: flex-end;
+  margin-right: 1.1rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--feed-accent);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255, 107, 74, 0.35);
 }
 
 .feed__tabs {
@@ -102,16 +218,34 @@ body {
   bottom: 0;
   display: flex;
   justify-content: space-around;
-  padding: 0.75rem 0;
-  font-size: 1.35rem;
   background: var(--feed-card);
   border-top: 1px solid var(--feed-line);
 }
 
-.feed__tabs [aria-current="page"] {
-  filter: none;
+.feed__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0;
+  background: transparent;
+  border: none;
+  color: var(--feed-dim);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
 }
 
-.feed__tabs span:not([aria-current]) {
-  opacity: 0.45;
+.feed__tab-icon {
+  font-size: 1.3rem;
+  opacity: 0.5;
+}
+
+.feed__tab[aria-current="page"] {
+  color: var(--feed-accent);
+}
+
+.feed__tab[aria-current="page"] .feed__tab-icon {
+  opacity: 1;
 }

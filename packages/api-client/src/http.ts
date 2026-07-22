@@ -1,9 +1,12 @@
 /**
  * Minimal typed fetch wrapper shared by every front-end.
  *
- * Sends/parses JSON, always includes credentials (the refresh-token cookie is
- * httpOnly + SameSite), and throws a structured {@link ApiError} on non-2xx so
- * callers get the status and any server message.
+ * - Sends/parses JSON and always includes credentials (the refresh-token cookie
+ *   is httpOnly + SameSite).
+ * - Attaches the in-memory access token as a Bearer header.
+ * - On a 401 from a protected route, transparently attempts a single silent
+ *   refresh (via the cookie) and retries once.
+ * - Throws a structured {@link ApiError} on non-2xx.
  */
 
 export class ApiError extends Error {
@@ -18,11 +21,23 @@ export class ApiError extends Error {
   }
 }
 
-// Default targets the local API (Phase 0.5). Apps override via setApiBaseUrl.
+// Default targets the local API. Apps override via setApiBaseUrl at startup.
 let baseUrl = "http://localhost:3000";
 
 export function setApiBaseUrl(url: string): void {
   baseUrl = url.replace(/\/+$/, "");
+}
+
+// Access token lives in memory only — never localStorage (XSS-safe). The
+// refresh token is the httpOnly cookie the browser sends automatically.
+let accessToken: string | null = null;
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return accessToken;
 }
 
 export interface ApiFetchInit {
@@ -31,18 +46,71 @@ export interface ApiFetchInit {
   signal?: AbortSignal;
 }
 
+// The auth endpoints must never trigger the 401 refresh-and-retry loop.
+const AUTH_PATHS = new Set([
+  "/auth/login",
+  "/auth/register",
+  "/auth/verify",
+  "/auth/refresh",
+  "/auth/logout",
+]);
+
+// Dedupe concurrent refreshes: many in-flight requests share one refresh call.
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function doRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { accessToken?: string };
+    if (!data.accessToken) return false;
+    accessToken = data.accessToken;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Refresh the access token using the cookie; returns whether it succeeded. */
+export function refreshAccessToken(): Promise<boolean> {
+  refreshInFlight ??= doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+async function performFetch(
+  path: string,
+  init: ApiFetchInit,
+): Promise<Response> {
+  const hasBody = init.body !== undefined;
+  const headers: Record<string, string> = {};
+  if (hasBody) headers["Content-Type"] = "application/json";
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  return fetch(`${baseUrl}${path}`, {
+    method: init.method ?? "GET",
+    credentials: "include",
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
+    body: hasBody ? JSON.stringify(init.body) : undefined,
+    signal: init.signal,
+  });
+}
+
 export async function apiFetch<T>(
   path: string,
   init: ApiFetchInit = {},
 ): Promise<T> {
-  const hasBody = init.body !== undefined;
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: init.method ?? "GET",
-    credentials: "include",
-    headers: hasBody ? { "Content-Type": "application/json" } : undefined,
-    body: hasBody ? JSON.stringify(init.body) : undefined,
-    signal: init.signal,
-  });
+  let res = await performFetch(path, init);
+
+  // Access token likely expired — refresh once via the cookie and retry.
+  if (res.status === 401 && !AUTH_PATHS.has(path)) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) res = await performFetch(path, init);
+  }
 
   const contentType = res.headers.get("content-type") ?? "";
   const payload: unknown = contentType.includes("application/json")

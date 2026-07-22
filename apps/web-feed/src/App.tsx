@@ -1,49 +1,43 @@
-import { Button } from "@gtp/ui-primitives";
-import { API_CLIENT_VERSION, useLogin } from "@gtp/api-client";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { PublicOnly, RequireAuth } from "./components/RouteGuards";
+import { Login } from "./routes/Login";
+import { Register } from "./routes/Register";
+import { Verify } from "./routes/Verify";
+import { Dashboard } from "./routes/Dashboard";
 
 /**
- * UI B — Trip Feed (placeholder shell).
- * Full bottom-tab social app + auth wizard land in Phase 0.7. The button below
- * is a Phase-0 wiring check over the shared, typed login hook.
+ * UI B — Trip Feed. Routes only; providers live in main.tsx so tests can mount
+ * <App /> under their own router.
  */
 export function App() {
-  const login = useLogin();
-
   return (
-    <div className="feed">
-      <main className="feed__screen">
-        <p className="feed__eyebrow">Phase 0 · walking skeleton</p>
-        <h1 className="feed__title">Mobile-first, thumb-driven trips</h1>
-        <div className="feed__card">
-          <div className="feed__card-media">🏝️</div>
-          <p className="feed__card-body">
-            A friendly card feed. Register → verify → login → empty home arrives
-            in Phase 0.7.
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          className="feed__cta"
-          disabled={login.isPending}
-          onClick={() =>
-            login.mutate({
-              email: "demo@example.com",
-              password: "demo-password",
-            })
-          }
-        >
-          {login.isPending ? "Pinging…" : "Ping /auth/login (wiring check)"}
-        </Button>
-        <p className="feed__meta">
-          shared contract v{API_CLIENT_VERSION} · login: {login.status}
-        </p>
-      </main>
-      <nav className="feed__tabs" aria-label="Placeholder navigation">
-        <span aria-current="page">🏠</span>
-        <span>🗳️</span>
-        <span>💶</span>
-        <span>👤</span>
-      </nav>
-    </div>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicOnly>
+            <Login />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicOnly>
+            <Register />
+          </PublicOnly>
+        }
+      />
+      <Route path="/verify" element={<Verify />} />
+      <Route
+        path="/"
+        element={
+          <RequireAuth>
+            <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
