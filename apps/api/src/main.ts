@@ -5,6 +5,7 @@
  * logging (pino), and `GET /health`. Auth endpoints arrive in Phase 0.6.
  */
 import "reflect-metadata";
+import cookieParser from "cookie-parser";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
 import { ENV } from "./config/config.module.js";
@@ -24,6 +25,12 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const env = app.get<Env>(ENV);
+
+  // Parse the refresh-token cookie; lock CORS to the frontend origins and allow
+  // credentials so the httpOnly refresh cookie can flow cross-origin.
+  app.use(cookieParser());
+  app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
+
   await app.listen(env.PORT);
 
   app

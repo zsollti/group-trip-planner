@@ -1,9 +1,12 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { AuthModule } from "./auth/auth.module.js";
 
 @Module({
   imports: [
@@ -23,8 +26,22 @@ import { HealthModule } from "./health/health.module.js";
         },
       }),
     }),
+    // Global rate-limit floor; auth routes tighten it per-route (SRS FR-5).
+    ThrottlerModule.forRootAsync({
+      inject: [ENV],
+      useFactory: (env: Env) => ({
+        throttlers: [
+          {
+            ttl: env.THROTTLE_TTL_SECONDS * 1000,
+            limit: env.THROTTLE_LIMIT,
+          },
+        ],
+      }),
+    }),
     PrismaModule,
     HealthModule,
+    AuthModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

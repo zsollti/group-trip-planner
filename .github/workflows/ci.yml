@@ -17,6 +17,28 @@ jobs:
     # branch protection targets once the repo goes public.
     name: install · lint · typecheck · test
     runs-on: ubuntu-latest
+
+    # Real Postgres for the auth integration tests (real DB, per Phase 0.6 DoD).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gtp
+          POSTGRES_PASSWORD: gtp_dev_password
+          POSTGRES_DB: gtp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gtp -d gtp_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://gtp:gtp_dev_password@localhost:5432/gtp_test?schema=public
+      # Test-only signing secret; production uses a real secret from env.
+      JWT_SECRET: ci-only-secret-0123456789abcdef
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +56,9 @@ jobs:
 
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
+
+      - name: Migrate database
+        run: pnpm --filter @gtp/api db:migrate:deploy
 
       - name: Lint
         run: pnpm lint

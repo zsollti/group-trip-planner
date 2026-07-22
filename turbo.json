@@ -11,7 +11,8 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["DATABASE_URL", "JWT_SECRET"]
     },
     "dev": {
       "cache": false,

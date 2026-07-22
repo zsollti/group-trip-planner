@@ -4,6 +4,7 @@ import type {
   LoginInput,
   LoginResult,
   RegisterInput,
+  RegisterResult,
   VerifyEmailInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
@@ -15,13 +16,16 @@ import { apiFetch, type ApiError } from "./http.js";
  */
 
 export function useRegister(): UseMutationResult<
-  AuthUser,
+  RegisterResult,
   ApiError,
   RegisterInput
 > {
   return useMutation({
     mutationFn: (input: RegisterInput) =>
-      apiFetch<AuthUser>("/auth/register", { method: "POST", body: input }),
+      apiFetch<RegisterResult>("/auth/register", {
+        method: "POST",
+        body: input,
+      }),
   });
 }
 
