@@ -6,7 +6,13 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+
+    // NestJS relies on legacy decorators + reflected parameter types for DI.
+    // tsc is the compiler here precisely because it can emit this metadata
+    // (esbuild/node type-stripping cannot).
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": ["src"]
 }
