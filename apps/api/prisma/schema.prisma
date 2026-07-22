@@ -1,0 +1,61 @@
+// Prisma schema — Phase 0.4 (auth identity tables only).
+// The full domain (Trip, Membership, Category, Option, ...) is added in later
+// phases as vertical slices. Table names are snake_case; app-facing IDs are
+// UUIDs; secrets are stored hashed, never in the clear.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  displayName   String
+  // Nullable: OAuth-only accounts (Google, Phase 1.0) have no local password.
+  passwordHash  String?
+  emailVerified Boolean   @default(false)
+  // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
+  anonymizedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  // Store a hash of the token, never the token itself — enables revocation
+  // without ever persisting a usable credential.
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}

@@ -3,19 +3,31 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "dev": "node --watch --experimental-strip-types src/main.ts",
     "start": "node dist/main.js",
-    "test": "echo \"no tests yet\" && exit 0"
+    "test": "echo \"no tests yet\" && exit 0",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@gtp/types": "workspace:*"
+    "@gtp/types": "workspace:*",
+    "@prisma/client": "^6.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }
