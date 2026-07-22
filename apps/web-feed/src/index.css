@@ -1,0 +1,117 @@
+/* UI B — Trip Feed: warm, rounded, image-forward, phone-width column. */
+:root {
+  color-scheme: light;
+  --feed-bg: #fff7f2;
+  --feed-card: #ffffff;
+  --feed-fg: #2b2320;
+  --feed-dim: #8a7d76;
+  --feed-accent: #ff6b4a;
+  --feed-line: #f0e2d9;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #efe6df;
+  color: var(--feed-fg);
+}
+
+.feed {
+  max-width: 26rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--feed-bg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.08);
+}
+
+.feed__screen {
+  flex: 1;
+  padding: 1.75rem 1.25rem;
+}
+
+.feed__eyebrow {
+  color: var(--feed-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.feed__title {
+  font-size: 1.55rem;
+  line-height: 1.2;
+  margin: 0.25rem 0 1.25rem;
+}
+
+.feed__card {
+  background: var(--feed-card);
+  border: 1px solid var(--feed-line);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(255, 107, 74, 0.08);
+}
+
+.feed__card-media {
+  font-size: 3rem;
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #ffe3d6, #ffd0c2);
+}
+
+.feed__card-body {
+  margin: 0;
+  padding: 1rem 1.1rem 1.25rem;
+  color: var(--feed-dim);
+  line-height: 1.5;
+}
+
+.feed [data-gtp-button] {
+  margin-top: 1.5rem;
+  width: 100%;
+  background: var(--feed-accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feed__meta {
+  margin-top: 1.5rem;
+  color: var(--feed-dim);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.feed__tabs {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.75rem 0;
+  font-size: 1.35rem;
+  background: var(--feed-card);
+  border-top: 1px solid var(--feed-line);
+}
+
+.feed__tabs [aria-current="page"] {
+  filter: none;
+}
+
+.feed__tabs span:not([aria-current]) {
+  opacity: 0.45;
+}
