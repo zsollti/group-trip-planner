@@ -1,0 +1,24 @@
+# Build context is the repo root (both Dockerfiles COPY workspace manifests
+# from here). Keep the context lean and reproducible: never ship host
+# node_modules or prior build output into the image — they are reinstalled and
+# rebuilt inside the Dockerfile.
+**/node_modules
+**/dist
+**/dist-test
+**/.turbo
+**/coverage
+
+# Never bake secrets into an image layer.
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / editor / OS noise.
+.git
+.gitignore
+**/.DS_Store
+
+# Planning docs are gitignored anyway, but exclude other markdown from the
+# context so doc edits don't bust the Docker build cache.
+*.md
+!DEPLOY.md

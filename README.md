@@ -20,6 +20,14 @@ sentiment through **advisory voting**, and recording explicit, audited group
 
 _Setup instructions land with the Phase 0 walking skeleton._
 
+## Deployment
+
+The walking skeleton deploys to [Railway](https://railway.com) as three services
+(managed Postgres, the NestJS `api`, and the `web-deck` SPA), each built from a
+committed Dockerfile. Step-by-step instructions — including the cross-site
+cookie/CORS wiring and the environment-variable matrix — are in
+[`DEPLOY.md`](./DEPLOY.md).
+
 ## License
 
 All rights reserved.
