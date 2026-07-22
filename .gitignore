@@ -1,0 +1,41 @@
+# ---- Dependencies ----
+node_modules/
+.pnp/
+.pnp.*
+
+# ---- Build output ----
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+
+# ---- Test / coverage ----
+coverage/
+.nyc_output/
+
+# ---- Environment & secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ---- OS / editor cruft ----
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# ---- Claude Code local settings ----
+.claude/settings.local.json
+
+# ---- Local planning docs (kept local, not tracked) ----
+SRS.md
+PLANNING.md
+IMPLEMENTATION.md
+UI-SPECS.md
