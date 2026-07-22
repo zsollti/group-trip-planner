@@ -21,7 +21,8 @@
       "esbuild",
       "@prisma/client",
       "@prisma/engines",
-      "prisma"
+      "prisma",
+      "argon2"
     ]
   },
   "devDependencies": {

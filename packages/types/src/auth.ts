@@ -38,6 +38,16 @@ export const VerifyEmailInput = z.object({
 });
 export type VerifyEmailInput = z.infer<typeof VerifyEmailInput>;
 
+/**
+ * Registration result — deliberately constant. To avoid account enumeration
+ * (FR-5), the server responds identically whether or not the email already had
+ * an account; the client simply tells the user to check their inbox either way.
+ */
+export const RegisterResult = z.object({
+  status: z.literal("verification_sent"),
+});
+export type RegisterResult = z.infer<typeof RegisterResult>;
+
 /** Public user shape returned by the auth endpoints (no secrets). */
 export const AuthUser = z.object({
   id: z.string().uuid(),
