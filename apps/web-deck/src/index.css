@@ -1,0 +1,85 @@
+/* UI A — Command Deck: dark, monospace, dense. Real design tokens land in 0.7. */
+:root {
+  color-scheme: dark;
+  --deck-bg: #0b0d10;
+  --deck-panel: #12161b;
+  --deck-line: #232b33;
+  --deck-fg: #e6edf3;
+  --deck-dim: #8b949e;
+  --deck-accent: #4cc2ff;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--deck-bg);
+  color: var(--deck-fg);
+}
+
+.deck {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.deck__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--deck-line);
+  background: var(--deck-panel);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.deck__kbd {
+  border: 1px solid var(--deck-line);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  color: var(--deck-dim);
+}
+
+.deck__body {
+  margin: auto;
+  max-width: 44rem;
+  padding: 2rem 1.5rem;
+}
+
+.deck__eyebrow {
+  color: var(--deck-accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deck__title {
+  font-size: 1.9rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.deck__lede {
+  color: var(--deck-dim);
+  line-height: 1.6;
+}
+
+.deck [data-gtp-button] {
+  margin-top: 1rem;
+  background: var(--deck-accent);
+  color: #06121a;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.deck__meta {
+  margin-top: 2.5rem;
+  color: var(--deck-dim);
+  font-size: 0.75rem;
+}
