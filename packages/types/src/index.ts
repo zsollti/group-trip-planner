@@ -1,10 +1,11 @@
 /**
  * @gtp/types — shared Zod schemas + inferred TypeScript types.
  *
- * The first real contract (RegisterInput / LoginInput / VerifyEmailInput) lands
- * in Phase 0.3. For now this package exists so the workspace wiring is provable
- * end-to-end from the walking skeleton.
+ * The single source of truth for the FE/BE contract. Bumped when shared shapes
+ * change so consumers can reason about compatibility.
  */
 
 /** Version of the shared FE/BE contract. Bumped when the shared shapes change. */
-export const CONTRACT_VERSION = "0.0.0";
+export const CONTRACT_VERSION = "0.1.0";
+
+export * from "./auth.js";

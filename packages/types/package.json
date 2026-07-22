@@ -17,6 +17,9 @@
     "lint": "eslint .",
     "test": "echo \"no tests yet\" && exit 0"
   },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
   "devDependencies": {
     "typescript": "^5.7.2"
   }

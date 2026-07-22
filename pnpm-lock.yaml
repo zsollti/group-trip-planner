@@ -63,6 +63,9 @@ importers:
       '@gtp/ui-primitives':
         specifier: workspace:*
         version: link:../../packages/ui-primitives
+      '@tanstack/react-query':
+        specifier: ^5.62.0
+        version: 5.101.4(react@19.2.8)
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -94,6 +97,9 @@ importers:
       '@gtp/ui-primitives':
         specifier: workspace:*
         version: link:../../packages/ui-primitives
+      '@tanstack/react-query':
+        specifier: ^5.62.0
+        version: 5.101.4(react@19.2.8)
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -125,6 +131,9 @@ importers:
       '@gtp/ui-primitives':
         specifier: workspace:*
         version: link:../../packages/ui-primitives
+      '@tanstack/react-query':
+        specifier: ^5.62.0
+        version: 5.101.4(react@19.2.8)
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -154,11 +163,24 @@ importers:
         specifier: workspace:*
         version: link:../types
     devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.62.0
+        version: 5.101.4(react@19.2.8)
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.17
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
 
   packages/types:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -624,6 +646,14 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@tanstack/query-core@5.101.4':
+    resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
+
+  '@tanstack/react-query@5.101.4':
+    resolution: {integrity: sha512-yRg2pfOCxIs4ZJW3XYYHU/WgtD04FHSnfHlpRT7h7pR77hwkdRG4wxbKe4aq6P0RvXUTBSQpQeadS1SUYUe+KA==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@turbo/darwin-64@2.10.5':
     resolution: {integrity: sha512-ENvPwy3x5yS7MwNYHeWjqOBXkwIMp39Pd+/zXC6PoiNzF8EIvvLZOZZ+ny6L9x4WgS5vxUii2LM5gM+zjPdnWw==}
@@ -1261,6 +1291,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@babel/code-frame@7.29.7':
@@ -1610,6 +1643,13 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@tanstack/query-core@5.101.4': {}
+
+  '@tanstack/react-query@5.101.4(react@19.2.8)':
+    dependencies:
+      '@tanstack/query-core': 5.101.4
+      react: 19.2.8
 
   '@turbo/darwin-64@2.10.5':
     optional: true
@@ -2239,3 +2279,5 @@ snapshots:
   yallist@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@3.25.76: {}
