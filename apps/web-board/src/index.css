@@ -1,12 +1,14 @@
 /* UI C — Trip Board: playful, tactile, colorful lanes on a canvas. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --board-bg: #f4f1fb;
+  --board-dot: #e0d8f5;
   --board-fg: #241f33;
   --board-dim: #6b6480;
   --board-accent: #7c5cff;
   --lane-bg: #ffffff;
   --lane-line: #e6e0f5;
+  --board-danger: #d1242f;
   font-family:
     "Inter",
     system-ui,
@@ -14,6 +16,19 @@
     "Segoe UI",
     Roboto,
     sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --board-bg: #16131f;
+    --board-dot: #2a2440;
+    --board-fg: #ece8f7;
+    --board-dim: #a79fc0;
+    --board-accent: #9d84ff;
+    --lane-bg: #211c2e;
+    --lane-line: #322b45;
+    --board-danger: #ff6b6b;
+  }
 }
 
 * {
@@ -24,7 +39,7 @@ body {
   margin: 0;
   background: var(--board-bg);
   color: var(--board-fg);
-  background-image: radial-gradient(#e0d8f5 1px, transparent 1px);
+  background-image: radial-gradient(var(--board-dot) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -33,11 +48,23 @@ body {
   padding: 1.25rem 1.5rem 2rem;
 }
 
+.board--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .board__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.board__bar-actions {
+  display: flex;
+  gap: 0.6rem;
 }
 
 .board__brand {
@@ -56,9 +83,114 @@ body {
 
 .board__title {
   font-size: 1.7rem;
-  margin: 0.25rem 0 1.5rem;
+  margin: 0.25rem 0 0.75rem;
 }
 
+.board__muted {
+  color: var(--board-dim);
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+/* --- Auth card floating on the canvas --- */
+.board__auth {
+  width: min(24rem, 92vw);
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 16px 40px rgba(124, 92, 255, 0.15);
+}
+
+.board__alt {
+  margin-top: 1.25rem;
+  color: var(--board-dim);
+  font-size: 0.9rem;
+}
+
+.board__alt a {
+  color: var(--board-accent);
+  font-weight: 600;
+}
+
+.board__form-error {
+  color: var(--board-danger);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+/* --- Shared form primitives, themed for the Board --- */
+.board [data-gtp-field] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.board [data-gtp-label] {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.board [data-gtp-input] {
+  background: var(--board-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  color: var(--board-fg);
+  font: inherit;
+}
+
+.board [data-gtp-input]:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+
+.board [data-gtp-input][data-invalid] {
+  border-color: var(--board-danger);
+}
+
+.board [data-gtp-field-error] {
+  color: var(--board-danger);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.board [data-gtp-field-hint] {
+  color: var(--board-dim);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.board [data-gtp-button] {
+  background: var(--board-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.board__auth [data-gtp-button] {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  margin-top: 0.35rem;
+}
+
+.board [data-gtp-button][data-variant="secondary"] {
+  background: transparent;
+  color: var(--board-accent);
+  border: 1px solid var(--board-accent);
+}
+
+.board [data-gtp-button]:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- Canvas + lanes --- */
 .board__canvas {
   display: flex;
   gap: 1rem;
@@ -73,6 +205,10 @@ body {
   border-radius: 14px;
   padding: 0.85rem;
   box-shadow: 0 6px 18px rgba(124, 92, 255, 0.07);
+}
+
+.lane--decided {
+  border-style: dashed;
 }
 
 .lane__title {
@@ -90,21 +226,4 @@ body {
   border: 2px dashed var(--lane-line);
   color: var(--board-dim);
   text-align: center;
-}
-
-.board [data-gtp-button] {
-  background: var(--board-accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.45rem 0.9rem;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.board__meta {
-  margin-top: 1.5rem;
-  color: var(--board-dim);
-  font-size: 0.75rem;
 }

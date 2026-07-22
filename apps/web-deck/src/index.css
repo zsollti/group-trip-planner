@@ -1,13 +1,28 @@
-/* UI A — Command Deck: dark, monospace, dense. Real design tokens land in 0.7. */
+/* UI A — Command Deck: dark, monospace, dense. Theme tokens adapt light/dark. */
 :root {
-  color-scheme: dark;
+  color-scheme: dark light;
   --deck-bg: #0b0d10;
   --deck-panel: #12161b;
   --deck-line: #232b33;
   --deck-fg: #e6edf3;
   --deck-dim: #8b949e;
   --deck-accent: #4cc2ff;
+  --deck-danger: #ff6b6b;
+  --deck-ink: #06121a;
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --deck-bg: #f5f7fa;
+    --deck-panel: #ffffff;
+    --deck-line: #d5dbe2;
+    --deck-fg: #1b2129;
+    --deck-dim: #5a636e;
+    --deck-accent: #0969da;
+    --deck-danger: #d1242f;
+    --deck-ink: #ffffff;
+  }
 }
 
 * {
@@ -26,6 +41,13 @@ body {
   flex-direction: column;
 }
 
+.deck--auth,
+.deck--splash {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
 .deck__bar {
   display: flex;
   align-items: center;
@@ -42,12 +64,20 @@ body {
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
   color: var(--deck-dim);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
 
 .deck__body {
   margin: auto;
   max-width: 44rem;
   padding: 2rem 1.5rem;
+  width: 100%;
+}
+
+.deck__empty {
+  margin-top: 8vh;
 }
 
 .deck__eyebrow {
@@ -55,6 +85,7 @@ body {
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  margin: 0;
 }
 
 .deck__title {
@@ -67,19 +98,155 @@ body {
   line-height: 1.6;
 }
 
+/* --- Auth card --- */
+.deck__auth-card {
+  width: 100%;
+  max-width: 24rem;
+  background: var(--deck-panel);
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  padding: 1.75rem;
+}
+
+.deck__auth-alt {
+  margin-top: 1.25rem;
+  color: var(--deck-dim);
+  font-size: 0.85rem;
+}
+
+.deck__auth-alt a {
+  color: var(--deck-accent);
+}
+
+.deck__form-error {
+  color: var(--deck-danger);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+/* --- Shared form primitives, themed for the Deck --- */
+.deck [data-gtp-field] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.deck [data-gtp-label] {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--deck-dim);
+}
+
+.deck [data-gtp-input] {
+  background: var(--deck-bg);
+  border: 1px solid var(--deck-line);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  color: var(--deck-fg);
+  font: inherit;
+}
+
+.deck [data-gtp-input]:focus-visible {
+  outline: 2px solid var(--deck-accent);
+  outline-offset: 1px;
+}
+
+.deck [data-gtp-input][data-invalid] {
+  border-color: var(--deck-danger);
+}
+
+.deck [data-gtp-field-error] {
+  color: var(--deck-danger);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.deck [data-gtp-field-hint] {
+  color: var(--deck-dim);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
 .deck [data-gtp-button] {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  width: 100%;
   background: var(--deck-accent);
-  color: #06121a;
+  color: var(--deck-ink);
   border: none;
   border-radius: 6px;
-  padding: 0.55rem 1rem;
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deck [data-gtp-button]:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- Command palette --- */
+.deck__palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.deck__palette {
+  width: min(36rem, 92vw);
+  background: var(--deck-panel);
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.deck__palette-input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--deck-line);
+  color: var(--deck-fg);
+  font: inherit;
+}
+
+.deck__palette-input:focus {
+  outline: none;
+}
+
+.deck__palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+}
+
+.deck__palette-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--deck-fg);
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
   font: inherit;
   cursor: pointer;
 }
 
-.deck__meta {
-  margin-top: 2.5rem;
+.deck__palette-item:hover,
+.deck__palette-item:focus-visible {
+  background: var(--deck-line);
+  outline: none;
+}
+
+.deck__palette-empty {
   color: var(--deck-dim);
-  font-size: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
 }
