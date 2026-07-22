@@ -13,19 +13,36 @@ concurrency:
 
 jobs:
   ci:
+    # Keep this name stable — it is the required status-check context that
+    # branch protection targets once the repo goes public.
     name: install · lint · typecheck · test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Placeholder gate for Phase -1. The monorepo (pnpm + Turborepo) lands in
-      # Phase 0.1; this job is fleshed out into install → lint → typecheck → test
-      # in Phase 0.2. It exists now so the required PR check is present from the
-      # very first pull request.
-      - name: Bootstrap check
-        run: |
-          if [ -f pnpm-workspace.yaml ]; then
-            echo "Monorepo present — CI should be wired up (Phase 0.2)."
-          else
-            echo "Phase -1 bootstrap: no workspace yet. Gate passes as a placeholder."
-          fi
+      # pnpm is pinned via the root package.json "packageManager" field, so
+      # action-setup installs the exact same version used locally.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
