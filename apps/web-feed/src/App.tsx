@@ -1,11 +1,14 @@
 import { Button } from "@gtp/ui-primitives";
-import { API_CLIENT_VERSION } from "@gtp/api-client";
+import { API_CLIENT_VERSION, useLogin } from "@gtp/api-client";
 
 /**
  * UI B — Trip Feed (placeholder shell).
- * Full bottom-tab social app + auth wizard land in Phase 0.7.
+ * Full bottom-tab social app + auth wizard land in Phase 0.7. The button below
+ * is a Phase-0 wiring check over the shared, typed login hook.
  */
 export function App() {
+  const login = useLogin();
+
   return (
     <div className="feed">
       <main className="feed__screen">
@@ -18,11 +21,21 @@ export function App() {
             in Phase 0.7.
           </p>
         </div>
-        <Button variant="primary" className="feed__cta">
-          Placeholder action
+        <Button
+          variant="primary"
+          className="feed__cta"
+          disabled={login.isPending}
+          onClick={() =>
+            login.mutate({
+              email: "demo@example.com",
+              password: "demo-password",
+            })
+          }
+        >
+          {login.isPending ? "Pinging…" : "Ping /auth/login (wiring check)"}
         </Button>
         <p className="feed__meta">
-          shared api-client contract v{API_CLIENT_VERSION}
+          shared contract v{API_CLIENT_VERSION} · login: {login.status}
         </p>
       </main>
       <nav className="feed__tabs" aria-label="Placeholder navigation">
