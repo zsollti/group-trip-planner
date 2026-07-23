@@ -123,6 +123,16 @@ body {
   font-size: 0.85rem;
   margin: 0.75rem 0 0;
 }
+.deck__frozen {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--deck-line);
+  border-left: 3px solid var(--deck-accent);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--deck-muted, inherit);
+  background: color-mix(in srgb, var(--deck-accent) 8%, transparent);
+}
 
 /* --- Shared form primitives, themed for the Deck --- */
 .deck [data-gtp-field] {

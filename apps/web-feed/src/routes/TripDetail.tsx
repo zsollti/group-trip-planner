@@ -89,6 +89,12 @@ export function TripDetail() {
               {ROLE_LABEL[trip.data.role]}
             </p>
             <h1 className="feed__title">{trip.data.name}</h1>
+            {trip.data.status === "HISTORY" ? (
+              <p className="feed__frozen" role="status">
+                This trip has ended — it's now read-only. Proposing, voting, and
+                locking are closed.
+              </p>
+            ) : null}
             {trip.data.description ? (
               <p className="feed__muted">{trip.data.description}</p>
             ) : null}
@@ -197,13 +203,12 @@ export function TripDetail() {
                     defaultCurrency={trip.data.defaultCurrency}
                     myRole={trip.data.role}
                     myUserId={user?.id}
+                    frozen={trip.data.status === "HISTORY"}
                   />
                 ))
               : null}
 
-            <p className="feed__muted">
-              Voting and the cost view land in the next phases.
-            </p>
+            <p className="feed__muted">The cost view lands next phase.</p>
 
             {editing ? (
               <EditTripSheet

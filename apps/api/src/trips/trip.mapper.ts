@@ -1,9 +1,27 @@
 import type { Trip, TripRole } from "@prisma/client";
-import type { TripDetail, TripPreview, TripSummary } from "@gtp/types";
+import {
+  isTripFrozen,
+  type TripDetail,
+  type TripPreview,
+  type TripStatus,
+  type TripSummary,
+} from "@gtp/types";
 
 type TripWithCount = Trip & { _count: { memberships: number } };
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
+
+/**
+ * The trip's **effective** status for display (Phase 2.5, decision 4). A trip
+ * past its `expiresAt` reads as History even before the scheduled expiry job has
+ * persisted the flip — reads and the planning-mutation guard agree without
+ * depending on the job firing.
+ */
+function effectiveStatus(trip: Trip): TripStatus {
+  return isTripFrozen(trip.status, trip.expiresAt.toISOString())
+    ? "HISTORY"
+    : trip.status;
+}
 
 /** A trip as it appears in the caller's list, tagged with the caller's role. */
 export function toTripSummary(
@@ -16,7 +34,7 @@ export function toTripSummary(
     destination: trip.destination,
     startDate: iso(trip.startDate),
     endDate: iso(trip.endDate),
-    status: trip.status,
+    status: effectiveStatus(trip),
     role,
     memberCount: trip._count.memberships,
     createdAt: trip.createdAt.toISOString(),
@@ -35,7 +53,7 @@ export function toTripDetail(trip: TripWithCount, role: TripRole): TripDetail {
     startDate: iso(trip.startDate),
     endDate: iso(trip.endDate),
     expiresAt: trip.expiresAt.toISOString(),
-    status: trip.status,
+    status: effectiveStatus(trip),
     version: trip.version,
     role,
     memberCount: trip._count.memberships,

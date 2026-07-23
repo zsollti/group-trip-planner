@@ -225,4 +225,31 @@ describe("web-deck CategoryOptions (Phase 2.2)", () => {
       screen.queryByRole("button", { name: /decide|lock/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("hides all write controls when the trip is frozen (History)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([option])),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <CategoryOptions
+          tripId="t1"
+          category={category}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen
+        />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Airbnb in Alfama");
+    // No propose, lock, vote, edit, or delete affordances survive the freeze.
+    expect(
+      screen.queryByRole("button", { name: /\+ option/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /decide|lock|edit|delete|▲/i }),
+    ).not.toBeInTheDocument();
+  });
 });

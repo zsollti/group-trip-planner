@@ -89,6 +89,12 @@ export function TripDetail() {
               <span className="deck__badge">{ROLE_LABEL[trip.data.role]}</span>
             </div>
             <h1 className="deck__title">{trip.data.name}</h1>
+            {trip.data.status === "HISTORY" ? (
+              <p className="deck__frozen" role="status">
+                This trip has ended — it's now read-only. You can still browse
+                the plan, but proposing, voting, and locking are closed.
+              </p>
+            ) : null}
             <div className="deck__dialog-actions">
               <Button
                 type="button"
@@ -189,13 +195,12 @@ export function TripDetail() {
                       defaultCurrency={trip.data.defaultCurrency}
                       myRole={trip.data.role}
                       myUserId={user?.id}
+                      frozen={trip.data.status === "HISTORY"}
                     />
                   ))}
                 </div>
               )}
-              <p className="deck__muted">
-                Voting and the cost ledger land in the next phases.
-              </p>
+              <p className="deck__muted">The cost ledger lands next phase.</p>
             </section>
 
             {editing ? (
