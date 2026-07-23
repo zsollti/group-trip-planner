@@ -53,6 +53,18 @@ enum TripStatus {
   HISTORY
 }
 
+/// Stable identity for a seeded built-in category (Phase 2.1). Categories are
+/// renamable and deletable (FR-18), so `name` can neither identify the Dates
+/// category for date write-back (Phase 2.5) nor drive the default `singleChoice`
+/// flag — `builtinKey` survives a rename and is null for custom categories.
+enum CategoryBuiltinKey {
+  DATES
+  TRANSPORT
+  ACCOMMODATION
+  ACTIVITIES
+  BUDGET
+}
+
 model Trip {
   id              String     @id @default(uuid()) @db.Uuid
   name            String
@@ -81,9 +93,44 @@ model Trip {
   memberships TripMembership[]
   invites     InviteLink[]
   blocks      TripBlock[]
+  categories  Category[]
 
   @@index([ownerId])
   @@map("trips")
+}
+
+/// A planning category within a trip (SRS §6, Phase 2.1). A trip is seeded with
+/// five built-ins at creation (Dates, Transport, Accommodation, Activities,
+/// Budget); Organizers may add custom ones. `singleChoice` means locking one
+/// option unlocks its siblings (FR-19) — the category-level lock in Phase 2.4 is
+/// serialized by `version`. Deleting a category hard-cascades its options, votes,
+/// and (Phase 4) chat channel (FR-20). `position` orders the categories.
+model Category {
+  id           String              @id @default(uuid()) @db.Uuid
+  tripId       String              @db.Uuid
+  name         String
+  // Single-choice categories (e.g. Dates) allow only one locked option at a
+  // time; multi-select (e.g. Transport) allow many. FR-19.
+  singleChoice Boolean             @default(false)
+  // True for the five seeded built-ins; they are renamable/reorderable but the
+  // key below preserves their identity for date write-back (Phase 2.5).
+  isBuiltin    Boolean             @default(false)
+  builtinKey   CategoryBuiltinKey?
+  position     Int
+  // Optimistic-concurrency token. Rename uses it for the "changed since you
+  // opened it — reload" path; the Phase-2.4 single-choice lock guards on it to
+  // serialize the one-decision-per-category race (FR-24).
+  version      Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  // A trip has at most one category per built-in key (the seed is idempotent by
+  // construction); custom categories carry a null key and are unconstrained.
+  @@unique([tripId, builtinKey])
+  @@index([tripId])
+  @@map("categories")
 }
 
 /// Invite-link kind (SRS FR-13). A GLOBAL link is reusable and disableable,

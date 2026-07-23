@@ -12,6 +12,7 @@ import type {
   UpdateTripInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { CategoriesService } from "../categories/categories.service.js";
 import type { TripContext } from "./trip-context.js";
 import { toTripDetail, toTripPreview, toTripSummary } from "./trip.mapper.js";
 
@@ -31,9 +32,10 @@ export class TripsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create a trip and the creator's Owner membership **in one transaction** —
-   * a trip must never exist without its owner. The caller is already known to
-   * be verified (route guard).
+   * Create a trip, the creator's Owner membership, **and the five built-in
+   * categories in one transaction** — a trip must never exist without its owner
+   * or its planning categories (Phase 2.1). The caller is already known to be
+   * verified (route guard).
    */
   async createTrip(user: User, input: CreateTripInput): Promise<TripDetail> {
     const trip = await this.prisma.$transaction(async (tx) => {
@@ -50,6 +52,7 @@ export class TripsService {
       await tx.tripMembership.create({
         data: { tripId: created.id, userId: user.id, role: "OWNER" },
       });
+      await CategoriesService.seedBuiltins(tx, created.id);
       return created;
     });
 

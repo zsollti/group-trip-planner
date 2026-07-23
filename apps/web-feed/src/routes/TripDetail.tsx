@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
+import {
+  ApiError,
+  useDeleteTrip,
+  useTrip,
+  useTripCategories,
+} from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripSheet } from "../components/EditTripSheet";
 import { InviteSheet } from "../components/InviteSheet";
 import { MemberSheet } from "../components/MemberSheet";
+import { CategorySheet } from "../components/CategorySheet";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -32,8 +38,10 @@ export function TripDetail() {
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const categories = useTripCategories(id);
 
   async function onDelete() {
     setActionError(null);
@@ -146,9 +154,39 @@ export function TripDetail() {
               </p>
             ) : null}
 
+            <section className="feed__card" aria-label="Planning categories">
+              <div className="feed__cat-head">
+                <p className="feed__eyebrow">Categories</p>
+                {can(trip.data.role, "category.manage") ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setManagingCategories(true)}
+                  >
+                    Manage
+                  </Button>
+                ) : null}
+              </div>
+              {categories.isPending ? (
+                <p className="feed__muted">Loading categories…</p>
+              ) : categories.isError ? (
+                <p className="feed__muted">Couldn't load categories.</p>
+              ) : (
+                <ul className="feed__cat-chips">
+                  {categories.data.map((cat) => (
+                    <li key={cat.id} className="feed__cat-chip">
+                      <strong>{cat.name}</strong>
+                      <span className="feed__muted">
+                        {cat.singleChoice ? "single-choice" : "multi-select"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
             <p className="feed__muted">
-              Categories, options, voting and the cost view land in the next
-              phases.
+              Options, voting and the cost view land in the next phases.
             </p>
 
             {editing ? (
@@ -171,6 +209,13 @@ export function TripDetail() {
                 tripId={trip.data.id}
                 myRole={trip.data.role}
                 onClose={() => setManagingMembers(false)}
+              />
+            ) : null}
+
+            {managingCategories ? (
+              <CategorySheet
+                tripId={trip.data.id}
+                onClose={() => setManagingCategories(false)}
               />
             ) : null}
 

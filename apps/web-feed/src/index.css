@@ -471,6 +471,56 @@ body {
   font-size: 0.8rem;
 }
 
+/* Planning categories (Phase 2.1). */
+.feed__cat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.feed__cat-chips {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.feed__cat-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--feed-line);
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+.feed__cat-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+.feed__cat-edit [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+}
+.feed__cat-create {
+  margin-top: 1rem;
+}
+.feed__checkbox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.6rem 0;
+  font-size: 0.85rem;
+  color: var(--feed-dim);
+}
+.feed__confirm {
+  margin-top: 0.85rem;
+}
+
 /* Account-deletion impact (Phase 1.5). */
 .feed__impact {
   margin: 0.75rem 0;

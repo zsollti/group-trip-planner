@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
+import {
+  ApiError,
+  useDeleteTrip,
+  useTrip,
+  useTripCategories,
+} from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
+import { CategoryManager } from "../components/CategoryManager";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -13,16 +19,6 @@ const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   PARTICIPANT: "Participant",
   GUEST: "Guest",
 };
-
-// A board previews the five built-in category lanes; the real, seeded
-// categories (and cards) arrive in Phase 2.
-const PREVIEW_LANES = [
-  "Dates",
-  "Transport",
-  "Stay",
-  "Food",
-  "Activities",
-] as const;
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -41,8 +37,10 @@ export function TripDetail() {
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const categories = useTripCategories(id);
 
   async function onDelete() {
     setActionError(null);
@@ -109,6 +107,15 @@ export function TripDetail() {
                 Invite
               </Button>
             ) : null}
+            {can(trip.data.role, "category.manage") ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setManagingCategories(true)}
+              >
+                Categories
+              </Button>
+            ) : null}
             {can(trip.data.role, "trip.edit") ? (
               <Button
                 type="button"
@@ -134,22 +141,31 @@ export function TripDetail() {
             </p>
           ) : null}
 
-          <div className="board__canvas" aria-label="Category lanes (preview)">
-            {PREVIEW_LANES.map((lane) => (
-              <section key={lane} className="lane">
-                <h2 className="lane__title">{lane}</h2>
+          {categories.isPending ? (
+            <p className="board__muted">Loading lanes…</p>
+          ) : categories.isError ? (
+            <p className="board__muted">Couldn't load the category lanes.</p>
+          ) : (
+            <div className="board__canvas" aria-label="Category lanes">
+              {categories.data.map((cat) => (
+                <section key={cat.id} className="lane">
+                  <h2 className="lane__title">{cat.name}</h2>
+                  <p className="lane__meta">
+                    {cat.singleChoice ? "single-choice" : "multi-select"}
+                  </p>
+                  <div className="lane__card lane__card--ghost">
+                    Cards arrive in Phase 2
+                  </div>
+                </section>
+              ))}
+              <section className="lane lane--decided">
+                <h2 className="lane__title">✦ Decided</h2>
                 <div className="lane__card lane__card--ghost">
-                  Cards arrive in Phase 2
+                  Locked picks land here
                 </div>
               </section>
-            ))}
-            <section className="lane lane--decided">
-              <h2 className="lane__title">✦ Decided</h2>
-              <div className="lane__card lane__card--ghost">
-                Locked picks land here
-              </div>
-            </section>
-          </div>
+            </div>
+          )}
 
           {editing ? (
             <EditBoardDialog
@@ -171,6 +187,13 @@ export function TripDetail() {
               tripId={trip.data.id}
               myRole={trip.data.role}
               onClose={() => setManagingMembers(false)}
+            />
+          ) : null}
+
+          {managingCategories ? (
+            <CategoryManager
+              tripId={trip.data.id}
+              onClose={() => setManagingCategories(false)}
             />
           ) : null}
 

@@ -46,6 +46,14 @@ export {
   useLeaveTrip,
 } from "./members.js";
 export { accountKeys, useDeletionPreview } from "./account.js";
+export {
+  categoryKeys,
+  useTripCategories,
+  useCreateCategory,
+  useRenameCategory,
+  useDeleteCategory,
+  useReorderCategories,
+} from "./categories.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
