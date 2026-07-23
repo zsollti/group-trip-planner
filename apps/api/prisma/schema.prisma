@@ -1,7 +1,8 @@
-// Prisma schema — Phase 0.4 (auth identity tables only).
-// The full domain (Trip, Membership, Category, Option, ...) is added in later
-// phases as vertical slices. Table names are snake_case; app-facing IDs are
-// UUIDs; secrets are stored hashed, never in the clear.
+// Prisma schema.
+// Phase 0.4 added the auth identity tables; Phase 1.1 adds the Trip +
+// TripMembership spine. The rest of the domain (Category, Option, ...) lands in
+// later phases as vertical slices. Table names are snake_case; app-facing IDs
+// are UUIDs; secrets are stored hashed, never in the clear.
 
 generator client {
   provider = "prisma-client-js"
@@ -26,8 +27,74 @@ model User {
 
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
+  ownedTrips              Trip[]                   @relation("TripOwner")
+  memberships             TripMembership[]
 
   @@map("users")
+}
+
+/// Role hierarchy within a trip: Owner > Co-organizer > Participant > Guest
+/// (SRS §3). Visitor is NOT a role — it is the unauthenticated public-preview
+/// scope and has no membership row.
+enum TripRole {
+  OWNER
+  CO_ORGANIZER
+  PARTICIPANT
+  GUEST
+}
+
+/// Active trips accept planning mutations; History trips are frozen (the
+/// lifecycle transition itself lands in Phase 2).
+enum TripStatus {
+  ACTIVE
+  HISTORY
+}
+
+model Trip {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  destination     String?
+  // The safe upload pipeline is Phase 6; the column exists now so nothing has
+  // to be retrofitted. Always null until then.
+  coverImageUrl   String?
+  defaultCurrency String     @default("EUR")
+  // Dates are written back when a Dates-category option is locked (Phase 2);
+  // until then a trip carries no dates and the created+1yr `expiresAt` fallback.
+  startDate       DateTime?  @db.Date
+  endDate         DateTime?  @db.Date
+  expiresAt       DateTime
+  status          TripStatus @default(ACTIVE)
+  // Denormalized owner (SRS §6). The owner also holds an OWNER membership row;
+  // both are written in one transaction at creation.
+  ownerId         String     @db.Uuid
+  // Optimistic-concurrency token for the "changed since you opened it — reload"
+  // edit path (SRS §6). Bumped on every trip-detail edit.
+  version         Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  owner       User             @relation("TripOwner", fields: [ownerId], references: [id])
+  memberships TripMembership[]
+
+  @@index([ownerId])
+  @@map("trips")
+}
+
+model TripMembership {
+  id       String   @id @default(uuid()) @db.Uuid
+  tripId   String   @db.Uuid
+  userId   String   @db.Uuid
+  role     TripRole
+  joinedAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One membership per user per trip; joining is idempotent (Phase 1.3).
+  @@unique([tripId, userId])
+  @@index([userId])
+  @@map("trip_memberships")
 }
 
 model RefreshToken {

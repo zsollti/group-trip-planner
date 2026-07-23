@@ -64,6 +64,7 @@ describe("web-deck auth flow", () => {
             },
           });
         }
+        if (u.endsWith("/trips")) return json([]);
         return json({ message: "not found" }, 404);
       }),
     );
@@ -78,8 +79,11 @@ describe("web-deck auth flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-    // Landed on the authenticated Deck workspace.
+    // Landed on the authenticated Deck workspace with an empty trip manifest.
     expect(await screen.findByText(/welcome, ada/i)).toBeInTheDocument();
     expect(screen.getByText(/command deck/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /create your first trip/i }),
+    ).toBeInTheDocument();
   });
 });

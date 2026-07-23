@@ -249,3 +249,131 @@ body {
 .feed__tab[aria-current="page"] .feed__tab-icon {
   opacity: 1;
 }
+
+/* --- Top bar / back (trip detail) --- */
+.feed__topbar {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--feed-line);
+  background: var(--feed-card);
+}
+.feed__back {
+  color: var(--feed-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.feed__link-btn {
+  background: none;
+  border: none;
+  color: var(--feed-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.feed__card-cta {
+  padding: 0 1.1rem 1.25rem;
+}
+
+/* --- Trip cards list --- */
+.feed__trips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.feed__trip-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--feed-card);
+  border: 1px solid var(--feed-line);
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 6px 18px rgba(255, 107, 74, 0.06);
+}
+.feed__trip-card:active {
+  transform: scale(0.99);
+}
+
+.feed__trip-media {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.feed__trip-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.feed__trip-name {
+  font-weight: 600;
+}
+.feed__trip-meta {
+  color: var(--feed-dim);
+  font-size: 0.8rem;
+}
+
+.feed__trip-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--feed-accent);
+  background: rgba(255, 107, 74, 0.1);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  flex-shrink: 0;
+}
+
+/* --- Facts grid (trip detail) --- */
+.feed__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.1rem;
+}
+.feed__facts dt {
+  color: var(--feed-dim);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.feed__facts dd {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+}
+
+/* --- Bottom sheet (create trip) --- */
+.feed__sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+}
+.feed__sheet {
+  width: min(26rem, 100%);
+  background: var(--feed-bg);
+  border-radius: 22px 22px 0 0;
+  padding: 0.75rem 1.25rem 1.5rem;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.2);
+}
+.feed__sheet-grip {
+  width: 2.5rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--feed-line);
+  margin: 0 auto 0.75rem;
+}
