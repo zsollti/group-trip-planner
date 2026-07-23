@@ -7,10 +7,12 @@ import {
 } from "@tanstack/react-query";
 import type {
   CreateOptionInput,
+  LockOptionInput,
   OptionView,
   UpdateOptionInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
+import { categoryKeys } from "./categories.js";
 
 /** Query-key factory for a category's options. */
 export const optionKeys = {
@@ -96,6 +98,69 @@ export function useDeleteOption(
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
       }),
+  });
+}
+
+/**
+ * Lock an option (Organizers) — record the group's decision (Phase 2.4, FR-24).
+ * The caller passes **both** the option's and the category's last-seen versions;
+ * the backend applies the category-aware guard (decision 2). A 409 {@link
+ * ApiError} means a concurrent locker won the race — the UI must reload and show
+ * the current state, never optimistically flip. On success it invalidates the
+ * option list **and** the category list (a single-choice lock bumps the
+ * category's version, which the next lock needs fresh).
+ */
+export function useLockOption(
+  tripId: string,
+  categoryId: string,
+): UseMutationResult<
+  OptionView,
+  ApiError,
+  { optionId: string } & LockOptionInput
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ optionId, ...body }) =>
+      apiFetch<OptionView>(
+        `${optionsPath(tripId, categoryId)}/${optionId}/lock`,
+        { method: "POST", body },
+      ),
+    // Invalidate on settle (success OR error): a rejected lock (409) must refetch
+    // so the UI shows the current state — the front-runner someone else locked.
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, categoryId),
+      });
+      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+    },
+  });
+}
+
+/**
+ * Unlock a locked option (Organizers), carrying its last-seen `version`. A 409
+ * means it changed since — reload. Refreshes the option and category lists.
+ */
+export function useUnlockOption(
+  tripId: string,
+  categoryId: string,
+): UseMutationResult<
+  OptionView,
+  ApiError,
+  { optionId: string; version: number }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ optionId, version }) =>
+      apiFetch<OptionView>(
+        `${optionsPath(tripId, categoryId)}/${optionId}/unlock`,
+        { method: "POST", body: { version } },
+      ),
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, categoryId),
+      });
+      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+    },
   });
 }
 

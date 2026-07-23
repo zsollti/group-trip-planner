@@ -12,8 +12,105 @@ import {
   useCategoryOptions,
   useDeleteOption,
   useToggleVote,
+  useLockOption,
+  useUnlockOption,
 } from "@gtp/api-client";
 import { OptionForm } from "./OptionForm";
+
+/**
+ * Board-paradigm lock control (Phase 2.4) — moving a card to "Decided".
+ * Organizers get Decide (single-choice) / Lock and Unlock; others see a
+ * read-only "Decided" tag on a locked card. Locking is confirmed (pending state,
+ * no optimistic flip); a 409 refetch reflects whichever card actually won the
+ * decision.
+ */
+function LockControl({
+  tripId,
+  category,
+  option,
+  myRole,
+}: {
+  tripId: string;
+  category: CategoryView;
+  option: OptionView;
+  myRole: TripRole;
+}) {
+  const lock = useLockOption(tripId, category.id);
+  const unlock = useUnlockOption(tripId, category.id);
+  const [error, setError] = useState<string | null>(null);
+  const pending = lock.isPending || unlock.isPending;
+  const locked = option.status === "LOCKED";
+
+  if (!can(myRole, "decision.lock")) {
+    return locked ? (
+      <p className="lane__decided">
+        ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
+      </p>
+    ) : null;
+  }
+
+  async function onLock() {
+    setError(null);
+    try {
+      await lock.mutateAsync({
+        optionId: option.id,
+        optionVersion: option.version,
+        categoryVersion: category.version,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not lock");
+    }
+  }
+  async function onUnlock() {
+    setError(null);
+    try {
+      await unlock.mutateAsync({
+        optionId: option.id,
+        version: option.version,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not unlock");
+    }
+  }
+
+  return (
+    <div className="lane__lock">
+      {locked ? (
+        <>
+          <span className="lane__decided">
+            ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending}
+            onClick={onUnlock}
+          >
+            {unlock.isPending ? "Unlocking…" : "Unlock"}
+          </Button>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="primary"
+          disabled={pending}
+          onClick={onLock}
+        >
+          {lock.isPending
+            ? "Deciding…"
+            : category.singleChoice
+              ? "Move to Decided"
+              : "Lock card"}
+        </Button>
+      )}
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** Compact money label, e.g. "€ per person" context aside. */
 function costLabel(o: OptionView): string | null {
@@ -196,6 +293,12 @@ export function CategoryLane({
                   </Button>
                 </div>
               ) : null}
+              <LockControl
+                tripId={tripId}
+                category={category}
+                option={o}
+                myRole={myRole}
+              />
             </article>
           );
         })

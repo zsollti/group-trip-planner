@@ -135,7 +135,8 @@ export type UpdateOptionInput = z.infer<typeof UpdateOptionInput>;
  * The vote fields are the **public** approval tally (FR-22): `voteCount` and the
  * `voters` list (each carrying its own `stale` flag) are visible to every member;
  * `viewerHasVoted` is the caller's own toggle state. A freshly proposed option
- * has zero votes.
+ * has zero votes. When `status` is `LOCKED`, `lockedByName`/`lockedAt` name who
+ * recorded the decision and when (Phase 2.4); both are null while proposed.
  */
 export const OptionView = z.object({
   id: z.string().uuid(),
@@ -157,6 +158,8 @@ export const OptionView = z.object({
   proposerName: z.string(),
   materialChangedAt: z.string().nullable(),
   createdAt: z.string(),
+  lockedByName: z.string().nullable(),
+  lockedAt: z.string().nullable(),
   voteCount: z.number().int().nonnegative(),
   voters: z.array(OptionVoterView),
   viewerHasVoted: z.boolean(),

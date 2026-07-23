@@ -503,6 +503,18 @@ body {
   opacity: 0.6;
   cursor: default;
 }
+.lane__lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+.lane__decided {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--board-accent);
+}
 .lane__card-actions {
   display: flex;
   gap: 0.4rem;

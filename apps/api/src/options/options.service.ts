@@ -9,7 +9,9 @@ import {
   canManageOption,
   hasMaterialChange,
   type CreateOptionInput,
+  type LockOptionInput,
   type OptionView,
+  type UnlockOptionInput,
   type UpdateOptionInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -266,7 +268,7 @@ export class OptionsService {
     return this.readOption(option.id, user.id);
   }
 
-  /** Re-read one option with its tally for the given viewer (post-vote). */
+  /** Re-read one option with its tally for the given viewer (post-vote/lock). */
   private async readOption(
     optionId: string,
     viewerId: string,
@@ -277,4 +279,199 @@ export class OptionsService {
     });
     return toOptionView(fresh, viewerId);
   }
+
+  /**
+   * **Lock an option — the atomic-locking centerpiece (FR-24, decision 2).**
+   *
+   * A lock records the group's *decision* (distinct from advisory votes). It is
+   * Organizer-only + Active-trip-only (both enforced by the caller/guard), and
+   * the write is a **compare-and-set** so a second concurrent locker is rejected
+   * with the current state rather than silently overwriting it. The guard entity
+   * is **category-aware**:
+   *
+   *  - **multi-select** → serialize on the *option's* `version` + `PROPOSED`
+   *    status (`updateMany` must affect exactly one row). Two organizers racing
+   *    to lock the same option → the second's `optionVersion` is stale → 409.
+   *  - **single-choice** → serialize on the *category's* `version` inside a
+   *    transaction that also unlocks the previously-locked sibling(s) and locks
+   *    the target. Two organizers racing to lock *different* options in the
+   *    category → the second's `categoryVersion` is stale → 409, so only one
+   *    decision can ever stand (FR-19).
+   *
+   * The whole thing — the compare-and-set, the sibling unlock, and the
+   * {@link AuditEvent} writes — runs in **one transaction**, so the audit log can
+   * never disagree with the decision and a crash can never leave two locked
+   * options in a single-choice category.
+   */
+  async lockOption(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+    input: LockOptionInput,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    const category = await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+
+    if (option.status === "LOCKED") {
+      throw new ConflictException(
+        "This option is already locked. Reload to see the current decision.",
+      );
+    }
+
+    const tripId = ctx.trip.id;
+    await this.prisma.$transaction(async (tx) => {
+      if (category.singleChoice) {
+        // Compare-and-set the CATEGORY version — the one-decision-per-category
+        // serializer. If it moved, another organizer already decided.
+        const cat = await tx.category.updateMany({
+          where: { id: category.id, version: input.categoryVersion },
+          data: { version: { increment: 1 } },
+        });
+        if (cat.count === 0) {
+          throw new ConflictException(
+            "Someone else changed this category's decision. Reload to see the current state.",
+          );
+        }
+        // Displace the previously-locked sibling(s) — audited as superseded.
+        const siblings = await tx.option.findMany({
+          where: { categoryId: category.id, status: "LOCKED", deletedAt: null },
+        });
+        if (siblings.length > 0) {
+          await tx.option.updateMany({
+            where: {
+              categoryId: category.id,
+              status: "LOCKED",
+              deletedAt: null,
+            },
+            data: {
+              status: "PROPOSED",
+              version: { increment: 1 },
+              lockedById: null,
+              lockedAt: null,
+            },
+          });
+          for (const s of siblings) {
+            await tx.auditEvent.create({
+              data: auditData(tripId, user.id, "OPTION_UNLOCKED", s.id, {
+                optionTitle: s.title,
+                superseded: true,
+              }),
+            });
+          }
+        }
+        // Lock the target — re-checked PROPOSED within the transaction.
+        const locked = await tx.option.updateMany({
+          where: {
+            id: option.id,
+            categoryId: category.id,
+            status: "PROPOSED",
+            deletedAt: null,
+          },
+          data: {
+            status: "LOCKED",
+            version: { increment: 1 },
+            lockedById: user.id,
+            lockedAt: new Date(),
+          },
+        });
+        if (locked.count === 0) {
+          throw new ConflictException(
+            "This option can no longer be locked. Reload to see the current state.",
+          );
+        }
+      } else {
+        // Multi-select: compare-and-set the OPTION version + PROPOSED status.
+        const locked = await tx.option.updateMany({
+          where: {
+            id: option.id,
+            categoryId: category.id,
+            version: input.optionVersion,
+            status: "PROPOSED",
+            deletedAt: null,
+          },
+          data: {
+            status: "LOCKED",
+            version: { increment: 1 },
+            lockedById: user.id,
+            lockedAt: new Date(),
+          },
+        });
+        if (locked.count === 0) {
+          throw new ConflictException(
+            "Someone else changed this option. Reload to see the current state.",
+          );
+        }
+      }
+      await tx.auditEvent.create({
+        data: auditData(tripId, user.id, "OPTION_LOCKED", option.id, {
+          optionTitle: option.title,
+        }),
+      });
+    });
+
+    return this.readOption(option.id, user.id);
+  }
+
+  /**
+   * Unlock a locked option (Organizers, Active trip). Frees the decision slot;
+   * no category guard is needed (there is no sibling to displace), just a
+   * compare-and-set on the option's `version` + `LOCKED` status so a stale unlock
+   * is a 409. The unlock and its audit row commit together. Phase 2.5 hooks the
+   * Dates-category date write-back onto lock/unlock; here it is category-agnostic.
+   */
+  async unlockOption(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+    input: UnlockOptionInput,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+    const tripId = ctx.trip.id;
+
+    await this.prisma.$transaction(async (tx) => {
+      const res = await tx.option.updateMany({
+        where: {
+          id: option.id,
+          categoryId,
+          version: input.version,
+          status: "LOCKED",
+          deletedAt: null,
+        },
+        data: {
+          status: "PROPOSED",
+          version: { increment: 1 },
+          lockedById: null,
+          lockedAt: null,
+        },
+      });
+      if (res.count === 0) {
+        throw new ConflictException(
+          "This option isn't locked as you last saw it. Reload to see the current state.",
+        );
+      }
+      await tx.auditEvent.create({
+        data: auditData(tripId, user.id, "OPTION_UNLOCKED", option.id, {
+          optionTitle: option.title,
+        }),
+      });
+    });
+
+    return this.readOption(option.id, user.id);
+  }
+}
+
+/** Build an {@link AuditEvent} row for a lock/unlock (written inside the txn). */
+function auditData(
+  tripId: string,
+  actorId: string,
+  action: "OPTION_LOCKED" | "OPTION_UNLOCKED",
+  targetId: string,
+  metadata: Prisma.InputJsonValue,
+): Prisma.AuditEventUncheckedCreateInput {
+  return { tripId, actorId, action, targetType: "OPTION", targetId, metadata };
 }

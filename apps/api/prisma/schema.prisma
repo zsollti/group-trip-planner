@@ -33,7 +33,9 @@ model User {
   blocks                  TripBlock[]              @relation("BlockedUser")
   blocksIssued            TripBlock[]              @relation("BlockIssuer")
   proposedOptions         Option[]                 @relation("OptionProposer")
+  lockedOptions           Option[]                 @relation("OptionLocker")
   votes                   Vote[]
+  auditEvents             AuditEvent[]             @relation("AuditActor")
 
   @@map("users")
 }
@@ -113,6 +115,7 @@ model Trip {
   invites     InviteLink[]
   blocks      TripBlock[]
   categories  Category[]
+  auditEvents AuditEvent[]
 
   @@index([ownerId])
   @@map("trips")
@@ -183,16 +186,56 @@ model Option {
   status           OptionStatus @default(PROPOSED)
   version          Int          @default(0)
   materialChangedAt DateTime?
+  // Set atomically when the option is locked (Phase 2.4, FR-24); cleared on
+  // unlock. `lockedById` is a nullable soft reference (onDelete: SetNull) so a
+  // locker's account deletion never erases the decision.
+  lockedById       String?      @db.Uuid
+  lockedAt         DateTime?
   deletedAt        DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   proposer User     @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  lockedBy User?    @relation("OptionLocker", fields: [lockedById], references: [id], onDelete: SetNull)
   votes    Vote[]
 
   @@index([categoryId])
   @@map("options")
+}
+
+/// The audited actions recorded on the trip's activity log (Phase 2.4 writes the
+/// first two; role/kick/block/date actions are added when Phase 5 surfaces the
+/// feed, FR-33). The enum is open to extension — never renumbered.
+enum AuditAction {
+  OPTION_LOCKED
+  OPTION_UNLOCKED
+}
+
+/// An immutable record of a significant trip action (SRS §6 / FR-33, Phase 2.4).
+/// Written **inside the same transaction** as the action it records, so a lock
+/// and its audit row commit or roll back together — the log can never disagree
+/// with the decision. Rows are **retained** (never deleted with their subject):
+/// `actorId` is nullable with onDelete: SetNull so an actor's account deletion
+/// keeps the history, and `targetId` is a plain id (not an FK) since the target
+/// option may be soft-deleted later. `metadata` carries a denormalized snapshot
+/// (e.g. the option title) so the Phase-5 feed can render an event without
+/// re-reading a since-changed subject. Phase 5 owns the read side.
+model AuditEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  tripId     String      @db.Uuid
+  actorId    String?     @db.Uuid
+  action     AuditAction
+  targetType String
+  targetId   String?     @db.Uuid
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  trip  Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@map("audit_events")
 }
 
 /// An approval-style, advisory vote on an option (SRS §6 / FR-22–23, Phase 2.3).
