@@ -552,6 +552,42 @@ body {
 .feed__opt-link {
   color: var(--feed-accent);
 }
+.feed__vote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+.feed__vote-btn {
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--feed-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--feed-accent);
+}
+.feed__vote-btn--on {
+  background: var(--feed-accent);
+  color: #fff;
+}
+.feed__vote-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.feed__vote-count {
+  font-size: 0.8rem;
+  color: var(--feed-accent);
+}
+.feed__vote-who {
+  font-size: 0.75rem;
+}
+.feed__vote-stale {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
 .feed__opt-actions {
   display: flex;
   gap: 0.4rem;

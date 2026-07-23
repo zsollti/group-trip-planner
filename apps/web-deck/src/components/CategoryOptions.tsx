@@ -7,7 +7,12 @@ import {
   type OptionView,
   type TripRole,
 } from "@gtp/types";
-import { ApiError, useCategoryOptions, useDeleteOption } from "@gtp/api-client";
+import {
+  ApiError,
+  useCategoryOptions,
+  useDeleteOption,
+  useToggleVote,
+} from "@gtp/api-client";
 import { OptionForm } from "./OptionForm";
 
 function costLabel(o: OptionView): string | null {
@@ -17,9 +22,84 @@ function costLabel(o: OptionView): string | null {
 }
 
 /**
+ * Deck-paradigm vote control: a toggle carrying the live approval tally, plus the
+ * public voter list with a stale marker on votes cast before the option's last
+ * material edit (FR-22/23). The toggle is shown only to voters (`vote.cast`);
+ * everyone sees the tally.
+ */
+function VoteBar({
+  tripId,
+  category,
+  option,
+  myRole,
+}: {
+  tripId: string;
+  category: string;
+  option: OptionView;
+  myRole: TripRole;
+}) {
+  const toggle = useToggleVote(tripId, category);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onToggle() {
+    setError(null);
+    try {
+      await toggle.mutateAsync({
+        optionId: option.id,
+        hasVoted: option.viewerHasVoted,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not vote");
+    }
+  }
+
+  return (
+    <div className="deck__vote">
+      {can(myRole, "vote.cast") ? (
+        <button
+          type="button"
+          className={
+            "deck__vote-btn" +
+            (option.viewerHasVoted ? " deck__vote-btn--on" : "")
+          }
+          aria-pressed={option.viewerHasVoted}
+          disabled={toggle.isPending}
+          onClick={onToggle}
+        >
+          ▲ {option.voteCount}
+        </button>
+      ) : (
+        <span className="deck__vote-count">▲ {option.voteCount}</span>
+      )}
+      {option.voters.length > 0 ? (
+        <span className="deck__vote-who deck__muted">
+          {option.voters.map((v, i) => (
+            <span
+              key={v.userId}
+              className={v.stale ? "deck__vote-stale" : undefined}
+              title={v.stale ? "Voted before a material change" : undefined}
+            >
+              {i > 0 ? ", " : ""}
+              {v.displayName}
+              {v.stale ? " ⚠" : ""}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {error ? (
+        <span className="deck__form-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * Deck-paradigm option manifest for one category: option rows with cost/proposer
- * metadata, an Add-option action (Participant+), and edit/delete on rows the
- * caller may manage (`canManageOption`, the same rule the API enforces). Locked
+ * metadata, an Add-option action (Participant+), edit/delete on rows the caller
+ * may manage (`canManageOption`, the same rule the API enforces), and an approval
+ * vote toggle with a public tally + stale-vote indicator (Phase 2.3). Locked
  * options are badged and their edit is blocked server-side.
  */
 export function CategoryOptions({
@@ -110,6 +190,12 @@ export function CategoryOptions({
                     {o.proposerName}
                     {o.materialChangedAt ? " · edited" : ""}
                   </span>
+                  <VoteBar
+                    tripId={tripId}
+                    category={category.id}
+                    option={o}
+                    myRole={myRole}
+                  />
                 </div>
                 {manageable && o.status !== "LOCKED" ? (
                   <div className="deck__opt-actions">

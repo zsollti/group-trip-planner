@@ -41,6 +41,14 @@ const option = {
   proposerName: "Ada",
   materialChangedAt: null,
   createdAt: new Date().toISOString(),
+  voteCount: 0,
+  voters: [] as {
+    userId: string;
+    displayName: string;
+    votedAt: string;
+    stale: boolean;
+  }[],
+  viewerHasVoted: false,
 };
 
 function renderPanel() {
@@ -104,5 +112,69 @@ describe("web-deck CategoryOptions (Phase 2.2)", () => {
       expect((posted as { title: string }).title).toBe("Hostel"),
     );
     expect((posted as { costType: string }).costType).toBe("PER_PERSON");
+  });
+
+  it("casts an approval vote via the toggle (POST) and shows the tally", async () => {
+    let voted = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.endsWith(`/options/opt1/votes`)) {
+          expect(init?.method).toBe("POST"); // not yet voted → cast
+          voted = true;
+          return json({
+            ...option,
+            voteCount: 1,
+            viewerHasVoted: true,
+            voters: [
+              {
+                userId: "u1",
+                displayName: "Ada",
+                votedAt: new Date().toISOString(),
+                stale: false,
+              },
+            ],
+          });
+        }
+        // The list reflects the vote once the toggle has fired.
+        return json([voted ? { ...option, voteCount: 1 } : option]);
+      }),
+    );
+
+    renderPanel();
+
+    const btn = await screen.findByRole("button", { name: /▲ 0/ });
+    fireEvent.click(btn);
+    await waitFor(() => expect(voted).toBe(true));
+  });
+
+  it("marks a stale voter (voted before a material change)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json([
+          {
+            ...option,
+            materialChangedAt: new Date().toISOString(),
+            voteCount: 1,
+            viewerHasVoted: false,
+            voters: [
+              {
+                userId: "u9",
+                displayName: "Grace",
+                votedAt: "2020-01-01T00:00:00.000Z",
+                stale: true,
+              },
+            ],
+          },
+        ]),
+      ),
+    );
+
+    renderPanel();
+
+    // The stale voter's name renders with the warning marker.
+    expect(await screen.findByText(/Grace ⚠/)).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
  */
 
 /** Version of the shared FE/BE contract. Bumped when the shared shapes change. */
-export const CONTRACT_VERSION = "0.9.0";
+export const CONTRACT_VERSION = "0.10.0";
 
 export * from "./auth.js";
 export * from "./trips.js";
@@ -17,3 +17,4 @@ export * from "./members.js";
 export * from "./account.js";
 export * from "./categories.js";
 export * from "./options.js";
+export * from "./votes.js";
