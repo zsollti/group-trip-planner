@@ -1,16 +1,23 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { RegisterInput } from "@gtp/types";
 import { ApiError, useAuth } from "@gtp/api-client";
+import { safeNextPath } from "../lib/next";
 
 // The Feed's signature: registration as a friendly one-thing-at-a-time wizard.
 const STEPS = ["displayName", "email", "password"] as const;
 
 export function Register() {
   const { register: registerAccount } = useAuth();
+  const [params] = useSearchParams();
+  // Preserve an invite target across register → log in.
+  const nextPath = safeNextPath(params.get("next"));
+  const loginHref = nextPath
+    ? `/login?next=${encodeURIComponent(nextPath)}`
+    : "/login";
   const [step, setStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -54,7 +61,7 @@ export function Register() {
             the API console — open it, then log in.
           </p>
           <p className="feed__alt">
-            <Link to="/login">Back to log in</Link>
+            <Link to={loginHref}>Back to log in</Link>
           </p>
         </main>
       </div>
@@ -145,7 +152,7 @@ export function Register() {
           </div>
         </form>
         <p className="feed__alt">
-          Already have an account? <Link to="/login">Log in</Link>
+          Already have an account? <Link to={loginHref}>Log in</Link>
         </p>
       </main>
     </div>

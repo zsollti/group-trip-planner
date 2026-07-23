@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { LoginInput } from "@gtp/types";
 import { ApiError, useAuth } from "@gtp/api-client";
+import { safeNextPath } from "../lib/next";
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Post-auth destination — e.g. an invite arrived on while logged out.
+  const next = safeNextPath(params.get("next"));
+  const registerHref = next ? `/register?next=${encodeURIComponent(next)}` : "/register";
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -20,7 +25,7 @@ export function Login() {
     setFormError(null);
     try {
       await login(data);
-      navigate("/");
+      navigate(next ?? "/");
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Something went wrong",
@@ -66,7 +71,7 @@ export function Login() {
           </Button>
         </form>
         <p className="feed__alt">
-          New here? <Link to="/register">Create an account</Link>
+          New here? <Link to={registerHref}>Create an account</Link>
         </p>
       </main>
     </div>

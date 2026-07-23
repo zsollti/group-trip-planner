@@ -29,6 +29,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   ownedTrips              Trip[]                   @relation("TripOwner")
   memberships             TripMembership[]
+  createdInvites          InviteLink[]             @relation("InviteCreator")
 
   @@map("users")
 }
@@ -76,9 +77,20 @@ model Trip {
 
   owner       User             @relation("TripOwner", fields: [ownerId], references: [id])
   memberships TripMembership[]
+  invites     InviteLink[]
 
   @@index([ownerId])
   @@map("trips")
+}
+
+/// Invite-link kind (SRS FR-13). A GLOBAL link is reusable and disableable,
+/// with at most one active link per role per trip (so at most 3/trip). A
+/// PERSONAL link is single-use — `consumedAt` is stamped on first redemption —
+/// and may optionally be emailed to an address (the link stays unbound, so a
+/// forwarded personal link can be redeemed by the wrong person: accepted risk).
+enum InviteType {
+  GLOBAL
+  PERSONAL
 }
 
 model TripMembership {
@@ -87,14 +99,48 @@ model TripMembership {
   userId   String   @db.Uuid
   role     TripRole
   joinedAt DateTime @default(now())
+  // Which invite link (if any) this member joined through. Provenance only; the
+  // link may later be disabled/deleted without touching the membership, so it is
+  // a nullable soft reference (onDelete: SetNull), not a hard FK.
+  joinedViaInviteId String? @db.Uuid
 
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip         Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedVia    InviteLink? @relation(fields: [joinedViaInviteId], references: [id], onDelete: SetNull)
 
   // One membership per user per trip; joining is idempotent (Phase 1.3).
   @@unique([tripId, userId])
   @@index([userId])
   @@map("trip_memberships")
+}
+
+/// A shareable invite link (SRS FR-13–16). The high-entropy `token` is the
+/// bearer secret carried in the join URL; it is stored in the clear (unlike
+/// hashed auth tokens) because a GLOBAL link must be re-displayable for copying,
+/// and a leaked link only grants trip-join — an accepted, disableable risk. The
+/// link carries the `role` granted on join (Guest/Participant/Co-organizer,
+/// FR-14) and never OWNER. Disabling sets `disabledAt` (existing members are
+/// retained); redeeming a PERSONAL link sets `consumedAt`.
+model InviteLink {
+  id         String     @id @default(uuid()) @db.Uuid
+  tripId     String     @db.Uuid
+  type       InviteType
+  role       TripRole
+  token      String     @unique
+  // Optional address a PERSONAL link was emailed to (informational; the link
+  // itself stays unbound — anyone holding the token can redeem it).
+  sentToEmail String?
+  createdById String    @db.Uuid
+  disabledAt  DateTime?
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  trip      Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy User             @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  joinedMemberships TripMembership[]
+
+  @@index([tripId])
+  @@map("invite_links")
 }
 
 model RefreshToken {

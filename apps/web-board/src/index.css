@@ -333,3 +333,96 @@ body {
   gap: 0.6rem;
   margin-top: 0.5rem;
 }
+
+/* --- Invite dialog --- */
+.board__dialog--tall {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.board__field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--board-fg);
+  margin-bottom: 0.35rem;
+}
+
+.board__radio-group {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.board__radio {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.7rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--board-dim);
+  cursor: pointer;
+}
+.board__radio input {
+  margin-top: 0.15rem;
+  accent-color: var(--board-accent);
+}
+.board__radio strong {
+  color: var(--board-fg);
+}
+
+.board__select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  color: var(--board-fg);
+  font: inherit;
+}
+.board__select:focus {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+
+.board__invite-list {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--lane-line);
+  padding-top: 1rem;
+}
+
+.board__invite-items {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.board__invite-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.board__invite-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.board__invite-item-actions [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}

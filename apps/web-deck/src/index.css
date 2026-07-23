@@ -390,3 +390,98 @@ body {
   color: var(--deck-fg);
   border: 1px solid var(--deck-line);
 }
+
+/* --- Invite manager --- */
+.deck__dialog[aria-label="Invite people"] {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.deck__field-label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--deck-fg);
+  margin-bottom: 0.35rem;
+}
+
+.deck__radio-group {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck__radio {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.65rem;
+  border: 1px solid var(--deck-line);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--deck-dim);
+  cursor: pointer;
+}
+.deck__radio input {
+  margin-top: 0.15rem;
+  accent-color: var(--deck-accent);
+}
+.deck__radio strong {
+  color: var(--deck-fg);
+}
+
+.deck__select {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  background: var(--deck-bg);
+  border: 1px solid var(--deck-line);
+  color: var(--deck-fg);
+  font: inherit;
+}
+.deck__select:focus {
+  outline: 2px solid var(--deck-accent);
+  outline-offset: 1px;
+}
+
+.deck__invite-list {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--deck-line);
+  padding-top: 1rem;
+}
+
+.deck__invite-items {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck__invite-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--deck-line);
+  border-radius: 8px;
+}
+
+.deck__invite-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.deck__invite-item-actions [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--deck-fg);
+  border: 1px solid var(--deck-line);
+}

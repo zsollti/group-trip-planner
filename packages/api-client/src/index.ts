@@ -27,5 +27,12 @@ export {
   useUpdateTrip,
   useDeleteTrip,
 } from "./trips.js";
+export {
+  inviteKeys,
+  useTripInvites,
+  useCreateInvite,
+  useDisableInvite,
+  useJoinTrip,
+} from "./invites.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
