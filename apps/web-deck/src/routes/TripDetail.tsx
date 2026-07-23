@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
+  useAuth,
   useDeleteTrip,
   useTrip,
   useTripCategories,
@@ -12,6 +13,7 @@ import { EditTripDialog } from "../components/EditTripDialog";
 import { InviteManager } from "../components/InviteManager";
 import { MemberManager } from "../components/MemberManager";
 import { CategoryManager } from "../components/CategoryManager";
+import { CategoryOptions } from "../components/CategoryOptions";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -33,6 +35,7 @@ function fmtDate(iso: string | null): string {
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
@@ -177,19 +180,21 @@ export function TripDetail() {
               ) : categories.isError ? (
                 <p className="deck__muted">Couldn't load categories.</p>
               ) : (
-                <ul className="deck__cat-chips">
+                <div className="deck__cat-blocks">
                   {categories.data.map((cat) => (
-                    <li key={cat.id} className="deck__cat-chip">
-                      <strong>{cat.name}</strong>
-                      <span className="deck__muted">
-                        {cat.singleChoice ? "single-choice" : "multi-select"}
-                      </span>
-                    </li>
+                    <CategoryOptions
+                      key={cat.id}
+                      tripId={trip.data.id}
+                      category={cat}
+                      defaultCurrency={trip.data.defaultCurrency}
+                      myRole={trip.data.role}
+                      myUserId={user?.id}
+                    />
                   ))}
-                </ul>
+                </div>
               )}
               <p className="deck__muted">
-                Options, voting, and the cost ledger land in the next phases.
+                Voting and the cost ledger land in the next phases.
               </p>
             </section>
 

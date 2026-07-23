@@ -12,6 +12,7 @@ import { InvitesModule } from "./invites/invites.module.js";
 import { MembersModule } from "./members/members.module.js";
 import { AccountModule } from "./account/account.module.js";
 import { CategoriesModule } from "./categories/categories.module.js";
+import { OptionsModule } from "./options/options.module.js";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { CategoriesModule } from "./categories/categories.module.js";
     MembersModule,
     AccountModule,
     CategoriesModule,
+    OptionsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

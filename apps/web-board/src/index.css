@@ -427,6 +427,58 @@ body {
   font-size: 0.8rem;
 }
 
+/* Options as cards (Phase 2.2). */
+.lane__card--option {
+  border: 1px solid var(--lane-line);
+  background: var(--board-bg);
+  text-align: left;
+  margin-bottom: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.lane__card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.lane__lock {
+  color: var(--board-accent);
+}
+.lane__cost {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.lane__link {
+  color: var(--board-accent);
+  font-size: 0.8rem;
+}
+.lane__by {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--board-dim);
+}
+.lane__card-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.lane__card-actions [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+.board__form-row {
+  display: flex;
+  gap: 0.75rem;
+}
+.board__form-row > * {
+  flex: 1;
+}
+
 /* Planning categories (Phase 2.1). */
 .lane__meta {
   margin: -0.5rem 0 0.6rem;
