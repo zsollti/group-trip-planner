@@ -5,6 +5,7 @@ import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
+import { MemberDialog } from "../components/MemberDialog";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -39,6 +40,7 @@ export function TripDetail() {
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [managingMembers, setManagingMembers] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -90,39 +92,42 @@ export function TripDetail() {
             {trip.data.defaultCurrency}
           </p>
 
-          {can(trip.data.role, "trip.edit") ||
-          can(trip.data.role, "trip.delete") ||
-          can(trip.data.role, "invite.create") ? (
-            <div className="board__dialog-actions">
-              {can(trip.data.role, "invite.create") ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setInviting(true)}
-                >
-                  Invite
-                </Button>
-              ) : null}
-              {can(trip.data.role, "trip.edit") ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setEditing(true)}
-                >
-                  Edit trip
-                </Button>
-              ) : null}
-              {can(trip.data.role, "trip.delete") ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setConfirmingDelete(true)}
-                >
-                  Delete trip
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="board__dialog-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setManagingMembers(true)}
+            >
+              Members
+            </Button>
+            {can(trip.data.role, "invite.create") ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setInviting(true)}
+              >
+                Invite
+              </Button>
+            ) : null}
+            {can(trip.data.role, "trip.edit") ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditing(true)}
+              >
+                Edit trip
+              </Button>
+            ) : null}
+            {can(trip.data.role, "trip.delete") ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                Delete trip
+              </Button>
+            ) : null}
+          </div>
           {actionError ? (
             <p className="board__form-error" role="alert">
               {actionError}
@@ -147,7 +152,10 @@ export function TripDetail() {
           </div>
 
           {editing ? (
-            <EditBoardDialog trip={trip.data} onClose={() => setEditing(false)} />
+            <EditBoardDialog
+              trip={trip.data}
+              onClose={() => setEditing(false)}
+            />
           ) : null}
 
           {inviting ? (
@@ -155,6 +163,14 @@ export function TripDetail() {
               tripId={trip.data.id}
               myRole={trip.data.role}
               onClose={() => setInviting(false)}
+            />
+          ) : null}
+
+          {managingMembers ? (
+            <MemberDialog
+              tripId={trip.data.id}
+              myRole={trip.data.role}
+              onClose={() => setManagingMembers(false)}
             />
           ) : null}
 

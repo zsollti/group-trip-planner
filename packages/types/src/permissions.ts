@@ -91,5 +91,24 @@ export function can(role: TripRole, action: TripAction): boolean {
  * Owner or another Co-organizer, and no one can act on a peer.
  */
 export function canActOn(actorRole: TripRole, targetRole: TripRole): boolean {
-  return can(actorRole, "member.manage") && ROLE_RANK[actorRole] > ROLE_RANK[targetRole];
+  return (
+    can(actorRole, "member.manage") &&
+    ROLE_RANK[actorRole] > ROLE_RANK[targetRole]
+  );
+}
+
+/**
+ * May `actorRole` *assign* `newRole` to a member (Phase 1.4 role change)? The
+ * mirror of {@link canActOn} for the promotion target: an actor may only set a
+ * member to a role **strictly below its own** — so a Co-organizer can grant
+ * Guest/Participant but never mint a peer Co-organizer, and OWNER is never
+ * assignable this way (ownership moves only by explicit transfer). A complete
+ * role change is gated by *both* checks: `canActOn(actor, currentRole)` (the
+ * actor outranks who they're changing) **and** `canAssignRole(actor, newRole)`
+ * (the actor outranks the role they're granting).
+ */
+export function canAssignRole(actorRole: TripRole, newRole: TripRole): boolean {
+  return (
+    can(actorRole, "member.manage") && ROLE_RANK[actorRole] > ROLE_RANK[newRole]
+  );
 }

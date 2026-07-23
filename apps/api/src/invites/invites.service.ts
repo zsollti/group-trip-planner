@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import type { User } from "@prisma/client";
 import {
   ROLE_RANK,
+  maxTripMembers,
   resolveJoin,
   type CreateInviteInput,
   type InviteLinkView,
@@ -147,11 +148,16 @@ export class InvitesService {
    * be a member. Rules enforced, in order:
    *  - unknown token → 404; disabled or already-consumed → 410;
    *  - History trip → refused (403): frozen trips take no new members;
+   *  - a **blocked** user is refused (403): the TripBlock bar survives ejection
+   *    and no live link can let them back in (SRS FR-17);
    *  - a Co-organizer **grant** requires a verified email (the §3 promotion gate);
    *  - the role change follows {@link resolveJoin} — idempotent, upgrade-only,
-   *    never a downgrade.
+   *    never a downgrade;
+   *  - a **JOIN** (a genuinely new member) is refused once the trip is at the
+   *    policy-layer member cap (SRS FR-11) — resolved via `maxTripMembers`, never
+   *    a literal. An upgrade of an existing member is exempt (no head added).
    * A personal link is consumed on a real join/upgrade (not on an idempotent
-   * no-op). Blocked-user refusal arrives with the TripBlock table in Phase 1.4.
+   * no-op).
    */
   async join(user: User, token: string): Promise<JoinTripResult> {
     const link = await this.prisma.inviteLink.findUnique({
@@ -171,11 +177,33 @@ export class InvitesService {
       );
     }
 
+    // A hard bar survives ejection (FR-17): a blocked user cannot rejoin by any
+    // link, live or not. Checked before membership resolution.
+    const block = await this.prisma.tripBlock.findUnique({
+      where: { tripId_userId: { tripId: link.tripId, userId: user.id } },
+    });
+    if (block) {
+      throw new ForbiddenException(
+        "You've been removed from this trip and can't rejoin.",
+      );
+    }
+
     const membership = await this.prisma.tripMembership.findUnique({
       where: { tripId_userId: { tripId: link.tripId, userId: user.id } },
     });
     const currentRole = membership?.role ?? null;
     const { action, resultRole } = resolveJoin(currentRole, link.role);
+
+    // Member cap (FR-11) applies only to a genuinely new member; an upgrade adds
+    // no head. Resolved through the policy layer, never a hardcoded limit.
+    if (action === "JOIN") {
+      const memberCount = await this.prisma.tripMembership.count({
+        where: { tripId: link.tripId },
+      });
+      if (memberCount >= maxTripMembers()) {
+        throw new ForbiddenException("This trip is full.");
+      }
+    }
 
     // The verified-email promotion gate (SRS §3): only when this redemption
     // actually grants Co-organizer (a JOIN or UPGRADE to it, never a no-op).

@@ -34,5 +34,15 @@ export {
   useDisableInvite,
   useJoinTrip,
 } from "./invites.js";
+export {
+  memberKeys,
+  useTripMembers,
+  useChangeMemberRole,
+  useKickMember,
+  useBlockMember,
+  useUnblockMember,
+  useTransferOwnership,
+  useLeaveTrip,
+} from "./members.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
