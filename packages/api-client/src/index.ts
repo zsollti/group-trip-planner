@@ -44,5 +44,6 @@ export {
   useTransferOwnership,
   useLeaveTrip,
 } from "./members.js";
+export { accountKeys, useDeletionPreview } from "./account.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";

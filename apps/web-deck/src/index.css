@@ -485,3 +485,19 @@ body {
   color: var(--deck-fg);
   border: 1px solid var(--deck-line);
 }
+
+/* Account-deletion impact (Phase 1.5). */
+.deck__impact {
+  margin: 1rem 0;
+}
+.deck__impact .deck__eyebrow {
+  margin-top: 0.85rem;
+}
+.deck__impact-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--deck-line);
+}

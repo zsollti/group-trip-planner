@@ -26,6 +26,10 @@ export interface AuthContextValue {
   register: (input: RegisterInput) => Promise<RegisterResult>;
   verifyEmail: (token: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  /** GDPR account deletion (FR-6): deletes the account, then clears the session
+   * exactly like logout. Rejects (leaving the session intact) if the request
+   * fails, so the caller can surface the error. */
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -100,9 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    // Unlike logout, this must succeed before we drop the session — if it throws
+    // the account still exists, so keep the caller signed in to show the error.
+    await apiFetch("/account", { method: "DELETE", body: { confirm: true } });
+    setAccessToken(null);
+    setUser(null);
+    setStatus("unauthenticated");
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, status, login, register, verifyEmail, logout }),
-    [user, status, login, register, verifyEmail, logout],
+    () => ({
+      user,
+      status,
+      login,
+      register,
+      verifyEmail,
+      logout,
+      deleteAccount,
+    }),
+    [user, status, login, register, verifyEmail, logout, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

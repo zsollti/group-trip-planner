@@ -10,6 +10,7 @@ import { AuthModule } from "./auth/auth.module.js";
 import { TripsModule } from "./trips/trips.module.js";
 import { InvitesModule } from "./invites/invites.module.js";
 import { MembersModule } from "./members/members.module.js";
+import { AccountModule } from "./account/account.module.js";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { MembersModule } from "./members/members.module.js";
     TripsModule,
     InvitesModule,
     MembersModule,
+    AccountModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

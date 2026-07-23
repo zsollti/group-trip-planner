@@ -4,6 +4,7 @@ import { useAuth, useMyTrips } from "@gtp/api-client";
 import type { TripSummary } from "@gtp/types";
 import { CommandPalette } from "../components/CommandPalette";
 import { CreateTripDialog } from "../components/CreateTripDialog";
+import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 
 const ROLE_LABEL: Record<TripSummary["role"], string> = {
   OWNER: "Owner",
@@ -22,6 +23,7 @@ export function Dashboard() {
   const trips = useMyTrips();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -119,12 +121,19 @@ export function Dashboard() {
           onClose={() => setPaletteOpen(false)}
           actions={[
             { label: "New trip", run: () => setCreateOpen(true) },
+            {
+              label: "Delete account",
+              run: () => setDeleteAccountOpen(true),
+            },
             { label: "Log out", run: () => void logout() },
           ]}
         />
       ) : null}
       {createOpen ? (
         <CreateTripDialog onClose={() => setCreateOpen(false)} />
+      ) : null}
+      {deleteAccountOpen ? (
+        <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
       ) : null}
     </main>
   );

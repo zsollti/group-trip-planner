@@ -4,6 +4,7 @@ import { Button } from "@gtp/ui-primitives";
 import { useAuth, useMyTrips } from "@gtp/api-client";
 import type { TripSummary } from "@gtp/types";
 import { CreateTripSheet } from "../components/CreateTripSheet";
+import { DeleteAccountSheet } from "../components/DeleteAccountSheet";
 
 type Tab = "home" | "plan" | "cost" | "profile";
 
@@ -31,6 +32,7 @@ export function Dashboard() {
   const trips = useMyTrips();
   const [tab, setTab] = useState<Tab>("home");
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   const list = trips.data ?? [];
 
@@ -45,6 +47,14 @@ export function Dashboard() {
             <Button type="button" variant="secondary" onClick={() => logout()}>
               Log out
             </Button>
+            <p className="feed__eyebrow feed__danger-heading">Danger zone</p>
+            <button
+              type="button"
+              className="feed__link-btn feed__danger-link"
+              onClick={() => setDeleteAccountOpen(true)}
+            >
+              Delete account
+            </button>
           </>
         ) : tab === "home" ? (
           <>
@@ -148,6 +158,9 @@ export function Dashboard() {
 
       {createOpen ? (
         <CreateTripSheet onClose={() => setCreateOpen(false)} />
+      ) : null}
+      {deleteAccountOpen ? (
+        <DeleteAccountSheet onClose={() => setDeleteAccountOpen(false)} />
       ) : null}
     </div>
   );
