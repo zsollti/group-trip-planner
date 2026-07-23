@@ -590,7 +590,20 @@ body {
 }
 .feed__opt-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
+}
+.feed__lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.feed__decided {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--feed-accent);
 }
 .feed__opt-actions [data-gtp-button] {
   width: auto;

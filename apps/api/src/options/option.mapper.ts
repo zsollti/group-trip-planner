@@ -10,12 +10,14 @@ import {
 type VoteWithUser = Vote & { user: { displayName: string } };
 type OptionWithRelations = Option & {
   proposer: { displayName: string };
+  lockedBy: { displayName: string } | null;
   votes: VoteWithUser[];
 };
 
 /** The Prisma include that hydrates everything {@link toOptionView} needs. */
 export const optionInclude = {
   proposer: { select: { displayName: true } },
+  lockedBy: { select: { displayName: true } },
   votes: { include: { user: { select: { displayName: true } } } },
 } as const;
 
@@ -62,6 +64,8 @@ export function toOptionView(
     proposerName: o.proposer.displayName,
     materialChangedAt,
     createdAt: o.createdAt.toISOString(),
+    lockedByName: o.lockedBy?.displayName ?? null,
+    lockedAt: iso(o.lockedAt),
     voteCount: voters.length,
     voters,
     viewerHasVoted: voters.some((v) => v.userId === viewerId),

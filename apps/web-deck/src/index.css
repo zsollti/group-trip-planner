@@ -625,7 +625,20 @@ body {
 }
 .deck__opt-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
+}
+.deck__lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.deck__decided {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--deck-accent);
 }
 .deck__opt-actions [data-gtp-button] {
   width: auto;

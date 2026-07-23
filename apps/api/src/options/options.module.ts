@@ -5,17 +5,19 @@ import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { OptionsController } from "./options.controller.js";
 import { OptionsService } from "./options.service.js";
 import { VotesController } from "./votes.controller.js";
+import { LockingController } from "./locking.controller.js";
 
 /**
  * Options (Phase 2.2). Reuses the Phase-1.2 authorization spine — TripContextGuard
  * resolves the trip + caller role, PermissionGuard enforces the declared
  * capability — and layers the proposer-or-Organizer, Active-trip, locked, and
  * optimistic-concurrency rules in the service. Phase 2.3 adds the VotesController
- * (approval voting) on the same service + guard spine.
+ * (approval voting) and Phase 2.4 the LockingController (atomic locking), both on
+ * the same service + guard spine.
  */
 @Module({
   imports: [AuthModule],
-  controllers: [OptionsController, VotesController],
+  controllers: [OptionsController, VotesController, LockingController],
   providers: [OptionsService, TripContextGuard, PermissionGuard],
 })
 export class OptionsModule {}

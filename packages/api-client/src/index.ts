@@ -61,6 +61,8 @@ export {
   useEditOption,
   useDeleteOption,
   useToggleVote,
+  useLockOption,
+  useUnlockOption,
 } from "./options.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";

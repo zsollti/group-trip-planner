@@ -41,6 +41,8 @@ const option = {
   proposerName: "Ada",
   materialChangedAt: null,
   createdAt: new Date().toISOString(),
+  lockedByName: null,
+  lockedAt: null,
   voteCount: 0,
   voters: [] as {
     userId: string;
@@ -176,5 +178,51 @@ describe("web-deck CategoryOptions (Phase 2.2)", () => {
 
     // The stale voter's name renders with the warning marker.
     expect(await screen.findByText(/Grace ⚠/)).toBeInTheDocument();
+  });
+
+  it("locks an option via the organizer Decide button (POST /lock, both versions)", async () => {
+    let locked: { optionVersion: number; categoryVersion: number } | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.endsWith("/options/opt1/lock") && init?.method === "POST") {
+          locked = JSON.parse(String(init.body));
+          return json({ ...option, status: "LOCKED", lockedByName: "Cara" });
+        }
+        return json([option]);
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <CategoryOptions
+          tripId="t1"
+          category={category}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+        />
+      </QueryClientProvider>,
+    );
+
+    // Single-choice category → the lock action reads "Decide".
+    fireEvent.click(await screen.findByRole("button", { name: /decide/i }));
+    await waitFor(() => expect(locked).not.toBeNull());
+    // The client sends BOTH versions; the server picks the guard (decision 2).
+    expect(locked!.optionVersion).toBe(0);
+    expect(locked!.categoryVersion).toBe(0);
+  });
+
+  it("hides the lock control from a non-organizer (Participant)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([option])),
+    );
+    renderPanel(); // myRole = PARTICIPANT
+    await screen.findByText("Airbnb in Alfama");
+    expect(
+      screen.queryByRole("button", { name: /decide|lock/i }),
+    ).not.toBeInTheDocument();
   });
 });
