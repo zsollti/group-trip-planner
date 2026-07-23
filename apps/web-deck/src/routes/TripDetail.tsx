@@ -4,6 +4,7 @@ import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripDialog } from "../components/EditTripDialog";
+import { InviteManager } from "../components/InviteManager";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -28,6 +29,7 @@ export function TripDetail() {
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -75,8 +77,18 @@ export function TripDetail() {
             </div>
             <h1 className="deck__title">{trip.data.name}</h1>
             {can(trip.data.role, "trip.edit") ||
-            can(trip.data.role, "trip.delete") ? (
+            can(trip.data.role, "trip.delete") ||
+            can(trip.data.role, "invite.create") ? (
               <div className="deck__dialog-actions">
+                {can(trip.data.role, "invite.create") ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setInviting(true)}
+                  >
+                    Invite people
+                  </Button>
+                ) : null}
                 {can(trip.data.role, "trip.edit") ? (
                   <Button
                     type="button"
@@ -134,6 +146,14 @@ export function TripDetail() {
               <EditTripDialog
                 trip={trip.data}
                 onClose={() => setEditing(false)}
+              />
+            ) : null}
+
+            {inviting ? (
+              <InviteManager
+                tripId={trip.data.id}
+                myRole={trip.data.role}
+                onClose={() => setInviting(false)}
               />
             ) : null}
 

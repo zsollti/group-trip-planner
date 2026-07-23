@@ -4,6 +4,7 @@ import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripSheet } from "../components/EditTripSheet";
+import { InviteSheet } from "../components/InviteSheet";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -28,6 +29,7 @@ export function TripDetail() {
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -101,8 +103,18 @@ export function TripDetail() {
               </dl>
             </div>
             {can(trip.data.role, "trip.edit") ||
-            can(trip.data.role, "trip.delete") ? (
+            can(trip.data.role, "trip.delete") ||
+            can(trip.data.role, "invite.create") ? (
               <div className="feed__card">
+                {can(trip.data.role, "invite.create") ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => setInviting(true)}
+                  >
+                    Invite people
+                  </Button>
+                ) : null}
                 {can(trip.data.role, "trip.edit") ? (
                   <Button
                     type="button"
@@ -138,6 +150,14 @@ export function TripDetail() {
               <EditTripSheet
                 trip={trip.data}
                 onClose={() => setEditing(false)}
+              />
+            ) : null}
+
+            {inviting ? (
+              <InviteSheet
+                tripId={trip.data.id}
+                myRole={trip.data.role}
+                onClose={() => setInviting(false)}
               />
             ) : null}
 

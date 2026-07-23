@@ -377,3 +377,96 @@ body {
   background: var(--feed-line);
   margin: 0 auto 0.75rem;
 }
+
+/* --- Invite share-sheet --- */
+.feed__sheet--tall {
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.feed__field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--feed-fg);
+  margin-bottom: 0.35rem;
+}
+
+.feed__radio-group {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.feed__radio {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.7rem;
+  border: 1px solid var(--feed-line);
+  border-radius: 14px;
+  font-size: 0.85rem;
+  color: var(--feed-dim);
+  cursor: pointer;
+}
+.feed__radio input {
+  margin-top: 0.15rem;
+  accent-color: var(--feed-accent);
+}
+.feed__radio strong {
+  color: var(--feed-fg);
+}
+
+.feed__select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  background: var(--feed-card);
+  border: 1px solid var(--feed-line);
+  color: var(--feed-fg);
+  font: inherit;
+}
+.feed__select:focus {
+  outline: 2px solid var(--feed-accent);
+  outline-offset: 1px;
+}
+
+.feed__invite-list {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--feed-line);
+  padding-top: 1rem;
+}
+
+.feed__invite-items {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.feed__invite-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--feed-line);
+  border-radius: 14px;
+  font-size: 0.85rem;
+}
+
+.feed__invite-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.feed__invite-item-actions [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+}

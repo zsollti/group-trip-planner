@@ -38,6 +38,32 @@ export class EmailService {
   }
 
   /**
+   * Sent when a personal invite link is created with a target address (SRS
+   * FR-13). The link stays unbound — the recipient is not verified against the
+   * address — so this is a convenience delivery, not an access control.
+   */
+  async sendInviteEmail(
+    to: string,
+    rawToken: string,
+    tripName: string,
+  ): Promise<void> {
+    const link = `${this.env.WEB_APP_URL}/join/${encodeURIComponent(rawToken)}`;
+    const subject = `You're invited to "${tripName}"`;
+    const html = `<p>You've been invited to join "${tripName}" on Group Trip Planner.</p><p><a href="${link}">Open the invite</a></p>`;
+
+    if (this.resend) {
+      await this.resend.emails.send({
+        from: this.env.EMAIL_FROM,
+        to,
+        subject,
+        html,
+      });
+    } else {
+      this.logger.log(`[DEV EMAIL] invite link for ${to}: ${link}`);
+    }
+  }
+
+  /**
    * Sent to an address that tried to register but already has an account, so the
    * registration response can stay identical for new vs existing emails (no
    * enumeration) while still being helpful to the real owner.

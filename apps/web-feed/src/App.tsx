@@ -5,6 +5,7 @@ import { Register } from "./routes/Register";
 import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
 import { TripDetail } from "./routes/TripDetail";
+import { Join } from "./routes/Join";
 
 /**
  * UI B — Trip Feed. Routes only; providers live in main.tsx so tests can mount
@@ -30,6 +31,8 @@ export function App() {
         }
       />
       <Route path="/verify" element={<Verify />} />
+      {/* Join crafts its own ?next= redirect when logged out. */}
+      <Route path="/join/:token" element={<Join />} />
       <Route
         path="/"
         element={

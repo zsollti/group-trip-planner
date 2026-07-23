@@ -5,6 +5,7 @@ import { Register } from "./routes/Register";
 import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
 import { TripDetail } from "./routes/TripDetail";
+import { Join } from "./routes/Join";
 
 /**
  * UI A — Command Deck. Routes only; providers (query, auth, router) live in
@@ -30,6 +31,9 @@ export function App() {
         }
       />
       <Route path="/verify" element={<Verify />} />
+      {/* Join handles its own auth (crafting the ?next= redirect), so it is not
+          wrapped in RequireAuth. */}
+      <Route path="/join/:token" element={<Join />} />
       <Route
         path="/"
         element={
