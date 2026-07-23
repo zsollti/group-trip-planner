@@ -1,6 +1,9 @@
-import { Link, useParams } from "react-router-dom";
-import { useTrip } from "@gtp/api-client";
-import type { TripDetail as TripDetailData } from "@gtp/types";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
+import { can, type TripDetail as TripDetailData } from "@gtp/types";
+import { Button } from "@gtp/ui-primitives";
+import { EditTripSheet } from "../components/EditTripSheet";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -16,11 +19,29 @@ function fmtDate(iso: string | null): string {
 
 /**
  * Trip screen shell (Phase 1.1). Planning surfaces arrive in later phases; for
- * now it shows the trip's identity + the caller's role.
+ * now it shows the trip's identity + the caller's role, plus role-gated
+ * edit/delete controls (Phase 1.2) driven by the shared `can`.
  */
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const trip = useTrip(id);
+  const deleteTrip = useDeleteTrip(id ?? "");
+  const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function onDelete() {
+    setActionError(null);
+    try {
+      await deleteTrip.mutateAsync();
+      navigate("/");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Could not delete the trip",
+      );
+    }
+  }
 
   return (
     <div className="feed">
@@ -79,10 +100,87 @@ export function TripDetail() {
                 </div>
               </dl>
             </div>
+            {can(trip.data.role, "trip.edit") ||
+            can(trip.data.role, "trip.delete") ? (
+              <div className="feed__card">
+                {can(trip.data.role, "trip.edit") ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setEditing(true)}
+                  >
+                    Edit trip
+                  </Button>
+                ) : null}
+                {can(trip.data.role, "trip.delete") ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    Delete trip
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+            {actionError ? (
+              <p className="feed__form-error" role="alert">
+                {actionError}
+              </p>
+            ) : null}
+
             <p className="feed__muted">
               Categories, options, voting and the cost view land in the next
               phases.
             </p>
+
+            {editing ? (
+              <EditTripSheet
+                trip={trip.data}
+                onClose={() => setEditing(false)}
+              />
+            ) : null}
+
+            {confirmingDelete ? (
+              <div
+                className="feed__sheet-backdrop"
+                role="presentation"
+                onClick={() => setConfirmingDelete(false)}
+              >
+                <div
+                  className="feed__sheet"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Delete trip"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="feed__sheet-grip" aria-hidden="true" />
+                  <p className="feed__eyebrow">Delete trip</p>
+                  <h2 className="feed__title">Delete “{trip.data.name}”?</h2>
+                  <p className="feed__muted">
+                    This permanently removes the trip for everyone. This can't be
+                    undone.
+                  </p>
+                  <div className="feed__wizard-nav">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      disabled={deleteTrip.isPending}
+                      onClick={onDelete}
+                    >
+                      {deleteTrip.isPending ? "Deleting…" : "Delete trip"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
       </main>

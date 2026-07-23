@@ -49,6 +49,22 @@ export const CreateTripInput = z.object({
 export type CreateTripInput = z.infer<typeof CreateTripInput>;
 
 /**
+ * Trip-details edit (Phase 1.2). Same editable fields as create, plus the
+ * `version` the client last saw — the backend rejects the write with a 409 if
+ * the trip has changed since (SRS §6 optimistic concurrency, the "changed since
+ * you opened it — reload" path). This is a full-object replace: an omitted
+ * optional field clears it.
+ */
+export const UpdateTripInput = z.object({
+  name: tripNameSchema,
+  description: optionalText(2000),
+  destination: optionalText(120),
+  defaultCurrency: currencySchema,
+  version: z.number().int().nonnegative(),
+});
+export type UpdateTripInput = z.infer<typeof UpdateTripInput>;
+
+/**
  * A trip as it appears in the caller's trip list. `role` is the caller's own
  * role in that trip; `memberCount` is the current membership size.
  */

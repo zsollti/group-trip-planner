@@ -1,15 +1,28 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import {
   CreateTripInput,
   type TripDetail,
   type TripPreview,
   type TripSummary,
+  UpdateTripInput,
 } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
+import { PermissionGuard } from "../authz/permission.guard.js";
+import { RequirePermission } from "../authz/require-permission.decorator.js";
 import { TripsService } from "./trips.service.js";
 import { TripContextGuard } from "./trip-context.guard.js";
 import { TripCtx } from "./trip-context.decorator.js";
@@ -50,5 +63,29 @@ export class TripsController {
   @UseGuards(JwtAuthGuard, TripContextGuard)
   getTrip(@TripCtx() ctx: TripContext): TripDetail {
     return this.trips.getTripDetail(ctx);
+  }
+
+  /**
+   * Edit trip details (Owner/Co-organizer). The guard chain resolves the trip +
+   * caller's role (404 for non-members) then enforces `trip.edit`; the service
+   * applies the optimistic-concurrency check on `version` (409 on conflict).
+   */
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.edit")
+  updateTrip(
+    @TripCtx() ctx: TripContext,
+    @Body(new ZodValidationPipe(UpdateTripInput)) body: UpdateTripInput,
+  ): Promise<TripDetail> {
+    return this.trips.updateTrip(ctx, body);
+  }
+
+  /** Delete a trip (Owner only) — hard cascade. Replies 204. */
+  @Delete(":id")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.delete")
+  deleteTrip(@TripCtx() ctx: TripContext): Promise<void> {
+    return this.trips.deleteTrip(ctx);
   }
 }

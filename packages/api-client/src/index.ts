@@ -24,6 +24,8 @@ export {
   useTrip,
   useTripPreview,
   useCreateTrip,
+  useUpdateTrip,
+  useDeleteTrip,
 } from "./trips.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";

@@ -1,17 +1,20 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
+import { PermissionGuard } from "../authz/permission.guard.js";
 import { TripsController } from "./trips.controller.js";
 import { TripsService } from "./trips.service.js";
 import { TripContextGuard } from "./trip-context.guard.js";
 
 /**
- * Trips & membership (Phase 1.1). PrismaModule is global; the JWT auth +
- * verified-email guards come from AuthModule's exports. TripContextGuard is
- * provided here so it can be applied per-route via @UseGuards.
+ * Trips & membership (Phase 1.1–1.2). PrismaModule is global; the JWT auth +
+ * verified-email guards come from AuthModule's exports. TripContextGuard and
+ * the PermissionGuard (Phase 1.2 authorization) are provided here so they can
+ * be applied per-route via @UseGuards. The Reflector the PermissionGuard needs
+ * is supplied by Nest core.
  */
 @Module({
   imports: [AuthModule],
   controllers: [TripsController],
-  providers: [TripsService, TripContextGuard],
+  providers: [TripsService, TripContextGuard, PermissionGuard],
 })
 export class TripsModule {}
