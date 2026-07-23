@@ -28,6 +28,11 @@ export function setApiBaseUrl(url: string): void {
   baseUrl = url.replace(/\/+$/, "");
 }
 
+/** The API base URL, e.g. to build a full-page OAuth redirect link. */
+export function getApiBaseUrl(): string {
+  return baseUrl;
+}
+
 // Access token lives in memory only — never localStorage (XSS-safe). The
 // refresh token is the httpOnly cookie the browser sends automatically.
 let accessToken: string | null = null;

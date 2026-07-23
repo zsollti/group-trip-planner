@@ -25,6 +25,11 @@ import type { Env } from "../config/env.js";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { AuthService } from "./auth.service.js";
 import { JwtAuthGuard } from "./jwt-auth.guard.js";
+import {
+  GoogleAuthGuard,
+  GoogleConfiguredGuard,
+  resolveReturnOrigin,
+} from "./google-auth.guard.js";
 import { CurrentUser } from "./current-user.decorator.js";
 import { toAuthUser } from "./auth.mapper.js";
 import {
@@ -101,5 +106,36 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: User): AuthUser {
     return toAuthUser(user);
+  }
+
+  /**
+   * Begin Google sign-in (Phase 1.0). GoogleAuthGuard redirects the browser to
+   * Google's consent screen; the caller's `?redirect=` (which app to return to)
+   * rides along as OAuth `state`. 404s when Google isn't configured.
+   */
+  @Get("google")
+  @UseGuards(GoogleConfiguredGuard, GoogleAuthGuard)
+  googleStart(): void {
+    // Never reached — the guard issues the redirect to Google.
+  }
+
+  /**
+   * Google's redirect target. The guard completes the code exchange and attaches
+   * the resolved User; here we open the standard session (refresh cookie set like
+   * email/password login) and bounce back to the originating front-end, which
+   * silently refreshes to obtain its access token. The token is never placed in
+   * the URL.
+   */
+  @Get("google/callback")
+  @UseGuards(GoogleConfiguredGuard, GoogleAuthGuard)
+  async googleCallback(
+    @CurrentUser() user: User,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { refresh } = await this.auth.startSession(user);
+    setRefreshCookie(res, refresh.raw, refresh.expiresAt, this.env);
+    const origin = resolveReturnOrigin(req.query.state, this.env);
+    res.redirect(`${origin}/`);
   }
 }

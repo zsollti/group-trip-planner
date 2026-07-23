@@ -501,3 +501,22 @@ body {
   padding: 0.6rem 0.5rem;
   border-bottom: 1px solid var(--deck-line);
 }
+
+/* Auth "or" divider between password and Google sign-in (Phase 1.0). */
+.deck__auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: var(--deck-dim);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.deck__auth-divider::before,
+.deck__auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--deck-line);
+}

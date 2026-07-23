@@ -109,6 +109,57 @@ export class AuthService {
     return this.openSession(user);
   }
 
+  /**
+   * Find-or-create the User behind a verified Google profile (Phase 1.0, FR-1).
+   * Google has already proven ownership of the email, so:
+   *  - an existing account is reused (and marked `emailVerified` if it wasn't —
+   *    signing in with Google verifies the address);
+   *  - a brand-new account is created with no password (`passwordHash` null) and
+   *    `emailVerified: true` on arrival.
+   * A deleted (anonymized) account is refused. Downstream, a Google user and an
+   * email/password user are the same `User` shape (SRS §Phase-1.0 DoD).
+   *
+   * Note (accepted MVP risk): linking is by email. A pre-existing *unverified*
+   * local account for the same address is adopted here; Google's proof of
+   * ownership makes this safe for the real owner, and unverified accounts can
+   * take no high-risk action until this point anyway.
+   */
+  async validateGoogleProfile(profile: {
+    email: string;
+    displayName: string;
+  }): Promise<User> {
+    const email = profile.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+
+    if (existing) {
+      if (existing.anonymizedAt) {
+        throw new UnauthorizedException("This account has been deleted.");
+      }
+      if (!existing.emailVerified) {
+        return this.prisma.user.update({
+          where: { id: existing.id },
+          data: { emailVerified: true },
+        });
+      }
+      return existing;
+    }
+
+    const displayName =
+      profile.displayName.trim() || email.split("@")[0] || "Traveler";
+    return this.prisma.user.create({
+      data: { email, displayName, emailVerified: true },
+    });
+  }
+
+  /**
+   * Open a session for an already-authenticated user (the OAuth callback path).
+   * Shares the exact access + refresh issuance of email/password login, so a
+   * Google sign-in yields the same token pair.
+   */
+  startSession(user: User): Promise<AuthSession> {
+    return this.openSession(user);
+  }
+
   async refresh(rawToken: string): Promise<AuthSession> {
     const { user, next } = await this.tokens.rotateRefreshToken(rawToken);
     const accessToken = await this.tokens.signAccessToken(user);
