@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
+  useAuth,
   useDeleteTrip,
   useTrip,
   useTripCategories,
@@ -12,6 +13,7 @@ import { EditTripSheet } from "../components/EditTripSheet";
 import { InviteSheet } from "../components/InviteSheet";
 import { MemberSheet } from "../components/MemberSheet";
 import { CategorySheet } from "../components/CategorySheet";
+import { CategoryOptions } from "../components/CategoryOptions";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -33,6 +35,7 @@ function fmtDate(iso: string | null): string {
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
@@ -185,8 +188,21 @@ export function TripDetail() {
               )}
             </section>
 
+            {categories.data
+              ? categories.data.map((cat) => (
+                  <CategoryOptions
+                    key={cat.id}
+                    tripId={trip.data.id}
+                    category={cat}
+                    defaultCurrency={trip.data.defaultCurrency}
+                    myRole={trip.data.role}
+                    myUserId={user?.id}
+                  />
+                ))
+              : null}
+
             <p className="feed__muted">
-              Options, voting and the cost view land in the next phases.
+              Voting and the cost view land in the next phases.
             </p>
 
             {editing ? (

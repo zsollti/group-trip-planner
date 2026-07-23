@@ -54,6 +54,13 @@ export {
   useDeleteCategory,
   useReorderCategories,
 } from "./categories.js";
+export {
+  optionKeys,
+  useCategoryOptions,
+  useProposeOption,
+  useEditOption,
+  useDeleteOption,
+} from "./options.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";

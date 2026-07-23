@@ -32,6 +32,7 @@ model User {
   createdInvites          InviteLink[]             @relation("InviteCreator")
   blocks                  TripBlock[]              @relation("BlockedUser")
   blocksIssued            TripBlock[]              @relation("BlockIssuer")
+  proposedOptions         Option[]                 @relation("OptionProposer")
 
   @@map("users")
 }
@@ -51,6 +52,23 @@ enum TripRole {
 enum TripStatus {
   ACTIVE
   HISTORY
+}
+
+/// How an option's `amount` is interpreted against its headcount (SRS FR-21/26).
+/// `PER_PERSON`: amount is each traveller's share (group = amount × headcount).
+/// `TOTAL`: amount is the whole cost (per-head = amount ÷ headcount). The pure
+/// cost engine (Phase 3) interprets these; Phase 2 only stores them.
+enum CostType {
+  PER_PERSON
+  TOTAL
+}
+
+/// Lifecycle of a proposed option (SRS FR-21/24). `PROPOSED` is the default;
+/// `LOCKED` is the audited decision state reached via the atomic lock (Phase
+/// 2.4). A locked option cannot be edited — it must be unlocked first (FR-24).
+enum OptionStatus {
+  PROPOSED
+  LOCKED
 }
 
 /// Stable identity for a seeded built-in category (Phase 2.1). Categories are
@@ -124,13 +142,55 @@ model Category {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  options Option[]
 
   // A trip has at most one category per built-in key (the seed is idempotent by
   // construction); custom categories carry a null key and are unconstrained.
   @@unique([tripId, builtinKey])
   @@index([tripId])
   @@map("categories")
+}
+
+/// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are
+/// **soft-deleted** (`deletedAt`) so votes and audit history survive. The cost
+/// fields (`amount`/`currency`/`costType`/`headcount`/`headcountIsFixed`) feed the
+/// Phase-3 cost engine unchanged; `startsAt`/`endsAt` are the future timeline and
+/// `externalRef` a future booking hook. `version` is the optimistic-concurrency
+/// token used both for edits ("reload") and the Phase-2.4 atomic lock
+/// (compare-and-set). `materialChangedAt` is stamped when a **cost- or
+/// date-affecting** field changes, which flags prior votes stale without
+/// deleting them (FR-23, decision 3); it is null until the first material edit.
+model Option {
+  id               String       @id @default(uuid()) @db.Uuid
+  categoryId       String       @db.Uuid
+  proposerId       String       @db.Uuid
+  title            String
+  description      String?
+  url              String?
+  // Money is stored as an exact decimal (no float drift); null = unpriced.
+  amount           Decimal?     @db.Decimal(12, 2)
+  currency         String
+  costType         CostType     @default(PER_PERSON)
+  // Only meaningful when `headcountIsFixed`; otherwise the trip's live member
+  // count is used (resolved by the Phase-3 engine, never stored here).
+  headcount        Int?
+  headcountIsFixed Boolean      @default(false)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  externalRef      String?
+  status           OptionStatus @default(PROPOSED)
+  version          Int          @default(0)
+  materialChangedAt DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  proposer User     @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@map("options")
 }
 
 /// Invite-link kind (SRS FR-13). A GLOBAL link is reusable and disableable,

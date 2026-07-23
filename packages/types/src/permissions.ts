@@ -112,3 +112,21 @@ export function canAssignRole(actorRole: TripRole, newRole: TripRole): boolean {
     can(actorRole, "member.manage") && ROLE_RANK[actorRole] > ROLE_RANK[newRole]
   );
 }
+
+/**
+ * May `actorRole` edit or soft-delete an option (Phase 2.2)? The target-scoped
+ * "own option / any option" rule (SRS §3): the **proposer** may manage their own
+ * option as long as they still hold the propose capability (a demoted Guest
+ * cannot), and an **Organizer** (Owner/Co-organizer) may manage *any* option.
+ * The coarse `option.propose` capability is checked by the route guard; this
+ * layers the ownership nuance on top, the same way {@link canActOn} does for
+ * member management. Locked-option and Active-trip rules are separate concerns
+ * enforced by the caller.
+ */
+export function canManageOption(
+  actorRole: TripRole,
+  isProposer: boolean,
+): boolean {
+  if (isProposer && can(actorRole, "option.propose")) return true;
+  return ROLE_RANK[actorRole] >= ROLE_RANK.CO_ORGANIZER;
+}

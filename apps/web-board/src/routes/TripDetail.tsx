@@ -8,10 +8,12 @@ import {
 } from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
+import { useAuth } from "@gtp/api-client";
 import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
 import { CategoryManager } from "../components/CategoryManager";
+import { CategoryLane } from "../components/CategoryLane";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -32,6 +34,7 @@ function fmtDate(iso: string | null): string {
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
@@ -148,15 +151,14 @@ export function TripDetail() {
           ) : (
             <div className="board__canvas" aria-label="Category lanes">
               {categories.data.map((cat) => (
-                <section key={cat.id} className="lane">
-                  <h2 className="lane__title">{cat.name}</h2>
-                  <p className="lane__meta">
-                    {cat.singleChoice ? "single-choice" : "multi-select"}
-                  </p>
-                  <div className="lane__card lane__card--ghost">
-                    Cards arrive in Phase 2
-                  </div>
-                </section>
+                <CategoryLane
+                  key={cat.id}
+                  tripId={trip.data.id}
+                  category={cat}
+                  defaultCurrency={trip.data.defaultCurrency}
+                  myRole={trip.data.role}
+                  myUserId={user?.id}
+                />
               ))}
               <section className="lane lane--decided">
                 <h2 className="lane__title">✦ Decided</h2>
