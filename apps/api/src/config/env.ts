@@ -55,6 +55,14 @@ export const envSchema = z.object({
         .filter(Boolean),
     ),
 
+  // --- Google OAuth (Phase 1.0). All three must be set to enable the Google
+  //     sign-in routes; otherwise GET /auth/google 404s and the flow is off. ---
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // The exact redirect URI registered in the Google Cloud OAuth client, e.g.
+  // http://localhost:3000/auth/google/callback (must match byte-for-byte).
+  GOOGLE_CALLBACK_URL: z.string().url().optional(),
+
   // --- Email (Resend in staging/prod; dev logs the link) ---
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Group Trip Planner <onboarding@resend.dev>"),
@@ -67,6 +75,21 @@ export const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** Google sign-in is enabled only when the full OAuth client is configured. */
+export function isGoogleOAuthEnabled(
+  env: Env,
+): env is Env & {
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_CALLBACK_URL: string;
+} {
+  return Boolean(
+    env.GOOGLE_CLIENT_ID &&
+      env.GOOGLE_CLIENT_SECRET &&
+      env.GOOGLE_CALLBACK_URL,
+  );
+}
 
 /**
  * Parse and validate the environment, throwing a single readable error that

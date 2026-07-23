@@ -11,6 +11,7 @@ export {
   ApiError,
   apiFetch,
   setApiBaseUrl,
+  getApiBaseUrl,
   setAccessToken,
   getAccessToken,
   refreshAccessToken,
@@ -45,5 +46,6 @@ export {
   useLeaveTrip,
 } from "./members.js";
 export { accountKeys, useDeletionPreview } from "./account.js";
+export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";

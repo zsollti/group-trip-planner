@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { LoginInput } from "@gtp/types";
-import { ApiError, useAuth } from "@gtp/api-client";
+import { ApiError, googleSignInUrl, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
 
 export function Login() {
@@ -70,6 +70,18 @@ export function Login() {
             {isSubmitting ? "Signing in…" : "Log in"}
           </Button>
         </form>
+        <div className="feed__auth-divider" aria-hidden="true">
+          <span>or</span>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            window.location.href = googleSignInUrl();
+          }}
+        >
+          Continue with Google
+        </Button>
         <p className="feed__alt">
           New here? <Link to={registerHref}>Create an account</Link>
         </p>
