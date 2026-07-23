@@ -250,3 +250,143 @@ body {
   padding: 0.6rem 0.75rem;
   font-size: 0.85rem;
 }
+
+/* --- Brand / back link --- */
+.deck__brand--link {
+  color: inherit;
+  text-decoration: none;
+}
+.deck__brand--link:hover {
+  color: var(--deck-accent);
+}
+
+/* --- Trip manifest (list) --- */
+.deck__manifest-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.deck__manifest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--deck-line);
+}
+
+.deck__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 0.5rem;
+  border-bottom: 1px solid var(--deck-line);
+  color: var(--deck-fg);
+  text-decoration: none;
+}
+.deck__row:hover {
+  background: var(--deck-panel);
+}
+
+.deck__row-name {
+  font-weight: 600;
+}
+.deck__row-meta {
+  color: var(--deck-dim);
+  font-size: 0.85rem;
+}
+
+.deck__badge {
+  border: 1px solid var(--deck-line);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--deck-accent);
+}
+
+/* --- CTAs --- */
+.deck__cta {
+  display: inline-block;
+  margin-top: 1rem;
+  background: var(--deck-accent);
+  color: var(--deck-ink);
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.deck__cta--sm {
+  margin-top: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.deck__link-btn {
+  background: none;
+  border: none;
+  color: var(--deck-accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* --- Facts grid on trip detail --- */
+.deck__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.deck__facts dt {
+  color: var(--deck-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.deck__facts dd {
+  margin: 0.2rem 0 0;
+  font-size: 1rem;
+}
+
+.deck__muted {
+  color: var(--deck-dim);
+  font-size: 0.85rem;
+}
+
+/* --- Create-trip dialog --- */
+.deck__dialog {
+  width: min(30rem, 92vw);
+  background: var(--deck-panel);
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.deck__dialog-title {
+  font-size: 1.35rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.deck__dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.deck__dialog-actions [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+}
+.deck__dialog-actions [data-gtp-button][data-variant="secondary"] {
+  background: transparent;
+  color: var(--deck-fg);
+  border: 1px solid var(--deck-line);
+}

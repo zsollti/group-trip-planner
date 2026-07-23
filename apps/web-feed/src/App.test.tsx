@@ -63,6 +63,7 @@ describe("web-feed auth flow", () => {
             },
           });
         }
+        if (u.endsWith("/trips")) return json([]);
         return json({ message: "not found" }, 404);
       }),
     );
@@ -78,5 +79,8 @@ describe("web-feed auth flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /log in/i }));
 
     expect(await screen.findByText(/hi, ada/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /create your first trip/i }),
+    ).toBeInTheDocument();
   });
 });

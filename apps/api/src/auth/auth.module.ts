@@ -7,6 +7,7 @@ import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { TokenService } from "./token.service.js";
 import { JwtAuthGuard } from "./jwt-auth.guard.js";
+import { VerifiedEmailGuard } from "./verified-email.guard.js";
 
 @Module({
   imports: [
@@ -26,6 +27,9 @@ import { JwtAuthGuard } from "./jwt-auth.guard.js";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, JwtAuthGuard],
+  providers: [AuthService, TokenService, JwtAuthGuard, VerifiedEmailGuard],
+  // Re-export the JWT infra + guards so other feature modules (Trips, ...) can
+  // protect their own routes with the same authentication + verification gates.
+  exports: [JwtModule, JwtAuthGuard, VerifiedEmailGuard],
 })
 export class AuthModule {}

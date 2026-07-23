@@ -7,6 +7,7 @@ import type { Env } from "./config/env.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { TripsModule } from "./trips/trips.module.js";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AuthModule } from "./auth/auth.module.js";
     PrismaModule,
     HealthModule,
     AuthModule,
+    TripsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

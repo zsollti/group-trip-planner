@@ -63,6 +63,7 @@ describe("web-board auth flow", () => {
             },
           });
         }
+        if (u.endsWith("/trips")) return json([]);
         return json({ message: "not found" }, 404);
       }),
     );
@@ -77,7 +78,10 @@ describe("web-board auth flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
+    // Landed on the boards overview with an empty-state CTA.
     expect(await screen.findByText(/welcome, ada/i)).toBeInTheDocument();
-    expect(screen.getByText(/transport/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /create your first trip/i }),
+    ).toBeInTheDocument();
   });
 });

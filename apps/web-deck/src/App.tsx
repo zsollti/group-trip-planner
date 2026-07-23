@@ -4,6 +4,7 @@ import { Login } from "./routes/Login";
 import { Register } from "./routes/Register";
 import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
+import { TripDetail } from "./routes/TripDetail";
 
 /**
  * UI A — Command Deck. Routes only; providers (query, auth, router) live in
@@ -34,6 +35,14 @@ export function App() {
         element={
           <RequireAuth>
             <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/trips/:id"
+        element={
+          <RequireAuth>
+            <TripDetail />
           </RequireAuth>
         }
       />
