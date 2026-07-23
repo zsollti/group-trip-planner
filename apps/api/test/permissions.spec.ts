@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   can,
   canActOn,
+  canAssignRole,
   type TripAction,
   type TripRole,
 } from "@gtp/types";
@@ -13,21 +14,91 @@ import {
  * is the Phase-1.2 DoD: "unit tests cover the whole permission matrix."
  */
 const EXPECTED: Record<TripAction, Record<TripRole, boolean>> = {
-  "trip.view": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: true },
-  "message.post": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: true },
-  "message.deleteOwn": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: true },
-  "message.deleteAny": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "vote.cast": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: false },
-  "option.propose": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: false },
-  "decision.lock": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "trip.edit": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "category.manage": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "invite.create": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "member.manage": { OWNER: true, CO_ORGANIZER: true, PARTICIPANT: false, GUEST: false },
-  "trip.transferOwnership": { OWNER: true, CO_ORGANIZER: false, PARTICIPANT: false, GUEST: false },
-  "trip.delete": { OWNER: true, CO_ORGANIZER: false, PARTICIPANT: false, GUEST: false },
+  "trip.view": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: true,
+  },
+  "message.post": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: true,
+  },
+  "message.deleteOwn": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: true,
+  },
+  "message.deleteAny": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "vote.cast": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: false,
+  },
+  "option.propose": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: false,
+  },
+  "decision.lock": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "trip.edit": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "category.manage": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "invite.create": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "member.manage": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "trip.transferOwnership": {
+    OWNER: true,
+    CO_ORGANIZER: false,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
+  "trip.delete": {
+    OWNER: true,
+    CO_ORGANIZER: false,
+    PARTICIPANT: false,
+    GUEST: false,
+  },
   // Owner cannot leave directly (must transfer/delete first, FR-12).
-  "trip.leave": { OWNER: false, CO_ORGANIZER: true, PARTICIPANT: true, GUEST: true },
+  "trip.leave": {
+    OWNER: false,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: true,
+  },
 };
 
 const ROLES: TripRole[] = ["OWNER", "CO_ORGANIZER", "PARTICIPANT", "GUEST"];
@@ -68,6 +139,30 @@ describe("canActOn() — the strictly-lower-role rule", () => {
     for (const target of ROLES) {
       assert.equal(canActOn("PARTICIPANT", target), false);
       assert.equal(canActOn("GUEST", target), false);
+    }
+  });
+});
+
+describe("canAssignRole() — the strictly-lower rule for role changes", () => {
+  it("Owner may assign any role below Owner, but never Owner", () => {
+    assert.ok(canAssignRole("OWNER", "CO_ORGANIZER"));
+    assert.ok(canAssignRole("OWNER", "PARTICIPANT"));
+    assert.ok(canAssignRole("OWNER", "GUEST"));
+    // OWNER is never assignable by a role change — ownership moves by transfer.
+    assert.equal(canAssignRole("OWNER", "OWNER"), false);
+  });
+
+  it("Co-organizer may assign only strictly-lower roles (no peer promotion)", () => {
+    assert.ok(canAssignRole("CO_ORGANIZER", "PARTICIPANT"));
+    assert.ok(canAssignRole("CO_ORGANIZER", "GUEST"));
+    assert.equal(canAssignRole("CO_ORGANIZER", "CO_ORGANIZER"), false);
+    assert.equal(canAssignRole("CO_ORGANIZER", "OWNER"), false);
+  });
+
+  it("Participants and Guests can never assign any role", () => {
+    for (const target of ROLES) {
+      assert.equal(canAssignRole("PARTICIPANT", target), false);
+      assert.equal(canAssignRole("GUEST", target), false);
     }
   });
 });

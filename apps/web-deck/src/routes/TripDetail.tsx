@@ -5,6 +5,7 @@ import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripDialog } from "../components/EditTripDialog";
 import { InviteManager } from "../components/InviteManager";
+import { MemberManager } from "../components/MemberManager";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -30,6 +31,7 @@ export function TripDetail() {
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [managingMembers, setManagingMembers] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -76,39 +78,48 @@ export function TripDetail() {
               <span className="deck__badge">{ROLE_LABEL[trip.data.role]}</span>
             </div>
             <h1 className="deck__title">{trip.data.name}</h1>
-            {can(trip.data.role, "trip.edit") ||
-            can(trip.data.role, "trip.delete") ||
-            can(trip.data.role, "invite.create") ? (
-              <div className="deck__dialog-actions">
-                {can(trip.data.role, "invite.create") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setInviting(true)}
-                  >
-                    Invite people
-                  </Button>
-                ) : null}
-                {can(trip.data.role, "trip.edit") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit trip
-                  </Button>
-                ) : null}
-                {can(trip.data.role, "trip.delete") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setConfirmingDelete(true)}
-                  >
-                    Delete trip
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="deck__dialog-actions">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setManagingMembers(true)}
+              >
+                Members
+              </Button>
+              {can(trip.data.role, "trip.edit") ||
+              can(trip.data.role, "trip.delete") ||
+              can(trip.data.role, "invite.create") ? (
+                <>
+                  {can(trip.data.role, "invite.create") ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setInviting(true)}
+                    >
+                      Invite people
+                    </Button>
+                  ) : null}
+                  {can(trip.data.role, "trip.edit") ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setEditing(true)}
+                    >
+                      Edit trip
+                    </Button>
+                  ) : null}
+                  {can(trip.data.role, "trip.delete") ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setConfirmingDelete(true)}
+                    >
+                      Delete trip
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
             {actionError ? (
               <p className="deck__form-error" role="alert">
                 {actionError}
@@ -157,6 +168,14 @@ export function TripDetail() {
               />
             ) : null}
 
+            {managingMembers ? (
+              <MemberManager
+                tripId={trip.data.id}
+                myRole={trip.data.role}
+                onClose={() => setManagingMembers(false)}
+              />
+            ) : null}
+
             {confirmingDelete ? (
               <div
                 className="deck__palette-backdrop"
@@ -171,7 +190,9 @@ export function TripDetail() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <p className="deck__eyebrow">Delete trip</p>
-                  <h2 className="deck__dialog-title">Delete “{trip.data.name}”?</h2>
+                  <h2 className="deck__dialog-title">
+                    Delete “{trip.data.name}”?
+                  </h2>
                   <p className="deck__muted">
                     This permanently removes the trip and its membership for
                     everyone. This can't be undone.

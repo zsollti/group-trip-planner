@@ -5,6 +5,7 @@ import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripSheet } from "../components/EditTripSheet";
 import { InviteSheet } from "../components/InviteSheet";
+import { MemberSheet } from "../components/MemberSheet";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -30,6 +31,7 @@ export function TripDetail() {
   const deleteTrip = useDeleteTrip(id ?? "");
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [managingMembers, setManagingMembers] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -102,39 +104,42 @@ export function TripDetail() {
                 </div>
               </dl>
             </div>
-            {can(trip.data.role, "trip.edit") ||
-            can(trip.data.role, "trip.delete") ||
-            can(trip.data.role, "invite.create") ? (
-              <div className="feed__card">
-                {can(trip.data.role, "invite.create") ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => setInviting(true)}
-                  >
-                    Invite people
-                  </Button>
-                ) : null}
-                {can(trip.data.role, "trip.edit") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit trip
-                  </Button>
-                ) : null}
-                {can(trip.data.role, "trip.delete") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setConfirmingDelete(true)}
-                  >
-                    Delete trip
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="feed__card">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setManagingMembers(true)}
+              >
+                Members
+              </Button>
+              {can(trip.data.role, "invite.create") ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => setInviting(true)}
+                >
+                  Invite people
+                </Button>
+              ) : null}
+              {can(trip.data.role, "trip.edit") ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit trip
+                </Button>
+              ) : null}
+              {can(trip.data.role, "trip.delete") ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete trip
+                </Button>
+              ) : null}
+            </div>
             {actionError ? (
               <p className="feed__form-error" role="alert">
                 {actionError}
@@ -161,6 +166,14 @@ export function TripDetail() {
               />
             ) : null}
 
+            {managingMembers ? (
+              <MemberSheet
+                tripId={trip.data.id}
+                myRole={trip.data.role}
+                onClose={() => setManagingMembers(false)}
+              />
+            ) : null}
+
             {confirmingDelete ? (
               <div
                 className="feed__sheet-backdrop"
@@ -178,8 +191,8 @@ export function TripDetail() {
                   <p className="feed__eyebrow">Delete trip</p>
                   <h2 className="feed__title">Delete “{trip.data.name}”?</h2>
                   <p className="feed__muted">
-                    This permanently removes the trip for everyone. This can't be
-                    undone.
+                    This permanently removes the trip for everyone. This can't
+                    be undone.
                   </p>
                   <div className="feed__wizard-nav">
                     <Button

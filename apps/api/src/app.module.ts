@@ -9,6 +9,7 @@ import { HealthModule } from "./health/health.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { TripsModule } from "./trips/trips.module.js";
 import { InvitesModule } from "./invites/invites.module.js";
+import { MembersModule } from "./members/members.module.js";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { InvitesModule } from "./invites/invites.module.js";
     AuthModule,
     TripsModule,
     InvitesModule,
+    MembersModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

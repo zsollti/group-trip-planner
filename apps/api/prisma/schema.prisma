@@ -30,6 +30,8 @@ model User {
   ownedTrips              Trip[]                   @relation("TripOwner")
   memberships             TripMembership[]
   createdInvites          InviteLink[]             @relation("InviteCreator")
+  blocks                  TripBlock[]              @relation("BlockedUser")
+  blocksIssued            TripBlock[]              @relation("BlockIssuer")
 
   @@map("users")
 }
@@ -78,6 +80,7 @@ model Trip {
   owner       User             @relation("TripOwner", fields: [ownerId], references: [id])
   memberships TripMembership[]
   invites     InviteLink[]
+  blocks      TripBlock[]
 
   @@index([ownerId])
   @@map("trips")
@@ -141,6 +144,28 @@ model InviteLink {
 
   @@index([tripId])
   @@map("invite_links")
+}
+
+/// A hard bar on a user rejoining a trip (SRS FR-17). Deliberately **independent
+/// of membership**: blocking ejects the membership row *and* writes this row, so
+/// the bar survives the ejection and no live invite link can let them back in.
+/// Reversible by an Owner/Co-organizer (unblock deletes the row). `blockedById`
+/// records who imposed it (audit/provenance).
+model TripBlock {
+  id          String   @id @default(uuid()) @db.Uuid
+  tripId      String   @db.Uuid
+  userId      String   @db.Uuid
+  blockedById String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User @relation("BlockedUser", fields: [userId], references: [id], onDelete: Cascade)
+  blockedBy User @relation("BlockIssuer", fields: [blockedById], references: [id], onDelete: Cascade)
+
+  // At most one active block per user per trip; the join path looks it up by this.
+  @@unique([tripId, userId])
+  @@index([userId])
+  @@map("trip_blocks")
 }
 
 model RefreshToken {
