@@ -7,6 +7,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
+import { TokenService } from "../src/auth/token.service.js";
 
 /**
  * Trips spine integration test (real DB). Covers the Phase-1.1 DoD:
@@ -19,6 +20,7 @@ import { PrismaService } from "../src/prisma/prisma.service.js";
 describe("Trips (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let tokens_: TokenService;
 
   // Captured verification tokens, keyed by email.
   const tokens = new Map<string, string>();
@@ -69,6 +71,7 @@ describe("Trips (e2e)", () => {
     app.use(cookieParser());
     await app.init();
     prisma = app.get(PrismaService);
+    tokens_ = app.get(TokenService);
   });
 
   after(async () => {
@@ -181,5 +184,156 @@ describe("Trips (e2e)", () => {
       "/trips/00000000-0000-4000-8000-000000000000/preview",
     );
     assert.equal(res.status, 404);
+  });
+
+  // --- Phase 1.2: authorization guard + optimistic-concurrency edit path ---
+  //
+  // These build multi-role trips, which needs many users. Rather than drive
+  // register/login (rate-limited by design — that's the auth e2e's job), we
+  // insert verified users directly and mint their access tokens: the JwtAuthGuard
+  // still loads them fresh from the DB, so the authz path under test is real.
+
+  const http = () => request(app.getHttpServer());
+
+  /** Insert a verified user directly and mint a valid access token for them. */
+  async function makeVerifiedUser(label: string) {
+    const email = `trips-authz+${label}+${suffix}@example.com`;
+    emails.push(email);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        displayName: label,
+        emailVerified: true,
+        passwordHash: "x", // never used — these users never log in
+      },
+    });
+    const accessToken = await tokens_.signAccessToken(user);
+    return { user, accessToken, email };
+  }
+
+  /** Seed a membership row directly (invites arrive in 1.3). */
+  async function addMember(
+    tripId: string,
+    userId: string,
+    role: "CO_ORGANIZER" | "PARTICIPANT" | "GUEST",
+  ) {
+    await prisma.tripMembership.create({ data: { tripId, userId, role } });
+  }
+
+  it("Owner edits trip details; version bumps and a stale edit 409s", async () => {
+    const owner = await makeVerifiedUser("editor");
+    const created = await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Editable", destination: "Nice" })
+      .expect(201);
+    assert.equal(created.body.version, 0);
+
+    const edited = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Edited", destination: "Cannes", version: 0 })
+      .expect(200);
+    assert.equal(edited.body.name, "Edited");
+    assert.equal(edited.body.destination, "Cannes");
+    assert.equal(edited.body.version, 1, "version increments on edit");
+
+    // Re-using the stale version (0) is rejected as a conflict.
+    const stale = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Too late", version: 0 });
+    assert.equal(stale.status, 409, "optimistic-concurrency conflict");
+  });
+
+  it("guard blocks a non-member editing/deleting (IDOR → 404)", async () => {
+    const owner = await makeVerifiedUser("idor-owner");
+    const stranger = await makeVerifiedUser("idor-stranger");
+    const created = await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Not Yours" })
+      .expect(201);
+
+    const patch = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${stranger.accessToken}`)
+      .send({ name: "Hijacked", version: 0 });
+    assert.equal(patch.status, 404, "existence not leaked to a non-member");
+
+    const del = await http()
+      .delete(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${stranger.accessToken}`);
+    assert.equal(del.status, 404);
+
+    // The trip is untouched.
+    const still = await http()
+      .get(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    assert.equal(still.body.name, "Not Yours");
+  });
+
+  it("a Participant member cannot edit or delete (403), a Co-organizer can edit but not delete", async () => {
+    const owner = await makeVerifiedUser("roles-owner");
+    const participant = await makeVerifiedUser("roles-participant");
+    const coorg = await makeVerifiedUser("roles-coorg");
+    const created = await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Role Gated" })
+      .expect(201);
+    await addMember(created.body.id, participant.user.id, "PARTICIPANT");
+    await addMember(created.body.id, coorg.user.id, "CO_ORGANIZER");
+
+    // Participant: member (not 404) but forbidden to edit or delete.
+    const pEdit = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${participant.accessToken}`)
+      .send({ name: "Nope", version: 0 });
+    assert.equal(pEdit.status, 403);
+    const pDel = await http()
+      .delete(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${participant.accessToken}`);
+    assert.equal(pDel.status, 403);
+
+    // Co-organizer: may edit...
+    const cEdit = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${coorg.accessToken}`)
+      .send({ name: "Co-org edit", version: 0 })
+      .expect(200);
+    assert.equal(cEdit.body.name, "Co-org edit");
+    // ...but not delete (Owner-only).
+    const cDel = await http()
+      .delete(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${coorg.accessToken}`);
+    assert.equal(cDel.status, 403);
+  });
+
+  it("Owner deletes the trip (204) and it cascades memberships", async () => {
+    const owner = await makeVerifiedUser("deleter");
+    const guest = await makeVerifiedUser("delete-guest");
+    const created = await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Doomed" })
+      .expect(201);
+    await addMember(created.body.id, guest.user.id, "GUEST");
+
+    await http()
+      .delete(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+
+    // Trip gone (owner now gets 404) and its memberships cascaded away.
+    const gone = await http()
+      .get(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`);
+    assert.equal(gone.status, 404);
+    const remaining = await prisma.tripMembership.count({
+      where: { tripId: created.body.id },
+    });
+    assert.equal(remaining, 0, "memberships cascaded on trip delete");
   });
 });

@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { User } from "@prisma/client";
 import type {
   CreateTripInput,
   TripDetail,
   TripPreview,
   TripSummary,
+  UpdateTripInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { TripContext } from "./trip-context.js";
@@ -67,6 +72,51 @@ export class TripsService {
   /** Trip detail for a member — the trip-context is already resolved + authorized. */
   getTripDetail(ctx: TripContext): TripDetail {
     return toTripDetail(ctx.trip, ctx.role);
+  }
+
+  /**
+   * Edit trip details with optimistic concurrency (SRS §6). The write is
+   * conditioned on the `version` the caller last saw: `updateMany` touches zero
+   * rows if someone else edited in the meantime, which we surface as a 409 so
+   * the front-end can prompt a reload. On success the version is bumped. The
+   * caller's permission (Owner/Co-org) is already enforced by PermissionGuard;
+   * their role comes from the resolved context, never re-queried.
+   */
+  async updateTrip(
+    ctx: TripContext,
+    input: UpdateTripInput,
+  ): Promise<TripDetail> {
+    const result = await this.prisma.trip.updateMany({
+      where: { id: ctx.trip.id, version: input.version },
+      data: {
+        name: input.name,
+        description: input.description ?? null,
+        destination: input.destination ?? null,
+        defaultCurrency: input.defaultCurrency,
+        version: { increment: 1 },
+      },
+    });
+
+    if (result.count === 0) {
+      throw new ConflictException(
+        "This trip was changed since you opened it. Reload to see the latest.",
+      );
+    }
+
+    const updated = await this.prisma.trip.findUniqueOrThrow({
+      where: { id: ctx.trip.id },
+      include: { _count: { select: { memberships: true } } },
+    });
+    return toTripDetail(updated, ctx.role);
+  }
+
+  /**
+   * Delete a trip (Owner only — enforced by PermissionGuard). The DB cascades
+   * memberships (and, in later phases, all trip content). Returns nothing; the
+   * controller replies 204.
+   */
+  async deleteTrip(ctx: TripContext): Promise<void> {
+    await this.prisma.trip.delete({ where: { id: ctx.trip.id } });
   }
 
   /**

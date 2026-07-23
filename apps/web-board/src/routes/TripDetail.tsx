@@ -1,6 +1,9 @@
-import { Link, useParams } from "react-router-dom";
-import { useTrip } from "@gtp/api-client";
-import type { TripDetail as TripDetailData } from "@gtp/types";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
+import { can, type TripDetail as TripDetailData } from "@gtp/types";
+import { Button } from "@gtp/ui-primitives";
+import { EditBoardDialog } from "../components/EditBoardDialog";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -30,7 +33,24 @@ function fmtDate(iso: string | null): string {
  */
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const trip = useTrip(id);
+  const deleteTrip = useDeleteTrip(id ?? "");
+  const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function onDelete() {
+    setActionError(null);
+    try {
+      await deleteTrip.mutateAsync();
+      navigate("/");
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Could not delete the board",
+      );
+    }
+  }
 
   return (
     <main className="board">
@@ -68,6 +88,35 @@ export function TripDetail() {
             {trip.data.defaultCurrency}
           </p>
 
+          {can(trip.data.role, "trip.edit") ||
+          can(trip.data.role, "trip.delete") ? (
+            <div className="board__dialog-actions">
+              {can(trip.data.role, "trip.edit") ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit trip
+                </Button>
+              ) : null}
+              {can(trip.data.role, "trip.delete") ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete trip
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {actionError ? (
+            <p className="board__form-error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+
           <div className="board__canvas" aria-label="Category lanes (preview)">
             {PREVIEW_LANES.map((lane) => (
               <section key={lane} className="lane">
@@ -84,6 +133,50 @@ export function TripDetail() {
               </div>
             </section>
           </div>
+
+          {editing ? (
+            <EditBoardDialog trip={trip.data} onClose={() => setEditing(false)} />
+          ) : null}
+
+          {confirmingDelete ? (
+            <div
+              className="board__backdrop"
+              role="presentation"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              <div
+                className="board__dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Delete board"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="board__eyebrow">Delete board</p>
+                <h2 className="board__title">Delete “{trip.data.name}”?</h2>
+                <p className="board__muted">
+                  This permanently removes the board and its membership for
+                  everyone. This can't be undone.
+                </p>
+                <div className="board__dialog-actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={deleteTrip.isPending}
+                    onClick={onDelete}
+                  >
+                    {deleteTrip.isPending ? "Deleting…" : "Delete board"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       )}
     </main>

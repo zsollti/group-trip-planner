@@ -10,6 +10,7 @@ import type {
   TripDetail,
   TripPreview,
   TripSummary,
+  UpdateTripInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 
@@ -64,6 +65,39 @@ export function useCreateTrip(): UseMutationResult<
     onSuccess: (trip) => {
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
       qc.setQueryData(tripKeys.detail(trip.id), trip);
+    },
+  });
+}
+
+/**
+ * Edit a trip's details (Owner/Co-organizer). The caller passes the `version`
+ * they last saw; a 409 {@link ApiError} means it changed underneath them and
+ * the UI should prompt a reload. On success the cached detail + list refresh.
+ */
+export function useUpdateTrip(
+  id: string,
+): UseMutationResult<TripDetail, ApiError, UpdateTripInput> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateTripInput) =>
+      apiFetch<TripDetail>(`/trips/${id}`, { method: "PATCH", body: input }),
+    onSuccess: (trip) => {
+      qc.setQueryData(tripKeys.detail(id), trip);
+      void qc.invalidateQueries({ queryKey: tripKeys.list() });
+    },
+  });
+}
+
+/** Delete a trip (Owner only). Clears its cached detail and refreshes the list. */
+export function useDeleteTrip(
+  id: string,
+): UseMutationResult<void, ApiError, void> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<void>(`/trips/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: tripKeys.detail(id) });
+      void qc.invalidateQueries({ queryKey: tripKeys.list() });
     },
   });
 }
