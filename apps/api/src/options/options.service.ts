@@ -14,7 +14,11 @@ import {
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { TripContext } from "../trips/trip-context.js";
-import { toMaterialSnapshot, toOptionView } from "./option.mapper.js";
+import {
+  optionInclude,
+  toMaterialSnapshot,
+  toOptionView,
+} from "./option.mapper.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -65,18 +69,23 @@ export class OptionsService {
     return option;
   }
 
-  /** Live options in a category (newest last), any member (`trip.view`). */
+  /**
+   * Live options in a category (newest last), any member (`trip.view`). Each
+   * option carries its **public** approval tally + voter list (FR-22); the
+   * viewer's own vote state (`viewerHasVoted`) is resolved against `viewerId`.
+   */
   async listOptions(
     ctx: TripContext,
+    viewerId: string,
     categoryId: string,
   ): Promise<OptionView[]> {
     await this.requireCategory(ctx, categoryId);
     const options = await this.prisma.option.findMany({
       where: { categoryId, deletedAt: null },
-      include: { proposer: { select: { displayName: true } } },
+      include: optionInclude,
       orderBy: { createdAt: "asc" },
     });
-    return options.map(toOptionView);
+    return options.map((o) => toOptionView(o, viewerId));
   }
 
   /** Build the Prisma write payload for the option body (create/edit share it). */
@@ -117,9 +126,9 @@ export class OptionsService {
         categoryId,
         proposerId: user.id,
       },
-      include: { proposer: { select: { displayName: true } } },
+      include: optionInclude,
     });
-    return toOptionView(created);
+    return toOptionView(created, user.id);
   }
 
   /**
@@ -181,9 +190,9 @@ export class OptionsService {
 
     const updated = await this.prisma.option.findUniqueOrThrow({
       where: { id: option.id },
-      include: { proposer: { select: { displayName: true } } },
+      include: optionInclude,
     });
-    return toOptionView(updated);
+    return toOptionView(updated, user.id);
   }
 
   /**
@@ -209,5 +218,63 @@ export class OptionsService {
       where: { id: option.id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Cast an approval vote (Phase 2.3, FR-22). The route guard already restricted
+   * this to `vote.cast` (Participant+, not Guest/Visitor). Idempotent: a repeat
+   * vote is a no-op via the `[optionId, userId]` unique constraint. Voting is
+   * advisory — it is allowed on a locked option (it never changes the decision)
+   * but frozen on a History trip. Returns the option with its refreshed public
+   * tally.
+   */
+  async castVote(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+
+    await this.prisma.vote.upsert({
+      where: { optionId_userId: { optionId: option.id, userId: user.id } },
+      create: { optionId: option.id, userId: user.id },
+      update: {},
+    });
+    return this.readOption(option.id, user.id);
+  }
+
+  /**
+   * Retract a vote (Phase 2.3). Idempotent: unvoting when no vote exists is a
+   * no-op. Active-trip gated. Returns the option with its refreshed public tally.
+   */
+  async removeVote(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+
+    await this.prisma.vote.deleteMany({
+      where: { optionId: option.id, userId: user.id },
+    });
+    return this.readOption(option.id, user.id);
+  }
+
+  /** Re-read one option with its tally for the given viewer (post-vote). */
+  private async readOption(
+    optionId: string,
+    viewerId: string,
+  ): Promise<OptionView> {
+    const fresh = await this.prisma.option.findUniqueOrThrow({
+      where: { id: optionId },
+      include: optionInclude,
+    });
+    return toOptionView(fresh, viewerId);
   }
 }

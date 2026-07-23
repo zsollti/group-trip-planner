@@ -1,17 +1,47 @@
-import type { Option } from "@prisma/client";
-import type {
-  CostType,
-  OptionMaterialSnapshot,
-  OptionStatus,
-  OptionView,
+import type { Option, Vote } from "@prisma/client";
+import {
+  isVoteStale,
+  type CostType,
+  type OptionMaterialSnapshot,
+  type OptionStatus,
+  type OptionView,
 } from "@gtp/types";
 
-type OptionWithProposer = Option & { proposer: { displayName: string } };
+type VoteWithUser = Vote & { user: { displayName: string } };
+type OptionWithRelations = Option & {
+  proposer: { displayName: string };
+  votes: VoteWithUser[];
+};
+
+/** The Prisma include that hydrates everything {@link toOptionView} needs. */
+export const optionInclude = {
+  proposer: { select: { displayName: true } },
+  votes: { include: { user: { select: { displayName: true } } } },
+} as const;
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
-/** A stored option row → the shared view (Decimal amount normalised to number). */
-export function toOptionView(o: OptionWithProposer): OptionView {
+/**
+ * A stored option row (with proposer + votes) → the shared view. The Decimal
+ * amount is normalised to a number, and the **public** approval tally (FR-22) is
+ * built from the vote rows: each voter carries its own `stale` flag (a vote is
+ * stale iff it predates `materialChangedAt`, FR-23), and `viewerHasVoted` is the
+ * caller's own toggle state.
+ */
+export function toOptionView(
+  o: OptionWithRelations,
+  viewerId: string,
+): OptionView {
+  const materialChangedAt = iso(o.materialChangedAt);
+  const voters = o.votes.map((v) => {
+    const votedAt = v.createdAt.toISOString();
+    return {
+      userId: v.userId,
+      displayName: v.user.displayName,
+      votedAt,
+      stale: isVoteStale(votedAt, materialChangedAt),
+    };
+  });
   return {
     id: o.id,
     categoryId: o.categoryId,
@@ -30,8 +60,11 @@ export function toOptionView(o: OptionWithProposer): OptionView {
     version: o.version,
     proposerId: o.proposerId,
     proposerName: o.proposer.displayName,
-    materialChangedAt: iso(o.materialChangedAt),
+    materialChangedAt,
     createdAt: o.createdAt.toISOString(),
+    voteCount: voters.length,
+    voters,
+    viewerHasVoted: voters.some((v) => v.userId === viewerId),
   };
 }
 

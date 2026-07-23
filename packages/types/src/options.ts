@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OptionVoterView } from "./votes.js";
 
 /**
  * Options contract (Phase 2.2, SRS §6 / FR-21–23) — the shared source of truth
@@ -130,6 +131,11 @@ export type UpdateOptionInput = z.infer<typeof UpdateOptionInput>;
  * decimal, normalised) or null when unpriced. `materialChangedAt` drives the
  * stale-vote indicator (Phase 2.3). `proposerId` lets the front-ends resolve the
  * proposer-scoped edit/delete controls via `canManageOption`.
+ *
+ * The vote fields are the **public** approval tally (FR-22): `voteCount` and the
+ * `voters` list (each carrying its own `stale` flag) are visible to every member;
+ * `viewerHasVoted` is the caller's own toggle state. A freshly proposed option
+ * has zero votes.
  */
 export const OptionView = z.object({
   id: z.string().uuid(),
@@ -151,6 +157,9 @@ export const OptionView = z.object({
   proposerName: z.string(),
   materialChangedAt: z.string().nullable(),
   createdAt: z.string(),
+  voteCount: z.number().int().nonnegative(),
+  voters: z.array(OptionVoterView),
+  viewerHasVoted: z.boolean(),
 });
 export type OptionView = z.infer<typeof OptionView>;
 

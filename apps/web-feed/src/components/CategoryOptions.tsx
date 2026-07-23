@@ -7,7 +7,12 @@ import {
   type OptionView,
   type TripRole,
 } from "@gtp/types";
-import { ApiError, useCategoryOptions, useDeleteOption } from "@gtp/api-client";
+import {
+  ApiError,
+  useCategoryOptions,
+  useDeleteOption,
+  useToggleVote,
+} from "@gtp/api-client";
 import { OptionForm } from "./OptionForm";
 
 function costLabel(o: OptionView): string | null {
@@ -17,10 +22,85 @@ function costLabel(o: OptionView): string | null {
 }
 
 /**
+ * Feed-paradigm tap-to-vote control: a heart-style toggle carrying the live
+ * approval count, plus the public voter list with a stale marker on votes cast
+ * before the option's last material edit (FR-22/23). The toggle shows only to
+ * voters (`vote.cast`); everyone sees the count.
+ */
+function VoteRow({
+  tripId,
+  category,
+  option,
+  myRole,
+}: {
+  tripId: string;
+  category: string;
+  option: OptionView;
+  myRole: TripRole;
+}) {
+  const toggle = useToggleVote(tripId, category);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onToggle() {
+    setError(null);
+    try {
+      await toggle.mutateAsync({
+        optionId: option.id,
+        hasVoted: option.viewerHasVoted,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not vote");
+    }
+  }
+
+  return (
+    <div className="feed__vote">
+      {can(myRole, "vote.cast") ? (
+        <button
+          type="button"
+          className={
+            "feed__vote-btn" +
+            (option.viewerHasVoted ? " feed__vote-btn--on" : "")
+          }
+          aria-pressed={option.viewerHasVoted}
+          disabled={toggle.isPending}
+          onClick={onToggle}
+        >
+          {option.viewerHasVoted ? "♥" : "♡"} {option.voteCount}
+        </button>
+      ) : (
+        <span className="feed__vote-count">♥ {option.voteCount}</span>
+      )}
+      {option.voters.length > 0 ? (
+        <span className="feed__vote-who feed__muted">
+          {option.voters.map((v, i) => (
+            <span
+              key={v.userId}
+              className={v.stale ? "feed__vote-stale" : undefined}
+              title={v.stale ? "Voted before a material change" : undefined}
+            >
+              {i > 0 ? ", " : ""}
+              {v.displayName}
+              {v.stale ? " ⚠" : ""}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {error ? (
+        <span className="feed__form-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * Feed-paradigm option list for one category, rendered as a card with option
  * rows. Participant+ can propose; the proposer or an Organizer gets edit/delete
- * (`canManageOption`, the same rule the API enforces). Locked options are badged
- * and their edit is blocked server-side.
+ * (`canManageOption`, the same rule the API enforces). Each row carries a
+ * tap-to-vote toggle with a public tally + stale-vote indicator (Phase 2.3).
+ * Locked options are badged and their edit is blocked server-side.
  */
 export function CategoryOptions({
   tripId,
@@ -110,6 +190,12 @@ export function CategoryOptions({
                     {o.proposerName}
                     {o.materialChangedAt ? " · edited" : ""}
                   </span>
+                  <VoteRow
+                    tripId={tripId}
+                    category={category.id}
+                    option={o}
+                    myRole={myRole}
+                  />
                 </div>
                 {manageable && o.status !== "LOCKED" ? (
                   <div className="feed__opt-actions">

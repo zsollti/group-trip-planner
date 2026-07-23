@@ -37,15 +37,16 @@ import { OptionsService } from "./options.service.js";
 export class OptionsController {
   constructor(private readonly options: OptionsService) {}
 
-  /** List a category's live options (any member). */
+  /** List a category's live options with public vote tallies (any member). */
   @Get()
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
   @RequirePermission("trip.view")
   listOptions(
     @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
     @Param("categoryId") categoryId: string,
   ): Promise<OptionView[]> {
-    return this.options.listOptions(ctx, categoryId);
+    return this.options.listOptions(ctx, user.id, categoryId);
   }
 
   /** Propose an option (Participant+). */

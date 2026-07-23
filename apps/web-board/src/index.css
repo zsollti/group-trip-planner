@@ -460,6 +460,49 @@ body {
   font-size: 0.72rem;
   color: var(--board-dim);
 }
+.lane__vote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.lane__dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+.lane__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--board-accent);
+  display: inline-block;
+}
+.lane__dot--stale {
+  background: transparent;
+  border: 1px solid var(--board-accent);
+  opacity: 0.6;
+}
+.lane__vote-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--board-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--board-accent);
+}
+.lane__vote-btn--on {
+  background: var(--board-accent);
+  color: #fff;
+}
+.lane__vote-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .lane__card-actions {
   display: flex;
   gap: 0.4rem;

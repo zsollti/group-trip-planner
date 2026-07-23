@@ -98,3 +98,32 @@ export function useDeleteOption(
       }),
   });
 }
+
+/**
+ * Toggle the caller's approval vote on an option (Phase 2.3, FR-22). Casting is
+ * a POST, retracting a DELETE; both are idempotent and return the option with
+ * its refreshed public tally. The mutation takes the option's current
+ * `viewerHasVoted` so one hook drives the toggle; on success it refreshes the
+ * category's option list so every voter's tally stays consistent.
+ */
+export function useToggleVote(
+  tripId: string,
+  categoryId: string,
+): UseMutationResult<
+  OptionView,
+  ApiError,
+  { optionId: string; hasVoted: boolean }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ optionId, hasVoted }) =>
+      apiFetch<OptionView>(
+        `${optionsPath(tripId, categoryId)}/${optionId}/votes`,
+        { method: hasVoted ? "DELETE" : "POST" },
+      ),
+    onSuccess: () =>
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, categoryId),
+      }),
+  });
+}

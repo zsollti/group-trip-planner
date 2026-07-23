@@ -60,6 +60,7 @@ export {
   useProposeOption,
   useEditOption,
   useDeleteOption,
+  useToggleVote,
 } from "./options.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";

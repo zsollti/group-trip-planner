@@ -33,6 +33,7 @@ model User {
   blocks                  TripBlock[]              @relation("BlockedUser")
   blocksIssued            TripBlock[]              @relation("BlockIssuer")
   proposedOptions         Option[]                 @relation("OptionProposer")
+  votes                   Vote[]
 
   @@map("users")
 }
@@ -188,9 +189,35 @@ model Option {
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   proposer User     @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  votes    Vote[]
 
   @@index([categoryId])
   @@map("options")
+}
+
+/// An approval-style, advisory vote on an option (SRS §6 / FR-22–23, Phase 2.3).
+/// One row per user per option — a member may vote for **many** options in a
+/// category (approval voting), and voting is **public** (the voter list is shown
+/// on option read). Votes never decide anything; only a lock (Phase 2.4) records
+/// a decision. Staleness is **not stored**: a vote is stale iff its `createdAt`
+/// predates the option's `materialChangedAt` (decision 3), computed on read — a
+/// material edit flags prior votes without deleting them (FR-23). The row is
+/// hard-deleted on unvote; it cascades when the option row is truly removed (a
+/// category hard-delete, FR-20) or the user is deleted.
+model Vote {
+  id        String   @id @default(uuid()) @db.Uuid
+  optionId  String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One vote per user per option; casting is idempotent (upsert). The index
+  // serves the per-option tally read (NFR-1, Phase-12 index audit).
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@map("votes")
 }
 
 /// Invite-link kind (SRS FR-13). A GLOBAL link is reusable and disableable,
