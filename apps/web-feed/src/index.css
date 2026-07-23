@@ -470,3 +470,17 @@ body {
   padding: 0.4rem 0.85rem;
   font-size: 0.8rem;
 }
+
+/* Account-deletion impact (Phase 1.5). */
+.feed__impact {
+  margin: 0.75rem 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.feed__danger-heading {
+  margin-top: 1.75rem;
+  color: var(--feed-danger);
+}
+.feed__danger-link {
+  color: var(--feed-danger);
+}

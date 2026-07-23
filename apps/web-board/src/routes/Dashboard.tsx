@@ -4,6 +4,7 @@ import { Button } from "@gtp/ui-primitives";
 import { useAuth, useMyTrips } from "@gtp/api-client";
 import type { TripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
+import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 
 const ROLE_LABEL: Record<TripSummary["role"], string> = {
   OWNER: "Owner",
@@ -20,6 +21,7 @@ export function Dashboard() {
   const { user, logout } = useAuth();
   const trips = useMyTrips();
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   const list = trips.data ?? [];
 
@@ -38,6 +40,13 @@ export function Dashboard() {
           <Button type="button" variant="secondary" onClick={() => logout()}>
             Log out
           </Button>
+          <button
+            type="button"
+            className="board__link-btn board__danger-link"
+            onClick={() => setDeleteAccountOpen(true)}
+          >
+            Delete account
+          </button>
         </div>
       </header>
 
@@ -94,6 +103,9 @@ export function Dashboard() {
 
       {createOpen ? (
         <CreateBoardDialog onClose={() => setCreateOpen(false)} />
+      ) : null}
+      {deleteAccountOpen ? (
+        <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
       ) : null}
     </main>
   );
