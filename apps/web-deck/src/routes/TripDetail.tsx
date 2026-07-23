@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, useDeleteTrip, useTrip } from "@gtp/api-client";
+import {
+  ApiError,
+  useDeleteTrip,
+  useTrip,
+  useTripCategories,
+} from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { EditTripDialog } from "../components/EditTripDialog";
 import { InviteManager } from "../components/InviteManager";
 import { MemberManager } from "../components/MemberManager";
+import { CategoryManager } from "../components/CategoryManager";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -32,8 +38,10 @@ export function TripDetail() {
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
+  const [managingCategories, setManagingCategories] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const categories = useTripCategories(id);
 
   async function onDelete() {
     setActionError(null);
@@ -148,10 +156,42 @@ export function TripDetail() {
                 <dd>{trip.data.defaultCurrency}</dd>
               </div>
             </dl>
-            <p className="deck__muted">
-              Planning surfaces (categories, options, voting, the cost ledger)
-              land in the next phases.
-            </p>
+            <section
+              className="deck__categories"
+              aria-label="Planning categories"
+            >
+              <div className="deck__manifest-head">
+                <p className="deck__eyebrow">Categories</p>
+                {can(trip.data.role, "category.manage") ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setManagingCategories(true)}
+                  >
+                    Manage categories
+                  </Button>
+                ) : null}
+              </div>
+              {categories.isPending ? (
+                <p className="deck__muted">Loading categories…</p>
+              ) : categories.isError ? (
+                <p className="deck__muted">Couldn't load categories.</p>
+              ) : (
+                <ul className="deck__cat-chips">
+                  {categories.data.map((cat) => (
+                    <li key={cat.id} className="deck__cat-chip">
+                      <strong>{cat.name}</strong>
+                      <span className="deck__muted">
+                        {cat.singleChoice ? "single-choice" : "multi-select"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="deck__muted">
+                Options, voting, and the cost ledger land in the next phases.
+              </p>
+            </section>
 
             {editing ? (
               <EditTripDialog
@@ -173,6 +213,13 @@ export function TripDetail() {
                 tripId={trip.data.id}
                 myRole={trip.data.role}
                 onClose={() => setManagingMembers(false)}
+              />
+            ) : null}
+
+            {managingCategories ? (
+              <CategoryManager
+                tripId={trip.data.id}
+                onClose={() => setManagingCategories(false)}
               />
             ) : null}
 

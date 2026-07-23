@@ -427,6 +427,42 @@ body {
   font-size: 0.8rem;
 }
 
+/* Planning categories (Phase 2.1). */
+.lane__meta {
+  margin: -0.5rem 0 0.6rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--board-dim);
+}
+.board__cat-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+.board__cat-edit [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+}
+.board__cat-create {
+  margin-top: 1rem;
+  border-top: 1px solid var(--lane-line);
+  padding-top: 0.85rem;
+}
+.board__checkbox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--board-dim);
+}
+.board__confirm {
+  margin-top: 0.85rem;
+}
+
 /* Account-deletion impact (Phase 1.5). */
 .board__impact {
   margin: 0.75rem 0;
