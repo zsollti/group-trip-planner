@@ -29,11 +29,13 @@ function LockControl({
   category,
   option,
   myRole,
+  frozen,
 }: {
   tripId: string;
   category: CategoryView;
   option: OptionView;
   myRole: TripRole;
+  frozen: boolean;
 }) {
   const lock = useLockOption(tripId, category.id);
   const unlock = useUnlockOption(tripId, category.id);
@@ -41,7 +43,7 @@ function LockControl({
   const pending = lock.isPending || unlock.isPending;
   const locked = option.status === "LOCKED";
 
-  if (!can(myRole, "decision.lock")) {
+  if (frozen || !can(myRole, "decision.lock")) {
     return locked ? (
       <p className="lane__decided">
         ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
@@ -130,11 +132,13 @@ function VoteDots({
   category,
   option,
   myRole,
+  frozen,
 }: {
   tripId: string;
   category: string;
   option: OptionView;
   myRole: TripRole;
+  frozen: boolean;
 }) {
   const toggle = useToggleVote(tripId, category);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +172,7 @@ function VoteDots({
           ))
         )}
       </div>
-      {can(myRole, "vote.cast") ? (
+      {can(myRole, "vote.cast") && !frozen ? (
         <button
           type="button"
           className={
@@ -203,12 +207,14 @@ export function CategoryLane({
   defaultCurrency,
   myRole,
   myUserId,
+  frozen = false,
 }: {
   tripId: string;
   category: CategoryView;
   defaultCurrency: string;
   myRole: TripRole;
   myUserId: string | undefined;
+  frozen?: boolean;
 }) {
   const options = useCategoryOptions(tripId, category.id);
   const deleteOption = useDeleteOption(tripId, category.id);
@@ -273,8 +279,9 @@ export function CategoryLane({
                 category={category.id}
                 option={o}
                 myRole={myRole}
+                frozen={frozen}
               />
-              {manageable && o.status !== "LOCKED" ? (
+              {manageable && o.status !== "LOCKED" && !frozen ? (
                 <div className="lane__card-actions">
                   <Button
                     type="button"
@@ -298,6 +305,7 @@ export function CategoryLane({
                 category={category}
                 option={o}
                 myRole={myRole}
+                frozen={frozen}
               />
             </article>
           );
@@ -310,7 +318,7 @@ export function CategoryLane({
         </p>
       ) : null}
 
-      {can(myRole, "option.propose") ? (
+      {can(myRole, "option.propose") && !frozen ? (
         <Button
           type="button"
           variant="secondary"

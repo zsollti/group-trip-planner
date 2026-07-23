@@ -118,6 +118,14 @@ body {
   font-size: 0.85rem;
   margin: 0.75rem 0 0;
 }
+.board__frozen {
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  background: color-mix(in srgb, var(--board-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--board-accent) 30%, transparent);
+}
 
 /* --- Shared form primitives, themed for the Board --- */
 .board [data-gtp-field] {

@@ -13,6 +13,7 @@ import type {
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 import { categoryKeys } from "./categories.js";
+import { tripKeys } from "./trips.js";
 
 /** Query-key factory for a category's options. */
 export const optionKeys = {
@@ -127,11 +128,14 @@ export function useLockOption(
       ),
     // Invalidate on settle (success OR error): a rejected lock (409) must refetch
     // so the UI shows the current state — the front-runner someone else locked.
+    // The trip detail is refreshed too: locking a Dates option writes the trip's
+    // dates + expiry (Phase 2.5).
     onSettled: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
       });
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     },
   });
 }
@@ -160,6 +164,7 @@ export function useUnlockOption(
         queryKey: optionKeys.list(tripId, categoryId),
       });
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     },
   });
 }

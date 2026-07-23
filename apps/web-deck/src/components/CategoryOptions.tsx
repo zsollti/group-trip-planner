@@ -29,11 +29,13 @@ function LockControl({
   category,
   option,
   myRole,
+  frozen,
 }: {
   tripId: string;
   category: CategoryView;
   option: OptionView;
   myRole: TripRole;
+  frozen: boolean;
 }) {
   const lock = useLockOption(tripId, category.id);
   const unlock = useUnlockOption(tripId, category.id);
@@ -41,7 +43,8 @@ function LockControl({
   const pending = lock.isPending || unlock.isPending;
   const locked = option.status === "LOCKED";
 
-  if (!can(myRole, "decision.lock")) {
+  // Frozen (History) or non-organizer: read-only "Decided" tag, no actions.
+  if (frozen || !can(myRole, "decision.lock")) {
     return locked ? (
       <span className="deck__muted deck__decided">
         Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
@@ -129,11 +132,13 @@ function VoteBar({
   category,
   option,
   myRole,
+  frozen,
 }: {
   tripId: string;
   category: string;
   option: OptionView;
   myRole: TripRole;
+  frozen: boolean;
 }) {
   const toggle = useToggleVote(tripId, category);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +157,7 @@ function VoteBar({
 
   return (
     <div className="deck__vote">
-      {can(myRole, "vote.cast") ? (
+      {can(myRole, "vote.cast") && !frozen ? (
         <button
           type="button"
           className={
@@ -205,12 +210,14 @@ export function CategoryOptions({
   defaultCurrency,
   myRole,
   myUserId,
+  frozen = false,
 }: {
   tripId: string;
   category: CategoryView;
   defaultCurrency: string;
   myRole: TripRole;
   myUserId: string | undefined;
+  frozen?: boolean;
 }) {
   const options = useCategoryOptions(tripId, category.id);
   const deleteOption = useDeleteOption(tripId, category.id);
@@ -236,7 +243,7 @@ export function CategoryOptions({
             {category.singleChoice ? "single-choice" : "multi-select"}
           </span>
         </div>
-        {can(myRole, "option.propose") ? (
+        {can(myRole, "option.propose") && !frozen ? (
           <Button
             type="button"
             variant="secondary"
@@ -292,10 +299,11 @@ export function CategoryOptions({
                     category={category.id}
                     option={o}
                     myRole={myRole}
+                    frozen={frozen}
                   />
                 </div>
                 <div className="deck__opt-actions">
-                  {manageable && o.status !== "LOCKED" ? (
+                  {manageable && o.status !== "LOCKED" && !frozen ? (
                     <>
                       <Button
                         type="button"
@@ -319,6 +327,7 @@ export function CategoryOptions({
                     category={category}
                     option={o}
                     myRole={myRole}
+                    frozen={frozen}
                   />
                 </div>
               </li>

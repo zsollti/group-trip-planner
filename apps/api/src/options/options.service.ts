@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -7,8 +8,13 @@ import {
 import type { Prisma, User } from "@prisma/client";
 import {
   canManageOption,
+  fallbackExpiresAt,
   hasMaterialChange,
+  isTripFrozen,
+  maxTripHorizonDays,
+  planLockedDates,
   type CreateOptionInput,
+  type LockDatesRejection,
   type LockOptionInput,
   type OptionView,
   type UnlockOptionInput,
@@ -37,10 +43,14 @@ const UUID_RE =
 export class OptionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Reject any mutation on a frozen (History) trip. Phase 2.5 also treats a
-   * trip past `expiresAt` as frozen; here only the persisted status is checked. */
+  /**
+   * Reject any planning mutation (propose/edit/delete/vote/lock) on a frozen
+   * trip (FR-10). Frozen = persisted History **or** past `expiresAt` — the
+   * defensive read-time check (decision 4), so a not-yet-run expiry job can never
+   * let a stale trip accept a write.
+   */
   private assertActive(ctx: TripContext): void {
-    if (ctx.trip.status === "HISTORY") {
+    if (isTripFrozen(ctx.trip.status, ctx.trip.expiresAt.toISOString())) {
       throw new ForbiddenException(
         "This trip has ended and can no longer be changed.",
       );
@@ -320,6 +330,11 @@ export class OptionsService {
       );
     }
 
+    // Dates write-back (FR-8/25): locking a Dates-category option settles the
+    // trip's dates. Validate + compute the new dates/expiry *before* the txn (a
+    // bad start/end is a 400, independent of the concurrency guard).
+    const dates = this.planDatesWriteBack(category.builtinKey, option);
+
     const tripId = ctx.trip.id;
     await this.prisma.$transaction(async (tx) => {
       if (category.singleChoice) {
@@ -409,6 +424,17 @@ export class OptionsService {
           optionTitle: option.title,
         }),
       });
+      // Same transaction: settle the trip's dates + expiry (Dates category only).
+      if (dates) {
+        await tx.trip.update({
+          where: { id: tripId },
+          data: {
+            startDate: dates.startDate,
+            endDate: dates.endDate,
+            expiresAt: dates.expiresAt,
+          },
+        });
+      }
     });
 
     return this.readOption(option.id, user.id);
@@ -429,7 +455,7 @@ export class OptionsService {
     input: UnlockOptionInput,
   ): Promise<OptionView> {
     this.assertActive(ctx);
-    await this.requireCategory(ctx, categoryId);
+    const category = await this.requireCategory(ctx, categoryId);
     const option = await this.requireOption(categoryId, optionId);
     const tripId = ctx.trip.id;
 
@@ -459,11 +485,57 @@ export class OptionsService {
           optionTitle: option.title,
         }),
       });
+      // Unlocking the Dates decision clears the trip's dates and reverts to the
+      // created-`+1 year` fallback expiry (FR-9/25).
+      if (category.builtinKey === "DATES") {
+        await tx.trip.update({
+          where: { id: tripId },
+          data: {
+            startDate: null,
+            endDate: null,
+            expiresAt: new Date(fallbackExpiresAt(ctx.trip.createdAt.getTime())),
+          },
+        });
+      }
     });
 
     return this.readOption(option.id, user.id);
   }
+
+  /**
+   * Validate + compute the trip's dates when a Dates-category option is locked
+   * (FR-8/25). Returns the write-back for the Dates category, or `null` for any
+   * other category (no date effect). A rejected date set is a 400.
+   */
+  private planDatesWriteBack(
+    builtinKey: string | null,
+    option: { startsAt: Date | null; endsAt: Date | null },
+  ): { startDate: Date; endDate: Date; expiresAt: Date } | null {
+    if (builtinKey !== "DATES") return null;
+    const plan = planLockedDates(
+      option.startsAt ? option.startsAt.toISOString() : null,
+      option.endsAt ? option.endsAt.toISOString() : null,
+      Date.now(),
+      maxTripHorizonDays(),
+    );
+    if (!plan.ok) {
+      throw new BadRequestException(DATE_REJECTION_MESSAGE[plan.reason]);
+    }
+    return {
+      startDate: new Date(plan.startDate),
+      endDate: new Date(plan.endDate),
+      expiresAt: new Date(plan.expiresAt),
+    };
+  }
 }
+
+/** User-facing messages for a rejected Dates lock (FR-25). */
+const DATE_REJECTION_MESSAGE: Record<LockDatesRejection, string> = {
+  NO_DATES: "Add a start and end date to this option before locking it.",
+  END_BEFORE_START: "The end date can't be before the start date.",
+  PAST: "You can't lock dates that start in the past.",
+  OVER_HORIZON: "These dates are too far in the future to lock.",
+};
 
 /** Build an {@link AuditEvent} row for a lock/unlock (written inside the txn). */
 function auditData(

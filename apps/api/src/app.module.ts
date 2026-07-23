@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { ConfigModule, ENV } from "./config/config.module.js";
@@ -13,6 +14,7 @@ import { MembersModule } from "./members/members.module.js";
 import { AccountModule } from "./account/account.module.js";
 import { CategoriesModule } from "./categories/categories.module.js";
 import { OptionsModule } from "./options/options.module.js";
+import { LifecycleModule } from "./lifecycle/lifecycle.module.js";
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { OptionsModule } from "./options/options.module.js";
         ],
       }),
     }),
+    // Cron scheduling for the trip-expiry job (Phase 2.5).
+    ScheduleModule.forRoot(),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -53,6 +57,7 @@ import { OptionsModule } from "./options/options.module.js";
     AccountModule,
     CategoriesModule,
     OptionsModule,
+    LifecycleModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

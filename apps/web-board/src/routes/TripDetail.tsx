@@ -92,6 +92,12 @@ export function TripDetail() {
             {trip.data.memberCount === 1 ? "" : "s"} ·{" "}
             {trip.data.defaultCurrency}
           </p>
+          {trip.data.status === "HISTORY" ? (
+            <p className="board__frozen" role="status">
+              This board has ended — it's now read-only. Proposing, dot-voting,
+              and locking are closed.
+            </p>
+          ) : null}
 
           <div className="board__dialog-actions">
             <Button
@@ -158,6 +164,7 @@ export function TripDetail() {
                   defaultCurrency={trip.data.defaultCurrency}
                   myRole={trip.data.role}
                   myUserId={user?.id}
+                  frozen={trip.data.status === "HISTORY"}
                 />
               ))}
               <section className="lane lane--decided">
