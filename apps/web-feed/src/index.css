@@ -660,13 +660,14 @@ body {
   background: var(--feed-line);
 }
 
-/* Cost tab + summary card (Phase 3.3). */
-.feed__tabs {
+/* Cost tab + summary card (Phase 3.3). The in-page Plan/Cost switch uses its
+   own `viewtab` classes so it never collides with the bottom-nav `.feed__tabs`. */
+.feed__viewtabs {
   display: flex;
   gap: 0.5rem;
   margin: 0.25rem 0 0.75rem;
 }
-.feed__tab {
+.feed__viewtab {
   flex: 1;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--feed-line);
@@ -677,7 +678,7 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
-.feed__tab--on {
+.feed__viewtab--on {
   background: var(--feed-accent);
   border-color: var(--feed-accent);
   color: #fff;
@@ -739,4 +740,26 @@ body {
 .feed__cost-legend {
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+/* Home trip card cost line + History header (Phase 3.4). */
+.feed__trip-cost {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--feed-fg);
+}
+.feed__trip-pending {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--feed-accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.feed__history-head {
+  margin-top: 1.25rem;
 }

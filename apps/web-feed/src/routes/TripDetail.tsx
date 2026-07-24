@@ -165,12 +165,16 @@ export function TripDetail() {
               </p>
             ) : null}
 
-            <div className="feed__tabs" role="tablist" aria-label="Trip views">
+            <div
+              className="feed__viewtabs"
+              role="tablist"
+              aria-label="Trip views"
+            >
               <button
                 type="button"
                 role="tab"
                 aria-selected={tab === "plan"}
-                className={`feed__tab${tab === "plan" ? " feed__tab--on" : ""}`}
+                className={`feed__viewtab${tab === "plan" ? " feed__viewtab--on" : ""}`}
                 onClick={() => setTab("plan")}
               >
                 Plan
@@ -179,7 +183,7 @@ export function TripDetail() {
                 type="button"
                 role="tab"
                 aria-selected={tab === "cost"}
-                className={`feed__tab${tab === "cost" ? " feed__tab--on" : ""}`}
+                className={`feed__viewtab${tab === "cost" ? " feed__viewtab--on" : ""}`}
                 onClick={() => setTab("cost")}
               >
                 💶 Cost

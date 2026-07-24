@@ -1,10 +1,29 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
-import { useAuth, useMyTrips } from "@gtp/api-client";
-import type { TripSummary } from "@gtp/types";
+import { useAuth, useHomeDashboard } from "@gtp/api-client";
+import type { HomeTripSummary } from "@gtp/types";
 import { CreateTripSheet } from "../components/CreateTripSheet";
 import { DeleteAccountSheet } from "../components/DeleteAccountSheet";
+
+/** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
+function money(n: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    return `${Math.round(n)} ${currency}`;
+  }
+}
+
+/** A trip's committed cost as a compact per-currency string. */
+function costLabel(cost: HomeTripSummary["cost"]): string {
+  if (cost.length === 0) return "No committed cost yet";
+  return cost.map((c) => money(c.committed, c.currency)).join(" · ");
+}
 
 type Tab = "home" | "plan" | "cost" | "profile";
 
@@ -15,12 +34,41 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "profile", icon: "👤", label: "Profile" },
 ];
 
-const ROLE_LABEL: Record<TripSummary["role"], string> = {
+const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
   CO_ORGANIZER: "Co-org",
   PARTICIPANT: "Participant",
   GUEST: "Guest",
 };
+
+/** One trip card in the home feed (Phase 3.4) — with cost + pending line. */
+function TripCard({ trip }: { trip: HomeTripSummary }) {
+  return (
+    <li>
+      <Link className="feed__trip-card" to={`/trips/${trip.id}`}>
+        <div className="feed__trip-media" aria-hidden="true">
+          🧭
+        </div>
+        <div className="feed__trip-body">
+          <span className="feed__trip-name">{trip.name}</span>
+          <span className="feed__trip-meta">
+            {trip.destination ?? "No destination yet"} · {trip.memberCount}{" "}
+            member{trip.memberCount === 1 ? "" : "s"}
+          </span>
+          <span className="feed__trip-cost">
+            {costLabel(trip.cost)}
+            {trip.pendingDecisionCount > 0 ? (
+              <span className="feed__trip-pending">
+                {trip.pendingDecisionCount} pending
+              </span>
+            ) : null}
+          </span>
+        </div>
+        <span className="feed__trip-badge">{ROLE_LABEL[trip.role]}</span>
+      </Link>
+    </li>
+  );
+}
 
 /**
  * The authenticated home. Expresses the Feed paradigm: a phone-width column
@@ -29,12 +77,14 @@ const ROLE_LABEL: Record<TripSummary["role"], string> = {
  */
 export function Dashboard() {
   const { user, logout } = useAuth();
-  const trips = useMyTrips();
+  const dash = useHomeDashboard();
   const [tab, setTab] = useState<Tab>("home");
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
-  const list = trips.data ?? [];
+  const list = dash.data?.trips ?? [];
+  const active = list.filter((t) => t.status === "ACTIVE");
+  const history = list.filter((t) => t.status === "HISTORY");
 
   return (
     <div className="feed">
@@ -61,16 +111,16 @@ export function Dashboard() {
             <p className="feed__eyebrow">Home</p>
             <h1 className="feed__title">Hi, {user?.displayName}</h1>
 
-            {trips.isPending ? (
+            {dash.isPending ? (
               <p className="feed__muted">Loading your trips…</p>
-            ) : trips.isError ? (
+            ) : dash.isError ? (
               <div className="feed__card">
                 <p className="feed__card-body">
                   Couldn't load your trips.{" "}
                   <button
                     type="button"
                     className="feed__link-btn"
-                    onClick={() => void trips.refetch()}
+                    onClick={() => void dash.refetch()}
                   >
                     Retry
                   </button>
@@ -93,28 +143,25 @@ export function Dashboard() {
                 </div>
               </div>
             ) : (
-              <ul className="feed__trips">
-                {list.map((trip) => (
-                  <li key={trip.id}>
-                    <Link className="feed__trip-card" to={`/trips/${trip.id}`}>
-                      <div className="feed__trip-media" aria-hidden="true">
-                        🧭
-                      </div>
-                      <div className="feed__trip-body">
-                        <span className="feed__trip-name">{trip.name}</span>
-                        <span className="feed__trip-meta">
-                          {trip.destination ?? "No destination yet"} ·{" "}
-                          {trip.memberCount} member
-                          {trip.memberCount === 1 ? "" : "s"}
-                        </span>
-                      </div>
-                      <span className="feed__trip-badge">
-                        {ROLE_LABEL[trip.role]}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                {active.length > 0 ? (
+                  <ul className="feed__trips">
+                    {active.map((trip) => (
+                      <TripCard key={trip.id} trip={trip} />
+                    ))}
+                  </ul>
+                ) : null}
+                {history.length > 0 ? (
+                  <>
+                    <p className="feed__eyebrow feed__history-head">History</p>
+                    <ul className="feed__trips">
+                      {history.map((trip) => (
+                        <TripCard key={trip.id} trip={trip} />
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </>
             )}
           </>
         ) : (

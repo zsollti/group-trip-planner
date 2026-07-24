@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TripRole, TripStatus } from "./trips.js";
 
 /**
  * Per-trip cost dashboard contract (Phase 3.2, SRS §6 / FR-26–27) — the wire
@@ -6,6 +7,10 @@ import { z } from "zod";
  * pure cost engine ({@link ../cost}); this module only defines how they cross the
  * FE/BE boundary. The three front-ends render the same object in their own
  * paradigm (Deck ledger / Feed cost card / Board tally).
+ *
+ * It also carries the **all-trips home** dashboard ({@link HomeDashboardView},
+ * Phase 3.4) — the wire shape of `GET /dashboard`, the caller's trips with a
+ * per-currency committed cost summary and a pending-decision count.
  */
 
 /** A group + per-person money pair for one currency (never converted, FR-27). */
@@ -64,3 +69,48 @@ export const TripDashboardView = z.object({
   generatedAt: z.string(),
 });
 export type TripDashboardView = z.infer<typeof TripDashboardView>;
+
+/** One currency's committed (locked) group total for a trip's home summary. */
+export const HomeTripCost = z.object({
+  currency: z.string(),
+  /** The locked-decisions group total in this currency (no conversion). */
+  committed: z.number(),
+});
+export type HomeTripCost = z.infer<typeof HomeTripCost>;
+
+/**
+ * A trip as it appears on the all-trips home (Phase 3.4). Extends the plain trip
+ * list with the two figures the home surfaces: a per-currency **committed cost
+ * summary** and the **pending-decision count** (categories with a proposal but
+ * no locked option yet — decision 3). `status` is the effective status, so a
+ * trip past its expiry reads as History even before the expiry job runs.
+ */
+export const HomeTripSummary = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  destination: z.string().nullable(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  status: TripStatus,
+  role: TripRole,
+  memberCount: z.number().int().nonnegative(),
+  defaultCurrency: z.string(),
+  cost: z.array(HomeTripCost),
+  pendingDecisionCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type HomeTripSummary = z.infer<typeof HomeTripSummary>;
+
+/**
+ * The all-trips home dashboard (`GET /dashboard`). `trips` is one offset-paginated
+ * page (newest first); the front-ends split it into Active and History sections
+ * by each trip's `status`. `total` is the caller's full trip count, so a UI can
+ * offer "show more".
+ */
+export const HomeDashboardView = z.object({
+  trips: z.array(HomeTripSummary),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+});
+export type HomeDashboardView = z.infer<typeof HomeDashboardView>;

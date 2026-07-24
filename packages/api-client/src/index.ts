@@ -64,7 +64,11 @@ export {
   useLockOption,
   useUnlockOption,
 } from "./options.js";
-export { dashboardKeys, useTripDashboard } from "./dashboard.js";
+export {
+  dashboardKeys,
+  useTripDashboard,
+  useHomeDashboard,
+} from "./dashboard.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";

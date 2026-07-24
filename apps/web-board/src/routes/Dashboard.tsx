@@ -1,17 +1,59 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
-import { useAuth, useMyTrips } from "@gtp/api-client";
-import type { TripSummary } from "@gtp/types";
+import { useAuth, useHomeDashboard } from "@gtp/api-client";
+import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 
-const ROLE_LABEL: Record<TripSummary["role"], string> = {
+const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
   CO_ORGANIZER: "Co-org",
   PARTICIPANT: "Participant",
   GUEST: "Guest",
 };
+
+/** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
+function money(n: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    return `${Math.round(n)} ${currency}`;
+  }
+}
+
+/** A trip's committed cost as a compact per-currency string. */
+function costLabel(cost: HomeTripSummary["cost"]): string {
+  if (cost.length === 0) return "No committed cost";
+  return cost.map((c) => money(c.committed, c.currency)).join(" · ");
+}
+
+/** One trip-board tile in the overview (Phase 3.4) — with cost + pending. */
+function BoardTile({ trip }: { trip: HomeTripSummary }) {
+  return (
+    <Link className="board__tile" to={`/trips/${trip.id}`}>
+      <span className="board__tile-badge">{ROLE_LABEL[trip.role]}</span>
+      <span className="board__tile-name">{trip.name}</span>
+      <span className="board__tile-meta">
+        {trip.destination ?? "No destination yet"}
+      </span>
+      <span className="board__tile-meta">
+        {trip.memberCount} member{trip.memberCount === 1 ? "" : "s"}
+      </span>
+      <span className="board__tile-cost">{costLabel(trip.cost)}</span>
+      {trip.pendingDecisionCount > 0 ? (
+        <span className="board__tile-pending">
+          {trip.pendingDecisionCount} decision
+          {trip.pendingDecisionCount === 1 ? "" : "s"} pending
+        </span>
+      ) : null}
+    </Link>
+  );
+}
 
 /**
  * The authenticated boards overview. Expresses the Board paradigm: a spatial
@@ -19,11 +61,13 @@ const ROLE_LABEL: Record<TripSummary["role"], string> = {
  */
 export function Dashboard() {
   const { user, logout } = useAuth();
-  const trips = useMyTrips();
+  const dash = useHomeDashboard();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
-  const list = trips.data ?? [];
+  const list = dash.data?.trips ?? [];
+  const active = list.filter((t) => t.status === "ACTIVE");
+  const history = list.filter((t) => t.status === "HISTORY");
 
   return (
     <main className="board">
@@ -53,15 +97,15 @@ export function Dashboard() {
       <p className="board__eyebrow">Boards</p>
       <h1 className="board__title">Welcome, {user?.displayName}</h1>
 
-      {trips.isPending ? (
+      {dash.isPending ? (
         <p className="board__muted">Loading your boards…</p>
-      ) : trips.isError ? (
+      ) : dash.isError ? (
         <p className="board__form-error" role="alert">
           Couldn't load your boards.{" "}
           <button
             type="button"
             className="board__link-btn"
-            onClick={() => void trips.refetch()}
+            onClick={() => void dash.refetch()}
           >
             Retry
           </button>
@@ -81,24 +125,23 @@ export function Dashboard() {
           </button>
         </>
       ) : (
-        <div className="board__tiles" aria-label="Your trip boards">
-          {list.map((trip) => (
-            <Link
-              key={trip.id}
-              className="board__tile"
-              to={`/trips/${trip.id}`}
-            >
-              <span className="board__tile-badge">{ROLE_LABEL[trip.role]}</span>
-              <span className="board__tile-name">{trip.name}</span>
-              <span className="board__tile-meta">
-                {trip.destination ?? "No destination yet"}
-              </span>
-              <span className="board__tile-meta">
-                {trip.memberCount} member{trip.memberCount === 1 ? "" : "s"}
-              </span>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="board__tiles" aria-label="Your trip boards">
+            {active.map((trip) => (
+              <BoardTile key={trip.id} trip={trip} />
+            ))}
+          </div>
+          {history.length > 0 ? (
+            <>
+              <p className="board__eyebrow board__history-head">History</p>
+              <div className="board__tiles" aria-label="Ended trip boards">
+                {history.map((trip) => (
+                  <BoardTile key={trip.id} trip={trip} />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </>
       )}
 
       {createOpen ? (

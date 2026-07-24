@@ -64,7 +64,8 @@ describe("web-deck auth flow", () => {
             },
           });
         }
-        if (u.endsWith("/trips")) return json([]);
+        if (u.includes("/dashboard"))
+          return json({ trips: [], total: 0, limit: 20, offset: 0 });
         return json({ message: "not found" }, 404);
       }),
     );
