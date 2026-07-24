@@ -14,6 +14,7 @@ import { InviteSheet } from "../components/InviteSheet";
 import { MemberSheet } from "../components/MemberSheet";
 import { CategorySheet } from "../components/CategorySheet";
 import { CategoryOptions } from "../components/CategoryOptions";
+import { CostTab } from "../components/CostTab";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -44,6 +45,7 @@ export function TripDetail() {
   const [managingCategories, setManagingCategories] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"plan" | "cost">("plan");
   const categories = useTripCategories(id);
 
   async function onDelete() {
@@ -163,52 +165,82 @@ export function TripDetail() {
               </p>
             ) : null}
 
-            <section className="feed__card" aria-label="Planning categories">
-              <div className="feed__cat-head">
-                <p className="feed__eyebrow">Categories</p>
-                {can(trip.data.role, "category.manage") ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setManagingCategories(true)}
-                  >
-                    Manage
-                  </Button>
-                ) : null}
-              </div>
-              {categories.isPending ? (
-                <p className="feed__muted">Loading categories…</p>
-              ) : categories.isError ? (
-                <p className="feed__muted">Couldn't load categories.</p>
-              ) : (
-                <ul className="feed__cat-chips">
-                  {categories.data.map((cat) => (
-                    <li key={cat.id} className="feed__cat-chip">
-                      <strong>{cat.name}</strong>
-                      <span className="feed__muted">
-                        {cat.singleChoice ? "single-choice" : "multi-select"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <div className="feed__tabs" role="tablist" aria-label="Trip views">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "plan"}
+                className={`feed__tab${tab === "plan" ? " feed__tab--on" : ""}`}
+                onClick={() => setTab("plan")}
+              >
+                Plan
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "cost"}
+                className={`feed__tab${tab === "cost" ? " feed__tab--on" : ""}`}
+                onClick={() => setTab("cost")}
+              >
+                💶 Cost
+              </button>
+            </div>
 
-            {categories.data
-              ? categories.data.map((cat) => (
-                  <CategoryOptions
-                    key={cat.id}
-                    tripId={trip.data.id}
-                    category={cat}
-                    defaultCurrency={trip.data.defaultCurrency}
-                    myRole={trip.data.role}
-                    myUserId={user?.id}
-                    frozen={trip.data.status === "HISTORY"}
-                  />
-                ))
-              : null}
+            {tab === "cost" ? (
+              <CostTab tripId={trip.data.id} />
+            ) : (
+              <>
+                <section
+                  className="feed__card"
+                  aria-label="Planning categories"
+                >
+                  <div className="feed__cat-head">
+                    <p className="feed__eyebrow">Categories</p>
+                    {can(trip.data.role, "category.manage") ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setManagingCategories(true)}
+                      >
+                        Manage
+                      </Button>
+                    ) : null}
+                  </div>
+                  {categories.isPending ? (
+                    <p className="feed__muted">Loading categories…</p>
+                  ) : categories.isError ? (
+                    <p className="feed__muted">Couldn't load categories.</p>
+                  ) : (
+                    <ul className="feed__cat-chips">
+                      {categories.data.map((cat) => (
+                        <li key={cat.id} className="feed__cat-chip">
+                          <strong>{cat.name}</strong>
+                          <span className="feed__muted">
+                            {cat.singleChoice
+                              ? "single-choice"
+                              : "multi-select"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
 
-            <p className="feed__muted">The cost view lands next phase.</p>
+                {categories.data
+                  ? categories.data.map((cat) => (
+                      <CategoryOptions
+                        key={cat.id}
+                        tripId={trip.data.id}
+                        category={cat}
+                        defaultCurrency={trip.data.defaultCurrency}
+                        myRole={trip.data.role}
+                        myUserId={user?.id}
+                        frozen={trip.data.status === "HISTORY"}
+                      />
+                    ))
+                  : null}
+              </>
+            )}
 
             {editing ? (
               <EditTripSheet

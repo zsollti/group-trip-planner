@@ -12,6 +12,7 @@ import type {
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 import { tripKeys } from "./trips.js";
+import { dashboardKeys } from "./dashboard.js";
 
 /** Query-key factory for a trip's member/block list. */
 export const memberKeys = {
@@ -32,7 +33,9 @@ export function useTripMembers(
 }
 
 /** Invalidate everything a membership change can touch: the member list, the
- * trip's detail (the caller's own role / member count), and the trip list. */
+ * trip's detail (the caller's own role / member count), the trip list, and the
+ * cost dashboard (a join/leave/kick changes the member count, which re-prices
+ * dynamic headcounts and flips fixed-headcount stale flags — Phase 3.2). */
 function invalidateMembership(
   qc: ReturnType<typeof useQueryClient>,
   tripId: string,
@@ -40,6 +43,7 @@ function invalidateMembership(
   void qc.invalidateQueries({ queryKey: memberKeys.list(tripId) });
   void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
   void qc.invalidateQueries({ queryKey: tripKeys.list() });
+  void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
 }
 
 /** Change a member's role. */

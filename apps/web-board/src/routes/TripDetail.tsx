@@ -14,6 +14,7 @@ import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
 import { CategoryManager } from "../components/CategoryManager";
 import { CategoryLane } from "../components/CategoryLane";
+import { CostTally } from "../components/CostTally";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -156,6 +157,7 @@ export function TripDetail() {
             <p className="board__muted">Couldn't load the category lanes.</p>
           ) : (
             <div className="board__canvas" aria-label="Category lanes">
+              <CostTally tripId={trip.data.id} />
               {categories.data.map((cat) => (
                 <CategoryLane
                   key={cat.id}

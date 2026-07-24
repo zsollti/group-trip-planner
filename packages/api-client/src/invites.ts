@@ -12,6 +12,7 @@ import type {
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 import { tripKeys } from "./trips.js";
+import { dashboardKeys } from "./dashboard.js";
 
 /** Query-key factory for a trip's invite links. */
 export const inviteKeys = {
@@ -82,6 +83,10 @@ export function useJoinTrip(): UseMutationResult<
     onSuccess: (result) => {
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
       void qc.invalidateQueries({ queryKey: tripKeys.detail(result.tripId) });
+      // A new member changes the head count → re-price the cost dashboard.
+      void qc.invalidateQueries({
+        queryKey: dashboardKeys.trip(result.tripId),
+      });
     },
   });
 }

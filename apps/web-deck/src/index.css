@@ -698,3 +698,103 @@ body {
   height: 1px;
   background: var(--deck-line);
 }
+
+/* Cost ledger — the persistent right-rail (Phase 3.3). Two-column planning area
+   that collapses to a single column on narrow screens. */
+.deck__planning {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: 1.5rem;
+  align-items: start;
+}
+.deck__planning-main {
+  min-width: 0;
+}
+.deck__ledger {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  background: var(--deck-panel);
+}
+.deck__ledger-note {
+  margin: 0;
+  color: var(--deck-dim);
+  font-size: 0.8rem;
+}
+.deck__ledger-stale {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--deck-danger);
+  border-radius: 8px;
+  color: var(--deck-danger);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.deck__ledger-currencies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.deck__ledger-cur {
+  border-top: 1px solid var(--deck-line);
+  padding-top: 0.6rem;
+}
+.deck__ledger-cur-code {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--deck-accent);
+}
+.deck__ledger-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.deck__ledger-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.deck__ledger-line dt {
+  color: var(--deck-fg);
+}
+.deck__ledger-line dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--deck-fg);
+}
+.deck__ledger-line--proj {
+  margin-top: 0.35rem;
+}
+.deck__ledger-line--proj dt,
+.deck__ledger-line--proj dd {
+  color: var(--deck-accent);
+  font-weight: 600;
+}
+.deck__ledger-line--sub {
+  font-size: 0.8rem;
+}
+.deck__ledger-line--sub dt,
+.deck__ledger-line--sub dd {
+  color: var(--deck-dim);
+}
+.deck__ledger-legend {
+  margin: 0;
+  color: var(--deck-dim);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+@media (max-width: 720px) {
+  .deck__planning {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .deck__ledger {
+    position: static;
+  }
+}
