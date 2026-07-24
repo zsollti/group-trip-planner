@@ -14,6 +14,7 @@ import type {
 import { apiFetch, type ApiError } from "./http.js";
 import { categoryKeys } from "./categories.js";
 import { tripKeys } from "./trips.js";
+import { dashboardKeys } from "./dashboard.js";
 
 /** Query-key factory for a category's options. */
 export const optionKeys = {
@@ -50,10 +51,12 @@ export function useProposeOption(
         method: "POST",
         body: input,
       }),
-    onSuccess: () =>
+    onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
-      }),
+      });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
   });
 }
 
@@ -77,10 +80,12 @@ export function useEditOption(
         method: "PATCH",
         body,
       }),
-    onSuccess: () =>
+    onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
-      }),
+      });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
   });
 }
 
@@ -95,10 +100,12 @@ export function useDeleteOption(
       apiFetch<void>(`${optionsPath(tripId, categoryId)}/${optionId}`, {
         method: "DELETE",
       }),
-    onSuccess: () =>
+    onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
-      }),
+      });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
   });
 }
 
@@ -136,6 +143,7 @@ export function useLockOption(
       });
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
       void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
 }
@@ -165,6 +173,7 @@ export function useUnlockOption(
       });
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
       void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
 }
@@ -191,9 +200,12 @@ export function useToggleVote(
         `${optionsPath(tripId, categoryId)}/${optionId}/votes`,
         { method: hasVoted ? "DELETE" : "POST" },
       ),
-    onSuccess: () =>
+    onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
-      }),
+      });
+      // A vote can change the front-runner, and therefore the projection.
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
   });
 }

@@ -14,6 +14,7 @@ import { InviteManager } from "../components/InviteManager";
 import { MemberManager } from "../components/MemberManager";
 import { CategoryManager } from "../components/CategoryManager";
 import { CategoryOptions } from "../components/CategoryOptions";
+import { CostLedger } from "../components/CostLedger";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -181,26 +182,30 @@ export function TripDetail() {
                   </Button>
                 ) : null}
               </div>
-              {categories.isPending ? (
-                <p className="deck__muted">Loading categories…</p>
-              ) : categories.isError ? (
-                <p className="deck__muted">Couldn't load categories.</p>
-              ) : (
-                <div className="deck__cat-blocks">
-                  {categories.data.map((cat) => (
-                    <CategoryOptions
-                      key={cat.id}
-                      tripId={trip.data.id}
-                      category={cat}
-                      defaultCurrency={trip.data.defaultCurrency}
-                      myRole={trip.data.role}
-                      myUserId={user?.id}
-                      frozen={trip.data.status === "HISTORY"}
-                    />
-                  ))}
+              <div className="deck__planning">
+                <div className="deck__planning-main">
+                  {categories.isPending ? (
+                    <p className="deck__muted">Loading categories…</p>
+                  ) : categories.isError ? (
+                    <p className="deck__muted">Couldn't load categories.</p>
+                  ) : (
+                    <div className="deck__cat-blocks">
+                      {categories.data.map((cat) => (
+                        <CategoryOptions
+                          key={cat.id}
+                          tripId={trip.data.id}
+                          category={cat}
+                          defaultCurrency={trip.data.defaultCurrency}
+                          myRole={trip.data.role}
+                          myUserId={user?.id}
+                          frozen={trip.data.status === "HISTORY"}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              <p className="deck__muted">The cost ledger lands next phase.</p>
+                <CostLedger tripId={trip.data.id} />
+              </div>
             </section>
 
             {editing ? (
