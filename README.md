@@ -5,13 +5,48 @@ A web application for coordinating group trips — proposing and **comparing opt
 sentiment through **advisory voting**, and recording explicit, audited group
 **decisions** with a live per-currency **cost dashboard**.
 
-> **Status:** early implementation — walking skeleton in progress.
+> **Status:** Phases 0–3 complete. Built as **three parallel UI paradigms** on one
+> shared backend, then converged to the **Trip Board** at a design-decision gate and
+> polished to flagship finish (the Demoable Milestone; live deploy next).
+
+## Three UIs, one backend — the design exploration
+
+Phases 0–3 were deliberately built as **three genuinely different front-ends on one
+shared NestJS backend** — an exercise in UI-paradigm design and in keeping business
+logic in shared, framework-agnostic packages. At the end of Phase 3 they were
+compared and **converged to one**. The **Trip Board** was chosen and taken to
+flagship finish; the other two are **frozen** in the repo as evidence of the
+exploration — still readable, but no longer built, linted, or tested (excluded in
+`package.json` and CI).
+
+### 🏆 Trip Board — the product (`apps/web-board`)
+
+A spatial planning **canvas**: categories are columns, options are cards, and you
+**drag a card onto the "Decided" column to record the group's decision** (backed by
+an atomic compare-and-set lock). Per-currency committed-vs-projected cost breakdown,
+drag-to-reorder, light/dark, mobile.
+
+![Trip Board — the chosen UI](docs/alternatives/board.png)
+
+### Command Deck — frozen (`apps/web-deck`)
+
+A keyboard-first **console**: a ⌘K command palette, dense option rows, and a
+persistent right-rail cost ledger. For power users who live on the keyboard.
+
+![Command Deck — an explored alternative](docs/alternatives/deck.png)
+
+### Trip Feed — frozen (`apps/web-feed`)
+
+A mobile-first **social feed**: option cards in a scrollable stream, tap-to-vote,
+and a Plan / 💶 Cost tab switch. For the phone-in-hand, casual-planning case.
+
+![Trip Feed — an explored alternative](docs/alternatives/feed.png)
 
 ## Stack
 
 - **Monorepo:** pnpm workspaces + Turborepo
 - **Backend:** NestJS + Prisma + PostgreSQL
-- **Frontend:** React + TypeScript + Vite (three parallel UI paradigms through the first milestone)
+- **Frontend:** React + TypeScript + Vite — three UI paradigms explored, converged to the Trip Board (above)
 - **Shared:** Zod contracts + typed API client in `packages/`
 - **Real-time:** WebSockets · **Auth:** JWT access + server-stored refresh token
 - **Testing:** Vitest (unit/integration) + Playwright (E2E)
