@@ -38,7 +38,10 @@ export function Join() {
 
   if (status === "unauthenticated") {
     return (
-      <Navigate to={`/login?next=/join/${encodeURIComponent(token ?? "")}`} replace />
+      <Navigate
+        to={`/login?next=/join/${encodeURIComponent(token ?? "")}`}
+        replace
+      />
     );
   }
 

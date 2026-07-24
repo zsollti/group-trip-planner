@@ -57,12 +57,17 @@ export {
 export {
   optionKeys,
   useCategoryOptions,
+  useCategoriesOptions,
   useProposeOption,
   useEditOption,
   useDeleteOption,
+  useReorderOptions,
   useToggleVote,
   useLockOption,
   useUnlockOption,
+  useBoardLock,
+  useBoardUnlock,
+  useBoardReorderOptions,
 } from "./options.js";
 export {
   dashboardKeys,

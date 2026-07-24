@@ -107,9 +107,9 @@ export function OptionForm({
   const pending = propose.isPending || edit.isPending;
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <form
-        className="board__dialog board__dialog--tall"
+        className="board__dialog board__dialog--wide"
         role="dialog"
         aria-modal="true"
         aria-label={isEdit ? "Edit option" : "Propose an option"}
@@ -122,32 +122,41 @@ export function OptionForm({
           {isEdit ? "Edit option" : "Propose an option"}
         </h2>
 
-        <Field htmlFor="opt-title" label="Title">
-          <Input
-            id="opt-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </Field>
-        <Field htmlFor="opt-url" label="Link (optional)">
-          <Input
-            id="opt-url"
-            type="url"
-            placeholder="https://…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </Field>
-        <Field htmlFor="opt-desc" label="Notes (optional)">
-          <Input
-            id="opt-desc"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
+        <div className="board__form-grid">
+          <div className="board__form-wide">
+            <Field htmlFor="opt-title" label="Title">
+              <Input
+                id="opt-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+          <div className="board__form-wide">
+            <Field htmlFor="opt-desc" label="Notes (optional)">
+              <textarea
+                id="opt-desc"
+                data-gtp-input
+                className="board__textarea"
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="board__form-wide">
+            <Field htmlFor="opt-url" label="Link (optional)">
+              <Input
+                id="opt-url"
+                type="url"
+                placeholder="https://…"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </Field>
+          </div>
 
-        <div className="board__form-row">
           <Field htmlFor="opt-amount" label="Amount (optional)">
             <Input
               id="opt-amount"
@@ -166,44 +175,46 @@ export function OptionForm({
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
             />
           </Field>
-        </div>
 
-        <Field htmlFor="opt-costtype" label="Cost is">
-          <select
-            id="opt-costtype"
-            className="board__select"
-            value={costType}
-            onChange={(e) => setCostType(e.target.value as CostType)}
-          >
-            <option value="PER_PERSON">Per person</option>
-            <option value="TOTAL">Total for the group</option>
-          </select>
-        </Field>
-
-        <label className="board__checkbox">
-          <input
-            type="checkbox"
-            checked={headcountIsFixed}
-            onChange={(e) => setHeadcountIsFixed(e.target.checked)}
-          />
-          <span>
-            Fix the headcount (otherwise it tracks the trip's member count)
-          </span>
-        </label>
-        {headcountIsFixed ? (
-          <Field htmlFor="opt-headcount" label="Headcount">
-            <Input
-              id="opt-headcount"
-              type="number"
-              min="1"
-              step="1"
-              value={headcount}
-              onChange={(e) => setHeadcount(e.target.value)}
-            />
+          <Field htmlFor="opt-costtype" label="Cost is">
+            <select
+              id="opt-costtype"
+              className="board__select"
+              value={costType}
+              onChange={(e) => setCostType(e.target.value as CostType)}
+            >
+              <option value="PER_PERSON">Per person</option>
+              <option value="TOTAL">Total for the group</option>
+            </select>
           </Field>
-        ) : null}
+          {headcountIsFixed ? (
+            <Field htmlFor="opt-headcount" label="Headcount">
+              <Input
+                id="opt-headcount"
+                type="number"
+                min="1"
+                step="1"
+                value={headcount}
+                onChange={(e) => setHeadcount(e.target.value)}
+              />
+            </Field>
+          ) : (
+            <div />
+          )}
 
-        <div className="board__form-row">
+          <div className="board__form-wide">
+            <label className="board__checkbox">
+              <input
+                type="checkbox"
+                checked={headcountIsFixed}
+                onChange={(e) => setHeadcountIsFixed(e.target.checked)}
+              />
+              <span>
+                Fix the headcount (otherwise it tracks the trip's member count)
+              </span>
+            </label>
+          </div>
+
           <Field htmlFor="opt-starts" label="Starts (optional)">
             <Input
               id="opt-starts"

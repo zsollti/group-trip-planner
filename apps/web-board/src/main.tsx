@@ -8,7 +8,11 @@ import {
   setApiBaseUrl,
 } from "@gtp/api-client";
 import { App } from "./App";
+import { applyTheme, getStoredTheme } from "./lib/theme";
 import "./index.css";
+
+// Apply the saved light/dark choice before first paint (no flash of OS theme).
+applyTheme(getStoredTheme());
 
 setApiBaseUrl(
   (import.meta.env.VITE_API_URL as string | undefined) ??

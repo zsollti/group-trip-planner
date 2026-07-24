@@ -13,7 +13,9 @@ export function Login() {
   const [params] = useSearchParams();
   // Post-auth destination — e.g. an invite arrived on while logged out.
   const next = safeNextPath(params.get("next"));
-  const registerHref = next ? `/register?next=${encodeURIComponent(next)}` : "/register";
+  const registerHref = next
+    ? `/register?next=${encodeURIComponent(next)}`
+    : "/register";
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,

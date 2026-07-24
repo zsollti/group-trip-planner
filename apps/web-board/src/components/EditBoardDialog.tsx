@@ -62,7 +62,7 @@ export function EditBoardDialog({
   });
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <div
         className="board__dialog"
         role="dialog"
@@ -90,7 +90,11 @@ export function EditBoardDialog({
           </div>
         ) : (
           <form onSubmit={onSubmit} noValidate>
-            <Field htmlFor="name" label="Trip name" error={errors.name?.message}>
+            <Field
+              htmlFor="name"
+              label="Trip name"
+              error={errors.name?.message}
+            >
               <Input
                 id="name"
                 invalid={Boolean(errors.name)}

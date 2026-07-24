@@ -45,7 +45,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <div
         className="board__dialog"
         role="dialog"
@@ -87,7 +87,8 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
                     <ul className="board__impact-list">
                       {impact!.transfers.map((t) => (
                         <li key={t.tripId}>
-                          <strong>{t.tripName}</strong> → {t.successorDisplayName}
+                          <strong>{t.tripName}</strong> →{" "}
+                          {t.successorDisplayName}
                         </li>
                       ))}
                     </ul>

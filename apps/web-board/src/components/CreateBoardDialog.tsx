@@ -46,7 +46,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <div
         className="board__dialog"
         role="dialog"

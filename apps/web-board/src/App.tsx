@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { BoardBackdrop } from "./components/BoardBackdrop";
 import { PublicOnly, RequireAuth } from "./components/RouteGuards";
 import { Login } from "./routes/Login";
 import { Register } from "./routes/Register";
@@ -13,43 +14,46 @@ import { Join } from "./routes/Join";
  */
 export function App() {
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <PublicOnly>
-            <Login />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicOnly>
-            <Register />
-          </PublicOnly>
-        }
-      />
-      <Route path="/verify" element={<Verify />} />
-      {/* Join crafts its own ?next= redirect when logged out. */}
-      <Route path="/join/:token" element={<Join />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <Dashboard />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/trips/:id"
-        element={
-          <RequireAuth>
-            <TripDetail />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <BoardBackdrop />
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <Login />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnly>
+              <Register />
+            </PublicOnly>
+          }
+        />
+        <Route path="/verify" element={<Verify />} />
+        {/* Join crafts its own ?next= redirect when logged out. */}
+        <Route path="/join/:token" element={<Join />} />
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/trips/:id"
+          element={
+            <RequireAuth>
+              <TripDetail />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
