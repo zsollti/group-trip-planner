@@ -692,3 +692,24 @@ body {
   font-size: 0.72rem;
   color: var(--board-dim);
 }
+
+/* Home overview — trip-tile cost/pending + History section (Phase 3.4). */
+.board__tile-cost {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--board-fg);
+}
+.board__tile-pending {
+  margin-top: 0.3rem;
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--board-accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.board__history-head {
+  margin-top: 1.5rem;
+}

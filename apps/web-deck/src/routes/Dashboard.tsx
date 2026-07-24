@@ -1,17 +1,74 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth, useMyTrips } from "@gtp/api-client";
-import type { TripSummary } from "@gtp/types";
+import { useAuth, useHomeDashboard } from "@gtp/api-client";
+import type { HomeTripSummary } from "@gtp/types";
 import { CommandPalette } from "../components/CommandPalette";
 import { CreateTripDialog } from "../components/CreateTripDialog";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 
-const ROLE_LABEL: Record<TripSummary["role"], string> = {
+const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
   CO_ORGANIZER: "Co-org",
   PARTICIPANT: "Participant",
   GUEST: "Guest",
 };
+
+/** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
+function money(n: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    return `${Math.round(n)} ${currency}`;
+  }
+}
+
+/** A trip's committed cost as a compact per-currency string. */
+function costLabel(cost: HomeTripSummary["cost"]): string {
+  if (cost.length === 0) return "No committed cost";
+  return cost.map((c) => money(c.committed, c.currency)).join(" · ");
+}
+
+/** One Active/History manifest section of trip rows (Phase 3.4). */
+function TripManifest({
+  title,
+  trips,
+}: {
+  title: string;
+  trips: HomeTripSummary[];
+}) {
+  if (trips.length === 0) return null;
+  return (
+    <section className="deck__manifest-section" aria-label={`${title} trips`}>
+      <p className="deck__eyebrow deck__manifest-title">{title}</p>
+      <ul className="deck__manifest">
+        {trips.map((trip) => (
+          <li key={trip.id}>
+            <Link className="deck__row deck__row--rich" to={`/trips/${trip.id}`}>
+              <span className="deck__row-name">{trip.name}</span>
+              <span className="deck__row-meta">{trip.destination ?? "—"}</span>
+              <span className="deck__row-meta">
+                {trip.memberCount} member{trip.memberCount === 1 ? "" : "s"}
+              </span>
+              <span className="deck__row-cost">{costLabel(trip.cost)}</span>
+              {trip.pendingDecisionCount > 0 ? (
+                <span className="deck__row-pending">
+                  {trip.pendingDecisionCount} pending
+                </span>
+              ) : (
+                <span className="deck__row-meta">All decided</span>
+              )}
+              <span className="deck__badge">{ROLE_LABEL[trip.role]}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * The authenticated workspace. Expresses the Deck paradigm: a console shell
@@ -20,7 +77,7 @@ const ROLE_LABEL: Record<TripSummary["role"], string> = {
  */
 export function Dashboard() {
   const { user, logout } = useAuth();
-  const trips = useMyTrips();
+  const dash = useHomeDashboard();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -36,7 +93,9 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const list = trips.data ?? [];
+  const list = dash.data?.trips ?? [];
+  const active = list.filter((t) => t.status === "ACTIVE");
+  const history = list.filter((t) => t.status === "HISTORY");
 
   return (
     <main className="deck">
@@ -55,15 +114,15 @@ export function Dashboard() {
         <p className="deck__eyebrow">Workspace</p>
         <h1 className="deck__title">Welcome, {user?.displayName}</h1>
 
-        {trips.isPending ? (
+        {dash.isPending ? (
           <p className="deck__lede">Loading trips…</p>
-        ) : trips.isError ? (
+        ) : dash.isError ? (
           <p className="deck__form-error" role="alert">
             Couldn't load your trips.{" "}
             <button
               type="button"
               className="deck__link-btn"
-              onClick={() => void trips.refetch()}
+              onClick={() => void dash.refetch()}
             >
               Retry
             </button>
@@ -95,23 +154,8 @@ export function Dashboard() {
                 ＋ New trip
               </button>
             </div>
-            <ul className="deck__manifest">
-              {list.map((trip) => (
-                <li key={trip.id}>
-                  <Link className="deck__row" to={`/trips/${trip.id}`}>
-                    <span className="deck__row-name">{trip.name}</span>
-                    <span className="deck__row-meta">
-                      {trip.destination ?? "—"}
-                    </span>
-                    <span className="deck__row-meta">
-                      {trip.memberCount} member
-                      {trip.memberCount === 1 ? "" : "s"}
-                    </span>
-                    <span className="deck__badge">{ROLE_LABEL[trip.role]}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <TripManifest title="Active" trips={active} />
+            <TripManifest title="History" trips={history} />
           </>
         )}
       </section>

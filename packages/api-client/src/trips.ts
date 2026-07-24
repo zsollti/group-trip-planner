@@ -13,6 +13,7 @@ import type {
   UpdateTripInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
+import { dashboardKeys } from "./dashboard.js";
 
 /** Query-key factory for trip data, so invalidation stays consistent. */
 export const tripKeys = {
@@ -64,6 +65,8 @@ export function useCreateTrip(): UseMutationResult<
       apiFetch<TripDetail>("/trips", { method: "POST", body: input }),
     onSuccess: (trip) => {
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
+      // The home dashboard's own list/summaries key (Phase 3.4) must refresh too.
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
       qc.setQueryData(tripKeys.detail(trip.id), trip);
     },
   });
@@ -84,6 +87,7 @@ export function useUpdateTrip(
     onSuccess: (trip) => {
       qc.setQueryData(tripKeys.detail(id), trip);
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
     },
   });
 }
@@ -98,6 +102,7 @@ export function useDeleteTrip(
     onSuccess: () => {
       qc.removeQueries({ queryKey: tripKeys.detail(id) });
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
     },
   });
 }

@@ -798,3 +798,39 @@ body {
     position: static;
   }
 }
+
+/* All-trips manifest — Active/History sections + richer rows (Phase 3.4). */
+.deck__manifest-section {
+  margin-top: 1.25rem;
+}
+.deck__manifest-title {
+  margin-bottom: 0.35rem;
+}
+.deck__row--rich {
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto auto;
+}
+.deck__row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck__row-cost {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--deck-fg);
+}
+.deck__row-pending {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--deck-accent);
+  border-radius: 999px;
+  color: var(--deck-accent);
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .deck__row,
+  .deck__row--rich {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.35rem;
+  }
+}
