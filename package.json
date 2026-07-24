@@ -8,11 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "turbo run build",
+    "build": "turbo run build --filter=!@gtp/web-deck --filter=!@gtp/web-feed",
     "dev": "turbo run dev",
     "lint": "eslint .",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "typecheck": "turbo run typecheck --filter=!@gtp/web-deck --filter=!@gtp/web-feed",
+    "test": "turbo run test --filter=!@gtp/web-deck --filter=!@gtp/web-feed",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

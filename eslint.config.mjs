@@ -15,6 +15,11 @@ export default tseslint.config(
       "**/.turbo/**",
       "**/coverage/**",
       "**/*.config.js",
+      // Frozen "alternatives explored" apps (Phase 3.5 gate). Kept in the repo as
+      // evidence of the multi-UI exploration but no longer built/linted/tested —
+      // the Trip Board (web-board) is the maintained winner.
+      "apps/web-deck/**",
+      "apps/web-feed/**",
     ],
   },
   js.configs.recommended,
