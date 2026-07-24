@@ -129,7 +129,10 @@ export class MembersService {
         "You can only remove members below your own role.",
       );
     }
-    await this.prisma.tripMembership.delete({ where: { id: target.id } });
+    await this.prisma.$transaction([
+      this.prisma.tripMembership.delete({ where: { id: target.id } }),
+      this.touchMembership(ctx.trip.id),
+    ]);
   }
 
   /**
@@ -162,6 +165,10 @@ export class MembersService {
         },
         update: {}, // already blocked → idempotent
       });
+      await tx.trip.update({
+        where: { id: ctx.trip.id },
+        data: { membershipChangedAt: new Date() },
+      });
     });
   }
 
@@ -187,10 +194,26 @@ export class MembersService {
    * their membership.
    */
   async leave(ctx: TripContext, actor: User): Promise<void> {
-    await this.prisma.tripMembership.delete({
-      where: {
-        tripId_userId: { tripId: ctx.trip.id, userId: actor.id },
-      },
+    await this.prisma.$transaction([
+      this.prisma.tripMembership.delete({
+        where: {
+          tripId_userId: { tripId: ctx.trip.id, userId: actor.id },
+        },
+      }),
+      this.touchMembership(ctx.trip.id),
+    ]);
+  }
+
+  /**
+   * Stamp `Trip.membershipChangedAt` = now so any fixed-headcount option
+   * confirmed earlier is flagged stale on the cost dashboard (Phase-3 decision
+   * 2). Called wherever the member *count* changes (join/leave/kick/block) — not
+   * on a role change or transfer, which keep the same head count.
+   */
+  private touchMembership(tripId: string) {
+    return this.prisma.trip.update({
+      where: { id: tripId },
+      data: { membershipChangedAt: new Date() },
     });
   }
 

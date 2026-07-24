@@ -230,6 +230,13 @@ export class InvitesService {
               joinedViaInviteId: link.id,
             },
           });
+          // A genuinely new member changes the head count → stamp the trip so any
+          // fixed-headcount option confirmed earlier is flagged stale on the cost
+          // dashboard (Phase-3 decision 2). An UPGRADE adds no head, so no stamp.
+          await tx.trip.update({
+            where: { id: link.tripId },
+            data: { membershipChangedAt: new Date() },
+          });
         } else if (action === "UPGRADE") {
           await tx.tripMembership.update({
             where: { tripId_userId: { tripId: link.tripId, userId: user.id } },

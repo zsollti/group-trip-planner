@@ -120,6 +120,25 @@ export class OptionsService {
   }
 
   /**
+   * The `headcountConfirmedAt` to write on an edit (decision 2). Reverting to a
+   * dynamic headcount clears it (a dynamic option is never stale). Entering a
+   * fixed headcount, or changing the fixed number, **re-confirms** it against the
+   * current roster (now). A cosmetic edit that leaves the fixed number untouched
+   * **preserves** the old stamp, so an unrelated title change never silently
+   * un-stales a headcount.
+   */
+  private nextHeadcountConfirmedAt(
+    before: { headcountIsFixed: boolean; headcount: number | null; headcountConfirmedAt: Date | null },
+    input: UpdateOptionInput,
+  ): Date | null {
+    if (!input.headcountIsFixed) return null;
+    const becameFixed = !before.headcountIsFixed;
+    const numberChanged = (input.headcount ?? null) !== before.headcount;
+    if (becameFixed || numberChanged) return new Date();
+    return before.headcountConfirmedAt;
+  }
+
+  /**
    * Propose an option (Participant+; the guard already excluded Guest, and
    * proposing is allowed unverified). Active-trip gated.
    */
@@ -137,6 +156,9 @@ export class OptionsService {
         ...this.toData(input),
         categoryId,
         proposerId: user.id,
+        // A fixed headcount is "confirmed" the moment it is entered (decision 2);
+        // a dynamic option tracks the live count and has no confirmation stamp.
+        headcountConfirmedAt: input.headcountIsFixed ? new Date() : null,
       },
       include: optionInclude,
     });
@@ -192,6 +214,7 @@ export class OptionsService {
         ...this.toData(input),
         version: { increment: 1 },
         ...(material ? { materialChangedAt: new Date() } : {}),
+        headcountConfirmedAt: this.nextHeadcountConfirmedAt(option, input),
       },
     });
     if (result.count === 0) {
