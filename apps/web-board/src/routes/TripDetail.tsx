@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -12,9 +12,10 @@ import { useAuth } from "@gtp/api-client";
 import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
-import { CategoryManager } from "../components/CategoryManager";
-import { CategoryLane } from "../components/CategoryLane";
-import { CostTally } from "../components/CostTally";
+import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
+import { BoardCanvas } from "../components/BoardCanvas";
+import { Menu, type MenuItem } from "../components/Menu";
+import { UserMenu } from "../components/UserMenu";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -41,10 +42,21 @@ export function TripDetail() {
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
-  const [managingCategories, setManagingCategories] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const categories = useTripCategories(id);
+
+  // Escape closes the delete-confirmation dialog (its backdrop no longer
+  // dismisses, so this is the keyboard path alongside Cancel). Phase 3.5 a11y.
+  useEffect(() => {
+    if (!confirmingDelete) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmingDelete(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmingDelete]);
 
   async function onDelete() {
     setActionError(null);
@@ -58,12 +70,45 @@ export function TripDetail() {
     }
   }
 
+  /** The trip "⋯" menu — Members (any member) + Edit/Delete (role-gated). */
+  function tripMenuItems(role: TripDetailData["role"]): MenuItem[] {
+    const items: MenuItem[] = [
+      { label: "Members", onSelect: () => setManagingMembers(true) },
+    ];
+    if (can(role, "trip.edit")) {
+      items.push({ label: "Edit trip", onSelect: () => setEditing(true) });
+    }
+    if (can(role, "trip.delete")) {
+      items.push({
+        label: "Delete trip",
+        onSelect: () => setConfirmingDelete(true),
+        danger: true,
+      });
+    }
+    return items;
+  }
+
   return (
     <main className="board">
       <header className="board__bar">
         <Link className="board__brand board__brand--link" to="/">
           ‹ Boards
         </Link>
+        <div className="board__bar-actions">
+          {trip.data && can(trip.data.role, "invite.create") ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setInviting(true)}
+            >
+              Invite
+            </Button>
+          ) : null}
+          {trip.data ? (
+            <Menu label="Trip menu" items={tripMenuItems(trip.data.role)} />
+          ) : null}
+          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
+        </div>
       </header>
 
       {trip.isPending ? (
@@ -100,51 +145,6 @@ export function TripDetail() {
             </p>
           ) : null}
 
-          <div className="board__dialog-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setManagingMembers(true)}
-            >
-              Members
-            </Button>
-            {can(trip.data.role, "invite.create") ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setInviting(true)}
-              >
-                Invite
-              </Button>
-            ) : null}
-            {can(trip.data.role, "category.manage") ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setManagingCategories(true)}
-              >
-                Categories
-              </Button>
-            ) : null}
-            {can(trip.data.role, "trip.edit") ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setEditing(true)}
-              >
-                Edit trip
-              </Button>
-            ) : null}
-            {can(trip.data.role, "trip.delete") ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setConfirmingDelete(true)}
-              >
-                Delete trip
-              </Button>
-            ) : null}
-          </div>
           {actionError ? (
             <p className="board__form-error" role="alert">
               {actionError}
@@ -156,26 +156,14 @@ export function TripDetail() {
           ) : categories.isError ? (
             <p className="board__muted">Couldn't load the category lanes.</p>
           ) : (
-            <div className="board__canvas" aria-label="Category lanes">
-              <CostTally tripId={trip.data.id} />
-              {categories.data.map((cat) => (
-                <CategoryLane
-                  key={cat.id}
-                  tripId={trip.data.id}
-                  category={cat}
-                  defaultCurrency={trip.data.defaultCurrency}
-                  myRole={trip.data.role}
-                  myUserId={user?.id}
-                  frozen={trip.data.status === "HISTORY"}
-                />
-              ))}
-              <section className="lane lane--decided">
-                <h2 className="lane__title">✦ Decided</h2>
-                <div className="lane__card lane__card--ghost">
-                  Locked picks land here
-                </div>
-              </section>
-            </div>
+            <BoardCanvas
+              tripId={trip.data.id}
+              categories={categories.data}
+              defaultCurrency={trip.data.defaultCurrency}
+              myRole={trip.data.role}
+              myUserId={user?.id}
+              frozen={trip.data.status === "HISTORY"}
+            />
           )}
 
           {editing ? (
@@ -201,25 +189,17 @@ export function TripDetail() {
             />
           ) : null}
 
-          {managingCategories ? (
-            <CategoryManager
-              tripId={trip.data.id}
-              onClose={() => setManagingCategories(false)}
-            />
+          {deleteAccountOpen ? (
+            <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
           ) : null}
 
           {confirmingDelete ? (
-            <div
-              className="board__backdrop"
-              role="presentation"
-              onClick={() => setConfirmingDelete(false)}
-            >
+            <div className="board__backdrop" role="presentation">
               <div
                 className="board__dialog"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Delete board"
-                onClick={(e) => e.stopPropagation()}
               >
                 <p className="board__eyebrow">Delete board</p>
                 <h2 className="board__title">Delete “{trip.data.name}”?</h2>
@@ -231,6 +211,7 @@ export function TripDetail() {
                   <Button
                     type="button"
                     variant="secondary"
+                    autoFocus
                     onClick={() => setConfirmingDelete(false)}
                   >
                     Cancel

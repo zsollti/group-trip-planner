@@ -194,6 +194,11 @@ model Option {
   startsAt         DateTime?
   endsAt           DateTime?
   externalRef      String?
+  // Manual display order within the category (Phase 3.5, board drag-and-drop).
+  // Organizer-reorderable; new options append at the end. **Display-only** — it
+  // never affects votes, cost, or the projection front-runner (which tiebreaks
+  // votes → createdAt → id, not position).
+  position         Int          @default(0)
   status           OptionStatus @default(PROPOSED)
   version          Int          @default(0)
   materialChangedAt DateTime?

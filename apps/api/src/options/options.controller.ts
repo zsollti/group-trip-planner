@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import {
   CreateOptionInput,
+  ReorderOptionsInput,
   UpdateOptionInput,
   type OptionView,
 } from "@gtp/types";
@@ -47,6 +48,24 @@ export class OptionsController {
     @Param("categoryId") categoryId: string,
   ): Promise<OptionView[]> {
     return this.options.listOptions(ctx, user.id, categoryId);
+  }
+
+  /**
+   * Reorder the category's options (Organizers, Phase 3.5). Declared before the
+   * `:optionId` routes so "reorder" is never parsed as an option id. Gated on
+   * `category.manage` — reordering the board is an organizer concern, like
+   * reordering the categories themselves.
+   */
+  @Post("reorder")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("category.manage")
+  reorderOptions(
+    @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
+    @Param("categoryId") categoryId: string,
+    @Body(new ZodValidationPipe(ReorderOptionsInput)) body: ReorderOptionsInput,
+  ): Promise<OptionView[]> {
+    return this.options.reorderOptions(ctx, user, categoryId, body);
   }
 
   /** Propose an option (Participant+). */

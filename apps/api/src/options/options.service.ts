@@ -17,6 +17,7 @@ import {
   type LockDatesRejection,
   type LockOptionInput,
   type OptionView,
+  type ReorderOptionsInput,
   type UnlockOptionInput,
   type UpdateOptionInput,
 } from "@gtp/types";
@@ -95,7 +96,9 @@ export class OptionsService {
     const options = await this.prisma.option.findMany({
       where: { categoryId, deletedAt: null },
       include: optionInclude,
-      orderBy: { createdAt: "asc" },
+      // Manual order first (Phase 3.5 reorder), `createdAt` as a stable tiebreak
+      // for options that share a position (e.g. before a first reorder).
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     });
     return options.map((o) => toOptionView(o, viewerId));
   }
@@ -151,11 +154,20 @@ export class OptionsService {
     this.assertActive(ctx);
     await this.requireCategory(ctx, categoryId);
 
+    // Append at the end of the category's current order (Phase 3.5). Soft-deleted
+    // rows keep their slot, so max-position+1 never collides with a live option.
+    const last = await this.prisma.option.aggregate({
+      where: { categoryId },
+      _max: { position: true },
+    });
+    const nextPosition = (last._max.position ?? -1) + 1;
+
     const created = await this.prisma.option.create({
       data: {
         ...this.toData(input),
         categoryId,
         proposerId: user.id,
+        position: nextPosition,
         // A fixed headcount is "confirmed" the moment it is entered (decision 2);
         // a dynamic option tracks the live count and has no confirmation stamp.
         headcountConfirmedAt: input.headcountIsFixed ? new Date() : null,
@@ -253,6 +265,54 @@ export class OptionsService {
       where: { id: option.id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Reorder a category's live options (Organizers, Phase 3.5 — the board's
+   * drag-to-reorder gesture). Mirrors {@link CategoriesService.reorderCategories}:
+   * the caller sends the **full** set of the category's live option ids in the
+   * desired order; anything else (a missing/unknown id, a duplicate, a soft-deleted
+   * id, a wrong count) is a 400, which keeps `position` gap-free and makes the write
+   * idempotent. Positions are reassigned by index in one transaction. Reordering is
+   * display-only — it touches no vote, cost, or lock state, so no `version` bump.
+   */
+  async reorderOptions(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    input: ReorderOptionsInput,
+  ): Promise<OptionView[]> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+
+    const current = await this.prisma.option.findMany({
+      where: { categoryId, deletedAt: null },
+      select: { id: true },
+    });
+    const currentIds = new Set(current.map((o) => o.id));
+    const requested = input.orderedIds;
+    const requestedSet = new Set(requested);
+
+    const isFullPermutation =
+      requested.length === current.length &&
+      requestedSet.size === requested.length &&
+      requested.every((id) => currentIds.has(id));
+    if (!isFullPermutation) {
+      throw new BadRequestException(
+        "Reorder must list each of the category's options exactly once.",
+      );
+    }
+
+    await this.prisma.$transaction(
+      requested.map((id, index) =>
+        this.prisma.option.update({
+          where: { id },
+          data: { position: index },
+        }),
+      ),
+    );
+
+    return this.listOptions(ctx, user.id, categoryId);
   }
 
   /**

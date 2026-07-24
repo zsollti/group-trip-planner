@@ -5,6 +5,7 @@ import { useAuth, useHomeDashboard } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
+import { UserMenu } from "../components/UserMenu";
 
 const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
@@ -60,7 +61,7 @@ function BoardTile({ trip }: { trip: HomeTripSummary }) {
  * canvas — now a wall of trip-board tiles the caller can open (Phase 1.1).
  */
 export function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const dash = useHomeDashboard();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -81,16 +82,7 @@ export function Dashboard() {
           >
             ＋ New board
           </Button>
-          <Button type="button" variant="secondary" onClick={() => logout()}>
-            Log out
-          </Button>
-          <button
-            type="button"
-            className="board__link-btn board__danger-link"
-            onClick={() => setDeleteAccountOpen(true)}
-          >
-            Delete account
-          </button>
+          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
         </div>
       </header>
 
@@ -98,7 +90,15 @@ export function Dashboard() {
       <h1 className="board__title">Welcome, {user?.displayName}</h1>
 
       {dash.isPending ? (
-        <p className="board__muted">Loading your boards…</p>
+        <div
+          className="board__tiles"
+          aria-busy="true"
+          aria-label="Loading your boards"
+        >
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="board__skel-tile" />
+          ))}
+        </div>
       ) : dash.isError ? (
         <p className="board__form-error" role="alert">
           Couldn't load your boards.{" "}

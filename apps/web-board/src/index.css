@@ -1,14 +1,18 @@
-/* UI C — Trip Board: playful, tactile, colorful lanes on a canvas. */
+/* UI C — Trip Board: playful, tactile, colorful lanes on a canvas.
+ * Phase 3.5 theme (first pass): a warm "trip" palette — sand paper + travel
+ * teal — replacing the original purple. Light + dark. The final theme
+ * (typography/textures/committed palette) is a later conversation. */
 :root {
   color-scheme: light dark;
-  --board-bg: #f4f1fb;
-  --board-dot: #e0d8f5;
-  --board-fg: #241f33;
-  --board-dim: #6b6480;
-  --board-accent: #7c5cff;
-  --lane-bg: #ffffff;
-  --lane-line: #e6e0f5;
-  --board-danger: #d1242f;
+  --board-bg: #f5efe3;
+  --board-dot: #e6dcc7;
+  --board-fg: #232826;
+  --board-dim: #6f736b;
+  --board-accent: #0f766e;
+  --board-on-accent: #ffffff;
+  --lane-bg: #fffdf8;
+  --lane-line: #e7ddc9;
+  --board-danger: #c0392b;
   font-family:
     "Inter",
     system-ui,
@@ -18,17 +22,32 @@
     sans-serif;
 }
 
+/* Dark tokens: applied automatically when the OS prefers dark AND the user has
+ * not chosen a theme, or explicitly when they toggle to dark. The manual choice
+ * (data-theme on <html>) always wins over the OS default (Phase 3.5). */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --board-bg: #16131f;
-    --board-dot: #2a2440;
-    --board-fg: #ece8f7;
-    --board-dim: #a79fc0;
-    --board-accent: #9d84ff;
-    --lane-bg: #211c2e;
-    --lane-line: #322b45;
+  :root:not([data-theme]) {
+    --board-bg: #14201e;
+    --board-dot: #22302d;
+    --board-fg: #eaf0ed;
+    --board-dim: #9fb0ab;
+    --board-accent: #2dd4bf;
+    --board-on-accent: #08201d;
+    --lane-bg: #1b2b28;
+    --lane-line: #2c3d39;
     --board-danger: #ff6b6b;
   }
+}
+:root[data-theme="dark"] {
+  --board-bg: #14201e;
+  --board-dot: #22302d;
+  --board-fg: #eaf0ed;
+  --board-dim: #9fb0ab;
+  --board-accent: #2dd4bf;
+  --board-on-accent: #08201d;
+  --lane-bg: #1b2b28;
+  --lane-line: #2c3d39;
+  --board-danger: #ff6b6b;
 }
 
 * {
@@ -41,6 +60,30 @@ body {
   color: var(--board-fg);
   background-image: radial-gradient(var(--board-dot) 1px, transparent 1px);
   background-size: 22px 22px;
+}
+
+/* Phase 3.5: a faint scattered travel-motif backdrop behind every page. Purely
+ * decorative (aria-hidden in the markup) and non-interactive; sits on its own
+ * layer beneath the content so it never touches layout or focus. */
+.board__decor {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--board-fg);
+}
+.board__decor svg {
+  position: absolute;
+  width: clamp(52px, 8vw, 108px);
+  height: auto;
+  opacity: 0.05;
+  transform: rotate(var(--r, 0deg));
+}
+@media (prefers-color-scheme: dark) {
+  .board__decor svg {
+    opacity: 0.08;
+  }
 }
 
 .board {
@@ -99,7 +142,7 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 16px;
   padding: 1.75rem;
-  box-shadow: 0 16px 40px rgba(124, 92, 255, 0.15);
+  box-shadow: 0 16px 40px rgba(20, 40, 38, 0.15);
 }
 
 .board__alt {
@@ -172,7 +215,7 @@ body {
 
 .board [data-gtp-button] {
   background: var(--board-accent);
-  color: #fff;
+  color: var(--board-on-accent);
   border: none;
   border-radius: 8px;
   padding: 0.5rem 0.95rem;
@@ -212,11 +255,125 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 14px;
   padding: 0.85rem;
-  box-shadow: 0 6px 18px rgba(124, 92, 255, 0.07);
+  box-shadow: 0 6px 18px rgba(20, 40, 38, 0.07);
 }
 
 .lane--decided {
   border-style: dashed;
+}
+
+/* --- Board drag-and-drop (Phase 3.5) --- */
+.lane__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.lane__head .lane__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.lane__title-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.lane__title-btn:hover {
+  color: var(--board-accent);
+}
+.lane__title-btn:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.lane__rename {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.lane__rename input {
+  width: 100%;
+}
+.lane__confirm {
+  background: color-mix(in srgb, var(--board-danger) 8%, var(--lane-bg));
+  border: 1px solid color-mix(in srgb, var(--board-danger) 40%, transparent);
+  border-radius: 10px;
+  padding: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.lane__confirm-text {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+/* Trailing "＋ Add category" lane. */
+.lane--add {
+  background: transparent;
+  border: 2px dashed var(--lane-line);
+  box-shadow: none;
+}
+.lane__add-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--board-dim);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.85rem;
+  border-radius: 12px;
+  text-align: left;
+}
+.lane__add-btn:hover {
+  color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 8%, transparent);
+}
+.lane__add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lane__grip {
+  background: none;
+  border: none;
+  color: var(--board-dim);
+  cursor: grab;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  /* Let the pointer sensor own the gesture on touch (don't scroll instead). */
+  touch-action: none;
+}
+.lane__grip:hover {
+  color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 10%, transparent);
+}
+.lane__grip:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+.lane__grip:active {
+  cursor: grabbing;
+}
+.lane__grip--lane {
+  font-size: 1rem;
+}
+.lane__card--dragging {
+  box-shadow: 0 10px 26px rgba(20, 40, 38, 0.28);
+  position: relative;
+  z-index: 3;
+}
+.lane--drop-active {
+  border-color: var(--board-accent);
+  border-style: solid;
+  background: color-mix(in srgb, var(--board-accent) 8%, var(--lane-bg));
 }
 
 .lane__title {
@@ -260,7 +417,7 @@ body {
   display: inline-block;
   margin-top: 0.5rem;
   background: var(--board-accent);
-  color: #fff;
+  color: var(--board-on-accent);
   border: none;
   border-radius: 8px;
   padding: 0.55rem 1rem;
@@ -288,7 +445,7 @@ body {
   padding: 1.1rem 1rem 1rem;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 6px 18px rgba(124, 92, 255, 0.08);
+  box-shadow: 0 6px 18px rgba(20, 40, 38, 0.08);
   transition: transform 0.08s ease;
 }
 .board__tile:hover {
@@ -333,7 +490,7 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 20px 50px rgba(124, 92, 255, 0.25);
+  box-shadow: 0 20px 50px rgba(20, 40, 38, 0.25);
 }
 .board__dialog-actions {
   display: flex;
@@ -346,6 +503,31 @@ body {
 .board__dialog--tall {
   max-height: 86vh;
   overflow-y: auto;
+}
+/* Wider option form laid out in two columns so it fits without scrolling. */
+.board__dialog--wide {
+  width: min(42rem, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.board__form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+.board__form-wide {
+  grid-column: 1 / -1;
+}
+.board textarea[data-gtp-input] {
+  width: 100%;
+  resize: vertical;
+  min-height: 4.75rem;
+  font-family: inherit;
+}
+@media (max-width: 640px) {
+  .board__form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .board__field-label {
@@ -448,8 +630,31 @@ body {
 .lane__card-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.5rem;
+}
+.lane__card-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+.lane__dates {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--board-fg);
+}
+.lane__notes {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--board-dim);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .lane__lock {
   color: var(--board-accent);
@@ -505,7 +710,7 @@ body {
 }
 .lane__vote-btn--on {
   background: var(--board-accent);
-  color: #fff;
+  color: var(--board-on-accent);
 }
 .lane__vote-btn:disabled {
   opacity: 0.6;
@@ -522,6 +727,43 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--board-accent);
+}
+/* Category tag on a card in the cross-category "Decided" column (Phase 3.5). */
+.lane__tag {
+  margin: 0;
+  align-self: flex-start;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--board-accent);
+}
+.lane__card--decided {
+  border-left: 3px solid var(--board-accent);
+}
+/* Click-to-edit parameters on a card (Phase 3.5): a text button that opens the
+ * full edit form; hints editability on hover/focus without adding chrome. */
+.lane__field-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.lane__field-btn:hover,
+.lane__field-btn:hover .lane__cost,
+.lane__field-btn:hover .lane__dates,
+.lane__field-btn:hover .lane__notes {
+  color: var(--board-accent);
+}
+.lane__field-btn:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .lane__card-actions {
   display: flex;
@@ -693,6 +935,128 @@ body {
   color: var(--board-dim);
 }
 
+/* Charted cost breakdown (Phase 3.5, dataviz): a one-hue committed-vs-projected
+ * bar per currency + a legend; the exact figures stay visible beside it. */
+.board__tally-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.66rem;
+  color: var(--board-dim);
+}
+.board__tally-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.board__swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--board-accent);
+}
+.board__swatch--extra {
+  background-color: color-mix(in srgb, var(--board-accent) 14%, transparent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--board-accent) 0 2px,
+    transparent 2px 5px
+  );
+}
+.tally-bar {
+  display: flex;
+  gap: 2px;
+  height: 9px;
+  width: 100%;
+  background: var(--lane-line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0.1rem 0;
+}
+.tally-bar__seg {
+  height: 100%;
+}
+.tally-bar__seg--committed {
+  background: var(--board-accent);
+}
+.tally-bar__seg--extra {
+  background-color: color-mix(in srgb, var(--board-accent) 14%, transparent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--board-accent) 0 2px,
+    transparent 2px 5px
+  );
+}
+.board__tally-figs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.board__tally-fig {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.board__tally-fig strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--board-fg);
+}
+.board__tally-fig--proj strong {
+  color: var(--board-accent);
+}
+
+/* Cost summary strip under the header (Phase 3.5) — replaces the pinned widget
+ * so the canvas is pure lanes and mobile swipes cleanly. */
+.board__cost-strip {
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  padding: 0.55rem 0.85rem;
+  margin-bottom: 1rem;
+}
+.board__cost-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+.board__cost-summary::-webkit-details-marker {
+  display: none;
+}
+.board__cost-summary:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.board__cost-label {
+  color: var(--board-accent);
+}
+.board__cost-peek {
+  color: var(--board-dim);
+  font-weight: 500;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.board__cost-body {
+  margin-top: 0.6rem;
+}
+.board__cost-currencies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+.board__cost-currencies .board__tally-cur {
+  flex: 1 1 12rem;
+  max-width: 22rem;
+  border-top: none;
+  padding-top: 0;
+}
+
 /* Home overview — trip-tile cost/pending + History section (Phase 3.4). */
 .board__tile-cost {
   margin-top: 0.35rem;
@@ -706,10 +1070,191 @@ body {
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   background: var(--board-accent);
-  color: #fff;
+  color: var(--board-on-accent);
   font-size: 0.72rem;
   font-weight: 600;
 }
 .board__history-head {
   margin-top: 1.5rem;
+}
+
+/* --- Mobile reflow (Phase 3.5) ---------------------------------------------
+ * The canvas is already a horizontal column board; on a phone we tighten the
+ * chrome, wrap the action bars, turn the lanes into a one-at-a-time swipe with
+ * scroll-snap, and grow tap targets to a comfortable size. No page-level
+ * horizontal scroll — the lanes scroll inside their own overflow container. */
+@media (max-width: 640px) {
+  .board {
+    padding: 1rem 0.9rem 1.75rem;
+  }
+  .board__bar,
+  .board__bar-actions {
+    flex-wrap: wrap;
+  }
+  .board__title {
+    font-size: 1.4rem;
+  }
+  /* One lane ~fills the screen with the next peeking; swipe snaps lane to lane. */
+  .board__canvas {
+    gap: 0.75rem;
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: 0.9rem;
+  }
+  .lane,
+  .board__tally {
+    flex-basis: min(16rem, 82vw);
+    scroll-snap-align: start;
+  }
+  /* Comfortable touch targets (≥44px) for the primary controls. */
+  .board [data-gtp-button],
+  .board__cta {
+    min-height: 44px;
+  }
+  .lane__vote-btn {
+    min-height: 36px;
+    padding-inline: 0.75rem;
+  }
+}
+
+/* --- A11y floor + four-states polish (Phase 3.5) --------------------------- */
+/* Visible keyboard focus on every interactive control (not just inputs/grips). */
+.board [data-gtp-button]:focus-visible,
+.board__cta:focus-visible,
+.board__link-btn:focus-visible,
+.board__brand--link:focus-visible,
+.lane__vote-btn:focus-visible,
+.lane__link:focus-visible,
+.board__alt a:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respect reduced-motion: drop the tile lift and the loading shimmer. */
+@media (prefers-reduced-motion: reduce) {
+  .board__tile {
+    transition: none;
+  }
+  .board__tile:hover {
+    transform: none;
+  }
+  .board__skel-tile {
+    animation: none;
+  }
+}
+
+/* Loading skeleton for the boards overview (four-states: loading). */
+.board__skel-tile {
+  height: 6.5rem;
+  border-radius: 14px;
+  border: 1px solid var(--lane-line);
+  background: linear-gradient(
+    90deg,
+    var(--lane-bg) 0%,
+    color-mix(in srgb, var(--board-dim) 14%, var(--lane-bg)) 50%,
+    var(--lane-bg) 100%
+  );
+  background-size: 200% 100%;
+  animation: board-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes board-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* --- Popover menu (Phase 3.5): card / lane / trip / avatar "⋯" ------------- */
+.menu {
+  position: relative;
+  display: inline-block;
+}
+.menu__trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--board-dim);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+}
+.menu__trigger:hover {
+  color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 10%, transparent);
+}
+.menu__trigger:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+.menu__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 10.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(20, 40, 38, 0.22);
+}
+.menu__list--left {
+  right: auto;
+  left: 0;
+}
+.menu__item {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: color-mix(in srgb, var(--board-accent) 12%, transparent);
+  outline: none;
+}
+.menu__item--danger {
+  color: var(--board-danger);
+}
+.menu__item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Account avatar trigger (Phase 3.5 header). */
+.board__bar-actions {
+  align-items: center;
+}
+.board__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.board__avatar-trigger {
+  padding: 2px;
+  border-radius: 50%;
+}
+.board__avatar-trigger:hover {
+  background: none;
+}
+.board__avatar-trigger:hover .board__avatar {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-accent) 40%, transparent);
 }

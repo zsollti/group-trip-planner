@@ -114,7 +114,7 @@ export function MemberDialog({
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <div
         className="board__dialog board__dialog--tall"
         role="dialog"

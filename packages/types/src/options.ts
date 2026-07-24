@@ -127,6 +127,19 @@ export const UpdateOptionInput = withCrossFieldRules(
 export type UpdateOptionInput = z.infer<typeof UpdateOptionInput>;
 
 /**
+ * Reorder a category's options (Organizers, Phase 3.5). Mirrors
+ * {@link ReorderCategoriesInput}: the client sends the full set of the category's
+ * live option ids in the desired order and the backend assigns `position` by
+ * index in one transaction. Sending the complete set makes the write idempotent
+ * and gap-free — a partial or padded list is rejected. Reordering is
+ * **display-only**; it never changes votes, cost, or the projection.
+ */
+export const ReorderOptionsInput = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1),
+});
+export type ReorderOptionsInput = z.infer<typeof ReorderOptionsInput>;
+
+/**
  * An option as shown on the planning surface. `amount` is a plain number (the DB
  * decimal, normalised) or null when unpriced. `materialChangedAt` drives the
  * stale-vote indicator (Phase 2.3). `proposerId` lets the front-ends resolve the

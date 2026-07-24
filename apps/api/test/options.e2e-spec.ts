@@ -312,4 +312,92 @@ describe("Options (e2e)", () => {
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .expect(403);
   });
+
+  async function propose(
+    accessToken: string,
+    tripId: string,
+    categoryId: string,
+    title: string,
+  ) {
+    const res = await http()
+      .post(optionsUrl(tripId, categoryId))
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ title, currency: "EUR" })
+      .expect(201);
+    return res.body.id as string;
+  }
+
+  async function listIds(accessToken: string, tripId: string, categoryId: string) {
+    const res = await http()
+      .get(optionsUrl(tripId, categoryId))
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    return (res.body as { id: string }[]).map((o) => o.id);
+  }
+
+  it("proposes append at the end, and an Organizer can reorder them (Phase 3.5)", async () => {
+    const owner = await makeUser("ro-owner");
+    const trip = await createTrip(owner.accessToken, "Reorder");
+    const cat = await firstCategoryId(owner.accessToken, trip.id);
+
+    // Three proposals list in creation order (append-at-end).
+    const a = await propose(owner.accessToken, trip.id, cat, "A");
+    const b = await propose(owner.accessToken, trip.id, cat, "B");
+    const c = await propose(owner.accessToken, trip.id, cat, "C");
+    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [a, b, c]);
+
+    // Reverse them via a full-set reorder; the new order persists on re-read.
+    const reordered = await http()
+      .post(`${optionsUrl(trip.id, cat)}/reorder`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ orderedIds: [c, b, a] })
+      .expect(201);
+    assert.deepEqual(
+      (reordered.body as { id: string }[]).map((o) => o.id),
+      [c, b, a],
+    );
+    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [c, b, a]);
+
+    // A new proposal still appends at the very end of the reordered list.
+    const d = await propose(owner.accessToken, trip.id, cat, "D");
+    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [c, b, a, d]);
+  });
+
+  it("rejects a partial reorder (400) and a non-organizer/non-member", async () => {
+    const owner = await makeUser("rp-owner");
+    const part = await makeUser("rp-part");
+    const stranger = await makeUser("rp-stranger");
+    const trip = await createTrip(owner.accessToken, "Reorder Guarded");
+    await join(
+      part.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+    const cat = await firstCategoryId(owner.accessToken, trip.id);
+    const a = await propose(owner.accessToken, trip.id, cat, "A");
+    const b = await propose(owner.accessToken, trip.id, cat, "B");
+
+    // A partial list (must be the full set exactly once) → 400.
+    await http()
+      .post(`${optionsUrl(trip.id, cat)}/reorder`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ orderedIds: [a] })
+      .expect(400);
+
+    // A Participant is not an Organizer (category.manage) → 403.
+    await http()
+      .post(`${optionsUrl(trip.id, cat)}/reorder`)
+      .set("Authorization", `Bearer ${part.accessToken}`)
+      .send({ orderedIds: [b, a] })
+      .expect(403);
+
+    // A non-member gets a 404 — existence not leaked.
+    await http()
+      .post(`${optionsUrl(trip.id, cat)}/reorder`)
+      .set("Authorization", `Bearer ${stranger.accessToken}`)
+      .send({ orderedIds: [b, a] })
+      .expect(404);
+
+    // Order is unchanged after the rejected attempts.
+    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [a, b]);
+  });
 });

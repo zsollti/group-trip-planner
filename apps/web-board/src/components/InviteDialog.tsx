@@ -101,7 +101,7 @@ export function InviteDialog({
   }
 
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <div
         className="board__dialog board__dialog--tall"
         role="dialog"
@@ -124,7 +124,8 @@ export function InviteDialog({
               />
               <span>
                 <strong>Global</strong> — one reusable link anyone can use to
-                join. One per role; disable it anytime (members who joined stay).
+                join. One per role; disable it anytime (members who joined
+                stay).
               </span>
             </label>
             <label className="board__radio">

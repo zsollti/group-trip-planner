@@ -1,226 +1,268 @@
 import { useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@gtp/ui-primitives";
 import {
   can,
-  canManageOption,
   type CategoryView,
   type OptionView,
   type TripRole,
 } from "@gtp/types";
 import {
   ApiError,
-  useCategoryOptions,
+  useDeleteCategory,
   useDeleteOption,
-  useToggleVote,
-  useLockOption,
-  useUnlockOption,
+  useRenameCategory,
 } from "@gtp/api-client";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
+import { OptionCard } from "./OptionCard";
+import { Menu } from "./Menu";
 
 /**
- * Board-paradigm lock control (Phase 2.4) — moving a card to "Decided".
- * Organizers get Decide (single-choice) / Lock and Unlock; others see a
- * read-only "Decided" tag on a locked card. Locking is confirmed (pending state,
- * no optimistic flip); a 409 refetch reflects whichever card actually won the
- * decision.
+ * One proposed option card, made sortable within its lane (Phase 3.5). The drag
+ * listeners bind to a small **grip** in the card head — never the whole card — so
+ * the vote control and the "⋯" menu keep working. Dragging is enabled only for
+ * organizers on an active trip (`dndEnabled`); otherwise the card renders plain.
  */
-function LockControl({
+function SortableOptionCard({
   tripId,
   category,
   option,
   myRole,
+  myUserId,
   frozen,
+  dndEnabled,
+  onEdit,
+  onDelete,
+  deleting,
 }: {
   tripId: string;
   category: CategoryView;
   option: OptionView;
   myRole: TripRole;
+  myUserId: string | undefined;
   frozen: boolean;
+  dndEnabled: boolean;
+  onEdit: (o: OptionView) => void;
+  onDelete: (o: OptionView) => void;
+  deleting: boolean;
 }) {
-  const lock = useLockOption(tripId, category.id);
-  const unlock = useUnlockOption(tripId, category.id);
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    attributes,
+    listeners,
+    isDragging,
+  } = useSortable({
+    id: option.id,
+    data: { type: "card", categoryId: category.id },
+    disabled: !dndEnabled,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : undefined,
+  };
+  const grip = dndEnabled ? (
+    <button
+      type="button"
+      className="lane__grip"
+      aria-label={`Drag ${option.title} — reorder or drop on Decided to lock`}
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  ) : undefined;
+
+  return (
+    <OptionCard
+      tripId={tripId}
+      category={category}
+      option={option}
+      myRole={myRole}
+      myUserId={myUserId}
+      frozen={frozen}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      deleting={deleting}
+      cardRef={setNodeRef}
+      style={style}
+      grip={grip}
+      dragging={isDragging}
+    />
+  );
+}
+
+/** The lane header: an inline-editable name (organizers), the drag grip, and a
+ *  "⋯" menu (Delete). Rename carries the version for the 409-reload path. */
+function LaneHeader({
+  tripId,
+  category,
+  isOrganizer,
+  grip,
+  onRequestDelete,
+}: {
+  tripId: string;
+  category: CategoryView;
+  isOrganizer: boolean;
+  grip?: ReactNode;
+  onRequestDelete: () => void;
+}) {
+  const rename = useRenameCategory(tripId);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(category.name);
   const [error, setError] = useState<string | null>(null);
-  const pending = lock.isPending || unlock.isPending;
-  const locked = option.status === "LOCKED";
 
-  if (frozen || !can(myRole, "decision.lock")) {
-    return locked ? (
-      <p className="lane__decided">
-        ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
-      </p>
-    ) : null;
-  }
-
-  async function onLock() {
-    setError(null);
-    try {
-      await lock.mutateAsync({
-        optionId: option.id,
-        optionVersion: option.version,
-        categoryVersion: category.version,
-      });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not lock");
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = draft.trim();
+    if (!name || name === category.name) {
+      setEditing(false);
+      return;
     }
-  }
-  async function onUnlock() {
     setError(null);
     try {
-      await unlock.mutateAsync({
-        optionId: option.id,
-        version: option.version,
+      await rename.mutateAsync({
+        categoryId: category.id,
+        name,
+        version: category.version,
       });
+      setEditing(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not unlock");
+      setError(
+        err instanceof ApiError && err.status === 409
+          ? "Changed elsewhere — reload."
+          : err instanceof ApiError
+            ? err.message
+            : "Rename failed",
+      );
     }
   }
 
   return (
-    <div className="lane__lock">
-      {locked ? (
-        <>
-          <span className="lane__decided">
-            ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
-          </span>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={pending}
-            onClick={onUnlock}
-          >
-            {unlock.isPending ? "Unlocking…" : "Unlock"}
-          </Button>
-        </>
-      ) : (
-        <Button
-          type="button"
-          variant="primary"
-          disabled={pending}
-          onClick={onLock}
-        >
-          {lock.isPending
-            ? "Deciding…"
-            : category.singleChoice
-              ? "Move to Decided"
-              : "Lock card"}
-        </Button>
-      )}
+    <>
+      <div className="lane__head">
+        {editing ? (
+          <form className="lane__rename" onSubmit={submit}>
+            <input
+              data-gtp-input
+              autoFocus
+              aria-label={`Rename ${category.name}`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={submit}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setDraft(category.name);
+                  setEditing(false);
+                }
+              }}
+            />
+          </form>
+        ) : (
+          <h2 className="lane__title">
+            {isOrganizer ? (
+              <button
+                type="button"
+                className="lane__title-btn"
+                title="Rename category"
+                onClick={() => {
+                  setDraft(category.name);
+                  setEditing(true);
+                }}
+              >
+                {category.name}
+              </button>
+            ) : (
+              category.name
+            )}
+          </h2>
+        )}
+        <div className="lane__card-tools">
+          {grip}
+          {isOrganizer ? (
+            <Menu
+              label={`${category.name} lane actions`}
+              items={[
+                {
+                  label: "Delete category",
+                  onSelect: onRequestDelete,
+                  danger: true,
+                },
+              ]}
+            />
+          ) : null}
+        </div>
+      </div>
       {error ? (
         <p className="board__form-error" role="alert">
           {error}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-/** Compact money label, e.g. "€ per person" context aside. */
-function costLabel(o: OptionView): string | null {
-  if (o.amount == null) return null;
-  const per = o.costType === "PER_PERSON" ? "/person" : " total";
-  return `${o.amount} ${o.currency}${per}`;
-}
-
-/**
- * Board-paradigm dot-voting: one dot per approval vote (the viewer's own dot
- * filled), a toggle to add/remove it, and the public voter list with a stale
- * marker on votes cast before the option's last material edit (FR-22/23). The
- * toggle shows only to voters (`vote.cast`); everyone sees the dots.
- */
-function VoteDots({
-  tripId,
-  category,
-  option,
-  myRole,
-  frozen,
-}: {
-  tripId: string;
-  category: string;
-  option: OptionView;
-  myRole: TripRole;
-  frozen: boolean;
-}) {
-  const toggle = useToggleVote(tripId, category);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onToggle() {
-    setError(null);
-    try {
-      await toggle.mutateAsync({
-        optionId: option.id,
-        hasVoted: option.viewerHasVoted,
-      });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not vote");
-    }
-  }
-
-  return (
-    <div className="lane__vote">
-      <div className="lane__dots" aria-label={`${option.voteCount} votes`}>
-        {option.voters.length === 0 ? (
-          <span className="lane__meta">no votes</span>
-        ) : (
-          option.voters.map((v) => (
-            <span
-              key={v.userId}
-              className={"lane__dot" + (v.stale ? " lane__dot--stale" : "")}
-              title={
-                v.stale ? `${v.displayName} (stale)` : v.displayName
-              }
-            />
-          ))
-        )}
-      </div>
-      {can(myRole, "vote.cast") && !frozen ? (
-        <button
-          type="button"
-          className={
-            "lane__vote-btn" +
-            (option.viewerHasVoted ? " lane__vote-btn--on" : "")
-          }
-          aria-pressed={option.viewerHasVoted}
-          disabled={toggle.isPending}
-          onClick={onToggle}
-        >
-          {option.viewerHasVoted ? "● Voted" : "○ Vote"}
-        </button>
-      ) : null}
-      {error ? (
-        <span className="board__form-error" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </div>
+    </>
   );
 }
 
 /**
- * One board lane = one category, rendering its options as cards (the board
- * paradigm). Participant+ can add a card; the proposer or an Organizer gets
- * edit/delete on a card (the same `canManageOption` rule the API enforces). A
- * locked option is badged and its edit is blocked server-side.
+ * One board lane = one category, rendering its **proposed** options as cards.
+ * Locked options move to the global "Decided" column (Phase 3.5); this lane
+ * receives only the proposed cards. The lane is a sortable item (drag its header
+ * grip to reorder categories), its name is inline-editable, and a "⋯" menu deletes
+ * it (organizers). Participant+ can add a card; the proposer or an Organizer
+ * edits/deletes via each card's own menu.
  */
 export function CategoryLane({
   tripId,
   category,
+  options,
   defaultCurrency,
   myRole,
   myUserId,
   frozen = false,
+  dndEnabled = false,
 }: {
   tripId: string;
   category: CategoryView;
+  options: OptionView[];
   defaultCurrency: string;
   myRole: TripRole;
   myUserId: string | undefined;
   frozen?: boolean;
+  dndEnabled?: boolean;
 }) {
-  const options = useCategoryOptions(tripId, category.id);
   const deleteOption = useDeleteOption(tripId, category.id);
+  const deleteCategory = useDeleteCategory(tripId);
   const [proposing, setProposing] = useState(false);
   const [editing, setEditing] = useState<OptionView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const isOrganizer = can(myRole, "category.manage") && !frozen;
+
+  const {
+    setNodeRef,
+    transform,
+    transition,
+    attributes,
+    listeners,
+    isDragging,
+  } = useSortable({
+    id: `lane:${category.id}`,
+    data: { type: "lane", categoryId: category.id },
+    disabled: !dndEnabled,
+  });
+  const laneStyle: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
 
   async function onDelete(o: OptionView) {
     setError(null);
@@ -231,86 +273,94 @@ export function CategoryLane({
     }
   }
 
+  async function onDeleteCategory() {
+    setError(null);
+    try {
+      await deleteCategory.mutateAsync(category.id);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not delete the category",
+      );
+    }
+  }
+
+  const cardIds = options.map((o) => o.id);
+  const laneGrip = dndEnabled ? (
+    <button
+      type="button"
+      className="lane__grip lane__grip--lane"
+      aria-label={`Drag to reorder the ${category.name} lane`}
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  ) : undefined;
+
   return (
-    <section className="lane">
-      <h2 className="lane__title">{category.name}</h2>
+    <section ref={setNodeRef} style={laneStyle} className="lane">
+      <LaneHeader
+        tripId={tripId}
+        category={category}
+        isOrganizer={isOrganizer}
+        grip={laneGrip}
+        onRequestDelete={() => setConfirmingDelete(true)}
+      />
       <p className="lane__meta">
         {category.singleChoice ? "single-choice" : "multi-select"}
       </p>
 
-      {options.isPending ? (
-        <p className="lane__meta">Loading…</p>
-      ) : options.isError ? (
-        <p className="lane__meta">Couldn't load cards.</p>
-      ) : options.data.length === 0 ? (
-        <div className="lane__card lane__card--ghost">No cards yet</div>
-      ) : (
-        options.data.map((o) => {
-          const manageable = canManageOption(myRole, o.proposerId === myUserId);
-          return (
-            <article key={o.id} className="lane__card lane__card--option">
-              <div className="lane__card-head">
-                <strong>{o.title}</strong>
-                {o.status === "LOCKED" ? (
-                  <span className="lane__lock" title="Locked decision">
-                    ✦
-                  </span>
-                ) : null}
-              </div>
-              {costLabel(o) ? (
-                <p className="lane__cost">{costLabel(o)}</p>
-              ) : null}
-              {o.url ? (
-                <a
-                  className="lane__link"
-                  href={o.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  Link ↗
-                </a>
-              ) : null}
-              <p className="lane__by">
-                by {o.proposerName}
-                {o.materialChangedAt ? " · edited" : ""}
-              </p>
-              <VoteDots
-                tripId={tripId}
-                category={category.id}
-                option={o}
-                myRole={myRole}
-                frozen={frozen}
-              />
-              {manageable && o.status !== "LOCKED" && !frozen ? (
-                <div className="lane__card-actions">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setEditing(o)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={deleteOption.isPending}
-                    onClick={() => onDelete(o)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              ) : null}
-              <LockControl
-                tripId={tripId}
-                category={category}
-                option={o}
-                myRole={myRole}
-                frozen={frozen}
-              />
-            </article>
-          );
-        })
-      )}
+      {confirmingDelete ? (
+        <div
+          className="lane__confirm"
+          role="alertdialog"
+          aria-label="Delete category"
+        >
+          <p className="lane__confirm-text">
+            Delete “{category.name}” and all its cards? This can’t be undone.
+          </p>
+          <div className="board__dialog-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              autoFocus
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={deleteCategory.isPending}
+              onClick={onDeleteCategory}
+            >
+              {deleteCategory.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+        {options.length === 0 ? (
+          <div className="lane__card lane__card--ghost">No cards yet</div>
+        ) : (
+          options.map((o) => (
+            <SortableOptionCard
+              key={o.id}
+              tripId={tripId}
+              category={category}
+              option={o}
+              myRole={myRole}
+              myUserId={myUserId}
+              frozen={frozen}
+              dndEnabled={dndEnabled}
+              onEdit={setEditing}
+              onDelete={onDelete}
+              deleting={deleteOption.isPending}
+            />
+          ))
+        )}
+      </SortableContext>
 
       {error ? (
         <p className="board__form-error" role="alert">
