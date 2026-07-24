@@ -107,6 +107,12 @@ model Trip {
   // Optimistic-concurrency token for the "changed since you opened it — reload"
   // edit path (SRS §6). Bumped on every trip-detail edit.
   version         Int        @default(0)
+  // Bumped to now() whenever the member *count* changes (join/leave/kick/block),
+  // never on a role change or transfer (SRS Phase-3 decision 2). Drives the
+  // fixed-headcount stale flag: a fixed headcount confirmed before this instant
+  // no longer reflects the roster. Null = the count has never changed since
+  // creation, so nothing is stale (the cost engine treats null as "no change").
+  membershipChangedAt DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -180,6 +186,11 @@ model Option {
   // count is used (resolved by the Phase-3 engine, never stored here).
   headcount        Int?
   headcountIsFixed Boolean      @default(false)
+  // Stamped when a *fixed* headcount is entered/re-entered (SRS Phase-3 decision
+  // 2), cleared when the option reverts to dynamic. A fixed headcount is stale
+  // iff this predates the trip's `membershipChangedAt`. Null for dynamic options
+  // (which always track the live count and are never stale).
+  headcountConfirmedAt DateTime?
   startsAt         DateTime?
   endsAt           DateTime?
   externalRef      String?
