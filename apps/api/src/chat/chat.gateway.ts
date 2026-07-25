@@ -18,6 +18,12 @@ import {
   MESSAGE_NEW_EVENT,
   MESSAGE_SEND_EVENT,
   type MessageAck,
+  REACTION_ADD_EVENT,
+  REACTION_REMOVE_EVENT,
+  REACTION_UPDATED_EVENT,
+  type ReactionAck,
+  ReactionInput,
+  type ReactionUpdate,
   SendMessageInput,
   SOCKET_READY_EVENT,
 } from "@gtp/types";
@@ -188,6 +194,62 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
         .to(tripRoom(data.tripId))
         .emit(MESSAGE_DELETED_EVENT, message);
       return { ok: true, message };
+    } catch (err) {
+      return { ok: false, error: ackError(err) };
+    }
+  }
+
+  /** Add the caller's reaction (Phase 4.3, any member). Idempotent; the refreshed
+   * public reaction groups broadcast to the whole room (the actor reconciles its
+   * optimistic toggle against the authoritative set). */
+  @SubscribeMessage(REACTION_ADD_EVENT)
+  onReactionAdd(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() raw: unknown,
+  ): Promise<ReactionAck> {
+    return this.mutateReaction(client, raw, (data, input) =>
+      this.messages.addReaction(
+        data.tripId,
+        data.userId,
+        input.messageId,
+        input.emoji,
+      ),
+    );
+  }
+
+  /** Remove the caller's reaction (Phase 4.3). Idempotent; broadcasts the update. */
+  @SubscribeMessage(REACTION_REMOVE_EVENT)
+  onReactionRemove(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() raw: unknown,
+  ): Promise<ReactionAck> {
+    return this.mutateReaction(client, raw, (data, input) =>
+      this.messages.removeReaction(
+        data.tripId,
+        data.userId,
+        input.messageId,
+        input.emoji,
+      ),
+    );
+  }
+
+  private async mutateReaction(
+    client: Socket,
+    raw: unknown,
+    run: (
+      data: SocketData,
+      input: { messageId: string; emoji: string },
+    ) => Promise<ReactionUpdate>,
+  ): Promise<ReactionAck> {
+    const data = client.data as SocketData;
+    const parsed = ReactionInput.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "Invalid reaction" };
+    try {
+      const update = await run(data, parsed.data);
+      this.server
+        .to(tripRoom(data.tripId))
+        .emit(REACTION_UPDATED_EVENT, update);
+      return { ok: true, update };
     } catch (err) {
       return { ok: false, error: ackError(err) };
     }

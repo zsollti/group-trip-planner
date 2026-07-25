@@ -8,10 +8,16 @@ import {
   canDeleteMessage,
   type MessagePage,
   type MessageView,
+  type ReactionUpdate,
+  resolveMentions,
   type SendMessageInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { messageInclude, toMessageView } from "./message.mapper.js";
+import {
+  groupReactions,
+  messageInclude,
+  toMessageView,
+} from "./message.mapper.js";
 
 /** Default and maximum page size for cursor-paged channel history. */
 const DEFAULT_PAGE = 30;
@@ -41,23 +47,102 @@ export class MessagesService {
     return channel;
   }
 
-  /** Persist a message (author already known to be a member). Returns the view
-   * that is both ack'd to the sender and broadcast to the room. */
+  /** Load a message and assert its channel belongs to `tripId` (else 404). */
+  private async messageInTrip(messageId: string, tripId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      include: messageInclude,
+    });
+    if (!message) throw new NotFoundException("Message not found");
+    await this.channelInTrip(message.channelId, tripId);
+    return message;
+  }
+
+  /**
+   * Persist a message (author already known to be a member) and resolve its
+   * `@mentions` against the trip's members in the **same transaction** — the
+   * mention rows are captured for Phase-5 notification delivery (FR-32); delivery
+   * itself is deferred. Returns the view that is both ack'd to the sender and
+   * broadcast to the room.
+   */
   async post(
     tripId: string,
     authorId: string,
     input: SendMessageInput,
   ): Promise<MessageView> {
     await this.channelInTrip(input.channelId, tripId);
-    const message = await this.prisma.message.create({
-      data: {
-        channelId: input.channelId,
-        authorId,
-        body: input.body,
-      },
-      include: messageInclude,
+
+    const members = await this.prisma.tripMembership.findMany({
+      where: { tripId },
+      select: { userId: true, user: { select: { displayName: true } } },
+    });
+    const mentionIds = resolveMentions(
+      input.body,
+      members.map((m) => ({
+        userId: m.userId,
+        displayName: m.user.displayName,
+      })),
+    );
+
+    const message = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.message.create({
+        data: { channelId: input.channelId, authorId, body: input.body },
+        select: { id: true },
+      });
+      if (mentionIds.length > 0) {
+        await tx.mention.createMany({
+          data: mentionIds.map((userId) => ({
+            messageId: created.id,
+            userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      return tx.message.findUniqueOrThrow({
+        where: { id: created.id },
+        include: messageInclude,
+      });
     });
     return toMessageView(message);
+  }
+
+  /** Add the caller's reaction (idempotent) and return the message's refreshed
+   * public reaction groups to broadcast. Any member may react (Phase 4.3). */
+  async addReaction(
+    tripId: string,
+    userId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<ReactionUpdate> {
+    await this.messageInTrip(messageId, tripId);
+    await this.prisma.reaction.upsert({
+      where: { messageId_userId_emoji: { messageId, userId, emoji } },
+      create: { messageId, userId, emoji },
+      update: {},
+    });
+    return this.reactionsFor(messageId);
+  }
+
+  /** Remove the caller's reaction (idempotent) and return the refreshed groups. */
+  async removeReaction(
+    tripId: string,
+    userId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<ReactionUpdate> {
+    await this.messageInTrip(messageId, tripId);
+    await this.prisma.reaction.deleteMany({
+      where: { messageId, userId, emoji },
+    });
+    return this.reactionsFor(messageId);
+  }
+
+  private async reactionsFor(messageId: string): Promise<ReactionUpdate> {
+    const rows = await this.prisma.reaction.findMany({
+      where: { messageId },
+      select: { emoji: true, userId: true },
+    });
+    return { messageId, reactions: groupReactions(rows) };
   }
 
   /**

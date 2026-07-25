@@ -1466,3 +1466,96 @@ body {
   margin-top: 0;
   flex-shrink: 0;
 }
+
+/* Reactions + @mentions (Phase 4.3). */
+.board__mention {
+  color: var(--board-accent);
+  font-weight: 700;
+}
+.board__reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+.board__reaction {
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--lane-line);
+  background: transparent;
+  color: var(--board-fg);
+}
+.board__reaction--on {
+  border-color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 18%, transparent);
+}
+.board__reaction-add {
+  position: relative;
+}
+.board__reaction-addbtn {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  border: 1px dashed var(--lane-line);
+  background: transparent;
+  color: var(--board-dim);
+}
+.board__reaction-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.25rem;
+  display: flex;
+  gap: 0.1rem;
+  padding: 0.2rem;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  z-index: 2;
+}
+.board__reaction-picker button {
+  font-size: 1rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.1rem 0.2rem;
+  border-radius: 6px;
+}
+.board__reaction-picker button:hover {
+  background: color-mix(in srgb, var(--board-accent) 15%, transparent);
+}
+.board__mention-menu {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0.2rem;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  max-height: 8rem;
+  overflow-y: auto;
+}
+.board__mention-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  color: var(--board-fg);
+}
+.board__mention-menu button:hover {
+  background: color-mix(in srgb, var(--board-accent) 15%, transparent);
+}

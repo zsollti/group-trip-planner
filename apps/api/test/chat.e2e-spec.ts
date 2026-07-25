@@ -13,6 +13,11 @@ import {
   MESSAGE_SEND_EVENT,
   type MessageAck,
   type MessageView,
+  REACTION_ADD_EVENT,
+  REACTION_REMOVE_EVENT,
+  REACTION_UPDATED_EVENT,
+  type ReactionAck,
+  type ReactionUpdate,
   SOCKET_READY_EVENT,
   type ChannelView,
 } from "@gtp/types";
@@ -106,6 +111,13 @@ describe("Chat gateway (e2e)", () => {
   /** Emit an event with an ack callback and resolve with the ack payload. */
   function emitAck(socket: Socket, event: string, payload: unknown) {
     return new Promise<MessageAck>((resolve) =>
+      socket.emit(event, payload, resolve),
+    );
+  }
+
+  /** Emit a reaction event and resolve with its ack. */
+  function emitReaction(socket: Socket, event: string, payload: unknown) {
+    return new Promise<ReactionAck>((resolve) =>
       socket.emit(event, payload, resolve),
     );
   }
@@ -326,5 +338,79 @@ describe("Chat gateway (e2e)", () => {
     assert.equal(second.body.messages.length, 1);
     assert.equal(second.body.messages[0].body, "m1");
     assert.equal(second.body.nextCursor, null);
+  });
+
+  it("adds and removes reactions live with public counts", async () => {
+    const owner = await makeUser("react-owner");
+    const other = await makeUser("react-other");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, other.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    const s1 = await connect({ token: owner.token, tripId: trip.id });
+    const s2 = await connect({ token: other.token, tripId: trip.id });
+
+    const posted = await emitAck(s1, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "react to me",
+    });
+    assert.ok(posted.ok);
+    const messageId = posted.message.id;
+
+    const liveUpdate = new Promise<ReactionUpdate>((res) =>
+      s2.on(REACTION_UPDATED_EVENT, res),
+    );
+    const add = await emitReaction(s1, REACTION_ADD_EVENT, {
+      messageId,
+      emoji: "👍",
+    });
+    assert.ok(add.ok);
+    assert.equal(add.update.reactions.length, 1);
+    assert.equal(add.update.reactions[0]?.emoji, "👍");
+    assert.deepEqual(add.update.reactions[0]?.userIds, [owner.user.id]);
+
+    const delivered = await liveUpdate;
+    assert.equal(delivered.messageId, messageId);
+    assert.deepEqual(delivered.reactions[0]?.userIds, [owner.user.id]);
+
+    // Idempotent re-add keeps count 1; then removing clears the group.
+    const readd = await emitReaction(s1, REACTION_ADD_EVENT, {
+      messageId,
+      emoji: "👍",
+    });
+    assert.ok(readd.ok);
+    assert.equal(readd.update.reactions[0]?.userIds.length, 1);
+
+    const remove = await emitReaction(s1, REACTION_REMOVE_EVENT, {
+      messageId,
+      emoji: "👍",
+    });
+    assert.ok(remove.ok);
+    assert.equal(remove.update.reactions.length, 0);
+  });
+
+  it("resolves @mentions to members, persists targets, and ignores non-members", async () => {
+    const owner = await makeUser("MentionOwner");
+    const ada = await makeUser("AdaMentioned");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, ada.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+    const ack = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "hey @AdaMentioned and @Ghost, look here",
+    });
+    assert.ok(ack.ok);
+    // Only the real member is mentioned; @Ghost is ignored.
+    assert.equal(ack.message.mentions.length, 1);
+    assert.equal(ack.message.mentions[0]?.userId, ada.user.id);
+
+    // The mention target is persisted for Phase-5 notification delivery.
+    const rows = await prisma.mention.findMany({
+      where: { messageId: ack.message.id },
+    });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.userId, ada.user.id);
   });
 });

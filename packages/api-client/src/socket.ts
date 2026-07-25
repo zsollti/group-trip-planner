@@ -8,6 +8,10 @@ import {
   type MessageAck,
   type MessagePage,
   type MessageView,
+  REACTION_ADD_EVENT,
+  REACTION_REMOVE_EVENT,
+  REACTION_UPDATED_EVENT,
+  type ReactionUpdate,
   SOCKET_READY_EVENT,
   type ChannelView,
 } from "@gtp/types";
@@ -123,6 +127,8 @@ export interface ChatController {
   loadOlder: () => void;
   send: (body: string) => void;
   remove: (messageId: string) => void;
+  /** Toggle the viewer's reaction with `emoji` on a message (optimistic). */
+  toggleReaction: (messageId: string, emoji: string) => void;
 }
 
 let tempCounter = 0;
@@ -144,6 +150,7 @@ export function useChat(
   socket: Socket | null,
   tripId: string,
   channelId: string | undefined,
+  myUserId: string | undefined,
 ): ChatController {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
@@ -195,11 +202,22 @@ export function useChat(
     const onDeleted = (msg: MessageView) => {
       if (msg.channelId === channelId) upsert(msg);
     };
+    const onReaction = (update: ReactionUpdate) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === update.messageId
+            ? { ...m, reactions: update.reactions }
+            : m,
+        ),
+      );
+    };
     socket.on(MESSAGE_NEW_EVENT, onNew);
     socket.on(MESSAGE_DELETED_EVENT, onDeleted);
+    socket.on(REACTION_UPDATED_EVENT, onReaction);
     return () => {
       socket.off(MESSAGE_NEW_EVENT, onNew);
       socket.off(MESSAGE_DELETED_EVENT, onDeleted);
+      socket.off(REACTION_UPDATED_EVENT, onReaction);
     };
   }, [socket, channelId, upsert]);
 
@@ -211,11 +229,13 @@ export function useChat(
       const optimistic: ChatMessage = {
         id: tempId,
         channelId,
-        authorId: "self",
+        authorId: myUserId ?? "self",
         authorName: "You",
         body: text,
         deleted: false,
         createdAt: new Date().toISOString(),
+        reactions: [],
+        mentions: [],
         pending: true,
       };
       setMessages((prev) => [...prev, optimistic]);
@@ -240,7 +260,7 @@ export function useChat(
           },
         );
     },
-    [socket, channelId],
+    [socket, channelId, myUserId],
   );
 
   const remove = useCallback(
@@ -250,6 +270,36 @@ export function useChat(
       socket.emit(MESSAGE_DELETE_EVENT, { messageId });
     },
     [socket],
+  );
+
+  const toggleReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!socket || !myUserId) return;
+      let willAdd = true;
+      // Optimistically toggle our id in the group; the authoritative set arrives
+      // via the reaction:updated broadcast and overwrites this.
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const groups = m.reactions.map((g) => ({ ...g, userIds: [...g.userIds] }));
+          const group = groups.find((g) => g.emoji === emoji);
+          if (group?.userIds.includes(myUserId)) {
+            willAdd = false;
+            group.userIds = group.userIds.filter((u) => u !== myUserId);
+          } else if (group) {
+            group.userIds.push(myUserId);
+          } else {
+            groups.push({ emoji, userIds: [myUserId] });
+          }
+          return { ...m, reactions: groups.filter((g) => g.userIds.length > 0) };
+        }),
+      );
+      socket.emit(willAdd ? REACTION_ADD_EVENT : REACTION_REMOVE_EVENT, {
+        messageId,
+        emoji,
+      });
+    },
+    [socket, myUserId],
   );
 
   const loadOlder = useCallback(() => {
@@ -282,5 +332,6 @@ export function useChat(
     loadOlder,
     send,
     remove,
+    toggleReaction,
   };
 }
