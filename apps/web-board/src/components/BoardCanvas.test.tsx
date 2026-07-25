@@ -97,6 +97,7 @@ function renderBoard(myRole: TripRole) {
         myRole={myRole}
         myUserId="u1"
         frozen={false}
+        onOpenChannel={() => undefined}
       />
     </QueryClientProvider>,
   );

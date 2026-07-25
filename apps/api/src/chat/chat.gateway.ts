@@ -28,8 +28,11 @@ import {
   SOCKET_READY_EVENT,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { tripRoom } from "../realtime/trip-room.js";
 import { ChannelsService } from "./channels.service.js";
 import { MessagesService } from "./messages.service.js";
+
+export { tripRoom };
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,13 +49,6 @@ interface SocketData {
 /** Turn a thrown service error into the ack error string sent to the client. */
 function ackError(err: unknown): string {
   return err instanceof HttpException ? err.message : "Something went wrong";
-}
-
-/** The Socket.IO room every event for a trip broadcasts to. Server-internal:
- * a socket is placed in exactly one trip room, and only after the membership
- * check passes — the isolation boundary that keeps a trip's traffic private. */
-export function tripRoom(tripId: string): string {
-  return `trip:${tripId}`;
 }
 
 /**

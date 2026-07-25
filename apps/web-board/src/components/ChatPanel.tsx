@@ -8,6 +8,8 @@ import {
 import {
   canDeleteMessage,
   REACTION_EMOJIS,
+  type CategoryView,
+  type ChannelView,
   type MentionView,
   type TripRole,
 } from "@gtp/types";
@@ -158,52 +160,109 @@ function MessageRow({
 }
 
 /**
- * Trip chat (Phase 4.2, +reactions/@mentions in 4.3). A collapsible docked panel
- * over the shared trip socket: live send/receive with optimistic sends,
- * soft-delete tombstones, cursor "load older", public emoji reactions, and
- * @mention autocomplete + highlighting. Chat stays open in a History trip (chat
- * is exempt from the freeze, FR-10). Drives the General channel for now.
+ * Trip chat (Phase 4.2, +reactions/@mentions in 4.3, +channels in 4.5). A
+ * collapsible docked panel over the shared trip socket: live send/receive with
+ * optimistic sends, soft-delete tombstones, cursor "load older", public emoji
+ * reactions, and @mention autocomplete + highlighting. Chat stays open in a
+ * History trip (chat is exempt from the freeze, FR-10).
+ *
+ * Phase 4.5 adds **channels**: a switcher across the auto-created General channel
+ * and any on-demand **category** discussions (FR-29). A category channel is
+ * reached either from its switcher tab or by the board's per-lane "Discuss"
+ * action, which flows a channel id in through `requestChannelId` (opening the
+ * panel and selecting that channel). A deleted category's channel cascades away
+ * server-side; it is hidden here as soon as its category is gone.
  */
 export function ChatPanel({
   tripId,
   tripSocket,
+  categories,
   myRole,
   myUserId,
+  requestChannelId,
+  onRequestHandled,
 }: {
   tripId: string;
   tripSocket: TripSocket;
+  categories: CategoryView[];
   myRole: TripRole;
   myUserId: string | undefined;
+  /** A channel to open + select (from a lane's "Discuss" action); null when idle. */
+  requestChannelId: string | null;
+  onRequestHandled: () => void;
 }) {
   const { socket, channels, unread, markChannelRead, setActiveChannel } =
     tripSocket;
   const [open, setOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+
+  const categoryName = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.name])),
+    [categories],
+  );
   const general = channels.find((c) => c.type === "GENERAL");
-  const chat = useChat(socket, tripId, general?.id, myUserId);
+  // Category channels for categories that still exist (a deleted category's
+  // channel is gone server-side; hide it until the socket list catches up).
+  const listed = useMemo<ChannelView[]>(() => {
+    const cats = channels.filter(
+      (c) =>
+        c.type === "CATEGORY" && c.categoryId && categoryName.has(c.categoryId),
+    );
+    return general ? [general, ...cats] : cats;
+  }, [channels, general, categoryName]);
+
+  // The selected channel, falling back to General if the selection went away.
+  const activeChannel = listed.find((c) => c.id === activeId) ?? general;
+  const activeChannelId = activeChannel?.id;
+
+  const chat = useChat(socket, tripId, activeChannelId, myUserId);
   const members = useTripMembers(open ? tripId : undefined);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const unreadCount = general ? (unread[general.id] ?? 0) : 0;
 
-  function openPanel() {
+  const totalUnread = listed.reduce((sum, c) => sum + (unread[c.id] ?? 0), 0);
+
+  function channelLabel(channel: ChannelView): string {
+    if (channel.type === "GENERAL") return "General";
+    return channel.categoryId
+      ? (categoryName.get(channel.categoryId) ?? "Discussion")
+      : "Discussion";
+  }
+
+  function selectChannel(id: string) {
+    setActiveId(id);
+    setActiveChannel(id);
+  }
+  function openPanel(id?: string) {
     setOpen(true);
-    setActiveChannel(general?.id ?? null);
+    const target = id ?? activeChannelId ?? general?.id ?? null;
+    setActiveId(target);
+    setActiveChannel(target);
   }
   function closePanel() {
     setOpen(false);
     setActiveChannel(null);
   }
 
-  // Keep the newest message in view as the log grows, and keep the channel
-  // marked read while it's open so new arrivals don't re-badge.
+  // A lane's "Discuss" action requested a channel: open + select it, once.
+  useEffect(() => {
+    if (!requestChannelId) return;
+    openPanel(requestChannelId);
+    onRequestHandled();
+    // openPanel/onRequestHandled are stable enough for a one-shot request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestChannelId]);
+
+  // Keep the newest message in view as the log grows, and keep the active channel
+  // marked read while it's open so new arrivals don't re-badge it.
   const count = chat.messages.length;
   useEffect(() => {
     if (open && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-    if (open && general) markChannelRead(general.id);
-  }, [open, count, general, markChannelRead]);
+    if (open && activeChannelId) markChannelRead(activeChannelId);
+  }, [open, count, activeChannelId, markChannelRead]);
 
   // @mention autocomplete: the token being typed just before the caret.
   const [caret, setCaret] = useState(0);
@@ -252,21 +311,21 @@ export function ChatPanel({
         className="board__chat-fab"
         aria-expanded={open}
         aria-label={
-          unreadCount > 0 && !open ? `Chat, ${unreadCount} unread` : "Chat"
+          totalUnread > 0 && !open ? `Chat, ${totalUnread} unread` : "Chat"
         }
         onClick={() => (open ? closePanel() : openPanel())}
       >
         💬 Chat
-        {!open && unreadCount > 0 ? (
+        {!open && totalUnread > 0 ? (
           <span className="board__chat-badge" aria-hidden="true">
-            {unreadCount}
+            {totalUnread}
           </span>
         ) : null}
       </button>
       {open ? (
         <section className="board__chat" role="dialog" aria-label="Trip chat">
           <header className="board__chat-head">
-            <strong>Chat</strong>
+            <strong>{activeChannel ? channelLabel(activeChannel) : "Chat"}</strong>
             <button
               type="button"
               className="board__chat-close"
@@ -276,6 +335,39 @@ export function ChatPanel({
               ×
             </button>
           </header>
+
+          {listed.length > 1 ? (
+            <div
+              className="board__chat-tabs"
+              role="tablist"
+              aria-label="Channels"
+            >
+              {listed.map((c) => {
+                const isActive = c.id === activeChannelId;
+                const badge = !isActive ? (unread[c.id] ?? 0) : 0;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={
+                      "board__chat-tab" +
+                      (isActive ? " board__chat-tab--active" : "")
+                    }
+                    onClick={() => selectChannel(c.id)}
+                  >
+                    {channelLabel(c)}
+                    {badge > 0 ? (
+                      <span className="board__chat-tabbadge" aria-hidden="true">
+                        {badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           <div className="board__chat-log" ref={logRef}>
             {chat.status === "loading" ? (

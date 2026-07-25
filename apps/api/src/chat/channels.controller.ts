@@ -1,29 +1,43 @@
-import {
-  Controller,
-  HttpCode,
-  Param,
-  Post,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
 import type { User } from "@prisma/client";
+import { StartDiscussionInput, type ChannelView } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { RequirePermission } from "../authz/require-permission.decorator.js";
+import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { TripCtx } from "../trips/trip-context.decorator.js";
 import type { TripContext } from "../trips/trip-context.js";
 import { ChannelsService } from "./channels.service.js";
 
 /**
- * Channel read-state (Phase 4.4). Marking a channel read advances the member's
- * read cursor so its unread badge clears. Same guard spine as the rest of the
- * trip API (`trip.view`, every member); the channel is checked to belong to the
- * trip in the service.
+ * Channel management (Phase 4.4 read-state + 4.5 on-demand category channels).
+ * Marking a channel read advances the member's read cursor so its unread badge
+ * clears; starting a discussion materializes a category's channel on demand.
+ * Same guard spine as the rest of the trip API; the channel/category is checked
+ * to belong to the trip in the service.
  */
 @Controller("trips/:id/channels")
 export class ChannelsController {
   constructor(private readonly channels: ChannelsService) {}
+
+  /**
+   * Start a discussion on a category (Phase 4.5, FR-29) — creates its channel on
+   * demand, idempotently. Gated `message.post` (every member incl. Guest, the one
+   * Guest-inclusive surface): starting a discussion is a chat action, not an
+   * organizer one.
+   */
+  @Post()
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("message.post")
+  startDiscussion(
+    @TripCtx() ctx: TripContext,
+    @Body(new ZodValidationPipe(StartDiscussionInput))
+    body: StartDiscussionInput,
+  ): Promise<ChannelView> {
+    return this.channels.startCategoryDiscussion(ctx.trip.id, body.categoryId);
+  }
 
   @Post(":channelId/read")
   @HttpCode(204)

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import {
+  CHANNEL_CREATED_EVENT,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
   MESSAGE_NEW_EVENT,
@@ -8,6 +10,8 @@ import {
   type MessageAck,
   type MessagePage,
   type MessageView,
+  OPTIONS_CHANGED_EVENT,
+  type OptionsChanged,
   REACTION_ADD_EVENT,
   REACTION_REMOVE_EVENT,
   REACTION_UPDATED_EVENT,
@@ -22,6 +26,10 @@ import {
   getApiBaseUrl,
   refreshAccessToken,
 } from "./http.js";
+import { optionKeys } from "./options.js";
+import { categoryKeys } from "./categories.js";
+import { dashboardKeys } from "./dashboard.js";
+import { tripKeys } from "./trips.js";
 
 /**
  * Trip socket lifecycle (Phase 4.1). One connection per open trip.
@@ -124,6 +132,14 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
         ...u,
         [msg.channelId]: (u[msg.channelId] ?? 0) + 1,
       }));
+    });
+    // A member started a category discussion (Phase 4.5): add its channel live so
+    // it appears in the switcher for everyone, not just the member who opened it.
+    socket.on(CHANNEL_CREATED_EVENT, (channel: ChannelView) => {
+      if (cancelled) return;
+      setChannels((prev) =>
+        prev.some((c) => c.id === channel.id) ? prev : [...prev, channel],
+      );
     });
     socket.on("connect_error", () => {
       void (async () => {
@@ -419,4 +435,37 @@ export function useChat(
     remove,
     toggleReaction,
   };
+}
+
+/**
+ * Keep the board live off the trip socket (Phase 4.5 retrofit, FR-29). When any
+ * member proposes/edits/deletes an option, votes, or an organizer locks/unlocks a
+ * decision, the server broadcasts {@link OPTIONS_CHANGED_EVENT}; this hook
+ * invalidates the affected lane's option query plus the cost dashboard, category,
+ * and trip-detail queries, so a locked decision and newly-proposed cards appear
+ * for every trip viewer without a manual refresh. The socket only signals *that*
+ * a lane changed; TanStack Query re-reads the authoritative state over REST
+ * ("tolerate refresh"). Mount once per trip screen with the shared socket.
+ */
+export function useBoardLiveSync(
+  socket: Socket | null,
+  tripId: string | undefined,
+): void {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!socket || !tripId) return;
+    const onChanged = (payload: OptionsChanged) => {
+      if (payload.tripId !== tripId) return;
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, payload.categoryId),
+      });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+    };
+    socket.on(OPTIONS_CHANGED_EVENT, onChanged);
+    return () => {
+      socket.off(OPTIONS_CHANGED_EVENT, onChanged);
+    };
+  }, [socket, tripId, qc]);
 }

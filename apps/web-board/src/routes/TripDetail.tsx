@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
+  useBoardLiveSync,
   useDeleteTrip,
   useTrip,
   useTripCategories,
@@ -48,9 +49,14 @@ export function TripDetail() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // A channel a lane's "Discuss" action asked the chat panel to open (null = idle).
+  const [openChannelId, setOpenChannelId] = useState<string | null>(null);
   const categories = useTripCategories(id);
   // One trip socket for the whole screen, shared by the live indicator + chat.
   const tripSocket = useTripSocket(id);
+  // Keep the board live: refetch lanes/cost when anyone proposes, votes, or an
+  // organizer locks/unlocks — pushed over the same socket (Phase 4.5 retrofit).
+  useBoardLiveSync(tripSocket.socket, id);
 
   // Escape closes the delete-confirmation dialog (its backdrop no longer
   // dismisses, so this is the keyboard path alongside Cancel). Phase 3.5 a11y.
@@ -169,6 +175,7 @@ export function TripDetail() {
               myRole={trip.data.role}
               myUserId={user?.id}
               frozen={trip.data.status === "HISTORY"}
+              onOpenChannel={setOpenChannelId}
             />
           )}
 
@@ -202,8 +209,11 @@ export function TripDetail() {
           <ChatPanel
             tripId={trip.data.id}
             tripSocket={tripSocket}
+            categories={categories.data ?? []}
             myRole={trip.data.role}
             myUserId={user?.id}
+            requestChannelId={openChannelId}
+            onRequestHandled={() => setOpenChannelId(null)}
           />
 
           {confirmingDelete ? (

@@ -7,12 +7,15 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { io, type Socket } from "socket.io-client";
 import {
+  CHANNEL_CREATED_EVENT,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
   MESSAGE_NEW_EVENT,
   MESSAGE_SEND_EVENT,
   type MessageAck,
   type MessageView,
+  OPTIONS_CHANGED_EVENT,
+  type OptionsChanged,
   REACTION_ADD_EVENT,
   REACTION_REMOVE_EVENT,
   REACTION_UPDATED_EVENT,
@@ -144,6 +147,37 @@ describe("Chat gateway (e2e)", () => {
 
   function unreadOf(ready: ChatReadyPayload, channelId: string): number {
     return ready.unread.find((u) => u.channelId === channelId)?.count ?? 0;
+  }
+
+  /** Resolve with the next `event` payload, or reject if it doesn't arrive. */
+  function once<T>(socket: Socket, event: string, ms = 2000): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`timeout waiting for ${event}`)),
+        ms,
+      );
+      socket.once(event, (payload: T) => {
+        clearTimeout(timer);
+        resolve(payload);
+      });
+    });
+  }
+
+  /** A multi-select category with one PROPOSED option (for the lock-live test). */
+  async function makeCategoryWithOption(tripId: string, proposerId: string) {
+    const category = await prisma.category.create({
+      data: { tripId, name: "Stay", position: 0, singleChoice: false },
+    });
+    const option = await prisma.option.create({
+      data: {
+        categoryId: category.id,
+        proposerId,
+        title: "Cabin",
+        currency: "EUR",
+        position: 0,
+      },
+    });
+    return { category, option };
   }
 
   /** Attempt a handshake; resolve with the ready payload or the rejection message. */
@@ -500,5 +534,111 @@ describe("Chat gateway (e2e)", () => {
     });
     const second = await connectReady({ token: owner.token, tripId: trip.id });
     assert.equal(unreadOf(second.ready, channelId), 1);
+  });
+
+  it("starts a category discussion on demand (idempotent) and broadcasts it live", async () => {
+    const owner = await makeUser("disc-owner");
+    const trip = await makeTrip(owner.user.id);
+    const category = await prisma.category.create({
+      data: { tripId: trip.id, name: "Transport", position: 0 },
+    });
+
+    // A connected member should see the new channel appear live.
+    const watcher = await connect({ token: owner.token, tripId: trip.id });
+    const broadcast = once<ChannelView>(watcher, CHANNEL_CREATED_EVENT);
+
+    const first = await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ categoryId: category.id })
+      .expect(201);
+    assert.equal(first.body.type, "CATEGORY");
+    assert.equal(first.body.categoryId, category.id);
+
+    const pushed = await broadcast;
+    assert.equal(pushed.id, first.body.id);
+    assert.equal(pushed.type, "CATEGORY");
+
+    // Idempotent: a second "start discussion" returns the same channel, no dupe.
+    const second = await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ categoryId: category.id })
+      .expect(201);
+    assert.equal(second.body.id, first.body.id);
+    const rows = await prisma.channel.findMany({
+      where: { categoryId: category.id },
+    });
+    assert.equal(rows.length, 1);
+  });
+
+  it("cascades a category's channel when the category is deleted", async () => {
+    const owner = await makeUser("cascade-owner");
+    const trip = await makeTrip(owner.user.id);
+    const category = await prisma.category.create({
+      data: { tripId: trip.id, name: "Food", position: 0 },
+    });
+    await prisma.channel.create({
+      data: { tripId: trip.id, categoryId: category.id, type: "CATEGORY" },
+    });
+
+    await prisma.category.delete({ where: { id: category.id } });
+
+    const gone = await prisma.channel.findUnique({
+      where: { categoryId: category.id },
+    });
+    assert.equal(gone, null);
+  });
+
+  it("pushes options:changed to trip viewers when an option is locked", async () => {
+    const owner = await makeUser("lock-owner");
+    const trip = await makeTrip(owner.user.id);
+    const { category, option } = await makeCategoryWithOption(
+      trip.id,
+      owner.user.id,
+    );
+
+    const watcher = await connect({ token: owner.token, tripId: trip.id });
+    const changed = once<OptionsChanged>(watcher, OPTIONS_CHANGED_EVENT);
+
+    await request(app.getHttpServer())
+      .post(
+        `/trips/${trip.id}/categories/${category.id}/options/${option.id}/lock`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ optionVersion: option.version, categoryVersion: category.version })
+      .expect(201);
+
+    const payload = await changed;
+    assert.equal(payload.tripId, trip.id);
+    assert.equal(payload.categoryId, category.id);
+  });
+
+  it("rejects starting a discussion for a non-member (IDOR) and a foreign category", async () => {
+    const owner = await makeUser("sd-owner");
+    const outsider = await makeUser("sd-outsider");
+    const trip = await makeTrip(owner.user.id);
+    const category = await prisma.category.create({
+      data: { tripId: trip.id, name: "Activities", position: 0 },
+    });
+
+    // A non-member gets a 404 (existence not leaked), never a channel.
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels`)
+      .set("Authorization", `Bearer ${outsider.token}`)
+      .send({ categoryId: category.id })
+      .expect(404);
+
+    // A category from another trip is a 404 too (no cross-trip channel).
+    const other = await makeUser("sd-other");
+    const otherTrip = await makeTrip(other.user.id);
+    const foreign = await prisma.category.create({
+      data: { tripId: otherTrip.id, name: "Elsewhere", position: 0 },
+    });
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ categoryId: foreign.id })
+      .expect(404);
   });
 });

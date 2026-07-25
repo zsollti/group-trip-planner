@@ -77,7 +77,8 @@ export {
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
-export { useTripSocket, useChat } from "./socket.js";
+export { useStartDiscussion } from "./channels.js";
+export { useTripSocket, useChat, useBoardLiveSync } from "./socket.js";
 export type {
   TripSocket,
   SocketStatus,
