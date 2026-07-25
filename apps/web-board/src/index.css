@@ -1327,3 +1327,142 @@ body {
 .board__avatar-trigger:hover .board__avatar {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-accent) 40%, transparent);
 }
+
+/* Trip chat (Phase 4.2): a collapsible docked panel + its launcher. */
+.board__chat-fab {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  z-index: 40;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+.board__chat {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  z-index: 41;
+  width: min(22rem, calc(100vw - 2rem));
+  height: min(30rem, calc(100vh - 6rem));
+  display: flex;
+  flex-direction: column;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+.board__chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--lane-line);
+}
+.board__chat-close,
+.board__msg-del {
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--board-dim);
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+}
+.board__chat-close {
+  font-size: 1.2rem;
+}
+.board__chat-close:hover,
+.board__msg-del:hover {
+  color: var(--board-danger);
+}
+.board__chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.board__chat-older {
+  align-self: center;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  color: var(--board-accent);
+}
+.board__msg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.board__msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.board__msg--pending {
+  opacity: 0.6;
+}
+.board__msg--tombstone .board__msg-body {
+  font-style: italic;
+  color: var(--board-dim);
+}
+.board__msg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.board__msg-author {
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+.board__msg-time {
+  font-size: 0.66rem;
+  color: var(--board-dim);
+}
+.board__msg--failed .board__msg-time {
+  color: var(--board-danger);
+}
+.board__msg-del {
+  margin-left: auto;
+  font-size: 1rem;
+}
+.board__msg-body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.board__chat-composer {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  padding: 0.6rem 0.8rem;
+  border-top: 1px solid var(--lane-line);
+}
+.board__chat-input {
+  flex: 1;
+  resize: none;
+}
+.board__chat-composer [data-gtp-button] {
+  width: auto;
+  margin-top: 0;
+  flex-shrink: 0;
+}

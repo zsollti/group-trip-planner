@@ -1,21 +1,18 @@
-import { useTripSocket } from "@gtp/api-client";
+import type { SocketStatus } from "@gtp/api-client";
 
-const LABEL = {
+const LABEL: Record<SocketStatus, string> = {
   connecting: "Connecting…",
   connected: "Live",
   error: "Offline",
   idle: "",
-} as const;
+};
 
 /**
- * The trip's real-time connection indicator (Phase 4.1). Owning the
- * `useTripSocket` subscription here scopes the socket's lifetime to the trip
- * screen: it connects on mount and disconnects on unmount. For now it only
- * surfaces the connection state; the chat panel that rides this socket lands in
- * Phase 4.2.
+ * The trip's real-time connection indicator (Phase 4.1). Presentational — the
+ * `useTripSocket` subscription is owned once by TripDetail and shared with the
+ * chat panel, so there's a single socket per trip. Just surfaces the state.
  */
-export function LiveIndicator({ tripId }: { tripId: string }) {
-  const { status } = useTripSocket(tripId);
+export function LiveIndicator({ status }: { status: SocketStatus }) {
   if (status === "idle") return null;
   return (
     <span

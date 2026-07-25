@@ -130,3 +130,19 @@ export function canManageOption(
   if (isProposer && can(actorRole, "option.propose")) return true;
   return ROLE_RANK[actorRole] >= ROLE_RANK.CO_ORGANIZER;
 }
+
+/**
+ * May `actorRole` soft-delete a chat message (Phase 4.2)? The target-scoped
+ * "own message / any message" rule (SRS §3): the **author** may delete their own
+ * message (`message.deleteOwn`, held by every member incl. Guest), and an
+ * **Organizer** (Owner/Co-organizer) may delete *anyone's* (`message.deleteAny`).
+ * Posting itself is `message.post` — every member — and is never frozen by the
+ * History lifecycle (chat is exempt, FR-10), so it isn't re-encoded here.
+ */
+export function canDeleteMessage(
+  actorRole: TripRole,
+  isAuthor: boolean,
+): boolean {
+  if (isAuthor && can(actorRole, "message.deleteOwn")) return true;
+  return can(actorRole, "message.deleteAny");
+}
