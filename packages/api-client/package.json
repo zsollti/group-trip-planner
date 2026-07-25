@@ -18,7 +18,8 @@
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
-    "@gtp/types": "workspace:*"
+    "@gtp/types": "workspace:*",
+    "socket.io-client": "4"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",

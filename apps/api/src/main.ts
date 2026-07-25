@@ -10,6 +10,7 @@ import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
 import { ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
+import { WsCorsAdapter } from "./chat/ws-cors.adapter.js";
 
 async function bootstrap(): Promise<void> {
   // Imported dynamically so that env validation (which runs while AppModule's
@@ -30,6 +31,9 @@ async function bootstrap(): Promise<void> {
   // credentials so the httpOnly refresh cookie can flow cross-origin.
   app.use(cookieParser());
   app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
+
+  // Real-time chat gateway (Phase 4.1): lock socket CORS to the same origins.
+  app.useWebSocketAdapter(new WsCorsAdapter(app, env.CORS_ORIGINS));
 
   await app.listen(env.PORT);
 
