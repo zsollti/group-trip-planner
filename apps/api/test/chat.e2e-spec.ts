@@ -2,9 +2,20 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { INestApplication } from "@nestjs/common";
+import type { TripRole } from "@prisma/client";
 import { Test } from "@nestjs/testing";
-import { io } from "socket.io-client";
-import { SOCKET_READY_EVENT, type ChannelView } from "@gtp/types";
+import request from "supertest";
+import { io, type Socket } from "socket.io-client";
+import {
+  MESSAGE_DELETE_EVENT,
+  MESSAGE_DELETED_EVENT,
+  MESSAGE_NEW_EVENT,
+  MESSAGE_SEND_EVENT,
+  type MessageAck,
+  type MessageView,
+  SOCKET_READY_EVENT,
+  type ChannelView,
+} from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { TokenService } from "../src/auth/token.service.js";
@@ -29,6 +40,7 @@ describe("Chat gateway (e2e)", () => {
   const suffix = Date.now();
   const userIds: string[] = [];
   const tripIds: string[] = [];
+  const opened: Socket[] = [];
 
   async function makeUser(label: string) {
     const user = await prisma.user.create({
@@ -45,12 +57,16 @@ describe("Chat gateway (e2e)", () => {
 
   /** A trip owned by `ownerId`, with the owner's membership + a General channel
    * (mirrors createTrip minimally, without seeding categories). */
-  async function makeTrip(ownerId: string) {
+  async function makeTrip(
+    ownerId: string,
+    opts: { history?: boolean } = {},
+  ) {
     const trip = await prisma.trip.create({
       data: {
         name: `Trip ${suffix}`,
         defaultCurrency: "EUR",
-        expiresAt: new Date(Date.now() + 86_400_000),
+        status: opts.history ? "HISTORY" : "ACTIVE",
+        expiresAt: new Date(Date.now() + (opts.history ? -1000 : 86_400_000)),
         ownerId,
       },
     });
@@ -60,6 +76,38 @@ describe("Chat gateway (e2e)", () => {
     });
     await prisma.channel.create({ data: { tripId: trip.id, type: "GENERAL" } });
     return trip;
+  }
+
+  async function addMember(tripId: string, userId: string, role: TripRole) {
+    await prisma.tripMembership.create({ data: { tripId, userId, role } });
+  }
+
+  async function generalChannelId(tripId: string): Promise<string> {
+    const c = await prisma.channel.findFirstOrThrow({
+      where: { tripId, type: "GENERAL" },
+    });
+    return c.id;
+  }
+
+  /** Connect a socket and resolve once it has joined the trip room (ready). */
+  function connect(auth: { token: string; tripId: string }): Promise<Socket> {
+    return new Promise((resolve, reject) => {
+      const socket = io(`http://localhost:${port}`, {
+        auth,
+        transports: ["websocket"],
+        reconnection: false,
+      });
+      opened.push(socket);
+      socket.on(SOCKET_READY_EVENT, () => resolve(socket));
+      socket.on("connect_error", (err: Error) => reject(err));
+    });
+  }
+
+  /** Emit an event with an ack callback and resolve with the ack payload. */
+  function emitAck(socket: Socket, event: string, payload: unknown) {
+    return new Promise<MessageAck>((resolve) =>
+      socket.emit(event, payload, resolve),
+    );
   }
 
   /** Attempt a handshake; resolve with the ready payload or the rejection message. */
@@ -99,6 +147,7 @@ describe("Chat gateway (e2e)", () => {
   });
 
   after(async () => {
+    for (const s of opened) s.disconnect();
     // Trips cascade their memberships, channels, and blocks.
     for (const id of tripIds)
       await prisma.trip.deleteMany({ where: { id } }).catch(() => undefined);
@@ -167,5 +216,115 @@ describe("Chat gateway (e2e)", () => {
     });
     assert.equal(channels.length, 1);
     assert.equal(channels[0]?.type, "GENERAL");
+  });
+
+  it("delivers a sent message live to another member and acks the sender", async () => {
+    const owner = await makeUser("m-owner");
+    const other = await makeUser("m-other");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, other.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    const sender = await connect({ token: owner.token, tripId: trip.id });
+    const receiver = await connect({ token: other.token, tripId: trip.id });
+
+    const live = new Promise<MessageView>((res) =>
+      receiver.on(MESSAGE_NEW_EVENT, res),
+    );
+    const ack = await emitAck(sender, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "hello crew",
+    });
+    assert.ok(ack.ok);
+    assert.equal(ack.message.body, "hello crew");
+    const delivered = await live;
+    assert.equal(delivered.id, ack.message.id);
+    assert.equal(delivered.body, "hello crew");
+  });
+
+  it("tombstones on delete (Organizer any / author own) and rejects a non-author non-organizer", async () => {
+    const owner = await makeUser("d-owner");
+    const guest = await makeUser("d-guest");
+    const parti = await makeUser("d-parti");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, guest.user.id, "GUEST");
+    await addMember(trip.id, parti.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    const gsock = await connect({ token: guest.token, tripId: trip.id });
+    const osock = await connect({ token: owner.token, tripId: trip.id });
+    const psock = await connect({ token: parti.token, tripId: trip.id });
+
+    // A Guest can post (chat is Guest+).
+    const posted = await emitAck(gsock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "guest here",
+    });
+    assert.ok(posted.ok);
+    const msgId = posted.message.id;
+
+    // A Participant who isn't the author and isn't an Organizer cannot delete.
+    const denied = await emitAck(psock, MESSAGE_DELETE_EVENT, {
+      messageId: msgId,
+    });
+    assert.equal(denied.ok, false);
+
+    // The Owner (Organizer) deletes anyone's; the tombstone broadcasts.
+    const tomb = new Promise<MessageView>((res) =>
+      gsock.on(MESSAGE_DELETED_EVENT, res),
+    );
+    const del = await emitAck(osock, MESSAGE_DELETE_EVENT, { messageId: msgId });
+    assert.ok(del.ok);
+    assert.equal(del.message.deleted, true);
+    assert.equal(del.message.body, null);
+    const t = await tomb;
+    assert.equal(t.id, msgId);
+    assert.equal(t.deleted, true);
+  });
+
+  it("allows posting in a History trip (chat is exempt from the freeze)", async () => {
+    const owner = await makeUser("hist-owner");
+    const trip = await makeTrip(owner.user.id, { history: true });
+    const channelId = await generalChannelId(trip.id);
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+
+    const ack = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "still chatting after the trip",
+    });
+    assert.ok(ack.ok);
+  });
+
+  it("pages channel history newest-first by cursor (REST)", async () => {
+    const owner = await makeUser("cursor-owner");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    // Explicit increasing createdAt so the order is deterministic.
+    let base = Date.now() - 10_000;
+    for (const body of ["m1", "m2", "m3"]) {
+      await prisma.message.create({
+        data: { channelId, authorId: owner.user.id, body, createdAt: new Date(base) },
+      });
+      base += 1000;
+    }
+
+    const first = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/channels/${channelId}/messages?limit=2`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.equal(first.body.messages.length, 2);
+    assert.equal(first.body.messages[0].body, "m3"); // newest first
+    assert.equal(first.body.messages[1].body, "m2");
+    assert.ok(first.body.nextCursor);
+
+    const second = await request(app.getHttpServer())
+      .get(
+        `/trips/${trip.id}/channels/${channelId}/messages?limit=2&cursor=${first.body.nextCursor}`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.equal(second.body.messages.length, 1);
+    assert.equal(second.body.messages[0].body, "m1");
+    assert.equal(second.body.nextCursor, null);
   });
 });

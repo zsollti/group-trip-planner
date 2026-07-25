@@ -5,6 +5,7 @@ import {
   useDeleteTrip,
   useTrip,
   useTripCategories,
+  useTripSocket,
 } from "@gtp/api-client";
 import { can, type TripDetail as TripDetailData } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
@@ -17,6 +18,7 @@ import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
+import { ChatPanel } from "../components/ChatPanel";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -47,6 +49,8 @@ export function TripDetail() {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const categories = useTripCategories(id);
+  // One trip socket for the whole screen, shared by the live indicator + chat.
+  const tripSocket = useTripSocket(id);
 
   // Escape closes the delete-confirmation dialog (its backdrop no longer
   // dismisses, so this is the keyboard path alongside Cancel). Phase 3.5 a11y.
@@ -96,7 +100,7 @@ export function TripDetail() {
           ‹ Boards
         </Link>
         <div className="board__bar-actions">
-          {trip.data ? <LiveIndicator tripId={trip.data.id} /> : null}
+          {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
           {trip.data && can(trip.data.role, "invite.create") ? (
             <Button
               type="button"
@@ -194,6 +198,14 @@ export function TripDetail() {
           {deleteAccountOpen ? (
             <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
           ) : null}
+
+          <ChatPanel
+            tripId={trip.data.id}
+            channels={tripSocket.channels}
+            socket={tripSocket.socket}
+            myRole={trip.data.role}
+            myUserId={user?.id}
+          />
 
           {confirmingDelete ? (
             <div className="board__backdrop" role="presentation">

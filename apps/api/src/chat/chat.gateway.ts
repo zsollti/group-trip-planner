@@ -1,23 +1,45 @@
-import { Logger } from "@nestjs/common";
+import { HttpException, Logger } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
+  ConnectedSocket,
+  MessageBody,
   type OnGatewayConnection,
   type OnGatewayInit,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
-import { SOCKET_READY_EVENT } from "@gtp/types";
+import type { TripRole } from "@prisma/client";
+import {
+  DeleteMessageInput,
+  MESSAGE_DELETE_EVENT,
+  MESSAGE_DELETED_EVENT,
+  MESSAGE_NEW_EVENT,
+  MESSAGE_SEND_EVENT,
+  type MessageAck,
+  SendMessageInput,
+  SOCKET_READY_EVENT,
+} from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { ChannelsService } from "./channels.service.js";
+import { MessagesService } from "./messages.service.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** What the gateway pins on an authenticated socket after the handshake. */
+/** What the gateway pins on an authenticated socket after the handshake. The
+ * role is snapshotted here for the message-delete rule; it is refreshed on each
+ * reconnect (the handshake re-runs), consistent with the per-request model. */
 interface SocketData {
   userId: string;
   tripId: string;
+  role: TripRole;
+}
+
+/** Turn a thrown service error into the ack error string sent to the client. */
+function ackError(err: unknown): string {
+  return err instanceof HttpException ? err.message : "Something went wrong";
 }
 
 /** The Socket.IO room every event for a trip broadcasts to. Server-internal:
@@ -47,6 +69,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly channels: ChannelsService,
+    private readonly messages: MessagesService,
   ) {}
 
   afterInit(server: Server): void {
@@ -106,6 +129,67 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     });
     if (block) throw new Error("forbidden");
 
-    (client.data as SocketData) = { userId: user.id, tripId };
+    (client.data as SocketData) = {
+      userId: user.id,
+      tripId,
+      role: membership.role,
+    };
+  }
+
+  /**
+   * Post a message (Phase 4.2). Any member may post — the handshake already
+   * proved membership. The stored message is broadcast to everyone else in the
+   * trip room; the **sender** receives it back through this ack and reconciles
+   * it against its optimistic copy (so the sender never sees a duplicate).
+   */
+  @SubscribeMessage(MESSAGE_SEND_EVENT)
+  async onSend(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() raw: unknown,
+  ): Promise<MessageAck> {
+    const data = client.data as SocketData;
+    const parsed = SendMessageInput.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "Invalid message" };
+    try {
+      const message = await this.messages.post(
+        data.tripId,
+        data.userId,
+        parsed.data,
+      );
+      client.to(tripRoom(data.tripId)).emit(MESSAGE_NEW_EVENT, message);
+      return { ok: true, message };
+    } catch (err) {
+      return { ok: false, error: ackError(err) };
+    }
+  }
+
+  /**
+   * Soft-delete a message (Phase 4.2). The author may delete their own, an
+   * Organizer anyone's (enforced in the service). The tombstone goes to the
+   * **whole** room — including the actor's other tabs — since delete is not
+   * optimistic.
+   */
+  @SubscribeMessage(MESSAGE_DELETE_EVENT)
+  async onDelete(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() raw: unknown,
+  ): Promise<MessageAck> {
+    const data = client.data as SocketData;
+    const parsed = DeleteMessageInput.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "Invalid request" };
+    try {
+      const message = await this.messages.softDelete(
+        data.tripId,
+        data.userId,
+        data.role,
+        parsed.data.messageId,
+      );
+      this.server
+        .to(tripRoom(data.tripId))
+        .emit(MESSAGE_DELETED_EVENT, message);
+      return { ok: true, message };
+    } catch (err) {
+      return { ok: false, error: ackError(err) };
+    }
   }
 }

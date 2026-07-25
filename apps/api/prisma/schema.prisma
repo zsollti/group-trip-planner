@@ -36,6 +36,8 @@ model User {
   lockedOptions           Option[]                 @relation("OptionLocker")
   votes                   Vote[]
   auditEvents             AuditEvent[]             @relation("AuditActor")
+  messages                Message[]                @relation("MessageAuthor")
+  deletedMessages         Message[]                @relation("MessageDeleter")
 
   @@map("users")
 }
@@ -187,9 +189,33 @@ model Channel {
 
   trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  messages Message[]
 
   @@index([tripId])
   @@map("channels")
+}
+
+/// A chat message in a channel (Phase 4.2, SRS §6 / FR-30). Messages are
+/// **soft-deleted** (`deletedAt` + `deletedById`) so a tombstone survives in
+/// history — the author may delete their own, an Organizer anyone's. Posting is
+/// allowed for every member and is **exempt from the History freeze** (chat stays
+/// open in ended trips, FR-10). Ordered by `createdAt` for cursor-paged history
+/// and the Phase-4.4 reconnect catch-up.
+model Message {
+  id          String    @id @default(uuid()) @db.Uuid
+  channelId   String    @db.Uuid
+  authorId    String    @db.Uuid
+  body        String
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User    @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  deletedBy User?   @relation("MessageDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  @@index([channelId, createdAt])
+  @@map("messages")
 }
 
 /// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are
