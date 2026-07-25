@@ -20,6 +20,7 @@ import {
   type ReactionUpdate,
   SOCKET_READY_EVENT,
   type ChannelView,
+  type ChatReadyPayload,
 } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
@@ -122,6 +123,29 @@ describe("Chat gateway (e2e)", () => {
     );
   }
 
+  /** Connect and resolve with the socket + its ready payload (for unread). */
+  function connectReady(auth: {
+    token: string;
+    tripId: string;
+  }): Promise<{ socket: Socket; ready: ChatReadyPayload }> {
+    return new Promise((resolve, reject) => {
+      const socket = io(`http://localhost:${port}`, {
+        auth,
+        transports: ["websocket"],
+        reconnection: false,
+      });
+      opened.push(socket);
+      socket.on(SOCKET_READY_EVENT, (ready: ChatReadyPayload) =>
+        resolve({ socket, ready }),
+      );
+      socket.on("connect_error", (err: Error) => reject(err));
+    });
+  }
+
+  function unreadOf(ready: ChatReadyPayload, channelId: string): number {
+    return ready.unread.find((u) => u.channelId === channelId)?.count ?? 0;
+  }
+
   /** Attempt a handshake; resolve with the ready payload or the rejection message. */
   function attempt(auth: {
     token: string;
@@ -135,9 +159,9 @@ describe("Chat gateway (e2e)", () => {
         transports: ["websocket"],
         reconnection: false,
       });
-      socket.on(SOCKET_READY_EVENT, (channels: ChannelView[]) => {
+      socket.on(SOCKET_READY_EVENT, (payload: ChatReadyPayload) => {
         socket.disconnect();
-        resolve({ ok: true, channels });
+        resolve({ ok: true, channels: payload.channels });
       });
       socket.on("connect_error", (err: Error) => {
         socket.disconnect();
@@ -412,5 +436,69 @@ describe("Chat gateway (e2e)", () => {
     });
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.userId, ada.user.id);
+  });
+
+  it("catches up messages since a last-seen id (no gaps, no dupes)", async () => {
+    const owner = await makeUser("since-owner");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+
+    const a1 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a1" });
+    const a2 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a2" });
+    const a3 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a3" });
+    assert.ok(a1.ok && a2.ok && a3.ok);
+
+    const since1 = await request(app.getHttpServer())
+      .get(
+        `/trips/${trip.id}/channels/${channelId}/messages/since?after=${a1.message.id}`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    // Exactly the two after the anchor, oldest-first, anchor excluded.
+    assert.deepEqual(
+      (since1.body as { body: string }[]).map((m) => m.body),
+      ["a2", "a3"],
+    );
+
+    const since3 = await request(app.getHttpServer())
+      .get(
+        `/trips/${trip.id}/channels/${channelId}/messages/since?after=${a3.message.id}`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.equal(since3.body.length, 0);
+  });
+
+  it("counts unread from others and clears it on mark-read", async () => {
+    const owner = await makeUser("unread-owner");
+    const other = await makeUser("unread-other");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, other.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    // `other` posts two messages; `owner` has never read the channel.
+    const os = await connect({ token: other.token, tripId: trip.id });
+    await emitAck(os, MESSAGE_SEND_EVENT, { channelId, body: "u1" });
+    await emitAck(os, MESSAGE_SEND_EVENT, { channelId, body: "u2" });
+
+    const first = await connectReady({ token: owner.token, tripId: trip.id });
+    assert.equal(unreadOf(first.ready, channelId), 2);
+
+    // Owner marks read, then `other` posts one more.
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels/${channelId}/read`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(204);
+    await emitAck(os, MESSAGE_SEND_EVENT, { channelId, body: "u3" });
+
+    // A fresh connect reflects only the message posted after the read cursor,
+    // and owner's own messages never count toward their unread.
+    await emitAck(first.socket, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "my own",
+    });
+    const second = await connectReady({ token: owner.token, tripId: trip.id });
+    assert.equal(unreadOf(second.ready, channelId), 1);
   });
 });

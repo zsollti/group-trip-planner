@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
-import type { MessagePage } from "@gtp/types";
+import type { MessagePage, MessageView } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { RequirePermission } from "../authz/require-permission.decorator.js";
@@ -33,5 +33,18 @@ export class MessagesController {
     const safeLimit =
       parsedLimit && Number.isFinite(parsedLimit) ? parsedLimit : undefined;
     return this.messages.history(ctx.trip.id, channelId, cursor, safeLimit);
+  }
+
+  /** Reconnect catch-up: messages after the client's last-seen id (Phase 4.4). */
+  @Get("since")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.view")
+  since(
+    @TripCtx() ctx: TripContext,
+    @Param("channelId") channelId: string,
+    @Query("after") after: string,
+  ): Promise<MessageView[]> {
+    if (!after) return Promise.resolve([]);
+    return this.messages.since(ctx.trip.id, channelId, after);
   }
 }

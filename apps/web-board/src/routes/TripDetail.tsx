@@ -201,8 +201,7 @@ export function TripDetail() {
 
           <ChatPanel
             tripId={trip.data.id}
-            channels={tripSocket.channels}
-            socket={tripSocket.socket}
+            tripSocket={tripSocket}
             myRole={trip.data.role}
             myUserId={user?.id}
           />

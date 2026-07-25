@@ -137,6 +137,34 @@ export class MessagesService {
     return this.reactionsFor(messageId);
   }
 
+  /**
+   * Messages strictly **after** the given anchor message, oldest-first (Phase
+   * 4.4 reconnect catch-up, FR-32). The client hands its last-seen message id;
+   * we return everything since, so a dropped connection recovers the gap and then
+   * resumes the live stream — with no dupes (the anchor is excluded) and no gaps
+   * (a total `(createdAt, id)` order). An unknown/foreign anchor yields nothing.
+   */
+  async since(
+    tripId: string,
+    channelId: string,
+    afterId: string,
+  ): Promise<MessageView[]> {
+    await this.channelInTrip(channelId, tripId);
+    const anchor = await this.prisma.message.findUnique({
+      where: { id: afterId },
+      select: { seq: true, channelId: true },
+    });
+    if (!anchor || anchor.channelId !== channelId) return [];
+
+    const rows = await this.prisma.message.findMany({
+      where: { channelId, seq: { gt: anchor.seq } },
+      orderBy: { seq: "asc" },
+      take: 200,
+      include: messageInclude,
+    });
+    return rows.map(toMessageView);
+  }
+
   private async reactionsFor(messageId: string): Promise<ReactionUpdate> {
     const rows = await this.prisma.reaction.findMany({
       where: { messageId },
