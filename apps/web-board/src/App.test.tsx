@@ -63,6 +63,8 @@ describe("web-board auth flow", () => {
             },
           });
         }
+        if (u.includes("/notifications"))
+          return json({ notifications: [], unreadCount: 0, nextCursor: null });
         if (u.includes("/dashboard"))
           return json({ trips: [], total: 0, limit: 20, offset: 0 });
         return json({ message: "not found" }, 404);
@@ -84,5 +86,69 @@ describe("web-board auth flow", () => {
     expect(
       await screen.findByRole("button", { name: /create your first trip/i }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the unread badge and opens the notification bell (Phase 5.1)", async () => {
+    setAccessToken("access-token");
+    const markAll = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.endsWith("/auth/refresh")) {
+          return json({
+            accessToken: "access-token",
+            user: {
+              id: "u1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              emailVerified: true,
+            },
+          });
+        }
+        if (u.includes("/notifications/read-all")) {
+          markAll(init?.method);
+          return json({ unreadCount: 0 });
+        }
+        if (u.includes("/notifications")) {
+          return json({
+            notifications: [
+              {
+                id: "n1",
+                type: "OPTION_LOCKED",
+                tripId: "t1",
+                tripName: "Alps",
+                actorName: "Grace",
+                subject: "Night train",
+                categoryId: null,
+                channelId: null,
+                readAt: null,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            unreadCount: 1,
+            nextCursor: null,
+          });
+        }
+        if (u.includes("/dashboard"))
+          return json({ trips: [], total: 0, limit: 20, offset: 0 });
+        return json({ message: "not found" }, 404);
+      }),
+    );
+
+    renderAt("/");
+
+    // The badge count rides on the trigger's accessible name.
+    const bell = await screen.findByRole("button", {
+      name: /notifications, 1 unread/i,
+    });
+    fireEvent.click(bell);
+
+    expect(
+      await screen.findByText(/grace locked in “night train”/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /mark all read/i }));
+    expect(markAll).toHaveBeenCalledWith("POST");
   });
 });

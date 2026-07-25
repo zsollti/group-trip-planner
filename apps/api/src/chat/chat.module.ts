@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
+import { NotificationsModule } from "../notifications/notifications.module.js";
 import { RealtimeModule } from "../realtime/realtime.module.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { ChatGateway } from "./chat.gateway.js";
@@ -17,7 +18,7 @@ import { MessagesController } from "./messages.controller.js";
  * used to verify the handshake token; PrismaService is global.
  */
 @Module({
-  imports: [AuthModule, RealtimeModule],
+  imports: [AuthModule, RealtimeModule, NotificationsModule],
   controllers: [MessagesController, ChannelsController],
   providers: [
     ChatGateway,

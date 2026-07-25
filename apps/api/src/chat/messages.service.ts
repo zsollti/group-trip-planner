@@ -12,6 +12,7 @@ import {
   resolveMentions,
   type SendMessageInput,
 } from "@gtp/types";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import {
   groupReactions,
@@ -33,7 +34,10 @@ const MAX_PAGE = 100;
  */
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Resolve a channel and assert it belongs to `tripId` (else 404). Guards the
    * cross-trip hole: a member of one trip must not post to another's channel. */
@@ -103,7 +107,46 @@ export class MessagesService {
         include: messageInclude,
       });
     });
+    await this.notifyMentions(tripId, authorId, input.channelId, message.body, {
+      mentionIds,
+      members,
+    });
     return toMessageView(message);
+  }
+
+  /**
+   * Turn the stored mention rows into notifications (Phase 5.1) — the delivery
+   * Phase 4.3 deliberately deferred. Only mentioned users are notified, never the
+   * author (both rules live in the pure `notificationRecipients`), and only when
+   * the message actually mentioned someone, so the ordinary chat path pays
+   * nothing extra. Runs after the message has committed and is best-effort.
+   */
+  private async notifyMentions(
+    tripId: string,
+    authorId: string,
+    channelId: string,
+    body: string,
+    ctx: {
+      mentionIds: string[];
+      members: { userId: string; user: { displayName: string } }[];
+    },
+  ): Promise<void> {
+    if (ctx.mentionIds.length === 0) return;
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { name: true },
+    });
+    const author = ctx.members.find((m) => m.userId === authorId);
+    await this.notifications.notify({
+      tripId,
+      tripName: trip?.name ?? "",
+      actorId: authorId,
+      actorName: author?.user.displayName ?? "",
+      type: "MENTION",
+      subject: NotificationsService.excerpt(body),
+      channelId,
+      mentionedUserIds: ctx.mentionIds,
+    });
   }
 
   /** Add the caller's reaction (idempotent) and return the message's refreshed

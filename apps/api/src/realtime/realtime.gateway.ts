@@ -1,6 +1,7 @@
 import { WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
 import type { Server } from "socket.io";
 import { tripRoom } from "./trip-room.js";
+import { userRoom } from "./user-room.js";
 
 /**
  * A thin server→client emitter for non-chat services (Phase 4.5). It is a second
@@ -23,5 +24,15 @@ export class RealtimeGateway {
   /** Broadcast an event to everyone currently viewing a trip. */
   emitToTrip(tripId: string, event: string, payload: unknown): void {
     this.server?.to(tripRoom(tripId)).emit(event, payload);
+  }
+
+  /**
+   * Push an event to one person's own room (Phase 5.1) — every socket they have
+   * open, on whichever trip. Used for notifications, which follow the *user*
+   * rather than the trip. A recipient with no open socket simply misses the push
+   * and picks the notification up from the DB on their next load.
+   */
+  emitToUser(userId: string, event: string, payload: unknown): void {
+    this.server?.to(userRoom(userId)).emit(event, payload);
   }
 }
