@@ -12,16 +12,19 @@ import {
   hasMaterialChange,
   isTripFrozen,
   maxTripHorizonDays,
+  OPTIONS_CHANGED_EVENT,
   planLockedDates,
   type CreateOptionInput,
   type LockDatesRejection,
   type LockOptionInput,
+  type OptionsChanged,
   type OptionView,
   type ReorderOptionsInput,
   type UnlockOptionInput,
   type UpdateOptionInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import type { TripContext } from "../trips/trip-context.js";
 import {
   optionInclude,
@@ -42,7 +45,23 @@ const UUID_RE =
  */
 @Injectable()
 export class OptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
+
+  /**
+   * Push a "this lane changed" signal to everyone viewing the trip (Phase 4.5
+   * retrofit, FR-29). Called after a committed propose/edit/delete/lock/unlock/
+   * vote/reorder; clients refetch the affected lane and the cost dashboard, so a
+   * locked decision and newly-proposed cards appear without a manual refresh. The
+   * emit is null-safe (no-op when no socket server is attached), so it never
+   * affects the pure/e2e option tests.
+   */
+  private emitOptionsChanged(tripId: string, categoryId: string): void {
+    const payload: OptionsChanged = { tripId, categoryId };
+    this.realtime.emitToTrip(tripId, OPTIONS_CHANGED_EVENT, payload);
+  }
 
   /**
    * Reject any planning mutation (propose/edit/delete/vote/lock) on a frozen
@@ -174,6 +193,7 @@ export class OptionsService {
       },
       include: optionInclude,
     });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return toOptionView(created, user.id);
   }
 
@@ -239,6 +259,7 @@ export class OptionsService {
       where: { id: option.id },
       include: optionInclude,
     });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return toOptionView(updated, user.id);
   }
 
@@ -265,6 +286,7 @@ export class OptionsService {
       where: { id: option.id },
       data: { deletedAt: new Date() },
     });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
   }
 
   /**
@@ -312,6 +334,7 @@ export class OptionsService {
       ),
     );
 
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return this.listOptions(ctx, user.id, categoryId);
   }
 
@@ -338,6 +361,7 @@ export class OptionsService {
       create: { optionId: option.id, userId: user.id },
       update: {},
     });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return this.readOption(option.id, user.id);
   }
 
@@ -358,6 +382,7 @@ export class OptionsService {
     await this.prisma.vote.deleteMany({
       where: { optionId: option.id, userId: user.id },
     });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return this.readOption(option.id, user.id);
   }
 
@@ -520,6 +545,7 @@ export class OptionsService {
       }
     });
 
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return this.readOption(option.id, user.id);
   }
 
@@ -582,6 +608,7 @@ export class OptionsService {
       }
     });
 
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
     return this.readOption(option.id, user.id);
   }
 

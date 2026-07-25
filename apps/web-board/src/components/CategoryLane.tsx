@@ -12,6 +12,7 @@ import {
   useDeleteCategory,
   useDeleteOption,
   useRenameCategory,
+  useStartDiscussion,
 } from "@gtp/api-client";
 import {
   SortableContext,
@@ -108,12 +109,16 @@ function LaneHeader({
   isOrganizer,
   grip,
   onRequestDelete,
+  onDiscuss,
+  discussing,
 }: {
   tripId: string;
   category: CategoryView;
   isOrganizer: boolean;
   grip?: ReactNode;
   onRequestDelete: () => void;
+  onDiscuss: () => void;
+  discussing: boolean;
 }) {
   const rename = useRenameCategory(tripId);
   const [editing, setEditing] = useState(false);
@@ -186,6 +191,17 @@ function LaneHeader({
           </h2>
         )}
         <div className="lane__card-tools">
+          {/* Start (or open) this category's discussion — any member (FR-29). */}
+          <button
+            type="button"
+            className="lane__discuss"
+            title={`Discuss ${category.name}`}
+            aria-label={`Discuss ${category.name}`}
+            disabled={discussing}
+            onClick={onDiscuss}
+          >
+            💬
+          </button>
           {grip}
           {isOrganizer ? (
             <Menu
@@ -227,6 +243,7 @@ export function CategoryLane({
   myUserId,
   frozen = false,
   dndEnabled = false,
+  onOpenChannel,
 }: {
   tripId: string;
   category: CategoryView;
@@ -236,9 +253,12 @@ export function CategoryLane({
   myUserId: string | undefined;
   frozen?: boolean;
   dndEnabled?: boolean;
+  /** Open the chat panel on this category's discussion channel (Phase 4.5). */
+  onOpenChannel: (channelId: string) => void;
 }) {
   const deleteOption = useDeleteOption(tripId, category.id);
   const deleteCategory = useDeleteCategory(tripId);
+  const startDiscussion = useStartDiscussion(tripId);
   const [proposing, setProposing] = useState(false);
   const [editing, setEditing] = useState<OptionView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +304,21 @@ export function CategoryLane({
     }
   }
 
+  async function onDiscuss() {
+    setError(null);
+    try {
+      // Idempotent: creates the category channel on first ask, else returns it.
+      const channel = await startDiscussion.mutateAsync({
+        categoryId: category.id,
+      });
+      onOpenChannel(channel.id);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not open the discussion",
+      );
+    }
+  }
+
   const cardIds = options.map((o) => o.id);
   const laneGrip = dndEnabled ? (
     <button
@@ -305,6 +340,8 @@ export function CategoryLane({
         isOrganizer={isOrganizer}
         grip={laneGrip}
         onRequestDelete={() => setConfirmingDelete(true)}
+        onDiscuss={onDiscuss}
+        discussing={startDiscussion.isPending}
       />
       <p className="lane__meta">
         {category.singleChoice ? "single-choice" : "multi-select"}

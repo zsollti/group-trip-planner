@@ -62,6 +62,7 @@ export function BoardCanvas({
   myRole,
   myUserId,
   frozen,
+  onOpenChannel,
 }: {
   tripId: string;
   categories: CategoryView[];
@@ -69,6 +70,8 @@ export function BoardCanvas({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen: boolean;
+  /** Open the chat panel on a category's discussion channel (Phase 4.5). */
+  onOpenChannel: (channelId: string) => void;
 }) {
   const catIds = categories.map((c) => c.id);
   const opts = useCategoriesOptions(tripId, catIds);
@@ -224,6 +227,7 @@ export function BoardCanvas({
                 myUserId={myUserId}
                 frozen={frozen}
                 dndEnabled={dndEnabled}
+                onOpenChannel={onOpenChannel}
               />
             ))}
           </SortableContext>

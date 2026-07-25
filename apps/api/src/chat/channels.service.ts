@@ -1,8 +1,17 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
-import type { ChannelUnread, ChannelView, ChatReadyPayload } from "@gtp/types";
+import {
+  CHANNEL_CREATED_EVENT,
+  type ChannelUnread,
+  type ChannelView,
+  type ChatReadyPayload,
+} from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import { toChannelView } from "./channel.mapper.js";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Channels domain service (Phase 4.1). Owns the trip's chat channels: the
@@ -12,7 +21,10 @@ import { toChannelView } from "./channel.mapper.js";
  */
 @Injectable()
 export class ChannelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Create a trip's General channel **inside the trip-creation transaction** so a
@@ -94,5 +106,51 @@ export class ChannelsService {
       create: { channelId, userId, lastReadAt: new Date() },
       update: { lastReadAt: new Date() },
     });
+  }
+
+  /**
+   * Start (or reopen) a category's discussion channel (Phase 4.5, FR-29). Unlike
+   * the General channel, category channels are **created on demand** — this is the
+   * "start discussion" action, available to any member. It is **idempotent**: the
+   * `Channel.categoryId` unique constraint means one channel per category, so a
+   * second caller (or a race) resolves to the existing channel rather than a
+   * duplicate. A newly-created channel is broadcast to the trip room so it appears
+   * in every member's switcher live (the actor also gets it as the HTTP response).
+   * The channel cascades away with its category (schema-level `onDelete: Cascade`).
+   */
+  async startCategoryDiscussion(
+    tripId: string,
+    categoryId: string,
+  ): Promise<ChannelView> {
+    if (!UUID_RE.test(categoryId)) {
+      throw new NotFoundException("Category not found");
+    }
+    // The category must belong to this trip (a foreign id is a plain 404, never a
+    // cross-trip channel). Guards run before pipes, so scope it here defensively.
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, tripId },
+      select: { id: true },
+    });
+    if (!category) throw new NotFoundException("Category not found");
+
+    const existing = await this.prisma.channel.findUnique({
+      where: { categoryId },
+    });
+    if (existing) return toChannelView(existing);
+
+    try {
+      const created = await this.prisma.channel.create({
+        data: { tripId, categoryId, type: "CATEGORY" },
+      });
+      const view = toChannelView(created);
+      this.realtime.emitToTrip(tripId, CHANNEL_CREATED_EVENT, view);
+      return view;
+    } catch {
+      // Lost a create race — the other writer's channel is now the one truth.
+      const now = await this.prisma.channel.findUniqueOrThrow({
+        where: { categoryId },
+      });
+      return toChannelView(now);
+    }
   }
 }
