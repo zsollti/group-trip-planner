@@ -728,15 +728,44 @@ body {
   font-weight: 600;
   color: var(--board-accent);
 }
-/* Category tag on a card in the cross-category "Decided" column (Phase 3.5). */
+/* Category tag on a card in the cross-category "Decided" column (Phase 3.5) —
+ * a pill badge so it's unmistakable which lane a decided pick came from. */
 .lane__tag {
   margin: 0;
   align-self: flex-start;
-  font-size: 0.66rem;
+  display: inline-block;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--board-accent);
+  border: 1px solid var(--board-accent);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+/* Read-only option detail dialog (Phase 3.5): full, un-clamped card view. */
+.board__detail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 0.9rem;
+  margin: 0.7rem 0 0;
+}
+.board__detail dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--board-dim);
+}
+.board__detail dd {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--board-fg);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.board__detail-notes {
+  white-space: pre-wrap;
 }
 .lane__card--decided {
   border-left: 3px solid var(--board-accent);

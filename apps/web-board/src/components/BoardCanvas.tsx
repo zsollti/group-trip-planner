@@ -96,6 +96,23 @@ export function BoardCanvas({
     return m;
   }, [categories]);
 
+  // Proposed (non-locked) cards per category, ordered by approval: most-voted
+  // first, so casting a vote floats an option up its lane (Phase 3.5 feedback).
+  // The server list is position-ordered (a category's manual drag order) and
+  // Array.sort is stable, so equal-vote cards keep that order — within-lane drag
+  // stays meaningful as the tiebreak. Both the lane render and the drag-reorder
+  // index math read this, so the displayed order and the reorder are consistent.
+  const proposedByCategory = useMemo(() => {
+    const m: Record<string, OptionView[]> = {};
+    for (const c of categories) {
+      const live = (opts.byCategory[c.id] ?? []).filter(
+        (o) => o.status !== "LOCKED",
+      );
+      m[c.id] = [...live].sort((a, b) => b.voteCount - a.voteCount);
+    }
+    return m;
+  }, [categories, opts.byCategory]);
+
   const dndEnabled = can(myRole, "decision.lock") && !frozen;
 
   function handleDragEnd(e: DragEndEvent) {
@@ -130,9 +147,7 @@ export function BoardCanvas({
       }
       // Reorder within the same lane only (no cross-category moves).
       if (o?.type === "card" && o.categoryId === a.categoryId && over) {
-        const ids = (opts.byCategory[cat.id] ?? [])
-          .filter((x) => x.status !== "LOCKED")
-          .map((x) => x.id);
+        const ids = (proposedByCategory[cat.id] ?? []).map((x) => x.id);
         const from = ids.indexOf(String(active.id));
         const to = ids.indexOf(String(over.id));
         if (from < 0 || to < 0 || from === to) return;
@@ -174,8 +189,6 @@ export function BoardCanvas({
       if (option.status === "LOCKED") decided.push({ option, category });
     }
   }
-  const proposedFor = (categoryId: string) =>
-    (opts.byCategory[categoryId] ?? []).filter((o) => o.status !== "LOCKED");
   const laneIds = categories.map((c) => `lane:${c.id}`);
 
   return (
@@ -205,7 +218,7 @@ export function BoardCanvas({
                 key={category.id}
                 tripId={tripId}
                 category={category}
-                options={proposedFor(category.id)}
+                options={proposedByCategory[category.id] ?? []}
                 defaultCurrency={defaultCurrency}
                 myRole={myRole}
                 myUserId={myUserId}

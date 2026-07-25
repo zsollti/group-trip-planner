@@ -8,6 +8,7 @@ import {
 } from "@gtp/types";
 import { ApiError, useLockOption, useUnlockOption } from "@gtp/api-client";
 import { Menu, type MenuItem } from "./Menu";
+import { OptionDetail } from "./OptionDetail";
 import { VoteDots } from "./optionControls";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 
@@ -55,6 +56,7 @@ export function OptionCard({
   const lock = useLockOption(tripId, category.id);
   const unlock = useUnlockOption(tripId, category.id);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
 
   const manageable = canManageOption(myRole, option.proposerId === myUserId);
   const canDecide = can(myRole, "decision.lock") && !frozen;
@@ -87,7 +89,10 @@ export function OptionCard({
     }
   }
 
+  const openView = () => setViewing(true);
+
   const items: MenuItem[] = [];
+  items.push({ label: "View details", onSelect: openView });
   if (manageable && !frozen && !locked && onEdit) {
     items.push({ label: "Edit", onSelect: () => onEdit(option) });
   }
@@ -111,24 +116,22 @@ export function OptionCard({
     });
   }
 
-  // Click-to-edit (Phase 3.5): the shown parameters open the full form for those
-  // who can edit this option (proposer/organizer, not locked/frozen); otherwise
-  // they render as plain read-only text.
+  // Click-to-edit / click-to-view (Phase 3.5): the shown parameters open the full
+  // form for those who can edit this option (proposer/organizer, not locked/frozen);
+  // everyone else (incl. locked cards, whose notes are clamped on the board) opens
+  // the read-only detail dialog so the option can still be read in full.
   const editable = Boolean(onEdit) && manageable && !frozen && !locked;
   const openEdit = () => onEdit?.(option);
-  const field = (className: string, content: ReactNode) =>
-    editable ? (
-      <button
-        type="button"
-        className="lane__field-btn"
-        title="Edit option"
-        onClick={openEdit}
-      >
-        <span className={className}>{content}</span>
-      </button>
-    ) : (
-      <p className={className}>{content}</p>
-    );
+  const field = (className: string, content: ReactNode) => (
+    <button
+      type="button"
+      className="lane__field-btn"
+      title={editable ? "Edit option" : "View details"}
+      onClick={editable ? openEdit : openView}
+    >
+      <span className={className}>{content}</span>
+    </button>
+  );
 
   return (
     <article
@@ -142,18 +145,14 @@ export function OptionCard({
     >
       <div className="lane__card-head">
         <strong>
-          {editable ? (
-            <button
-              type="button"
-              className="lane__field-btn"
-              title="Edit option"
-              onClick={openEdit}
-            >
-              {option.title}
-            </button>
-          ) : (
-            option.title
-          )}
+          <button
+            type="button"
+            className="lane__field-btn"
+            title={editable ? "Edit option" : "View details"}
+            onClick={editable ? openEdit : openView}
+          >
+            {option.title}
+          </button>
         </strong>
         <div className="lane__card-tools">
           {grip}
@@ -196,6 +195,13 @@ export function OptionCard({
         <p className="board__form-error" role="alert">
           {actionError}
         </p>
+      ) : null}
+      {viewing ? (
+        <OptionDetail
+          category={category}
+          option={option}
+          onClose={() => setViewing(false)}
+        />
       ) : null}
     </article>
   );
