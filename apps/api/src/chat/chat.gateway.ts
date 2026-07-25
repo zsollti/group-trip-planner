@@ -96,8 +96,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
       return;
     }
     await client.join(tripRoom(data.tripId));
-    const channels = await this.channels.listForTrip(data.tripId);
-    client.emit(SOCKET_READY_EVENT, channels);
+    const payload = await this.channels.readyPayload(data.tripId, data.userId);
+    client.emit(SOCKET_READY_EVENT, payload);
     this.logger.debug(`socket joined ${tripRoom(data.tripId)}`);
   }
 

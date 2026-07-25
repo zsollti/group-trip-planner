@@ -8,7 +8,6 @@ import {
 import {
   canDeleteMessage,
   REACTION_EMOJIS,
-  type ChannelView,
   type MentionView,
   type TripRole,
 } from "@gtp/types";
@@ -167,17 +166,17 @@ function MessageRow({
  */
 export function ChatPanel({
   tripId,
-  channels,
-  socket,
+  tripSocket,
   myRole,
   myUserId,
 }: {
   tripId: string;
-  channels: ChannelView[];
-  socket: TripSocket["socket"];
+  tripSocket: TripSocket;
   myRole: TripRole;
   myUserId: string | undefined;
 }) {
+  const { socket, channels, unread, markChannelRead, setActiveChannel } =
+    tripSocket;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const general = channels.find((c) => c.type === "GENERAL");
@@ -185,14 +184,26 @@ export function ChatPanel({
   const members = useTripMembers(open ? tripId : undefined);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const unreadCount = general ? (unread[general.id] ?? 0) : 0;
 
-  // Keep the newest message in view as the log grows (only while open).
+  function openPanel() {
+    setOpen(true);
+    setActiveChannel(general?.id ?? null);
+  }
+  function closePanel() {
+    setOpen(false);
+    setActiveChannel(null);
+  }
+
+  // Keep the newest message in view as the log grows, and keep the channel
+  // marked read while it's open so new arrivals don't re-badge.
   const count = chat.messages.length;
   useEffect(() => {
     if (open && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [open, count]);
+    if (open && general) markChannelRead(general.id);
+  }, [open, count, general, markChannelRead]);
 
   // @mention autocomplete: the token being typed just before the caret.
   const [caret, setCaret] = useState(0);
@@ -240,9 +251,17 @@ export function ChatPanel({
         type="button"
         className="board__chat-fab"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        aria-label={
+          unreadCount > 0 && !open ? `Chat, ${unreadCount} unread` : "Chat"
+        }
+        onClick={() => (open ? closePanel() : openPanel())}
       >
         💬 Chat
+        {!open && unreadCount > 0 ? (
+          <span className="board__chat-badge" aria-hidden="true">
+            {unreadCount}
+          </span>
+        ) : null}
       </button>
       {open ? (
         <section className="board__chat" role="dialog" aria-label="Trip chat">
@@ -252,7 +271,7 @@ export function ChatPanel({
               type="button"
               className="board__chat-close"
               aria-label="Close chat"
-              onClick={() => setOpen(false)}
+              onClick={closePanel}
             >
               ×
             </button>

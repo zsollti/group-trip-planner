@@ -4,6 +4,7 @@ import { PermissionGuard } from "../authz/permission.guard.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { ChatGateway } from "./chat.gateway.js";
 import { ChannelsService } from "./channels.service.js";
+import { ChannelsController } from "./channels.controller.js";
 import { MessagesService } from "./messages.service.js";
 import { MessagesController } from "./messages.controller.js";
 
@@ -16,7 +17,7 @@ import { MessagesController } from "./messages.controller.js";
  */
 @Module({
   imports: [AuthModule],
-  controllers: [MessagesController],
+  controllers: [MessagesController, ChannelsController],
   providers: [
     ChatGateway,
     ChannelsService,

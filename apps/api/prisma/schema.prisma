@@ -40,6 +40,7 @@ model User {
   deletedMessages         Message[]                @relation("MessageDeleter")
   reactions               Reaction[]
   mentions                Mention[]
+  channelReads            ChannelRead[]
 
   @@map("users")
 }
@@ -189,12 +190,31 @@ model Channel {
   type       ChannelType
   createdAt  DateTime    @default(now())
 
-  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  trip     Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  category Category?     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   messages Message[]
+  reads    ChannelRead[]
 
   @@index([tripId])
   @@map("channels")
+}
+
+/// Per-user read cursor for a channel (Phase 4.4, FR-32). `lastReadAt` advances
+/// when the member views the channel; the unread count is the messages after it
+/// authored by someone else. One row per (channel, user); cascades on channel or
+/// user delete.
+model ChannelRead {
+  id         String   @id @default(uuid()) @db.Uuid
+  channelId  String   @db.Uuid
+  userId     String   @db.Uuid
+  lastReadAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("channel_reads")
 }
 
 /// A chat message in a channel (Phase 4.2, SRS §6 / FR-30). Messages are
@@ -205,6 +225,10 @@ model Channel {
 /// and the Phase-4.4 reconnect catch-up.
 model Message {
   id          String    @id @default(uuid()) @db.Uuid
+  // Monotonic insert order (Phase 4.4). `createdAt` is millisecond-precision, so
+  // rapid messages can tie; `seq` gives a total, gap-free order that makes the
+  // reconnect "messages since <id>" catch-up reliable (no gaps, no dupes).
+  seq         Int       @unique @default(autoincrement())
   channelId   String    @db.Uuid
   authorId    String    @db.Uuid
   body        String

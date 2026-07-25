@@ -14,6 +14,7 @@ import {
   type ReactionUpdate,
   SOCKET_READY_EVENT,
   type ChannelView,
+  type ChatReadyPayload,
 } from "@gtp/types";
 import {
   apiFetch,
@@ -35,23 +36,52 @@ export interface TripSocket {
   status: SocketStatus;
   /** The channels the member can see, from the server's ready payload. */
   channels: ChannelView[];
+  /** Per-channel unread counts (channelId → count), live. */
+  unread: Record<string, number>;
   /** The live socket (null until connecting) — 4.2+ send/receive over this. */
   socket: Socket | null;
+  /** Mark a channel read: clears its unread badge + advances the server cursor. */
+  markChannelRead: (channelId: string) => void;
+  /** Set the channel the user is currently viewing (null when none): live
+   * messages for it don't bump unread, and it is marked read on focus. */
+  setActiveChannel: (channelId: string | null) => void;
 }
 
 /**
  * Open an authenticated socket to the trip room for the lifetime of the trip
- * screen (Phase 4.1). The in-memory access token authenticates the handshake;
- * if it's rejected (commonly an expired token) we refresh **once** via the
- * cookie and reconnect, mirroring the REST 401-refresh-and-retry. Socket.IO's
- * own bounded reconnection covers transient drops — the full missed-message
- * recovery story lands in 4.4. The socket disconnects and cleans up on unmount
- * or a `tripId` change.
+ * screen (Phase 4.1, +unread in 4.4). The in-memory access token authenticates
+ * the handshake; if it's rejected (commonly an expired token) we refresh **once**
+ * via the cookie and reconnect, mirroring the REST 401-refresh-and-retry.
+ * Socket.IO's own bounded reconnection covers transient drops. The ready payload
+ * seeds per-channel unread counts (refreshed on every reconnect); an incoming
+ * message bumps the unread of any channel the user isn't currently viewing. The
+ * socket disconnects and cleans up on unmount or a `tripId` change.
  */
 export function useTripSocket(tripId: string | undefined): TripSocket {
   const [status, setStatus] = useState<SocketStatus>("idle");
   const [channels, setChannels] = useState<ChannelView[]>([]);
+  const [unread, setUnread] = useState<Record<string, number>>({});
   const socketRef = useRef<Socket | null>(null);
+  const activeChannelRef = useRef<string | null>(null);
+
+  const markChannelRead = useCallback(
+    (channelId: string) => {
+      setUnread((u) => ({ ...u, [channelId]: 0 }));
+      if (!tripId) return;
+      void apiFetch(`/trips/${tripId}/channels/${channelId}/read`, {
+        method: "POST",
+      }).catch(() => undefined);
+    },
+    [tripId],
+  );
+
+  const setActiveChannel = useCallback(
+    (channelId: string | null) => {
+      activeChannelRef.current = channelId;
+      if (channelId) markChannelRead(channelId);
+    },
+    [markChannelRead],
+  );
 
   useEffect(() => {
     if (!tripId) {
@@ -77,8 +107,23 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
       // A drop starts Socket.IO's own reconnection; reflect that as connecting.
       if (!cancelled) setStatus("connecting");
     });
-    socket.on(SOCKET_READY_EVENT, (list: ChannelView[]) => {
-      if (!cancelled) setChannels(list);
+    socket.on(SOCKET_READY_EVENT, (payload: ChatReadyPayload) => {
+      if (cancelled) return;
+      setChannels(payload.channels);
+      // Seed unread, but keep the channel the user is viewing at zero.
+      const seeded: Record<string, number> = {};
+      for (const u of payload.unread) {
+        seeded[u.channelId] =
+          u.channelId === activeChannelRef.current ? 0 : u.count;
+      }
+      setUnread(seeded);
+    });
+    socket.on(MESSAGE_NEW_EVENT, (msg: MessageView) => {
+      if (cancelled || msg.channelId === activeChannelRef.current) return;
+      setUnread((u) => ({
+        ...u,
+        [msg.channelId]: (u[msg.channelId] ?? 0) + 1,
+      }));
     });
     socket.on("connect_error", () => {
       void (async () => {
@@ -107,7 +152,14 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
     };
   }, [tripId]);
 
-  return { status, channels, socket: socketRef.current };
+  return {
+    status,
+    channels,
+    unread,
+    socket: socketRef.current,
+    markChannelRead,
+    setActiveChannel,
+  };
 }
 
 /** A message in the chat panel: a {@link MessageView} plus optimistic UI flags
@@ -220,6 +272,39 @@ export function useChat(
       socket.off(REACTION_UPDATED_EVENT, onReaction);
     };
   }, [socket, channelId, upsert]);
+
+  // Track the newest confirmed message id for reconnect catch-up.
+  const lastIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m && !m.pending && !m.failed) {
+        lastIdRef.current = m.id;
+        break;
+      }
+    }
+  }, [messages]);
+
+  // Hybrid reconnect (Phase 4.4, FR-32): on a re-connect, REST-fetch the messages
+  // missed during the drop (since our last-seen id), append them deduped, then the
+  // live stream resumes — no gaps, no dupes. The very first connect is covered by
+  // the history load, so we only catch up once we already hold a baseline id.
+  useEffect(() => {
+    if (!socket || !channelId) return;
+    const onConnect = () => {
+      const after = lastIdRef.current;
+      if (!after) return;
+      apiFetch<MessageView[]>(
+        `/trips/${tripId}/channels/${channelId}/messages/since?after=${encodeURIComponent(after)}`,
+      )
+        .then((missed) => missed.forEach(upsert))
+        .catch(() => undefined);
+    };
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("connect", onConnect);
+    };
+  }, [socket, channelId, tripId, upsert]);
 
   const send = useCallback(
     (body: string) => {
