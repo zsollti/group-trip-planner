@@ -108,6 +108,46 @@ body {
 .board__bar-actions {
   display: flex;
   gap: 0.6rem;
+  align-items: center;
+}
+
+/* Real-time connection indicator (Phase 4.1). */
+.board__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--board-dim);
+}
+.board__live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.board__live--connected {
+  color: var(--board-accent);
+}
+.board__live--connecting .board__live-dot {
+  animation: board-live-pulse 1.2s ease-in-out infinite;
+}
+.board__live--error {
+  color: var(--board-danger);
+}
+@keyframes board-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board__live--connecting .board__live-dot {
+    animation: none;
+  }
 }
 
 .board__brand {

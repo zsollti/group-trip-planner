@@ -86,6 +86,14 @@ enum CategoryBuiltinKey {
   BUDGET
 }
 
+/// A trip's chat channel kind (Phase 4.1, FR-29). `GENERAL` is auto-created with
+/// the trip; `CATEGORY` channels are created on demand (Phase 4.5) and cascade
+/// when their category is deleted.
+enum ChannelType {
+  GENERAL
+  CATEGORY
+}
+
 model Trip {
   id              String     @id @default(uuid()) @db.Uuid
   name            String
@@ -122,6 +130,7 @@ model Trip {
   blocks      TripBlock[]
   categories  Category[]
   auditEvents AuditEvent[]
+  channels    Channel[]
 
   @@index([ownerId])
   @@map("trips")
@@ -154,12 +163,33 @@ model Category {
 
   trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   options Option[]
+  channel Channel?
 
   // A trip has at most one category per built-in key (the seed is idempotent by
   // construction); custom categories carry a null key and are unconstrained.
   @@unique([tripId, builtinKey])
   @@index([tripId])
   @@map("categories")
+}
+
+/// A per-trip chat channel (Phase 4.1, SRS §6 / FR-29). Every trip has exactly
+/// one auto-created `GENERAL` channel; `CATEGORY` channels are created on demand
+/// (Phase 4.5) and are 1:1 with their category (`categoryId` unique), cascading
+/// when the category is deleted. Messages/reactions/reads hang off a channel in
+/// later 4.x slices.
+model Channel {
+  id         String      @id @default(uuid()) @db.Uuid
+  tripId     String      @db.Uuid
+  // Null for the GENERAL channel; the owning category for a CATEGORY channel.
+  categoryId String?     @unique @db.Uuid
+  type       ChannelType
+  createdAt  DateTime    @default(now())
+
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@map("channels")
 }
 
 /// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are

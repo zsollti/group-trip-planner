@@ -16,6 +16,7 @@ import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
+import { LiveIndicator } from "../components/LiveIndicator";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -95,6 +96,7 @@ export function TripDetail() {
           ‹ Boards
         </Link>
         <div className="board__bar-actions">
+          {trip.data ? <LiveIndicator tripId={trip.data.id} /> : null}
           {trip.data && can(trip.data.role, "invite.create") ? (
             <Button
               type="button"
