@@ -38,6 +38,8 @@ model User {
   auditEvents             AuditEvent[]             @relation("AuditActor")
   messages                Message[]                @relation("MessageAuthor")
   deletedMessages         Message[]                @relation("MessageDeleter")
+  reactions               Reaction[]
+  mentions                Mention[]
 
   @@map("users")
 }
@@ -213,9 +215,48 @@ model Message {
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   author    User    @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   deletedBy User?   @relation("MessageDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  reactions Reaction[]
+  mentions  Mention[]
 
   @@index([channelId, createdAt])
   @@map("messages")
+}
+
+/// A public emoji reaction on a message (Phase 4.3, FR-31). One row per
+/// (message, user, emoji) — a member may react with several distinct emoji, and
+/// reacting is idempotent (toggle add/remove). Cascades on message or user
+/// delete. Reactions are advisory decoration and are never frozen by lifecycle.
+model Reaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+/// A resolved `@mention` target on a message (Phase 4.3, FR-32). Parsed and
+/// validated server-side against the trip's members at post time; **persisted so
+/// Phase 5 can turn it into a notification** (delivery is deferred). One row per
+/// (message, mentioned user). Cascades on message or user delete.
+model Mention {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("mentions")
 }
 
 /// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are
