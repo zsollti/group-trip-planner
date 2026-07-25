@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -149,6 +149,10 @@ describe("web-board auth flow", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /mark all read/i }));
-    expect(markAll).toHaveBeenCalledWith("POST");
+    // The mutation fires its request off-tick, so wait for it rather than
+    // asserting in the same tick as the click.
+    await waitFor(() => {
+      expect(markAll).toHaveBeenCalledWith("POST");
+    });
   });
 });
