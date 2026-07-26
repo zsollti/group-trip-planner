@@ -327,10 +327,11 @@ describe("Email queue (e2e)", () => {
     const token = createUnsubscribeToken(alice.user.id, env.JWT_SECRET);
 
     // No Authorization header anywhere in this flow — that is the point.
+    // The GET applies the change and hands off to the SPA landing (Phase 5.3).
     const res = await http()
       .get(`/email/unsubscribe?token=${encodeURIComponent(token)}`)
-      .expect(200);
-    assert.match(res.text, /unsubscribed/i);
+      .expect(302);
+    assert.match(String(res.headers.location), /\/unsubscribed\?status=ok$/);
 
     const updated = await prisma.user.findUniqueOrThrow({
       where: { id: alice.user.id },
@@ -352,19 +353,27 @@ describe("Email queue (e2e)", () => {
     const valid = createUnsubscribeToken(alice.user.id, env.JWT_SECRET);
     const [payload] = valid.split(".");
 
-    await http().get("/email/unsubscribe").expect(400);
-    await http().get("/email/unsubscribe?token=nonsense").expect(400);
-    // Right user, forged signature.
-    await http()
-      .get(`/email/unsubscribe?token=${payload}.deadbeef`)
-      .expect(400);
-    // Someone else's payload spliced onto this signature.
-    const foreign = Buffer.from(
-      "00000000-0000-0000-0000-000000000000",
-    ).toString("base64url");
-    await http()
-      .get(`/email/unsubscribe?token=${foreign}.${valid.split(".")[1]}`)
-      .expect(400);
+    // The machine-facing one-click endpoint errors outright …
+    await http().post("/email/unsubscribe").expect(400);
+    await http().post("/email/unsubscribe?token=nonsense").expect(400);
+
+    // … while the human-facing GET lands them on the landing with an
+    // explanation instead of a raw API error (Phase 5.3).
+    const invalidLanding = /\/unsubscribed\?status=invalid$/;
+    for (const token of [
+      "", // missing
+      "nonsense", // malformed
+      `${payload}.deadbeef`, // right user, forged signature
+      // Someone else's payload spliced onto this signature.
+      `${Buffer.from("00000000-0000-0000-0000-000000000000").toString(
+        "base64url",
+      )}.${valid.split(".")[1]}`,
+    ]) {
+      const res = await http()
+        .get(`/email/unsubscribe${token ? `?token=${token}` : ""}`)
+        .expect(302);
+      assert.match(String(res.headers.location), invalidLanding);
+    }
 
     const untouched = await prisma.user.findUniqueOrThrow({
       where: { id: alice.user.id },

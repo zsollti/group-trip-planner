@@ -12,8 +12,10 @@ import {
 import {
   ChangeMemberRoleInput,
   TransferOwnershipInput,
+  TripMuteInput,
   type TripMembersView,
   type TripMemberView,
+  type TripMuteView,
 } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
@@ -45,6 +47,25 @@ export class MembersController {
   @RequirePermission("trip.view")
   listMembers(@TripCtx() ctx: TripContext): Promise<TripMembersView> {
     return this.members.listMembers(ctx);
+  }
+
+  /**
+   * Mute or unmute **this trip's notification email** for the caller (Phase
+   * 5.3). Declared before the `:userId` routes so the literal path wins the
+   * match.
+   *
+   * Gated on `trip.view`, not `member.manage`: this edits the caller's own
+   * membership row and nobody else's, so every member — Guests included — may
+   * silence a trip they are in. The in-app bell is untouched.
+   */
+  @Post("mute")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.view")
+  setMute(
+    @TripCtx() ctx: TripContext,
+    @Body(new ZodValidationPipe(TripMuteInput)) body: TripMuteInput,
+  ): Promise<TripMuteView> {
+    return this.members.setMute(ctx, body.muted);
   }
 
   /** Change a member's role (Owner/Co-organizer, strictly-lower). */

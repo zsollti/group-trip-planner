@@ -4,6 +4,7 @@ import {
   ApiError,
   useBoardLiveSync,
   useDeleteTrip,
+  useSetTripMute,
   useTrip,
   useTripCategories,
   useTripSocket,
@@ -44,6 +45,7 @@ export function TripDetail() {
   const { user } = useAuth();
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
+  const setMute = useSetTripMute(id ?? "");
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
@@ -82,10 +84,34 @@ export function TripDetail() {
     }
   }
 
-  /** The trip "⋯" menu — Members (any member) + Edit/Delete (role-gated). */
-  function tripMenuItems(role: TripDetailData["role"]): MenuItem[] {
+  /**
+   * Mute or unmute this board's notification email for the caller (Phase 5.3).
+   * Every member may do it — it edits their own membership, nobody else's.
+   */
+  async function onToggleMute(muted: boolean) {
+    setActionError(null);
+    try {
+      await setMute.mutateAsync(muted);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not change email for this board",
+      );
+    }
+  }
+
+  /**
+   * The trip "⋯" menu — Members + mute (any member) + Edit/Delete (role-gated).
+   */
+  function tripMenuItems(trip_: TripDetailData): MenuItem[] {
+    const role = trip_.role;
     const items: MenuItem[] = [
       { label: "Members", onSelect: () => setManagingMembers(true) },
+      {
+        label: trip_.viewerMuted ? "🔔 Unmute email" : "🔕 Mute email",
+        onSelect: () => void onToggleMute(!trip_.viewerMuted),
+      },
     ];
     if (can(role, "trip.edit")) {
       items.push({ label: "Edit trip", onSelect: () => setEditing(true) });
@@ -121,7 +147,7 @@ export function TripDetail() {
             </Button>
           ) : null}
           {trip.data ? (
-            <Menu label="Trip menu" items={tripMenuItems(trip.data.role)} />
+            <Menu label="Trip menu" items={tripMenuItems(trip.data)} />
           ) : null}
           <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
         </div>
@@ -145,6 +171,11 @@ export function TripDetail() {
           <p className="board__eyebrow">
             {trip.data.status === "HISTORY" ? "History" : "Active"} ·{" "}
             {ROLE_LABEL[trip.data.role]}
+            {/* Muting is invisible by nature — say so, or people forget they
+                did it and wonder why the inbox is quiet (Phase 5.3). */}
+            {trip.data.viewerMuted ? (
+              <span className="board__mutedflag"> · 🔕 Email muted</span>
+            ) : null}
           </p>
           <h1 className="board__title">{trip.data.name}</h1>
           <p className="board__muted">

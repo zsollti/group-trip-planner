@@ -41,9 +41,18 @@ export function toTripSummary(
   };
 }
 
-/** Full trip detail for a member, carrying their role and the edit `version`. */
-export function toTripDetail(trip: TripWithCount, role: TripRole): TripDetail {
+/**
+ * Full trip detail for a member, carrying their role, the edit `version`, and
+ * whether they muted this trip's notification email (Phase 5.3) so the mute
+ * control renders in the right state on first paint.
+ */
+export function toTripDetail(
+  trip: TripWithCount,
+  role: TripRole,
+  muted = false,
+): TripDetail {
   return {
+    viewerMuted: muted,
     id: trip.id,
     name: trip.name,
     description: trip.description,

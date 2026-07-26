@@ -7,8 +7,10 @@ import {
 } from "@tanstack/react-query";
 import type {
   AssignableRole,
+  TripDetail,
   TripMembersView,
   TripMemberView,
+  TripMuteView,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 import { tripKeys } from "./trips.js";
@@ -133,6 +135,32 @@ export function useLeaveTrip(
     onSuccess: () => {
       qc.removeQueries({ queryKey: tripKeys.detail(tripId) });
       void qc.invalidateQueries({ queryKey: tripKeys.list() });
+    },
+  });
+}
+
+/**
+ * Mute or unmute this trip's notification **email** for the caller (Phase 5.3).
+ *
+ * The trip detail carries `viewerMuted`, so the server's answer is patched
+ * straight into that cached object rather than invalidating it — the control
+ * settles without a refetch, and without a window where the toggle shows the
+ * old value.
+ */
+export function useSetTripMute(
+  tripId: string,
+): UseMutationResult<TripMuteView, ApiError, boolean> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (muted: boolean) =>
+      apiFetch<TripMuteView>(`/trips/${tripId}/members/mute`, {
+        method: "POST",
+        body: { muted },
+      }),
+    onSuccess: (result) => {
+      qc.setQueryData<TripDetail>(tripKeys.detail(tripId), (current) =>
+        current ? { ...current, viewerMuted: result.muted } : current,
+      );
     },
   });
 }

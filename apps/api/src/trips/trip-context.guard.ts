@@ -56,6 +56,7 @@ export class TripContextGuard implements CanActivate {
       trip,
       role: membership.role,
       membershipId: membership.id,
+      muted: membership.muted,
     };
     request.tripContext = tripContext;
     return true;

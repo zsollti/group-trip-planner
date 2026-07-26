@@ -44,8 +44,14 @@ export {
   useUnblockMember,
   useTransferOwnership,
   useLeaveTrip,
+  useSetTripMute,
 } from "./members.js";
-export { accountKeys, useDeletionPreview } from "./account.js";
+export {
+  accountKeys,
+  useDeletionPreview,
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from "./account.js";
 export {
   categoryKeys,
   useTripCategories,

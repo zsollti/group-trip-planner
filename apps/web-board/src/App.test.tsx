@@ -155,4 +155,78 @@ describe("web-board auth flow", () => {
       expect(markAll).toHaveBeenCalledWith("POST");
     });
   });
+
+  it("toggles the mention-email preference from settings (Phase 5.3)", async () => {
+    setAccessToken("access-token");
+    const patched: unknown[] = [];
+    let emailOnMention = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u.endsWith("/auth/refresh")) {
+          return json({
+            accessToken: "access-token",
+            user: {
+              id: "u1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              emailVerified: true,
+            },
+          });
+        }
+        if (u.includes("/account/preferences")) {
+          if (init?.method === "PATCH") {
+            const body = JSON.parse(String(init.body)) as {
+              emailOnMention: boolean;
+            };
+            patched.push(body);
+            emailOnMention = body.emailOnMention;
+          }
+          return json({ emailOnMention });
+        }
+        if (u.includes("/notifications"))
+          return json({ notifications: [], unreadCount: 0, nextCursor: null });
+        return json({ message: "not found" }, 404);
+      }),
+    );
+
+    renderAt("/settings");
+
+    // The switch reports its state through ARIA, not through its styling.
+    const toggle = await screen.findByRole("switch", {
+      name: /email me when i'm @mentioned/i,
+    });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(patched).toEqual([{ emailOnMention: false }]);
+    });
+    // The server's answer is what the control settles on.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("switch", { name: /email me when i'm @mentioned/i }),
+      ).toHaveAttribute("aria-checked", "false");
+    });
+  });
+
+  it("shows the unsubscribe landing to a logged-out visitor (Phase 5.3)", async () => {
+    // No session at all: the link is opened from a mail client.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json({}, 401)),
+    );
+
+    renderAt("/unsubscribed?status=ok");
+
+    expect(
+      await screen.findByRole("heading", { name: /you're unsubscribed/i }),
+    ).toBeInTheDocument();
+    // It must not bounce to the sign-in card the way a guarded route would.
+    expect(
+      screen.queryByRole("heading", { name: /sign in/i }),
+    ).not.toBeInTheDocument();
+  });
 });

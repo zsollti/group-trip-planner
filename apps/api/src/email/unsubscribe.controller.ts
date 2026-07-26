@@ -2,11 +2,11 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Header,
   HttpCode,
   Inject,
   Post,
   Query,
+  Redirect,
 } from "@nestjs/common";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
@@ -27,9 +27,11 @@ import { verifyUnsubscribeToken } from "./unsubscribe.token.js";
  * Two entry points for the two ways clients unsubscribe:
  *
  * - `POST` — RFC 8058 one-click, what the `List-Unsubscribe-Post` header drives.
- * - `GET` — the visible link in the email body, which applies and then renders a
- *   plain confirmation page so the flow works with no frontend at all. (5.3
- *   replaces this page with a proper landing that can also re-subscribe.)
+ * - `GET` — the visible link in the email body: it applies the change and then
+ *   **redirects to the SPA landing** (Phase 5.3), which confirms what happened
+ *   and offers the one-click way back on. A bad token redirects to the same
+ *   landing with `status=invalid` rather than showing a raw API error, because
+ *   the person clicking is reading their mail, not debugging an endpoint.
  *
  * A GET that applies is a considered trade-off: a link-prefetching scanner could
  * unsubscribe someone without a human clicking. The cost is one silenced,
@@ -51,22 +53,22 @@ export class UnsubscribeController {
     return { ok: true };
   }
 
-  /** The visible link in the email body. */
+  /**
+   * The visible link in the email body. Applies the change, then hands off to
+   * the SPA landing — 302 so the token drops out of the address bar the moment
+   * the page loads, rather than sitting in history for whoever reads it next.
+   */
   @Get()
-  @Header("Content-Type", "text/html; charset=utf-8")
-  async unsubscribeGet(@Query("token") token?: string): Promise<string> {
-    await this.apply(token);
-    return (
-      `<!doctype html><meta charset="utf-8">` +
-      `<title>Unsubscribed</title>` +
-      `<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">` +
-      `<h1>You're unsubscribed</h1>` +
-      `<p>We won't email you when someone @mentions you. ` +
-      `You'll still see mentions in the app, and account emails ` +
-      `(verification, sign-in help) are unaffected.</p>` +
-      `<p><a href="${this.env.WEB_APP_URL}">Back to Group Trip Planner</a></p>` +
-      `</body>`
-    );
+  @Redirect()
+  async unsubscribeGet(
+    @Query("token") token?: string,
+  ): Promise<{ url: string }> {
+    try {
+      await this.apply(token);
+      return { url: `${this.env.WEB_APP_URL}/unsubscribed?status=ok` };
+    } catch {
+      return { url: `${this.env.WEB_APP_URL}/unsubscribed?status=invalid` };
+    }
   }
 
   /**

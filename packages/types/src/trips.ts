@@ -97,6 +97,11 @@ export const TripDetail = z.object({
   version: z.number().int().nonnegative(),
   role: TripRole,
   memberCount: z.number().int().nonnegative(),
+  /**
+   * Whether the caller muted this trip's notification **email** (Phase 5.3).
+   * The in-app bell is unaffected — muting quiets the inbox, not the app.
+   */
+  viewerMuted: z.boolean(),
   createdAt: z.string(),
 });
 export type TripDetail = z.infer<typeof TripDetail>;
