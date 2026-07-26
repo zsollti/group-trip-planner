@@ -114,6 +114,9 @@ describe("Notifications (e2e)", () => {
       sendVerificationEmail: () => Promise.resolve(),
       sendAccountExistsNotice: () => Promise.resolve(),
       sendInviteEmail: () => Promise.resolve(),
+      // Mentions here also enqueue email (Phase 5.2); stub the send so a worker
+      // pass during a long run is a no-op rather than a missing method.
+      sendMentionEmail: () => Promise.resolve(),
     };
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(EmailService)
@@ -133,9 +136,10 @@ describe("Notifications (e2e)", () => {
         where: { email: { in: emails } },
         select: { id: true },
       });
-      await prisma.trip.deleteMany({
-        where: { ownerId: { in: users.map((u) => u.id) } },
-      });
+      const ids = users.map((u) => u.id);
+      // Mention email jobs survive their user (userId is SetNull) — clear them.
+      await prisma.emailJob.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.trip.deleteMany({ where: { ownerId: { in: ids } } });
       await prisma.user.deleteMany({ where: { email: { in: emails } } });
     }
     if (app) await app.close();

@@ -6,6 +6,7 @@ import {
   type NotificationPage,
   type NotificationType,
 } from "@gtp/types";
+import { EmailQueueService } from "../email/email-queue.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import {
@@ -35,6 +36,12 @@ export interface NotifyInput {
   channelId?: string | null;
   /** Mentioned user ids — only consulted for `MENTION`. */
   mentionedUserIds?: string[];
+  /**
+   * Id of the thing that happened — the message id for a mention. Only used to
+   * dedupe the **email** channel (Phase 5.2): it is what makes "one message =
+   * one email per recipient" hold across a retried or redelivered fan-out.
+   */
+  eventId?: string;
 }
 
 /**
@@ -50,7 +57,9 @@ export interface NotifyInput {
  *     idempotent mark-read — all strictly scoped to the calling user, so a
  *     notification id belonging to someone else is a 404, never a read.
  *
- * Email delivery and preferences are 5.2/5.3; nothing here is preference-gated.
+ * The **in-app** channel is always on and never preference-gated. Phase 5.2 adds
+ * a second, optional channel: after fan-out, a `MENTION` also hands its
+ * recipients to {@link EmailQueueService}, which applies the email preferences.
  */
 @Injectable()
 export class NotificationsService {
@@ -59,6 +68,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly emailQueue: EmailQueueService,
   ) {}
 
   /** Trim a chat message down to a bell-sized excerpt. */
@@ -112,11 +122,37 @@ export class NotificationsService {
           toNotificationView(row),
         );
       }
+      await this.enqueueEmails(input, recipients);
     } catch (err) {
       this.logger.warn(
         `notification fan-out failed for trip ${input.tripId}: ${String(err)}`,
       );
     }
+  }
+
+  /**
+   * Hand the in-app recipients to the email queue (Phase 5.2). Only `MENTION`
+   * has an email channel — a proposal or a lock notifies in-app and stops there,
+   * so an active trip never turns into a mail flood.
+   *
+   * The queue applies the per-recipient preference gate itself; this method's
+   * only job is to pass along what it already loaded. `eventId` is required for
+   * the dedupe key, so a caller that omits it simply gets no email rather than a
+   * key that cannot dedupe.
+   */
+  private async enqueueEmails(
+    input: NotifyInput,
+    recipients: string[],
+  ): Promise<void> {
+    if (input.type !== "MENTION" || !input.eventId) return;
+    await this.emailQueue.enqueueMentionEmails({
+      tripId: input.tripId,
+      tripName: input.tripName,
+      actorName: input.actorName,
+      messageId: input.eventId,
+      excerpt: input.subject,
+      recipientIds: recipients,
+    });
   }
 
   /** One page of the caller's notifications, newest first, plus their total

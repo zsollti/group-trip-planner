@@ -4,12 +4,18 @@ import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 
 /**
- * Transactional email (verification, "account already exists").
+ * Outbound email. Two channels live here, and the split is the point (FR-36):
  *
- * In dev / without a Resend key, the message is logged so the verification link
- * is visible in the console. When RESEND_API_KEY is set (staging/prod) the same
- * calls send real email. Transactional email is a strictly separate path from
- * notification email and is never gated by user preferences (SRS FR-36).
+ * - **Transactional** — verification, "account already exists", personal invites.
+ *   Sent inline, synchronously, and **never consulted against a preference**: an
+ *   unsubscribe must not be able to cost someone their account-recovery mail.
+ * - **Notification** — {@link sendMentionEmail}, the only preference-gated one.
+ *   It is never called directly by a request path; the queue worker calls it,
+ *   and gating already happened at enqueue time (Phase 5.2).
+ *
+ * In dev / without a Resend key, messages are logged so links are visible in the
+ * console. When RESEND_API_KEY is set (staging/prod) the same calls send real
+ * email.
  */
 @Injectable()
 export class EmailService {
@@ -83,4 +89,70 @@ export class EmailService {
       this.logger.log(`[DEV EMAIL] account-exists notice for ${to}`);
     }
   }
+
+  // --- Notification channel (preference-gated; queue-driven) ------------------
+
+  /**
+   * Deliver one `@mention` email (Phase 5.2). Called **only** by the queue
+   * worker, never inline from a request: it is allowed to be slow and allowed to
+   * fail, because the worker will retry it.
+   *
+   * Throws on provider failure — that is the signal the worker records as a
+   * failed attempt and reschedules.
+   */
+  async sendMentionEmail(input: {
+    to: string;
+    tripName: string;
+    actorName: string;
+    excerpt: string;
+    tripId: string;
+    unsubscribeToken: string;
+  }): Promise<void> {
+    const tripLink = `${this.env.WEB_APP_URL}/trips/${input.tripId}`;
+    const unsubscribeLink = this.unsubscribeUrl(input.unsubscribeToken);
+    const subject = `${input.actorName} mentioned you in "${input.tripName}"`;
+    const html =
+      `<p><strong>${escapeHtml(input.actorName)}</strong> mentioned you in ` +
+      `"${escapeHtml(input.tripName)}":</p>` +
+      `<blockquote>${escapeHtml(input.excerpt)}</blockquote>` +
+      `<p><a href="${tripLink}">Open the trip</a></p>` +
+      `<hr><p style="font-size:12px;color:#666">` +
+      `You get this because "email me when I'm @mentioned" is on. ` +
+      `<a href="${unsubscribeLink}">Unsubscribe</a> — it only turns off ` +
+      `notification email, never account email.</p>`;
+
+    if (this.resend) {
+      await this.resend.emails.send({
+        from: this.env.EMAIL_FROM,
+        to: input.to,
+        subject,
+        html,
+        // RFC 8058: lets the mail client show its own one-click unsubscribe,
+        // which is what keeps bulk-ish mail out of spam folders.
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeLink}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      });
+    } else {
+      this.logger.log(
+        `[DEV EMAIL] mention email for ${input.to} (${subject}) — unsubscribe: ${unsubscribeLink}`,
+      );
+    }
+  }
+
+  /** The unauthenticated one-click endpoint the link points at. */
+  private unsubscribeUrl(token: string): string {
+    return `${this.env.API_PUBLIC_URL}/email/unsubscribe?token=${encodeURIComponent(token)}`;
+  }
+}
+
+/** Minimal escaping — user-supplied names and message excerpts go into HTML. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

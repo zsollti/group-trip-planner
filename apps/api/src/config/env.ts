@@ -68,6 +68,10 @@ export const envSchema = z.object({
   EMAIL_FROM: z.string().default("Group Trip Planner <onboarding@resend.dev>"),
   // Where verification links point (the frontend verify landing, Phase 0.7).
   WEB_APP_URL: z.string().url().default("http://localhost:5173"),
+  // The API's own externally reachable base URL. Unsubscribe links are clicked
+  // from a mail client with no session, so they must hit the API directly
+  // (Phase 5.2) rather than route through the SPA.
+  API_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
 
   // --- Rate limiting (global default; auth routes tighten per-route) ---
   THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),

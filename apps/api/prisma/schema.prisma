@@ -20,6 +20,11 @@ model User {
   // Nullable: OAuth-only accounts (Google, Phase 1.0) have no local password.
   passwordHash  String?
   emailVerified Boolean   @default(false)
+  // Notification-email preference (Phase 5.2, FR-36): global "email me when I'm
+  // @mentioned". Defaults on — the feature is opt-out, and the unsubscribe link
+  // in every notification email flips exactly this flag. Gates the notification
+  // channel ONLY; transactional mail ignores it.
+  emailOnMention Boolean  @default(true)
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
   anonymizedAt  DateTime?
   createdAt     DateTime  @default(now())
@@ -42,6 +47,7 @@ model User {
   mentions                Mention[]
   channelReads            ChannelRead[]
   notifications           Notification[]
+  emailJobs               EmailJob[]
 
   @@map("users")
 }
@@ -327,6 +333,67 @@ model Notification {
   @@map("notifications")
 }
 
+/// Lifecycle of a queued notification email (Phase 5.2). See `@gtp/types`
+/// `EmailJobStatus` for the state machine; SENDING is persisted so a worker that
+/// dies mid-send leaves a reclaimable row rather than a lost email.
+enum EmailJobStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+/// What a queued email is about (Phase 5.2). Only MENTION today: it is the sole
+/// SRS Phase-5 trigger with an email channel — proposals and locks stay in-app,
+/// so an active trip cannot become a mail flood.
+enum EmailJobType {
+  MENTION
+}
+
+/// A queued **notification** email (Phase 5.2, FR-35). Transactional mail
+/// (verification, "account exists") never lands here — it is sent inline on a
+/// strictly separate path and is never preference-gated (FR-36).
+///
+/// The queue is DB-backed rather than in-memory so a restart cannot drop mail,
+/// and so idempotency is enforced by the database instead of by hope:
+/// `dedupeKey` is UNIQUE, so a retried fan-out or a redelivered event inserts
+/// nothing the second time and the recipient gets **exactly one** email.
+///
+/// `payload` is a denormalized snapshot for the same reason
+/// {@link Notification.payload} is — the mail must render from the row alone,
+/// long after the message was edited or the trip renamed — and `to` snapshots
+/// the address so a queued email cannot be redirected by a later address change.
+///
+/// Preference gating happens at **enqueue** time, so everything in this table is
+/// mail that is meant to go out; the worker's only job is delivery + retry.
+model EmailJob {
+  id         String         @id @default(uuid()) @db.Uuid
+  /// Idempotency key: `<type>:<eventId>:<recipientId>` (`emailDedupeKey`).
+  dedupeKey  String         @unique
+  type       EmailJobType
+  status     EmailJobStatus @default(PENDING)
+  /// Snapshotted recipient address (see model doc).
+  to         String
+  /// Nullable so a deleted account's in-flight job is dropped, not orphaned.
+  userId     String?        @db.Uuid
+  payload    Json
+  attempts   Int            @default(0)
+  /// Not eligible for a worker pass before this instant — the backoff schedule.
+  runAfter   DateTime       @default(now())
+  /// When the current SENDING claim was taken; drives stale-claim reclaim.
+  claimedAt  DateTime?
+  lastError  String?
+  sentAt     DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// The worker's only query: due work, oldest first.
+  @@index([status, runAfter])
+  @@map("email_jobs")
+}
+
 /// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are
 /// **soft-deleted** (`deletedAt`) so votes and audit history survive. The cost
 /// fields (`amount`/`currency`/`costType`/`headcount`/`headcountIsFixed`) feed the
@@ -460,6 +527,10 @@ model TripMembership {
   userId   String   @db.Uuid
   role     TripRole
   joinedAt DateTime @default(now())
+  // Per-trip mute (Phase 5.2, FR-36): silences this trip's notification EMAIL
+  // for this member without touching their global preference or the always-on
+  // in-app bell. Lives on the membership so it dies with it.
+  muted    Boolean  @default(false)
   // Which invite link (if any) this member joined through. Provenance only; the
   // link may later be disabled/deleted without touching the membership, so it is
   // a nullable soft reference (onDelete: SetNull), not a hard FK.
