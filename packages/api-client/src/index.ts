@@ -46,6 +46,7 @@ export {
   useLeaveTrip,
   useSetTripMute,
 } from "./members.js";
+export { activityKeys, useTripActivity } from "./activity.js";
 export {
   accountKeys,
   useDeletionPreview,

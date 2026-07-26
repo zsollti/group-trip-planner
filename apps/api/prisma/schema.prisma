@@ -452,12 +452,19 @@ model Option {
   @@map("options")
 }
 
-/// The audited actions recorded on the trip's activity log (Phase 2.4 writes the
-/// first two; role/kick/block/date actions are added when Phase 5 surfaces the
-/// feed, FR-33). The enum is open to extension — never renumbered.
+/// The audited actions recorded on the trip's activity log (FR-33). Phase 2.4
+/// wrote the option decisions; Phase 5.4 retrofits the membership actions at the
+/// source, so the feed is a read of this log rather than a second story about
+/// what happened. The enum is open to extension — never renumbered.
 enum AuditAction {
   OPTION_LOCKED
   OPTION_UNLOCKED
+  MEMBER_ROLE_CHANGED
+  MEMBER_KICKED
+  MEMBER_BLOCKED
+  MEMBER_UNBLOCKED
+  MEMBER_LEFT
+  OWNERSHIP_TRANSFERRED
 }
 
 /// An immutable record of a significant trip action (SRS §6 / FR-33, Phase 2.4).
@@ -482,7 +489,9 @@ model AuditEvent {
   trip  Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
   actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
-  @@index([tripId])
+  // The feed's only query: one trip's log, newest first (Phase 5.4). Paging is
+  // keyset on (createdAt, id), so both columns belong in the index.
+  @@index([tripId, createdAt, id])
   @@map("audit_events")
 }
 

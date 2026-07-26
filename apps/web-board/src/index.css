@@ -1314,6 +1314,45 @@ body {
   color: var(--board-dim);
 }
 
+/* --- Activity feed (Phase 5.4) --------------------------------------------- */
+.board__activity {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.board__activity-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--lane-line);
+  font-size: 0.88rem;
+}
+
+.board__activity-item:last-child {
+  border-bottom: none;
+}
+
+.board__activity-icon {
+  flex: 0 0 1.25rem;
+  text-align: center;
+}
+
+.board__activity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.board__activity-when {
+  color: var(--board-dim);
+  font-size: 0.75rem;
+}
+
 /* --- A11y floor + four-states polish (Phase 3.5) --------------------------- */
 /* Visible keyboard focus on every interactive control (not just inputs/grips). */
 .board [data-gtp-button]:focus-visible,

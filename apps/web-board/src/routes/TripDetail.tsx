@@ -15,6 +15,7 @@ import { useAuth } from "@gtp/api-client";
 import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
+import { ActivityDialog } from "../components/ActivityDialog";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
@@ -49,6 +50,7 @@ export function TripDetail() {
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
+  const [viewingActivity, setViewingActivity] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -108,6 +110,7 @@ export function TripDetail() {
     const role = trip_.role;
     const items: MenuItem[] = [
       { label: "Members", onSelect: () => setManagingMembers(true) },
+      { label: "Activity", onSelect: () => setViewingActivity(true) },
       {
         label: trip_.viewerMuted ? "🔔 Unmute email" : "🔕 Mute email",
         onSelect: () => void onToggleMute(!trip_.viewerMuted),
@@ -234,6 +237,13 @@ export function TripDetail() {
               tripId={trip.data.id}
               myRole={trip.data.role}
               onClose={() => setManagingMembers(false)}
+            />
+          ) : null}
+
+          {viewingActivity ? (
+            <ActivityDialog
+              tripId={trip.data.id}
+              onClose={() => setViewingActivity(false)}
             />
           ) : null}
 
