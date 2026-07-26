@@ -80,6 +80,7 @@ the database so it always tracks the Postgres service:
 | `COOKIE_SECURE`   | `true`                                  | Cross-site `SameSite=None` cookies must be Secure. |
 | `CORS_ORIGINS`    | *(fill in step 5)*                      | The web app's `https://…` origin.             |
 | `WEB_APP_URL`     | *(fill in step 5)*                      | Where verification links point.               |
+| `API_PUBLIC_URL`  | *(the API's own https domain)*          | Where unsubscribe links point (clicked from a mail client, so they must reach the API directly). |
 
 Optional (only if you want real emails instead of logged links):
 `RESEND_API_KEY`, `EMAIL_FROM`. Without `RESEND_API_KEY`, the verification link

@@ -107,7 +107,7 @@ export class MessagesService {
         include: messageInclude,
       });
     });
-    await this.notifyMentions(tripId, authorId, input.channelId, message.body, {
+    await this.notifyMentions(tripId, authorId, input.channelId, message, {
       mentionIds,
       members,
     });
@@ -120,12 +120,16 @@ export class MessagesService {
    * author (both rules live in the pure `notificationRecipients`), and only when
    * the message actually mentioned someone, so the ordinary chat path pays
    * nothing extra. Runs after the message has committed and is best-effort.
+   *
+   * The message **id** goes along as the notification's `eventId`: it is what
+   * Phase 5.2's email queue dedupes on, so one message can only ever produce one
+   * email per mentioned person.
    */
   private async notifyMentions(
     tripId: string,
     authorId: string,
     channelId: string,
-    body: string,
+    message: { id: string; body: string },
     ctx: {
       mentionIds: string[];
       members: { userId: string; user: { displayName: string } }[];
@@ -143,9 +147,10 @@ export class MessagesService {
       actorId: authorId,
       actorName: author?.user.displayName ?? "",
       type: "MENTION",
-      subject: NotificationsService.excerpt(body),
+      subject: NotificationsService.excerpt(message.body),
       channelId,
       mentionedUserIds: ctx.mentionIds,
+      eventId: message.id,
     });
   }
 
