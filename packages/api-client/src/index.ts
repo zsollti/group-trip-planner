@@ -91,4 +91,5 @@ export type {
   SocketStatus,
   ChatMessage,
   ChatController,
+  LiveSocket,
 } from "./socket.js";

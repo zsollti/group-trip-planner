@@ -40,6 +40,14 @@ import { tripKeys } from "./trips.js";
  */
 export type SocketStatus = "idle" | "connecting" | "connected" | "error";
 
+/**
+ * The live socket, re-exported so apps can type a socket prop without importing
+ * `socket.io-client` themselves. This package owns the transport dependency —
+ * an app that reaches past it type-checks locally on a hoisted install and then
+ * fails on a clean one.
+ */
+export type LiveSocket = Socket;
+
 export interface TripSocket {
   status: SocketStatus;
   /** The channels the member can see, from the server's ready payload. */

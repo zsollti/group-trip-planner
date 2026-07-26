@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Socket } from "socket.io-client";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationLiveSync,
   useNotifications,
+  type LiveSocket,
 } from "@gtp/api-client";
 import type { NotificationType, NotificationView } from "@gtp/types";
 
@@ -58,7 +58,7 @@ function ago(iso: string): string {
  * `aria-haspopup`/`aria-expanded` on the trigger, Escape and outside-click to
  * close, plain buttons inside.
  */
-export function NotificationBell({ socket }: { socket?: Socket | null }) {
+export function NotificationBell({ socket }: { socket?: LiveSocket | null }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<NotificationView | null>(null);
