@@ -76,7 +76,7 @@ export class TripsService {
 
   /** Trip detail for a member — the trip-context is already resolved + authorized. */
   getTripDetail(ctx: TripContext): TripDetail {
-    return toTripDetail(ctx.trip, ctx.role);
+    return toTripDetail(ctx.trip, ctx.role, ctx.muted);
   }
 
   /**
@@ -112,7 +112,7 @@ export class TripsService {
       where: { id: ctx.trip.id },
       include: { _count: { select: { memberships: true } } },
     });
-    return toTripDetail(updated, ctx.role);
+    return toTripDetail(updated, ctx.role, ctx.muted);
   }
 
   /**

@@ -7,6 +7,8 @@ import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
 import { TripDetail } from "./routes/TripDetail";
 import { Join } from "./routes/Join";
+import { Settings } from "./routes/Settings";
+import { Unsubscribed } from "./routes/Unsubscribed";
 
 /**
  * UI C — Trip Board. Routes only; providers live in main.tsx so tests can mount
@@ -36,6 +38,17 @@ export function App() {
         <Route path="/verify" element={<Verify />} />
         {/* Join crafts its own ?next= redirect when logged out. */}
         <Route path="/join/:token" element={<Join />} />
+        {/* The unsubscribe landing is public on purpose: it is opened from an
+            email client with no session (Phase 5.3). */}
+        <Route path="/unsubscribed" element={<Unsubscribed />} />
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <Settings />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/"
           element={

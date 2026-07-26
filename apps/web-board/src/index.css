@@ -1208,11 +1208,118 @@ body {
   }
 }
 
+/* --- Settings panel + switches (Phase 5.3) --------------------------------- */
+.board__panel {
+  margin-top: 1rem;
+  max-width: 42rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+}
+
+.board__panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.board__panel-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--board-dim);
+}
+
+.board__switch-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.board__switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.board__switch-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.board__switch-desc {
+  font-size: 0.8rem;
+  color: var(--board-dim);
+}
+
+.board__switch {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--lane-line);
+  background: var(--board-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.board__switch:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.board__switch-knob {
+  width: 2rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-dim) 40%, transparent);
+  position: relative;
+  transition: background 120ms ease;
+}
+
+.board__switch-knob::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--lane-bg);
+  transition: transform 120ms ease;
+}
+
+.board__switch[aria-checked="true"] .board__switch-knob {
+  background: var(--board-accent);
+}
+
+.board__switch[aria-checked="true"] .board__switch-knob::after {
+  transform: translateX(0.9rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board__switch-knob,
+  .board__switch-knob::after {
+    transition: none;
+  }
+}
+
+/* The "this board's email is muted" flag in the trip header. */
+.board__mutedflag {
+  color: var(--board-dim);
+}
+
 /* --- A11y floor + four-states polish (Phase 3.5) --------------------------- */
 /* Visible keyboard focus on every interactive control (not just inputs/grips). */
 .board [data-gtp-button]:focus-visible,
 .board__cta:focus-visible,
 .board__link-btn:focus-visible,
+.board__switch:focus-visible,
 .board__brand--link:focus-visible,
 .lane__vote-btn:focus-visible,
 .lane__link:focus-visible,

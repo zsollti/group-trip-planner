@@ -5,12 +5,18 @@ import {
   Get,
   HttpCode,
   Inject,
+  Patch,
   Res,
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
 import type { User } from "@prisma/client";
-import { DeleteAccountInput, type AccountDeletionImpact } from "@gtp/types";
+import {
+  DeleteAccountInput,
+  UpdateNotificationPreferencesInput,
+  type AccountDeletionImpact,
+  type NotificationPreferences,
+} from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
@@ -30,6 +36,27 @@ export class AccountController {
     private readonly account: AccountService,
     @Inject(ENV) private readonly env: Env,
   ) {}
+
+  /** The caller's notification preferences (Phase 5.3). */
+  @Get("preferences")
+  @UseGuards(JwtAuthGuard)
+  getPreferences(@CurrentUser() user: User): Promise<NotificationPreferences> {
+    return this.account.getPreferences(user.id);
+  }
+
+  /**
+   * Update the caller's notification preferences. Gates only the **email**
+   * channel — the in-app bell stays on, and transactional mail never reads this.
+   */
+  @Patch("preferences")
+  @UseGuards(JwtAuthGuard)
+  updatePreferences(
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(UpdateNotificationPreferencesInput))
+    body: UpdateNotificationPreferencesInput,
+  ): Promise<NotificationPreferences> {
+    return this.account.updatePreferences(user.id, body);
+  }
 
   /** Preview what deleting this account will do (the warning prompt's source). */
   @Get("deletion-preview")

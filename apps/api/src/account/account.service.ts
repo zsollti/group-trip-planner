@@ -3,7 +3,9 @@ import type { Prisma } from "@prisma/client";
 import {
   planAccountDeletion,
   type AccountDeletionImpact,
+  type NotificationPreferences,
   type OwnedTripForDeletion,
+  type UpdateNotificationPreferencesInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 
@@ -18,6 +20,40 @@ import { PrismaService } from "../prisma/prisma.service.js";
 @Injectable()
 export class AccountService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * The caller's notification preferences (Phase 5.3). Read straight off the
+   * user row — the same flags {@link shouldSendMentionEmail} gates enqueues on,
+   * so what the settings screen shows is exactly what the queue enforces.
+   */
+  async getPreferences(userId: string): Promise<NotificationPreferences> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { emailOnMention: true },
+    });
+    return { emailOnMention: user.emailOnMention };
+  }
+
+  /**
+   * Update the caller's preferences and return the stored result, so the client
+   * renders server truth rather than its own optimistic guess. Partial by
+   * design: only the fields present are written.
+   */
+  async updatePreferences(
+    userId: string,
+    input: UpdateNotificationPreferencesInput,
+  ): Promise<NotificationPreferences> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.emailOnMention === undefined
+          ? {}
+          : { emailOnMention: input.emailOnMention }),
+      },
+      select: { emailOnMention: true },
+    });
+    return { emailOnMention: updated.emailOnMention };
+  }
 
   /**
    * Load the trips this user owns, each with its *other* members (the owner

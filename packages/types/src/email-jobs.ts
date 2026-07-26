@@ -126,14 +126,3 @@ export function shouldSendMentionEmail(
     candidate.hasAddress
   );
 }
-
-/**
- * Notification-email preferences as the API reports them (the read side 5.3
- * builds its settings screen on; 5.2 only needs the shape to exist so the
- * unsubscribe endpoint has something to answer with).
- */
-export const NotificationPreferences = z.object({
-  /** Global "email me when I'm @mentioned". */
-  emailOnMention: z.boolean(),
-});
-export type NotificationPreferences = z.infer<typeof NotificationPreferences>;

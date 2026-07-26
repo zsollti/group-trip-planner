@@ -66,8 +66,11 @@ export const envSchema = z.object({
   // --- Email (Resend in staging/prod; dev logs the link) ---
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Group Trip Planner <onboarding@resend.dev>"),
-  // Where verification links point (the frontend verify landing, Phase 0.7).
-  WEB_APP_URL: z.string().url().default("http://localhost:5173"),
+  // Where emailed links point (verification, Phase 0.7; the unsubscribe landing,
+  // 5.3). Defaults to web-board's dev port — the Phase-3.5 winner and the only
+  // app still built; deck (:5173) and feed (:5174) are frozen, so a link aimed
+  // there would 404 in local dev.
+  WEB_APP_URL: z.string().url().default("http://localhost:5175"),
   // The API's own externally reachable base URL. Unsubscribe links are clicked
   // from a mail client with no session, so they must hit the API directly
   // (Phase 5.2) rather than route through the SPA.
@@ -81,17 +84,13 @@ export const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 /** Google sign-in is enabled only when the full OAuth client is configured. */
-export function isGoogleOAuthEnabled(
-  env: Env,
-): env is Env & {
+export function isGoogleOAuthEnabled(env: Env): env is Env & {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_CALLBACK_URL: string;
 } {
   return Boolean(
-    env.GOOGLE_CLIENT_ID &&
-      env.GOOGLE_CLIENT_SECRET &&
-      env.GOOGLE_CALLBACK_URL,
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALLBACK_URL,
   );
 }
 

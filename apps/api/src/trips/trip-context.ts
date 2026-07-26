@@ -14,6 +14,12 @@ export interface TripContext {
   readonly role: TripRole;
   /** The caller's membership id (used by role/leave mutations in later slices). */
   readonly membershipId: string;
+  /**
+   * Whether the caller muted this trip's notification email (Phase 5.3). Rides
+   * along on the membership row the guard already loads, so surfacing it costs
+   * no extra query.
+   */
+  readonly muted: boolean;
 }
 
 /** Request augmented with the resolved trip-context. */

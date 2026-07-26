@@ -11,6 +11,7 @@ import {
   type AssignableRole,
   type TripMembersView,
   type TripMemberView,
+  type TripMuteView,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { TripContext } from "../trips/trip-context.js";
@@ -255,5 +256,23 @@ export class MembersService {
         data: { ownerId: targetUserId, version: { increment: 1 } },
       });
     });
+  }
+
+  /**
+   * Mute or unmute this trip's notification **email** for the caller (Phase
+   * 5.3). Writes the caller's own membership row — identified by the id the
+   * trip-context guard already resolved, so there is no target to authorize and
+   * no way to aim this at somebody else's membership.
+   *
+   * Idempotent: setting the value it already has is a success, and the stored
+   * state comes back so the client renders server truth.
+   */
+  async setMute(ctx: TripContext, muted: boolean): Promise<TripMuteView> {
+    const updated = await this.prisma.tripMembership.update({
+      where: { id: ctx.membershipId },
+      data: { muted },
+      select: { muted: true },
+    });
+    return { tripId: ctx.trip.id, muted: updated.muted };
   }
 }
