@@ -41,6 +41,7 @@ model User {
   reactions               Reaction[]
   mentions                Mention[]
   channelReads            ChannelRead[]
+  notifications           Notification[]
 
   @@map("users")
 }
@@ -136,6 +137,7 @@ model Trip {
   categories  Category[]
   auditEvents AuditEvent[]
   channels    Channel[]
+  notifications Notification[]
 
   @@index([ownerId])
   @@map("trips")
@@ -281,6 +283,48 @@ model Mention {
   @@unique([messageId, userId])
   @@index([userId])
   @@map("mentions")
+}
+
+/// What happened, for a {@link Notification} (Phase 5.1). One value per trigger
+/// in SRS §Phase-5: a member proposed an option, an organizer locked a decision,
+/// or someone `@mentioned` you in chat. The type drives both the rendered copy
+/// and (from 5.2) whether an email is enqueued — only MENTION ever emails.
+enum NotificationType {
+  OPTION_PROPOSED
+  OPTION_LOCKED
+  MENTION
+}
+
+/// A per-recipient in-app notification (Phase 5.1). Fan-out is **materialized**:
+/// one row per recipient, written after the triggering action has committed, so
+/// a notification failure can never roll back a lock or a message. The actor is
+/// never a recipient of their own action (decision 2).
+///
+/// `payload` is a **denormalized snapshot** (trip name, actor name, subject
+/// title) taken at fan-out time, for the same reason {@link AuditEvent.metadata}
+/// is: the bell must render without re-reading a subject that may since have been
+/// edited, soft-deleted, or renamed — and without an N+1 join per row. `readAt`
+/// null = unread; marking read is idempotent and never deletes the row.
+///
+/// Rows are scoped to a trip so leaving/losing access takes its notifications
+/// with it (cascade), and so 5.3's per-trip mute has something to filter on.
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  tripId    String           @db.Uuid
+  type      NotificationType
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  // The bell's two queries: the newest-first page and the unread count, both
+  // always scoped to one user.
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 /// A proposal within a category (SRS §6 / FR-21, Phase 2.2). Options are

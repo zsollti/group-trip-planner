@@ -23,6 +23,7 @@ import {
   type UnlockOptionInput,
   type UpdateOptionInput,
 } from "@gtp/types";
+import { NotificationsService } from "../notifications/notifications.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import type { TripContext } from "../trips/trip-context.js";
@@ -48,6 +49,7 @@ export class OptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -194,6 +196,18 @@ export class OptionsService {
       include: optionInclude,
     });
     this.emitOptionsChanged(ctx.trip.id, categoryId);
+    // Tell the rest of the trip something new is on the table (Phase 5.1). After
+    // the write, and best-effort inside the service — a proposal stands whether
+    // or not its notifications land.
+    await this.notifications.notify({
+      tripId: ctx.trip.id,
+      tripName: ctx.trip.name,
+      actorId: user.id,
+      actorName: user.displayName,
+      type: "OPTION_PROPOSED",
+      subject: created.title,
+      categoryId,
+    });
     return toOptionView(created, user.id);
   }
 
@@ -546,6 +560,18 @@ export class OptionsService {
     });
 
     this.emitOptionsChanged(ctx.trip.id, categoryId);
+    // A settled decision is the notification everyone on the trip wants (5.1).
+    // Unlocking is deliberately *not* a trigger — SRS §Phase-5 lists three, and
+    // an unlock is an intermediate state, not news.
+    await this.notifications.notify({
+      tripId: ctx.trip.id,
+      tripName: ctx.trip.name,
+      actorId: user.id,
+      actorName: user.displayName,
+      type: "OPTION_LOCKED",
+      subject: option.title,
+      categoryId,
+    });
     return this.readOption(option.id, user.id);
   }
 

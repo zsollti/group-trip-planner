@@ -19,6 +19,7 @@ import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
+import { NotificationBell } from "../components/NotificationBell";
 import { ChatPanel } from "../components/ChatPanel";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
@@ -107,6 +108,9 @@ export function TripDetail() {
         </Link>
         <div className="board__bar-actions">
           {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
+          {/* The socket's personal room carries notifications for every trip the
+              user belongs to, not just this one (Phase 5.1, decision 1). */}
+          <NotificationBell socket={tripSocket.socket} />
           {trip.data && can(trip.data.role, "invite.create") ? (
             <Button
               type="button"

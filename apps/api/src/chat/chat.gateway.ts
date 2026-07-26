@@ -29,6 +29,7 @@ import {
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { tripRoom } from "../realtime/trip-room.js";
+import { userRoom } from "../realtime/user-room.js";
 import { ChannelsService } from "./channels.service.js";
 import { MessagesService } from "./messages.service.js";
 
@@ -91,7 +92,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
       client.disconnect(true);
       return;
     }
+    // Two rooms: the trip's (chat + board events) and the user's own, which
+    // carries notifications about *any* trip they belong to (Phase 5.1).
     await client.join(tripRoom(data.tripId));
+    await client.join(userRoom(data.userId));
     const payload = await this.channels.readyPayload(data.tripId, data.userId);
     client.emit(SOCKET_READY_EVENT, payload);
     this.logger.debug(`socket joined ${tripRoom(data.tripId)}`);

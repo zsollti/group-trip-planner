@@ -17,6 +17,7 @@ import { OptionsModule } from "./options/options.module.js";
 import { DashboardModule } from "./dashboard/dashboard.module.js";
 import { LifecycleModule } from "./lifecycle/lifecycle.module.js";
 import { ChatModule } from "./chat/chat.module.js";
+import { NotificationsModule } from "./notifications/notifications.module.js";
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ChatModule } from "./chat/chat.module.js";
     DashboardModule,
     LifecycleModule,
     ChatModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

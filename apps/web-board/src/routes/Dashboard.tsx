@@ -5,6 +5,7 @@ import { useAuth, useHomeDashboard } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
+import { NotificationBell } from "../components/NotificationBell";
 import { UserMenu } from "../components/UserMenu";
 
 const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
@@ -82,6 +83,9 @@ export function Dashboard() {
           >
             ＋ New board
           </Button>
+          {/* No trip socket on the overview: the bell loads from the server and
+              refreshes on focus (live pushes need an open trip screen). */}
+          <NotificationBell />
           <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
         </div>
       </header>

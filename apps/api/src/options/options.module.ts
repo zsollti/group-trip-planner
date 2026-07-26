@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
+import { NotificationsModule } from "../notifications/notifications.module.js";
 import { RealtimeModule } from "../realtime/realtime.module.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { OptionsController } from "./options.controller.js";
@@ -17,7 +18,7 @@ import { LockingController } from "./locking.controller.js";
  * the same service + guard spine.
  */
 @Module({
-  imports: [AuthModule, RealtimeModule],
+  imports: [AuthModule, RealtimeModule, NotificationsModule],
   controllers: [OptionsController, VotesController, LockingController],
   providers: [OptionsService, TripContextGuard, PermissionGuard],
 })

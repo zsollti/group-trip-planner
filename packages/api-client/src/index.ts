@@ -74,6 +74,13 @@ export {
   useTripDashboard,
   useHomeDashboard,
 } from "./dashboard.js";
+export {
+  notificationKeys,
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  useNotificationLiveSync,
+} from "./notifications.js";
 export { googleSignInUrl } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
@@ -84,4 +91,5 @@ export type {
   SocketStatus,
   ChatMessage,
   ChatController,
+  LiveSocket,
 } from "./socket.js";
