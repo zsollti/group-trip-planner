@@ -28,7 +28,7 @@ import { JwtAuthGuard } from "./jwt-auth.guard.js";
 import {
   GoogleAuthGuard,
   GoogleConfiguredGuard,
-  resolveReturnOrigin,
+  resolveReturnUrl,
 } from "./google-auth.guard.js";
 import { CurrentUser } from "./current-user.decorator.js";
 import { toAuthUser } from "./auth.mapper.js";
@@ -111,7 +111,8 @@ export class AuthController {
   /**
    * Begin Google sign-in (Phase 1.0). GoogleAuthGuard redirects the browser to
    * Google's consent screen; the caller's `?redirect=` (which app to return to)
-   * rides along as OAuth `state`. 404s when Google isn't configured.
+   * and `?next=` (where inside it to land — an invite's `/join/:token`, say)
+   * ride along as OAuth `state`. 404s when Google isn't configured.
    */
   @Get("google")
   @UseGuards(GoogleConfiguredGuard, GoogleAuthGuard)
@@ -122,9 +123,10 @@ export class AuthController {
   /**
    * Google's redirect target. The guard completes the code exchange and attaches
    * the resolved User; here we open the standard session (refresh cookie set like
-   * email/password login) and bounce back to the originating front-end, which
-   * silently refreshes to obtain its access token. The token is never placed in
-   * the URL.
+   * email/password login) and bounce back to the originating front-end — to the
+   * path the user was headed for, so a logged-out invite survives the Google
+   * detour — which silently refreshes to obtain its access token. The token is
+   * never placed in the URL.
    */
   @Get("google/callback")
   @UseGuards(GoogleConfiguredGuard, GoogleAuthGuard)
@@ -135,7 +137,6 @@ export class AuthController {
   ): Promise<void> {
     const { refresh } = await this.auth.startSession(user);
     setRefreshCookie(res, refresh.raw, refresh.expiresAt, this.env);
-    const origin = resolveReturnOrigin(req.query.state, this.env);
-    res.redirect(`${origin}/`);
+    res.redirect(resolveReturnUrl(req.query.state, this.env));
   }
 }

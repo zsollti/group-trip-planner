@@ -8,7 +8,12 @@ import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { AuthService } from "../src/auth/auth.service.js";
-import { resolveReturnOrigin } from "../src/auth/google-auth.guard.js";
+import {
+  buildReturnState,
+  resolveReturnOrigin,
+  resolveReturnUrl,
+  safeReturnPath,
+} from "../src/auth/google-auth.guard.js";
 import { ENV } from "../src/config/config.module.js";
 import { isGoogleOAuthEnabled, type Env } from "../src/config/env.js";
 
@@ -16,8 +21,9 @@ import { isGoogleOAuthEnabled, type Env } from "../src/config/env.js";
  * Google OAuth (Phase 1.0). The full browser round-trip needs Google itself, so
  * here we pin the parts we own: the find-or-create that turns a verified Google
  * profile into our standard User (FR-1), the open-redirect clamp on the return
- * origin, and that the routes 404 when Google isn't configured (test env has no
- * GOOGLE_* vars).
+ * origin *and* path, that a `?next=` destination survives the round-trip, and
+ * that the routes 404 when Google isn't configured (test env has no GOOGLE_*
+ * vars).
  */
 describe("Google OAuth (e2e)", () => {
   let app: INestApplication;
@@ -165,5 +171,63 @@ describe("Google OAuth (e2e)", () => {
     );
     // Missing / non-string candidates also fall back.
     assert.equal(resolveReturnOrigin(undefined, env), "http://localhost:5173");
+  });
+
+  it("carries ?next= through the OAuth round-trip (logged-out invite)", () => {
+    const env = {
+      CORS_ORIGINS: ["http://localhost:5175", "http://localhost:5173"],
+      WEB_APP_URL: "http://localhost:5175",
+    } as unknown as Env;
+
+    // Initiate: origin + destination become the single `state` value.
+    const state = buildReturnState(
+      "http://localhost:5175",
+      "/join/abc123",
+      env,
+    );
+    assert.equal(state, "http://localhost:5175/join/abc123");
+
+    // Callback: the browser lands back on the invite, not the app root — the
+    // gap that used to drop Google users on `/` while email/password users
+    // reached the trip.
+    assert.equal(
+      resolveReturnUrl(state, env),
+      "http://localhost:5175/join/abc123",
+    );
+  });
+
+  it("clamps the return path (open-redirect guard on both legs)", () => {
+    const env = {
+      CORS_ORIGINS: ["http://localhost:5175"],
+      WEB_APP_URL: "http://localhost:5175",
+    } as unknown as Env;
+
+    // Only same-site absolute paths survive.
+    assert.equal(safeReturnPath("/trips/42"), "/trips/42");
+    assert.equal(safeReturnPath("//evil.example.com"), "/");
+    assert.equal(safeReturnPath("/\\evil.example.com"), "/");
+    assert.equal(safeReturnPath("https://evil.example.com"), "/");
+    assert.equal(safeReturnPath(undefined), "/");
+
+    // A hostile `next` on initiate cannot smuggle an off-site target in.
+    assert.equal(
+      buildReturnState("http://localhost:5175", "//evil.example.com", env),
+      "http://localhost:5175/",
+    );
+
+    // `state` comes back through the browser, so the callback re-clamps rather
+    // than trusting what it built: an off-allowlist origin falls back home.
+    assert.equal(
+      resolveReturnUrl("https://evil.example.com/join/abc", env),
+      "http://localhost:5175/",
+    );
+    assert.equal(resolveReturnUrl("not-a-url", env), "http://localhost:5175/");
+    assert.equal(resolveReturnUrl(undefined, env), "http://localhost:5175/");
+
+    // A legacy bare-origin `state` (pre-`next`) still resolves to the root.
+    assert.equal(
+      resolveReturnUrl("http://localhost:5175", env),
+      "http://localhost:5175/",
+    );
   });
 });

@@ -27,6 +27,52 @@ export function resolveReturnOrigin(
 }
 
 /**
+ * Clamp the post-sign-in path to a same-site absolute path — the server-side
+ * mirror of the front-ends' `safeNextPath`. Only `/…` is honoured, never a
+ * protocol-relative `//evil.com` (nor the `/\evil.com` variant browsers
+ * normalize to an authority). Anything else falls back to the app root.
+ */
+export function safeReturnPath(candidate: unknown): string {
+  if (typeof candidate !== "string" || !candidate.startsWith("/")) return "/";
+  if (candidate.startsWith("//") || candidate.startsWith("/\\")) return "/";
+  return candidate;
+}
+
+/**
+ * The OAuth `state` handed to Google: the absolute URL to return the browser
+ * to, i.e. the front-end origin plus the path the user was headed for (an
+ * invite's `/join/:token`, say). Both halves are clamped here *and* again in
+ * {@link resolveReturnUrl}, because `state` comes back through the browser and
+ * is therefore attacker-controllable at the callback.
+ */
+export function buildReturnState(
+  origin: unknown,
+  next: unknown,
+  env: Env,
+): string {
+  return `${resolveReturnOrigin(origin, env)}${safeReturnPath(next)}`;
+}
+
+/**
+ * Turn the echoed `state` back into a safe absolute return URL. Falls back to
+ * the default origin's root when the value is missing, unparseable, or points
+ * at an origin outside the CORS allowlist.
+ */
+export function resolveReturnUrl(state: unknown, env: Env): string {
+  if (typeof state === "string" && state !== "") {
+    try {
+      const url = new URL(state);
+      if (env.CORS_ORIGINS.includes(url.origin)) {
+        return `${url.origin}${safeReturnPath(`${url.pathname}${url.search}`)}`;
+      }
+    } catch {
+      // Not a URL at all — fall through to the default below.
+    }
+  }
+  return `${resolveReturnOrigin(state, env)}/`;
+}
+
+/**
  * Runs before {@link GoogleAuthGuard}: if Google OAuth isn't configured, the
  * routes behave as if they don't exist (404) instead of 500-ing on an unknown
  * Passport strategy. Keeps the app bootable without Google creds.
@@ -44,7 +90,7 @@ export class GoogleConfiguredGuard implements CanActivate {
 }
 
 /**
- * The Passport "google" guard, extended to carry the return origin through the
+ * The Passport "google" guard, extended to carry the return target through the
  * OAuth round-trip as `state` and to run stateless (no server session — we set
  * our own refresh cookie in the callback).
  */
@@ -58,7 +104,7 @@ export class GoogleAuthGuard extends AuthGuard("google") {
     const req = context.switchToHttp().getRequest<Request>();
     return {
       session: false,
-      state: resolveReturnOrigin(req.query.redirect, this.env),
+      state: buildReturnState(req.query.redirect, req.query.next, this.env),
     };
   }
 }
