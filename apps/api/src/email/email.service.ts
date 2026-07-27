@@ -54,8 +54,15 @@ export class EmailService {
     tripName: string,
   ): Promise<void> {
     const link = `${this.env.WEB_APP_URL}/join/${encodeURIComponent(rawToken)}`;
+    // The trip name is user-supplied and this mail goes to an address the
+    // inviter types, so an unescaped name would let anyone compose arbitrary
+    // markup — a link of their choosing — inside a mail sent from our domain
+    // (Phase 7.2). The subject is a plain-text JSON field, not a header we
+    // assemble, so it needs no escaping; the HTML body does.
     const subject = `You're invited to "${tripName}"`;
-    const html = `<p>You've been invited to join "${tripName}" on Group Trip Planner.</p><p><a href="${link}">Open the invite</a></p>`;
+    const html =
+      `<p>You've been invited to join "${escapeHtml(tripName)}" on ` +
+      `Group Trip Planner.</p><p><a href="${link}">Open the invite</a></p>`;
 
     if (this.resend) {
       await this.resend.emails.send({

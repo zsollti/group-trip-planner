@@ -46,6 +46,11 @@ export class MediaController {
     res.setHeader("X-Content-Type-Options", "nosniff");
     // Belt-and-braces against an HTML-ish payload surviving re-encode somehow.
     res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    // This is the one route meant to be embedded from another origin: the web
+    // app runs on its own domain and loads covers/avatars with `<img src>`.
+    // Helmet's global `same-origin` CORP would have the browser block exactly
+    // that, so the public route opts out for itself alone (Phase 7.2).
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
     // Content is immutable: the name is a fresh UUID on every upload.
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");

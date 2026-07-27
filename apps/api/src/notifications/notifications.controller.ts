@@ -11,15 +11,8 @@ import type { User } from "@prisma/client";
 import type { NotificationPage } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
+import { parseCursor, parseLimit } from "../common/query-params.js";
 import { NotificationsService } from "./notifications.service.js";
-
-/** Parse a numeric query param; missing/non-numeric falls back to the service
- * default. */
-function toInt(value?: string): number | undefined {
-  if (value === undefined) return undefined;
-  const n = Number.parseInt(value, 10);
-  return Number.isNaN(n) ? undefined : n;
-}
 
 /** The unread badge, returned by both mark-read routes so the client never has
  * to re-fetch a page just to correct the count. */
@@ -45,7 +38,11 @@ export class NotificationsController {
     @Query("cursor") cursor?: string,
     @Query("limit") limit?: string,
   ): Promise<NotificationPage> {
-    return this.notifications.list(user.id, cursor, toInt(limit));
+    return this.notifications.list(
+      user.id,
+      parseCursor(cursor),
+      parseLimit(limit),
+    );
   }
 
   /** Mark one notification read (idempotent). */

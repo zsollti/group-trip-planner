@@ -34,11 +34,39 @@ const optionalText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : undefined));
 
-/** Optional URL (proposal link / booking hook). Empty normalises to undefined. */
+/**
+ * Optional URL (proposal link / booking hook). Empty normalises to undefined.
+ *
+ * `.url()` alone is **not** a scheme check: it delegates to `new URL()`, which
+ * happily parses `javascript:alert(1)` and `data:text/html,…`. This value is
+ * rendered straight into an `href` on the board, so the scheme is constrained
+ * here at the boundary rather than trusted downstream (Phase 7.2). React 19
+ * does currently neutralise `javascript:` hrefs on its own, but that is the
+ * renderer being defensive, not the contract being correct — and it protects
+ * only consumers that happen to be React.
+ */
 const optionalUrl = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-  z.string().trim().url().max(2000).optional(),
+  z
+    .string()
+    .trim()
+    .url()
+    .max(2000)
+    .refine(isHttpUrl, { message: "Must be an http(s) link" })
+    .optional(),
 );
+
+/** True only for absolute `http:`/`https:` URLs. Shared with the render side so
+ * one rule governs both what may be stored and what may be linked. */
+export function isHttpUrl(value: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:";
+}
 
 /** Optional non-negative money amount; blank/NaN normalises to undefined. */
 const optionalAmount = z.preprocess(

@@ -1,5 +1,5 @@
 import { Button } from "@gtp/ui-primitives";
-import type { CategoryView, OptionView } from "@gtp/types";
+import { isHttpUrl, type CategoryView, type OptionView } from "@gtp/types";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { Dialog } from "./Dialog";
 
@@ -64,14 +64,22 @@ export function OptionDetail({
             <>
               <dt>Link</dt>
               <dd>
-                <a
-                  className="lane__link"
-                  href={option.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {option.url}
-                </a>
+                {/* Rows stored before the scheme was constrained at the
+                    boundary can still hold a non-http(s) URL, so the render
+                    side decides what may become an href. Anything else is
+                    shown as text — visible, but not clickable (Phase 7.2). */}
+                {isHttpUrl(option.url) ? (
+                  <a
+                    className="lane__link"
+                    href={option.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    {option.url}
+                  </a>
+                ) : (
+                  option.url
+                )}
               </dd>
             </>
           ) : null}
