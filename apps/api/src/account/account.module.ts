@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
+import { UploadsModule } from "../uploads/uploads.module.js";
 import { AccountController } from "./account.controller.js";
 import { AccountService } from "./account.service.js";
 
@@ -9,7 +10,10 @@ import { AccountService } from "./account.service.js";
  * successor cascade from the policy layer for the ownership auto-transfer.
  */
 @Module({
-  imports: [AuthModule],
+  // UploadsModule supplies the avatar pipeline (Phase 6.2) — which also purges
+  // the stored image on GDPR erasure — plus the multer config and the per-user
+  // upload throttle guard.
+  imports: [AuthModule, UploadsModule],
   controllers: [AccountController],
   providers: [AccountService],
 })

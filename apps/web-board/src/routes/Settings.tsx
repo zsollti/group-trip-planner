@@ -2,11 +2,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ApiError,
+  useAuth,
   useNotificationPreferences,
+  useRemoveAvatar,
+  useSetAvatar,
   useUpdateNotificationPreferences,
 } from "@gtp/api-client";
 import { UserMenu } from "../components/UserMenu";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
+import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 
 /**
@@ -19,10 +23,42 @@ import { ToggleSwitch } from "../components/ToggleSwitch";
  * always exist, defaulted on.
  */
 export function Settings() {
+  const { user, applyUser } = useAuth();
   const prefs = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
+  const setAvatar = useSetAvatar();
+  const removeAvatar = useRemoveAvatar();
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  // Both avatar paths answer with the updated user, which goes straight into
+  // the session so the header, chat and crew list follow without a refetch.
+  async function saveAvatar(file: File) {
+    setAvatarError(null);
+    try {
+      applyUser(await setAvatar.mutateAsync(file));
+    } catch (err) {
+      setAvatarError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't upload that picture. Please try again.",
+      );
+    }
+  }
+
+  async function clearAvatar() {
+    setAvatarError(null);
+    try {
+      applyUser(await removeAvatar.mutateAsync());
+    } catch (err) {
+      setAvatarError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't remove your picture. Please try again.",
+      );
+    }
+  }
 
   async function setEmailOnMention(next: boolean) {
     setError(null);
@@ -49,7 +85,26 @@ export function Settings() {
       </header>
 
       <p className="board__eyebrow">Account</p>
-      <h1 className="board__title">Notification settings</h1>
+      <h1 className="board__title">Your settings</h1>
+
+      <section className="board__panel" aria-labelledby="avatar-heading">
+        <h2 className="board__panel-title" id="avatar-heading">
+          Profile picture
+        </h2>
+        <ImagePicker
+          label="Your picture"
+          shape="square"
+          currentUrl={user?.avatarUrl ?? null}
+          busy={setAvatar.isPending || removeAvatar.isPending}
+          error={avatarError}
+          onSave={(file) => void saveAvatar(file)}
+          onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
+        />
+        <p className="board__panel-note">
+          Shown wherever you appear — the crew list and board chat. Without one,
+          your initials stand in.
+        </p>
+      </section>
 
       {prefs.isPending ? (
         <p className="board__muted">Loading your settings…</p>
@@ -69,7 +124,7 @@ export function Settings() {
       ) : (
         <section className="board__panel" aria-labelledby="email-prefs-heading">
           <h2 className="board__panel-title" id="email-prefs-heading">
-            Email
+            Notifications
           </h2>
           {error ? (
             <p className="board__form-error" role="alert">

@@ -18,6 +18,15 @@ export interface StorageDriver {
   remove(name: string): Promise<void>;
   /** The public URL for an already-stored object. */
   urlFor(name: string): string;
+  /**
+   * The object name behind one of *our* URLs, or null for anything else.
+   *
+   * Replacing a cover or avatar (Phase 6.2) has to delete the object it
+   * replaced, and the only handle the database keeps is the URL. Returning null
+   * for a foreign URL is the safety property: a value that didn't come from
+   * this driver can never be turned into a delete.
+   */
+  nameFromUrl(url: string): string | null;
 }
 
 /** DI token — Nest can't inject an interface. */

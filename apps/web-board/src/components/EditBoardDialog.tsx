@@ -3,7 +3,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { UpdateTripInput, type TripDetail } from "@gtp/types";
-import { ApiError, useUpdateTrip } from "@gtp/api-client";
+import {
+  ApiError,
+  useRemoveTripCover,
+  useSetTripCover,
+  useUpdateTrip,
+} from "@gtp/api-client";
+import { ImagePicker } from "./ImagePicker";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -18,8 +24,37 @@ export function EditBoardDialog({
   onClose: () => void;
 }) {
   const updateTrip = useUpdateTrip(trip.id);
+  const setCover = useSetTripCover(trip.id);
+  const removeCover = useRemoveTripCover(trip.id);
   const [formError, setFormError] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+
+  async function saveCover(file: File) {
+    setCoverError(null);
+    try {
+      await setCover.mutateAsync(file);
+    } catch (err) {
+      setCoverError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't upload that cover. Please try again.",
+      );
+    }
+  }
+
+  async function clearCover() {
+    setCoverError(null);
+    try {
+      await removeCover.mutateAsync();
+    } catch (err) {
+      setCoverError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't remove the cover. Please try again.",
+      );
+    }
+  }
   const {
     register,
     handleSubmit,
@@ -139,6 +174,19 @@ export function EditBoardDialog({
                 {isSubmitting ? "Saving…" : "Save changes"}
               </Button>
             </div>
+
+            {/* Outside the form's save cycle on purpose: the cover uploads and
+                applies on its own, so it carries no `version` and can't trip
+                the optimistic-concurrency check the text fields live under. */}
+            <ImagePicker
+              label="Cover image"
+              shape="wide"
+              currentUrl={trip.coverImageUrl}
+              busy={setCover.isPending || removeCover.isPending}
+              error={coverError}
+              onSave={(file) => void saveCover(file)}
+              onRemove={trip.coverImageUrl ? () => void clearCover() : undefined}
+            />
           </form>
         )}
       </div>

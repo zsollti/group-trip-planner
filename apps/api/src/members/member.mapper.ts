@@ -2,7 +2,7 @@ import type { TripBlock, TripMembership, TripRole } from "@prisma/client";
 import type { TripMemberView, TripBlockView } from "@gtp/types";
 
 type MembershipWithUser = TripMembership & {
-  user: { displayName: string };
+  user: { displayName: string; avatarUrl: string | null };
 };
 type BlockWithUser = TripBlock & { user: { displayName: string } };
 
@@ -14,6 +14,7 @@ export function toTripMemberView(
   return {
     userId: m.userId,
     displayName: m.user.displayName,
+    avatarUrl: m.user.avatarUrl,
     role: m.role as TripRole,
     joinedAt: m.joinedAt.toISOString(),
     isOwner: m.userId === ownerId,

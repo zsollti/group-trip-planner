@@ -4,7 +4,7 @@ import type { MessageView, ReactionGroup } from "@gtp/types";
 /** The relations a MessageView needs: author name, reaction rows, and the
  * resolved mention targets with their display names. */
 export const messageInclude = Prisma.validator<Prisma.MessageInclude>()({
-  author: { select: { displayName: true } },
+  author: { select: { displayName: true, avatarUrl: true } },
   reactions: { select: { emoji: true, userId: true } },
   mentions: {
     select: { userId: true, user: { select: { displayName: true } } },
@@ -41,6 +41,7 @@ export function toMessageView(message: MessageWithRelations): MessageView {
     channelId: message.channelId,
     authorId: message.authorId,
     authorName: message.author.displayName,
+    authorAvatarUrl: message.author.avatarUrl,
     body: deleted ? null : message.body,
     deleted,
     createdAt: message.createdAt.toISOString(),

@@ -20,6 +20,7 @@ import {
   useTripMembers,
   useUnblockMember,
 } from "@gtp/api-client";
+import { Avatar } from "./Avatar";
 
 const ROLE_LABEL: Record<TripRole, string> = {
   OWNER: "Owner",
@@ -140,7 +141,13 @@ export function MemberDialog({
                   canManage && !isSelf && canActOn(myRole, m.role);
                 return (
                   <li key={m.userId} className="board__invite-item">
-                    <div>
+                    <div className="board__member-identity">
+                      <Avatar
+                        name={m.displayName}
+                        userId={m.userId}
+                        url={m.avatarUrl}
+                        size={28}
+                      />
                       <strong>{m.displayName}</strong>
                       {isSelf ? (
                         <span className="board__muted"> (you)</span>

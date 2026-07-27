@@ -92,15 +92,25 @@ async function performFetch(
   init: ApiFetchInit,
 ): Promise<Response> {
   const hasBody = init.body !== undefined;
+  // File uploads (Phase 6.2) send FormData. It must go through untouched, and
+  // crucially *without* a Content-Type header — the browser has to set that
+  // itself so it can include the multipart boundary, which we cannot know.
+  const isMultipart =
+    typeof FormData !== "undefined" && init.body instanceof FormData;
+
   const headers: Record<string, string> = {};
-  if (hasBody) headers["Content-Type"] = "application/json";
+  if (hasBody && !isMultipart) headers["Content-Type"] = "application/json";
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
   return fetch(`${baseUrl}${path}`, {
     method: init.method ?? "GET",
     credentials: "include",
     headers: Object.keys(headers).length > 0 ? headers : undefined,
-    body: hasBody ? JSON.stringify(init.body) : undefined,
+    body: isMultipart
+      ? (init.body as FormData)
+      : hasBody
+        ? JSON.stringify(init.body)
+        : undefined,
     signal: init.signal,
   });
 }

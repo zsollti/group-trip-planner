@@ -13,7 +13,7 @@ import type { UploadedImageView } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
-import { UploadsService } from "./uploads.service.js";
+import { UploadsService, type UploadedImageFile } from "./uploads.service.js";
 import { UserThrottlerGuard } from "./user-throttler.guard.js";
 
 /**
@@ -34,19 +34,6 @@ import { UserThrottlerGuard } from "./user-throttler.guard.js";
  *  as abuse; generous enough that ordinary use never meets it. Static like the
  *  auth-route throttles — Phase 7.1 revisits all of them together. */
 const UPLOAD_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
-
-/**
- * The part of multer's file object this route actually uses. Declared here
- * rather than reaching for the `Express.Multer.File` global, which only exists
- * where `@types/multer` happens to be in scope — that resolves differently
- * between the build and test tsconfigs, which is a fragile thing to hinge a
- * compile on.
- */
-interface UploadedImageFile {
-  readonly buffer: Buffer;
-  readonly mimetype?: string;
-  readonly size?: number;
-}
 
 @Controller("uploads")
 @UseGuards(JwtAuthGuard, VerifiedEmailGuard, UserThrottlerGuard)

@@ -39,7 +39,7 @@ export class MembersService {
     const [memberships, blocks] = await Promise.all([
       this.prisma.tripMembership.findMany({
         where: { tripId: ctx.trip.id },
-        include: { user: { select: { displayName: true } } },
+        include: { user: { select: { displayName: true, avatarUrl: true } } },
         orderBy: { joinedAt: "asc" },
       }),
       this.prisma.tripBlock.findMany({
@@ -70,7 +70,11 @@ export class MembersService {
       where: {
         tripId_userId: { tripId: ctx.trip.id, userId: targetUserId },
       },
-      include: { user: { select: { displayName: true, emailVerified: true } } },
+      include: {
+        user: {
+          select: { displayName: true, emailVerified: true, avatarUrl: true },
+        },
+      },
     });
     if (!membership) throw new NotFoundException("Member not found");
     return membership;
@@ -117,7 +121,7 @@ export class MembersService {
       const row = await tx.tripMembership.update({
         where: { id: target.id },
         data: { role: newRole },
-        include: { user: { select: { displayName: true } } },
+        include: { user: { select: { displayName: true, avatarUrl: true } } },
       });
       await tx.auditEvent.create({
         data: memberAudit(

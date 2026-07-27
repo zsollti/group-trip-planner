@@ -53,6 +53,18 @@ export class LocalDiskStorage implements StorageDriver {
   }
 
   /**
+   * Reverse of {@link urlFor}. Anything that isn't this driver's own
+   * `<API_PUBLIC_URL>/media/<generated-name>` returns null, so a stray or
+   * hand-edited URL in the database can never be turned into a file delete.
+   */
+  nameFromUrl(url: string): string | null {
+    const prefix = `${this.env.API_PUBLIC_URL}/media/`;
+    if (!url.startsWith(prefix)) return null;
+    const name = url.slice(prefix.length);
+    return isStoredImageName(name) ? name : null;
+  }
+
+  /**
    * Read an object back for the media route. Returns null when it isn't there,
    * so the caller can 404 rather than leak a filesystem error.
    */

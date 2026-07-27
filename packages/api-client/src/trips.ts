@@ -81,6 +81,47 @@ export function useUpdateTrip(
   });
 }
 
+/**
+ * Set or replace a trip's cover image (Phase 6.2, organizers). Sends the file
+ * itself, not a URL: the server runs it through the hardened pipeline, so the
+ * cover can only ever be an image this service stored. The updated trip is
+ * written straight into the cache.
+ */
+export function useSetTripCover(
+  id: string,
+): UseMutationResult<TripDetail, ApiError, File> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return apiFetch<TripDetail>(`/trips/${id}/cover`, {
+        method: "POST",
+        body: form,
+      });
+    },
+    onSuccess: (trip) => {
+      qc.setQueryData(tripKeys.detail(id), trip);
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
+    },
+  });
+}
+
+/** Remove a trip's cover; the stored image goes with it. */
+export function useRemoveTripCover(
+  id: string,
+): UseMutationResult<TripDetail, ApiError, void> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<TripDetail>(`/trips/${id}/cover`, { method: "DELETE" }),
+    onSuccess: (trip) => {
+      qc.setQueryData(tripKeys.detail(id), trip);
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
+    },
+  });
+}
+
 /** Delete a trip (Owner only). Clears its cached detail, refreshes the dashboard. */
 export function useDeleteTrip(
   id: string,
