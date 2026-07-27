@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@gtp/ui-primitives";
 import {
   can,
+  canDeleteCategory,
   type CategoryView,
   type OptionView,
   type TripRole,
@@ -203,7 +204,10 @@ function LaneHeader({
             💬
           </button>
           {grip}
-          {isOrganizer ? (
+          {/* Dates has no Delete: it is the trip's only date-setting path and
+              cannot be recreated once gone (canDeleteCategory). With no other
+              menu item, the whole "⋯" goes rather than offering a dead one. */}
+          {isOrganizer && canDeleteCategory(category) ? (
             <Menu
               label={`${category.name} lane actions`}
               items={[
@@ -243,6 +247,7 @@ export function CategoryLane({
   myUserId,
   frozen = false,
   dndEnabled = false,
+  laneDragEnabled = false,
   onOpenChannel,
 }: {
   tripId: string;
@@ -252,7 +257,11 @@ export function CategoryLane({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen?: boolean;
+  /** Card gestures: lock/unlock and reorder within this lane. */
   dndEnabled?: boolean;
+  /** Dragging the lane itself — off while the board sorts by "undecided first",
+   *  where the displayed order is not the stored one. */
+  laneDragEnabled?: boolean;
   /** Open the chat panel on this category's discussion channel (Phase 4.5). */
   onOpenChannel: (channelId: string) => void;
 }) {
@@ -276,7 +285,7 @@ export function CategoryLane({
   } = useSortable({
     id: `lane:${category.id}`,
     data: { type: "lane", categoryId: category.id },
-    disabled: !dndEnabled,
+    disabled: !laneDragEnabled,
   });
   const laneStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -320,7 +329,7 @@ export function CategoryLane({
   }
 
   const cardIds = options.map((o) => o.id);
-  const laneGrip = dndEnabled ? (
+  const laneGrip = laneDragEnabled ? (
     <button
       type="button"
       className="lane__grip lane__grip--lane"
@@ -419,6 +428,7 @@ export function CategoryLane({
         <OptionForm
           tripId={tripId}
           categoryId={category.id}
+          categoryBuiltinKey={category.builtinKey}
           currency={defaultCurrency}
           onClose={() => setProposing(false)}
         />
@@ -427,6 +437,7 @@ export function CategoryLane({
         <OptionForm
           tripId={tripId}
           categoryId={category.id}
+          categoryBuiltinKey={category.builtinKey}
           currency={editing.currency}
           option={editing}
           onClose={() => setEditing(null)}

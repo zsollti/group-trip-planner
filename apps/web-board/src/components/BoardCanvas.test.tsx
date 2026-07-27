@@ -104,7 +104,12 @@ function renderBoard(myRole: TripRole) {
 }
 
 describe("BoardCanvas", () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // The lane-sort preference persists in localStorage; clear it so one test's
+    // choice can't set the starting order for the next.
+    window.localStorage.clear();
+  });
 
   it("puts locked options in the Decided column and proposed ones in the lane", async () => {
     mockFetch();
@@ -165,6 +170,78 @@ describe("BoardCanvas", () => {
       villa.compareDocumentPosition(hostel) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("sorting by undecided reorders the lanes and stands lane drag down", async () => {
+    // Two lanes: Stay is settled (a locked card), Food is still open.
+    const food: CategoryView = {
+      id: "c2",
+      name: "Food",
+      singleChoice: false,
+      isBuiltin: true,
+      builtinKey: null,
+      position: 3,
+      version: 0,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/categories/c1/options")) return json([locked]);
+        if (u.includes("/categories/c2/options"))
+          return json([opt({ id: "o3", categoryId: "c2", title: "Ramen" })]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <BoardCanvas
+          tripId="t1"
+          categories={[category, food]}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          onOpenChannel={() => undefined}
+        />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("Ramen");
+    const laneGrip = /drag to reorder the .* lane/i;
+    // Manual order: the stored positions, and lanes are draggable.
+    expect(screen.getAllByRole("button", { name: laneGrip }).length).toBe(2);
+    const stay = screen.getByRole("heading", { name: "Stay" });
+    expect(
+      stay.compareDocumentPosition(
+        screen.getByRole("heading", { name: "Food" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText(/sort lanes/i), {
+      target: { value: "undecided" },
+    });
+
+    // Food (open) now precedes Stay (decided) — and because the shown order is
+    // no longer the stored one, the lane grips are gone so a drag can't reorder
+    // against indices the server doesn't share.
+    expect(
+      screen
+        .getByRole("heading", { name: "Food" })
+        .compareDocumentPosition(
+          screen.getByRole("heading", { name: "Stay" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: laneGrip })).toBeNull();
   });
 
   it("opens a read-only detail view for a locked card with its category and full notes", async () => {

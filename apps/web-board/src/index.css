@@ -281,6 +281,34 @@ body {
   cursor: default;
 }
 
+/* --- Lane tools (sort) --- */
+.board__lanetools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.board__lanesort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--board-dim);
+}
+
+.board__lanesort .board__select {
+  width: auto;
+}
+
+/* .board__muted carries a block-level bottom margin; inside the toolbar row it
+   is an inline hint, so drop it. */
+.board__lanetools .board__muted {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 /* --- Canvas + lanes --- */
 .board__canvas {
   display: flex;
