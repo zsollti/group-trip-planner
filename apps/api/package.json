@@ -13,6 +13,7 @@
     "dev": "tsc-watch -p tsconfig.json --onSuccess \"node dist/main.js\"",
     "start": "node dist/main.js",
     "test": "tsc -p tsconfig.test.json && node --test --env-file-if-exists=.env \"dist-test/test/**/*spec.js\"",
+    "perf:load-check": "tsc -p tsconfig.test.json && node --env-file-if-exists=.env dist-test/test/load-check.js",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

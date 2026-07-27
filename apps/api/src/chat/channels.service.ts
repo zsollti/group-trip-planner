@@ -65,25 +65,40 @@ export class ChannelsService {
       where: { tripId },
       orderBy: { createdAt: "asc" },
     });
-    const reads = await this.prisma.channelRead.findMany({
-      where: { userId, channelId: { in: channels.map((c) => c.id) } },
-    });
-    const lastReadAt = new Map(reads.map((r) => [r.channelId, r.lastReadAt]));
 
-    const unread: ChannelUnread[] = await Promise.all(
-      channels.map(async (c) => {
-        const since = lastReadAt.get(c.id);
-        const count = await this.prisma.message.count({
-          where: {
-            channelId: c.id,
-            deletedAt: null,
-            authorId: { not: userId },
-            ...(since ? { createdAt: { gt: since } } : {}),
-          },
-        });
-        return { channelId: c.id, count };
-      }),
+    // One aggregate for the whole trip rather than a count per channel (Phase
+    // 7.3). Each channel has its *own* cutoff — the member's read cursor — which
+    // is why this is raw SQL: the per-row comparison against `channel_reads`
+    // cannot be expressed as a single Prisma `groupBy`, and the previous shape
+    // fanned out into one COUNT per channel on every socket connect. Channels
+    // became per-category and on-demand in 4.5, so that fan-out grows with the
+    // board. The LEFT JOIN keeps never-read channels (NULL cursor counts all).
+    // Values are bound as parameters by the tagged template, never interpolated.
+    const counts = await this.prisma.$queryRaw<
+      { channelId: string; count: bigint }[]
+    >`
+      SELECT m."channelId" AS "channelId", COUNT(*) AS "count"
+      FROM "messages" m
+      JOIN "channels" c ON c."id" = m."channelId"
+      LEFT JOIN "channel_reads" r
+        ON r."channelId" = m."channelId" AND r."userId" = ${userId}::uuid
+      WHERE c."tripId" = ${tripId}::uuid
+        AND m."deletedAt" IS NULL
+        AND m."authorId" <> ${userId}::uuid
+        AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt")
+      GROUP BY m."channelId"
+    `;
+    // COUNT() comes back as bigint; the contract carries a plain number, and a
+    // per-channel unread tally is far below Number.MAX_SAFE_INTEGER.
+    const byChannel = new Map(
+      counts.map((row) => [row.channelId, Number(row.count)]),
     );
+
+    // Every channel appears, including those the aggregate had no rows for.
+    const unread: ChannelUnread[] = channels.map((c) => ({
+      channelId: c.id,
+      count: byChannel.get(c.id) ?? 0,
+    }));
 
     return { channels: channels.map(toChannelView), unread };
   }
