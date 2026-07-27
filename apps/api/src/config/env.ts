@@ -79,6 +79,21 @@ export const envSchema = z.object({
   // --- Rate limiting (global default; auth routes tighten per-route) ---
   THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+
+  // --- Image uploads (Phase 6.1) ---
+  // Where re-encoded images are written by the local-disk driver. Must sit
+  // outside the served source tree; nothing maps it as a web root, and bytes
+  // only leave through the media route. Swapped for R2 later.
+  UPLOAD_DIR: z.string().default("./var/uploads"),
+  // Hard ceiling on an accepted upload, enforced while reading the request so
+  // an oversized body is refused mid-stream rather than buffered whole.
+  UPLOAD_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5 * 1024 * 1024),
+  // Longest edge kept on re-encode; larger images are scaled down (never up).
+  UPLOAD_MAX_DIMENSION: z.coerce.number().int().positive().default(2048),
 });
 
 export type Env = z.infer<typeof envSchema>;

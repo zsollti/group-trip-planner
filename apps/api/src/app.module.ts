@@ -19,6 +19,7 @@ import { LifecycleModule } from "./lifecycle/lifecycle.module.js";
 import { ChatModule } from "./chat/chat.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ActivityModule } from "./activity/activity.module.js";
+import { UploadsModule } from "./uploads/uploads.module.js";
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { ActivityModule } from "./activity/activity.module.js";
     ChatModule,
     NotificationsModule,
     ActivityModule,
+    UploadsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
