@@ -14,6 +14,7 @@ import {
   type TripRole,
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
+import { Avatar } from "./Avatar";
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, {
@@ -86,6 +87,12 @@ function MessageRow({
       }
     >
       <div className="board__msg-head">
+        <Avatar
+          name={message.authorName}
+          userId={message.authorId}
+          url={message.authorAvatarUrl}
+          size={22}
+        />
         <span className="board__msg-author">{message.authorName}</span>
         <span className="board__msg-time">
           {message.failed ? "not sent" : timeLabel(message.createdAt)}

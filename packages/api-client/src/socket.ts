@@ -340,6 +340,11 @@ export function useChat(
         channelId,
         authorId: myUserId ?? "self",
         authorName: "You",
+        // Left null on the optimistic copy: the hook knows the sender's id but
+        // not their avatar, and the server's echo lands moments later with the
+        // real one. Rendering initials for that instant beats threading the
+        // session through just to avoid a flicker.
+        authorAvatarUrl: null,
         body: text,
         deleted: false,
         createdAt: new Date().toISOString(),

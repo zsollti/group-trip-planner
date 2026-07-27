@@ -7,10 +7,12 @@ import {
 } from "@tanstack/react-query";
 import type {
   AccountDeletionImpact,
+  AuthUser,
   NotificationPreferences,
   UpdateNotificationPreferencesInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
+import { memberKeys } from "./members.js";
 
 /**
  * Account self-management hooks (Phase 1.5, SRS FR-6; preferences in 5.3). The
@@ -72,6 +74,44 @@ export function useUpdateNotificationPreferences(): UseMutationResult<
       }),
     onSuccess: (prefs) => {
       queryClient.setQueryData(accountKeys.preferences, prefs);
+    },
+  });
+}
+
+/**
+ * Set or replace the caller's avatar (Phase 6.2). Sends the file itself rather
+ * than a URL — the server runs it through the hardened pipeline and answers
+ * with the updated user, which the caller feeds to `useAuth().applyUser` so
+ * every surface showing them follows at once.
+ *
+ * Member lists and chat carry their own copies of the avatar, so those caches
+ * are invalidated too.
+ */
+export function useSetAvatar(): UseMutationResult<AuthUser, ApiError, File> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return apiFetch<AuthUser>("/account/avatar", {
+        method: "POST",
+        body: form,
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+/** Remove the caller's avatar; the stored image goes with it. */
+export function useRemoveAvatar(): UseMutationResult<AuthUser, ApiError, void> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<AuthUser>("/account/avatar", { method: "DELETE" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: memberKeys.all });
     },
   });
 }

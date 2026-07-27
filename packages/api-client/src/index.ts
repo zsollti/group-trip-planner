@@ -26,6 +26,8 @@ export {
   useCreateTrip,
   useUpdateTrip,
   useDeleteTrip,
+  useSetTripCover,
+  useRemoveTripCover,
 } from "./trips.js";
 export {
   inviteKeys,
@@ -51,6 +53,8 @@ export {
   useDeletionPreview,
   useNotificationPreferences,
   useUpdateNotificationPreferences,
+  useSetAvatar,
+  useRemoveAvatar,
 } from "./account.js";
 export {
   categoryKeys,

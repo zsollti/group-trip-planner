@@ -181,6 +181,15 @@ export function TripDetail() {
             ) : null}
           </p>
           <h1 className="board__title">{trip.data.name}</h1>
+          {/* Decorative: the trip's name and destination are right here in
+              text, so the cover adds atmosphere, not information. */}
+          {trip.data.coverImageUrl ? (
+            <img
+              className="board__cover"
+              src={trip.data.coverImageUrl}
+              alt=""
+            />
+          ) : null}
           <p className="board__muted">
             {trip.data.destination ?? "No destination yet"} ·{" "}
             {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)} ·{" "}

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,11 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   CreateTripInput,
   type TripDetail,
@@ -23,6 +27,7 @@ import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { RequirePermission } from "../authz/require-permission.decorator.js";
+import type { UploadedImageFile } from "../uploads/uploads.service.js";
 import { TripsService } from "./trips.service.js";
 import { TripContextGuard } from "./trip-context.guard.js";
 import { TripCtx } from "./trip-context.decorator.js";
@@ -87,5 +92,36 @@ export class TripsController {
   @RequirePermission("trip.delete")
   deleteTrip(@TripCtx() ctx: TripContext): Promise<void> {
     return this.trips.deleteTrip(ctx);
+  }
+
+  /**
+   * Set or replace the trip's cover image (Phase 6.2, organizers).
+   *
+   * Multipart in one step rather than "upload, then PATCH the URL back": a
+   * client that could name the cover URL could point it at any address on the
+   * internet, turning a trip page into someone else's tracking pixel. Here the
+   * only reachable URL is one the Phase-6.1 pipeline just minted.
+   */
+  @Post(":id/cover")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.edit")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadCover(
+    @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
+    @UploadedFile() file: UploadedImageFile | undefined,
+  ): Promise<TripDetail> {
+    if (!file) {
+      throw new BadRequestException("No file was uploaded (field name: file).");
+    }
+    return this.trips.setCover(ctx, file, user.id);
+  }
+
+  /** Remove the cover, deleting the stored object with it. */
+  @Delete(":id/cover")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.edit")
+  removeCover(@TripCtx() ctx: TripContext): Promise<TripDetail> {
+    return this.trips.removeCover(ctx);
   }
 }

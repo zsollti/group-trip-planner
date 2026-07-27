@@ -20,6 +20,11 @@ model User {
   // Nullable: OAuth-only accounts (Google, Phase 1.0) have no local password.
   passwordHash  String?
   emailVerified Boolean   @default(false)
+  // Profile picture (Phase 6.2). Null means "no picture" — the front-end draws
+  // generated initials rather than shipping a stock silhouette. Always a URL
+  // this service issued: uploads go through the Phase-6.1 pipeline, never a
+  // client-supplied address. Purged on GDPR anonymization along with the object.
+  avatarUrl     String?
   // Notification-email preference (Phase 5.2, FR-36): global "email me when I'm
   // @mentioned". Defaults on — the feature is opt-out, and the unsubscribe link
   // in every notification email flips exactly this flag. Gates the notification

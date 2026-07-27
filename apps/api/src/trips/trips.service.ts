@@ -14,6 +14,8 @@ import type {
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CategoriesService } from "../categories/categories.service.js";
 import { ChannelsService } from "../chat/channels.service.js";
+import { ImageAttachmentService } from "../uploads/image-attachment.service.js";
+import type { UploadedImageFile } from "../uploads/uploads.service.js";
 import type { TripContext } from "./trip-context.js";
 import { toTripDetail, toTripPreview, toTripSummary } from "./trip.mapper.js";
 
@@ -30,7 +32,10 @@ const UUID_RE =
 
 @Injectable()
 export class TripsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly images: ImageAttachmentService,
+  ) {}
 
   /**
    * Create a trip, the creator's Owner membership, the five built-in categories,
@@ -112,6 +117,44 @@ export class TripsService {
       where: { id: ctx.trip.id },
       include: { _count: { select: { memberships: true } } },
     });
+    return toTripDetail(updated, ctx.role, ctx.muted);
+  }
+
+  /**
+   * Set or replace the trip's cover (Phase 6.2). The image goes through the
+   * hardened Phase-6.1 pipeline first; only then is the row pointed at the new
+   * URL and the object behind the old one dropped.
+   *
+   * No `version` check, unlike {@link updateTrip}: a cover is a single
+   * last-write-wins field, and making an organizer reload because someone else
+   * changed the trip's *name* would be friction with nothing behind it.
+   */
+  async setCover(
+    ctx: TripContext,
+    file: UploadedImageFile,
+    userId: string,
+  ): Promise<TripDetail> {
+    const stored = await this.images.replace(
+      file,
+      userId,
+      ctx.trip.coverImageUrl,
+    );
+    const updated = await this.prisma.trip.update({
+      where: { id: ctx.trip.id },
+      data: { coverImageUrl: stored.url },
+      include: { _count: { select: { memberships: true } } },
+    });
+    return toTripDetail(updated, ctx.role, ctx.muted);
+  }
+
+  /** Clear the cover and delete the object it pointed at. */
+  async removeCover(ctx: TripContext): Promise<TripDetail> {
+    const updated = await this.prisma.trip.update({
+      where: { id: ctx.trip.id },
+      data: { coverImageUrl: null },
+      include: { _count: { select: { memberships: true } } },
+    });
+    await this.images.discard(ctx.trip.coverImageUrl);
     return toTripDetail(updated, ctx.role, ctx.muted);
   }
 

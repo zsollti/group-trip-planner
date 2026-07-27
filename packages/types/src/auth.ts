@@ -54,6 +54,9 @@ export const AuthUser = z.object({
   email: z.string().email(),
   displayName: z.string(),
   emailVerified: z.boolean(),
+  /** Profile picture, or null when none is set — the UI draws initials then
+   *  (Phase 6.2). Always a URL this service issued. */
+  avatarUrl: z.string().nullable(),
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 

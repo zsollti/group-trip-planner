@@ -1,13 +1,17 @@
 import { Injectable } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import {
   planAccountDeletion,
   type AccountDeletionImpact,
+  type AuthUser,
   type NotificationPreferences,
   type OwnedTripForDeletion,
   type UpdateNotificationPreferencesInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { toAuthUser } from "../auth/auth.mapper.js";
+import { ImageAttachmentService } from "../uploads/image-attachment.service.js";
+import type { UploadedImageFile } from "../uploads/uploads.service.js";
 
 /**
  * Account deletion (Phase 1.5, SRS FR-6 / GDPR Art. 17) — the highest-logic-density
@@ -19,7 +23,10 @@ import { PrismaService } from "../prisma/prisma.service.js";
  */
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly images: ImageAttachmentService,
+  ) {}
 
   /**
    * The caller's notification preferences (Phase 5.3). Read straight off the
@@ -109,6 +116,13 @@ export class AccountService {
    * user, so no valid session survives this.
    */
   async deleteAccount(userId: string): Promise<void> {
+    // Read before the transaction so the object can be dropped after it commits
+    // — a storage failure must not roll back an erasure the user asked for.
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
     await this.prisma.$transaction(async (tx) => {
       const plan = planAccountDeletion(await this.loadOwnedTrips(userId, tx));
 
@@ -151,6 +165,9 @@ export class AccountService {
           displayName: "Deleted user",
           passwordHash: null,
           emailVerified: false,
+          // A photograph of someone is personal data, so erasure has to take it
+          // too — the row keeps rendering as "Deleted user" with initials.
+          avatarUrl: null,
           anonymizedAt: now,
         },
       });
@@ -160,5 +177,33 @@ export class AccountService {
         data: { revokedAt: now },
       });
     });
+
+    // The row no longer references it; now remove the bytes (best-effort — the
+    // erasure itself has already committed).
+    await this.images.discard(before?.avatarUrl ?? null);
+  }
+
+  /**
+   * Set or replace the caller's avatar (Phase 6.2). The image passes the
+   * Phase-6.1 pipeline before the row is repointed, and the object behind the
+   * old URL is dropped once it is.
+   */
+  async setAvatar(user: User, file: UploadedImageFile): Promise<AuthUser> {
+    const stored = await this.images.replace(file, user.id, user.avatarUrl);
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUrl: stored.url },
+    });
+    return toAuthUser(updated);
+  }
+
+  /** Clear the avatar and delete the object it pointed at. */
+  async removeAvatar(user: User): Promise<AuthUser> {
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUrl: null },
+    });
+    await this.images.discard(user.avatarUrl);
+    return toAuthUser(updated);
   }
 }

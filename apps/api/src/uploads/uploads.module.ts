@@ -3,6 +3,7 @@ import { MulterModule } from "@nestjs/platform-express";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { AuthModule } from "../auth/auth.module.js";
+import { ImageAttachmentService } from "./image-attachment.service.js";
 import { LocalDiskStorage } from "./local-disk.storage.js";
 import { MediaController } from "./media.controller.js";
 import { STORAGE_DRIVER } from "./storage.driver.js";
@@ -39,10 +40,13 @@ import { UserThrottlerGuard } from "./user-throttler.guard.js";
   controllers: [UploadsController, MediaController],
   providers: [
     UploadsService,
+    ImageAttachmentService,
     LocalDiskStorage,
     { provide: STORAGE_DRIVER, useExisting: LocalDiskStorage },
     UserThrottlerGuard,
   ],
-  exports: [UploadsService],
+  // Trips (cover) and Account (avatar) attach images through these; the multer
+  // config above rides along with the module, so importers get it for free.
+  exports: [UploadsService, ImageAttachmentService, MulterModule],
 })
 export class UploadsModule {}

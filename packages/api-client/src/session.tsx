@@ -30,6 +30,10 @@ export interface AuthContextValue {
    * exactly like logout. Rejects (leaving the session intact) if the request
    * fails, so the caller can surface the error. */
   deleteAccount: () => Promise<void>;
+  /** Replace the cached session user with a fresher server copy — used when a
+   *  mutation returns an updated {@link AuthUser}, e.g. an avatar change
+   *  (Phase 6.2), so every surface reading `user` follows immediately. */
+  applyUser: (user: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -113,6 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const applyUser = useCallback((next: AuthUser) => {
+    // Only refreshes the cached copy — never touches status or the token, so it
+    // cannot accidentally sign anyone in or out.
+    setUser(next);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -122,8 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyEmail,
       logout,
       deleteAccount,
+      applyUser,
     }),
-    [user, status, login, register, verifyEmail, logout, deleteAccount],
+    [
+      user,
+      status,
+      login,
+      register,
+      verifyEmail,
+      logout,
+      deleteAccount,
+      applyUser,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

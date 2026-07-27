@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,23 +7,31 @@ import {
   HttpCode,
   Inject,
   Patch,
+  Post,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import type { User } from "@prisma/client";
 import {
   DeleteAccountInput,
   UpdateNotificationPreferencesInput,
   type AccountDeletionImpact,
+  type AuthUser,
   type NotificationPreferences,
 } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
+import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { clearRefreshCookie } from "../auth/cookies.js";
+import { UserThrottlerGuard } from "../uploads/user-throttler.guard.js";
+import type { UploadedImageFile } from "../uploads/uploads.service.js";
 import { AccountService } from "./account.service.js";
 
 /**
@@ -56,6 +65,31 @@ export class AccountController {
     body: UpdateNotificationPreferencesInput,
   ): Promise<NotificationPreferences> {
     return this.account.updatePreferences(user.id, body);
+  }
+
+  /**
+   * Set or replace the caller's avatar (Phase 6.2). Multipart in one step, for
+   * the same reason as the trip cover: a client that could name the URL could
+   * point every page showing this user at an address of its choosing.
+   */
+  @Post("avatar")
+  @UseGuards(JwtAuthGuard, VerifiedEmailGuard, UserThrottlerGuard)
+  @UseInterceptors(FileInterceptor("file"))
+  uploadAvatar(
+    @CurrentUser() user: User,
+    @UploadedFile() file: UploadedImageFile | undefined,
+  ): Promise<AuthUser> {
+    if (!file) {
+      throw new BadRequestException("No file was uploaded (field name: file).");
+    }
+    return this.account.setAvatar(user, file);
+  }
+
+  /** Remove the avatar, deleting the stored object with it. */
+  @Delete("avatar")
+  @UseGuards(JwtAuthGuard)
+  removeAvatar(@CurrentUser() user: User): Promise<AuthUser> {
+    return this.account.removeAvatar(user);
   }
 
   /** Preview what deleting this account will do (the warning prompt's source). */

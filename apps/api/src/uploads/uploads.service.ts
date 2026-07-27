@@ -18,6 +18,19 @@ import {
 } from "./image-validation.js";
 import { STORAGE_DRIVER, type StorageDriver } from "./storage.driver.js";
 
+/**
+ * The part of multer's file object the pipeline actually uses. Declared here
+ * rather than reaching for the `Express.Multer.File` global, which only exists
+ * where `@types/multer` happens to be in scope — that resolves differently
+ * between the build and test tsconfigs, which is a fragile thing to hinge a
+ * compile on.
+ */
+export interface UploadedImageFile {
+  readonly buffer: Buffer;
+  readonly mimetype?: string;
+  readonly size?: number;
+}
+
 /** Client-facing message per rejection reason — deliberately specific, since
  *  none of it tells the caller anything they didn't already send us. */
 const REJECTION_MESSAGE: Record<ImageRejection, string> = {
@@ -57,7 +70,7 @@ export class UploadsService {
   ) {}
 
   async storeImage(
-    file: { buffer: Buffer; mimetype?: string; size?: number },
+    file: UploadedImageFile,
     userId: string,
   ): Promise<UploadedImageView> {
     // Belt-and-braces: the controller's multer limit already rejects oversize

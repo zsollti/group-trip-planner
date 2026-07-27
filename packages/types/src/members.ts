@@ -13,6 +13,8 @@ import { TripRole } from "./trips.js";
 export const TripMemberView = z.object({
   userId: z.string().uuid(),
   displayName: z.string(),
+  /** Profile picture, or null for the generated-initials fallback (Phase 6.2). */
+  avatarUrl: z.string().nullable(),
   role: TripRole,
   joinedAt: z.string(),
   /** True for the trip's owner (the denormalized `ownerId`), for UI emphasis. */
