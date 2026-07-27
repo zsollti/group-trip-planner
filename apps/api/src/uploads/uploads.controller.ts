@@ -7,14 +7,15 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { Throttle } from "@nestjs/throttler";
 import type { User } from "@prisma/client";
 import type { UploadedImageView } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { UploadsService, type UploadedImageFile } from "./uploads.service.js";
-import { UserThrottlerGuard } from "./user-throttler.guard.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
+import { UPLOAD_THROTTLE } from "../common/throttle-policy.js";
+import { PerUserThrottle } from "../common/per-user-throttle.js";
 
 /**
  * The single image-upload entry point (Phase 6.1).
@@ -30,11 +31,6 @@ import { UserThrottlerGuard } from "./user-throttler.guard.js";
  * {@link UserThrottlerGuard}) rather than an IP, and unverified accounts can't
  * spend upload budget at all.
  */
-/** Per-user upload ceiling. Re-encoding is CPU-bound, so this caps cost as much
- *  as abuse; generous enough that ordinary use never meets it. Static like the
- *  auth-route throttles — Phase 7.1 revisits all of them together. */
-const UPLOAD_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
-
 @Controller("uploads")
 @UseGuards(JwtAuthGuard, VerifiedEmailGuard, UserThrottlerGuard)
 export class UploadsController {
@@ -51,7 +47,7 @@ export class UploadsController {
    * unvalidated bytes never touch the filesystem at all.
    */
   @Post("image")
-  @Throttle(UPLOAD_THROTTLE)
+  @PerUserThrottle(UPLOAD_THROTTLE)
   @UseInterceptors(FileInterceptor("file"))
   async uploadImage(
     @UploadedFile() file: UploadedImageFile | undefined,

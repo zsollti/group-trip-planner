@@ -26,6 +26,7 @@ import {
   type ChatReadyPayload,
 } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
+import { MESSAGE_BURST } from "../src/common/throttle-policy.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { TokenService } from "../src/auth/token.service.js";
 import { TripsService } from "../src/trips/trips.service.js";
@@ -66,10 +67,7 @@ describe("Chat gateway (e2e)", () => {
 
   /** A trip owned by `ownerId`, with the owner's membership + a General channel
    * (mirrors createTrip minimally, without seeding categories). */
-  async function makeTrip(
-    ownerId: string,
-    opts: { history?: boolean } = {},
-  ) {
+  async function makeTrip(ownerId: string, opts: { history?: boolean } = {}) {
     const trip = await prisma.trip.create({
       data: {
         name: `Trip ${suffix}`,
@@ -312,6 +310,52 @@ describe("Chat gateway (e2e)", () => {
     assert.equal(delivered.body, "hello crew");
   });
 
+  it("rate-limits a flood of messages per user, and lets a second user through (Phase 7.1)", async () => {
+    // Socket events never passed through the HTTP ThrottlerGuard — it resolves
+    // its request/response via `switchToHttp()`, which on a gateway hands back
+    // the client and the payload — so message sending had no limit at all
+    // until 7.1. This asserts the gateway's own per-user limiter.
+    const owner = await makeUser("flood-owner");
+    const other = await makeUser("flood-other");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, other.user.id, "PARTICIPANT");
+    const channelId = await generalChannelId(trip.id);
+
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+
+    // Send strictly more than the budget allows, in order.
+    const acks: MessageAck[] = [];
+    for (let i = 0; i < MESSAGE_BURST + 5; i += 1) {
+      acks.push(
+        await emitAck(sock, MESSAGE_SEND_EVENT, {
+          channelId,
+          body: `flood ${i}`,
+        }),
+      );
+    }
+
+    const accepted = acks.filter((a) => a.ok).length;
+    const refused = acks.filter((a) => !a.ok);
+    assert.equal(
+      accepted,
+      MESSAGE_BURST,
+      "exactly the burst budget should be accepted",
+    );
+    assert.ok(refused.length > 0, "the overflow must be refused");
+    // Refusal is a graceful ack, not a dropped connection: the client renders
+    // a failed-send state and the socket stays usable.
+    assert.match(refused[0]?.error ?? "", /too fast|slow down|rate/i);
+    assert.equal(sock.connected, true, "the socket must survive being limited");
+
+    // The limit is per user, not global: a different member is unaffected.
+    const second = await connect({ token: other.token, tripId: trip.id });
+    const ok = await emitAck(second, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "unaffected",
+    });
+    assert.ok(ok.ok, "another user must not inherit the flooder's budget");
+  });
+
   it("tombstones on delete (Organizer any / author own) and rejects a non-author non-organizer", async () => {
     const owner = await makeUser("d-owner");
     const guest = await makeUser("d-guest");
@@ -343,7 +387,9 @@ describe("Chat gateway (e2e)", () => {
     const tomb = new Promise<MessageView>((res) =>
       gsock.on(MESSAGE_DELETED_EVENT, res),
     );
-    const del = await emitAck(osock, MESSAGE_DELETE_EVENT, { messageId: msgId });
+    const del = await emitAck(osock, MESSAGE_DELETE_EVENT, {
+      messageId: msgId,
+    });
     assert.ok(del.ok);
     assert.equal(del.message.deleted, true);
     assert.equal(del.message.body, null);
@@ -373,7 +419,12 @@ describe("Chat gateway (e2e)", () => {
     let base = Date.now() - 10_000;
     for (const body of ["m1", "m2", "m3"]) {
       await prisma.message.create({
-        data: { channelId, authorId: owner.user.id, body, createdAt: new Date(base) },
+        data: {
+          channelId,
+          authorId: owner.user.id,
+          body,
+          createdAt: new Date(base),
+        },
       });
       base += 1000;
     }
@@ -478,9 +529,18 @@ describe("Chat gateway (e2e)", () => {
     const channelId = await generalChannelId(trip.id);
     const sock = await connect({ token: owner.token, tripId: trip.id });
 
-    const a1 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a1" });
-    const a2 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a2" });
-    const a3 = await emitAck(sock, MESSAGE_SEND_EVENT, { channelId, body: "a3" });
+    const a1 = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "a1",
+    });
+    const a2 = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "a2",
+    });
+    const a3 = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "a3",
+    });
     assert.ok(a1.ok && a2.ok && a3.ok);
 
     const since1 = await request(app.getHttpServer())
@@ -606,7 +666,10 @@ describe("Chat gateway (e2e)", () => {
         `/trips/${trip.id}/categories/${category.id}/options/${option.id}/lock`,
       )
       .set("Authorization", `Bearer ${owner.token}`)
-      .send({ optionVersion: option.version, categoryVersion: category.version })
+      .send({
+        optionVersion: option.version,
+        categoryVersion: category.version,
+      })
       .expect(201);
 
     const payload = await changed;

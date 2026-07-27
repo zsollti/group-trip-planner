@@ -28,6 +28,8 @@ import {
   SOCKET_READY_EVENT,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { SocketRateLimiter } from "../common/socket-rate-limiter.js";
+import { MESSAGE_BURST, MESSAGE_WINDOW_MS } from "../common/throttle-policy.js";
 import { tripRoom } from "../realtime/trip-room.js";
 import { userRoom } from "../realtime/user-room.js";
 import { ChannelsService } from "./channels.service.js";
@@ -73,6 +75,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly prisma: PrismaService,
     private readonly channels: ChannelsService,
     private readonly messages: MessagesService,
+    private readonly rateLimiter: SocketRateLimiter,
   ) {}
 
   afterInit(server: Server): void {
@@ -156,6 +159,22 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     const data = client.data as SocketData;
     const parsed = SendMessageInput.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Invalid message" };
+    // Keyed on the user, not the socket, so extra tabs don't multiply the
+    // budget. Refusal is an ordinary ack: the client already renders a failed
+    // send, and dropping the connection would cost them the rest of the chat.
+    const quota = this.rateLimiter.consume(
+      `msg:${data.userId}`,
+      MESSAGE_BURST,
+      MESSAGE_WINDOW_MS,
+    );
+    if (!quota.allowed) {
+      return {
+        ok: false,
+        error: `You're sending messages too fast — try again in ${Math.ceil(
+          quota.retryAfterMs / 1000,
+        )}s.`,
+      };
+    }
     try {
       const message = await this.messages.post(
         data.tripId,

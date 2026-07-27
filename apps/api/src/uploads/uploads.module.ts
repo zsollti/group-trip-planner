@@ -9,7 +9,7 @@ import { MediaController } from "./media.controller.js";
 import { STORAGE_DRIVER } from "./storage.driver.js";
 import { UploadsController } from "./uploads.controller.js";
 import { UploadsService } from "./uploads.service.js";
-import { UserThrottlerGuard } from "./user-throttler.guard.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 
 /**
  * Image uploads (Phase 6.1). Owns the hardened pipeline and the storage seam.

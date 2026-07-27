@@ -30,7 +30,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { clearRefreshCookie } from "../auth/cookies.js";
-import { UserThrottlerGuard } from "../uploads/user-throttler.guard.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 import type { UploadedImageFile } from "../uploads/uploads.service.js";
 import { AccountService } from "./account.service.js";
 

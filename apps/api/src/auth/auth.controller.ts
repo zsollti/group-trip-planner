@@ -38,10 +38,11 @@ import {
   setRefreshCookie,
 } from "./cookies.js";
 import type { User } from "@prisma/client";
-
-/** Tight per-route limits on the credential-bearing endpoints (SRS FR-5). */
-const REGISTER_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
-const LOGIN_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+import {
+  LOGIN_THROTTLE,
+  REGISTER_THROTTLE,
+  VERIFY_THROTTLE,
+} from "../common/throttle-policy.js";
 
 @Controller("auth")
 export class AuthController {
@@ -58,8 +59,14 @@ export class AuthController {
     return this.auth.register(body);
   }
 
+  /**
+   * Redeem a verification token. Throttled since 7.1: it was covered only by
+   * the global IP floor, which allowed ~100 guesses a minute against a token
+   * whose entire security property is being unguessable.
+   */
   @Post("verify")
   @HttpCode(200)
+  @Throttle(VERIFY_THROTTLE)
   verify(
     @Body(new ZodValidationPipe(VerifyEmailInput)) body: VerifyEmailInput,
   ): Promise<AuthUser> {

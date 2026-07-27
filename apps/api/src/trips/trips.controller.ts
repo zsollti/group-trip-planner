@@ -22,6 +22,9 @@ import {
 } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
+import { TRIP_CREATE_THROTTLE } from "../common/throttle-policy.js";
+import { PerUserThrottle } from "../common/per-user-throttle.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
@@ -37,9 +40,14 @@ import type { TripContext } from "./trip-context.js";
 export class TripsController {
   constructor(private readonly trips: TripsService) {}
 
-  /** Create a trip. Verified-email gated (SRS FR-7); creator becomes Owner. */
+  /**
+   * Create a trip. Verified-email gated (SRS FR-7); creator becomes Owner.
+   * Per-user rate limit (7.1): each call seeds categories and a chat channel,
+   * so a loop on this route writes far more than one row.
+   */
   @Post()
-  @UseGuards(JwtAuthGuard, VerifiedEmailGuard)
+  @UseGuards(JwtAuthGuard, VerifiedEmailGuard, UserThrottlerGuard)
+  @PerUserThrottle(TRIP_CREATE_THROTTLE)
   createTrip(
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(CreateTripInput)) body: CreateTripInput,

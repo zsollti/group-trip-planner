@@ -6,6 +6,7 @@ import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { InvitesController } from "./invites.controller.js";
 import { JoinController } from "./join.controller.js";
 import { InvitesService } from "./invites.service.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 
 /**
  * Invite links (Phase 1.3). Reuses the auth + verified-email guards from
@@ -16,6 +17,11 @@ import { InvitesService } from "./invites.service.js";
 @Module({
   imports: [AuthModule, EmailModule],
   controllers: [InvitesController, JoinController],
-  providers: [InvitesService, TripContextGuard, PermissionGuard],
+  providers: [
+    InvitesService,
+    TripContextGuard,
+    PermissionGuard,
+    UserThrottlerGuard,
+  ],
 })
 export class InvitesModule {}

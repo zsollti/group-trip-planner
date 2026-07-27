@@ -5,6 +5,7 @@ import { PermissionGuard } from "../authz/permission.guard.js";
 import { TripsController } from "./trips.controller.js";
 import { TripsService } from "./trips.service.js";
 import { TripContextGuard } from "./trip-context.guard.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 
 /**
  * Trips & membership (Phase 1.1–1.2). PrismaModule is global; the JWT auth +
@@ -18,6 +19,11 @@ import { TripContextGuard } from "./trip-context.guard.js";
   // the multer config the cover route's FileInterceptor needs.
   imports: [AuthModule, UploadsModule],
   controllers: [TripsController],
-  providers: [TripsService, TripContextGuard, PermissionGuard],
+  providers: [
+    TripsService,
+    TripContextGuard,
+    PermissionGuard,
+    UserThrottlerGuard,
+  ],
 })
 export class TripsModule {}

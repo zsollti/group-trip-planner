@@ -7,12 +7,12 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import {
-  CreateInviteInput,
-  type InviteLinkView,
-} from "@gtp/types";
+import { CreateInviteInput, type InviteLinkView } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
+import { INVITE_CREATE_THROTTLE } from "../common/throttle-policy.js";
+import { PerUserThrottle } from "../common/per-user-throttle.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { VerifiedEmailGuard } from "../auth/verified-email.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
@@ -34,14 +34,19 @@ import { InvitesService } from "./invites.service.js";
 export class InvitesController {
   constructor(private readonly invites: InvitesService) {}
 
-  /** Create a global or personal invite link. */
+  /**
+   * Create a global or personal invite link. Per-user rate limit (7.1): each
+   * link is a credential granting trip access, and a personal one sends mail.
+   */
   @Post()
   @UseGuards(
     JwtAuthGuard,
     TripContextGuard,
     PermissionGuard,
     VerifiedEmailGuard,
+    UserThrottlerGuard,
   )
+  @PerUserThrottle(INVITE_CREATE_THROTTLE)
   @RequirePermission("invite.create")
   createInvite(
     @TripCtx() ctx: TripContext,
