@@ -409,7 +409,10 @@ export function ChatPanel({
                   </button>
                 ) : null}
                 {chat.messages.length === 0 ? (
-                  <p className="board__muted">No messages yet — say hello.</p>
+                  <p className="board__muted">
+                    No messages yet. Say hello — or @mention someone to pull
+                    them in.
+                  </p>
                 ) : (
                   <ul className="board__msg-list">
                     {chat.messages.map((m) => (

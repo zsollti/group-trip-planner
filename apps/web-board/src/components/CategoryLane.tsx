@@ -274,6 +274,7 @@ export function CategoryLane({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const isOrganizer = can(myRole, "category.manage") && !frozen;
+  const canPropose = can(myRole, "option.propose") && !frozen;
 
   const {
     setNodeRef,
@@ -388,7 +389,22 @@ export function CategoryLane({
 
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         {options.length === 0 ? (
-          <div className="lane__card lane__card--ghost">No cards yet</div>
+          /* An empty lane is where a new board spends most of its first
+             minutes, so it names the next action rather than just reporting
+             emptiness — and says why when there isn't one (Phase 6.4). */
+          canPropose ? (
+            <button
+              type="button"
+              className="lane__card lane__card--ghost lane__card--cta"
+              onClick={() => setProposing(true)}
+            >
+              ＋ Propose the first option
+            </button>
+          ) : (
+            <div className="lane__card lane__card--ghost">
+              {frozen ? "Nothing was decided here" : "No options yet"}
+            </div>
+          )
         ) : (
           options.map((o) => (
             <SortableOptionCard
@@ -414,7 +430,9 @@ export function CategoryLane({
         </p>
       ) : null}
 
-      {can(myRole, "option.propose") && !frozen ? (
+      {/* Hidden while the lane is empty: the ghost card is already the CTA
+          there, and two identical actions stacked reads as a mistake. */}
+      {canPropose && options.length > 0 ? (
         <Button
           type="button"
           variant="secondary"

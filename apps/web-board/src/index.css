@@ -596,6 +596,76 @@ body {
   text-align: center;
 }
 
+/* An empty lane's ghost card doubles as its "propose the first option" button
+   (Phase 6.4). Same dashed placeholder shape, but it invites a click. */
+.lane__card--cta {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: none;
+  transition:
+    color 0.08s ease,
+    border-color 0.08s ease;
+}
+.lane__card--cta:hover {
+  color: var(--board-accent);
+  border-color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 6%, transparent);
+}
+.lane__card--cta:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lane__card--cta {
+    transition: none;
+  }
+}
+
+/* --- Onboarding empty state (Phase 6.4) ------------------------------------
+ * What a brand-new account sees in place of the tile wall: what a board is,
+ * then the single next action. Sized to read as a welcome, not an error. */
+.board__onboard {
+  max-width: 34rem;
+  padding: 1.5rem 1.6rem 1.7rem;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.08);
+}
+
+.board__onboard-title {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+}
+
+.board__onboard-lead {
+  margin: 0 0 1.2rem;
+  color: var(--board-dim);
+  line-height: 1.55;
+}
+
+.board__onboard-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--board-dim);
+  line-height: 1.45;
+}
+
+/* The unverified branch: a held-back state, not a failure — bordered in the
+   accent rather than the danger colour. */
+.board__onboard-gate {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--board-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--board-accent) 28%, transparent);
+}
+.board__onboard-gate .board__onboard-note:first-child {
+  margin-top: 0;
+}
+
 /* --- Brand back link --- */
 .board__brand--link {
   color: inherit;

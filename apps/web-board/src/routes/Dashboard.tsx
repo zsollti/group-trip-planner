@@ -58,6 +58,68 @@ function BoardTile({ trip }: { trip: HomeTripSummary }) {
 }
 
 /**
+ * What a brand-new user sees instead of a wall of tiles (Phase 6.4).
+ *
+ * A short explanation of what a board *is* and one obvious next action — no
+ * guided tour and no seeded demo trip, both of which leave a new account with
+ * something to clean up before it feels like theirs.
+ *
+ * The verified/unverified split matters: creating a trip is gated on a verified
+ * email (FR-7, `VerifiedEmailGuard`), but signing in is not. So an account that
+ * has registered and not yet clicked the emailed link lands right here — and
+ * before 6.4 it got the full-strength "Create your first trip" CTA, filled in
+ * the form, and ate a 403 from the server. An unverified visitor now gets the
+ * step that actually unblocks them, plus the honest news that the rest of the
+ * app already works for them: joining an invite, proposing, voting and chatting
+ * all deliberately skip the verified-email gate.
+ */
+function Onboarding({
+  verified,
+  email,
+  onCreate,
+}: {
+  verified: boolean;
+  email?: string;
+  onCreate: () => void;
+}) {
+  return (
+    <section className="board__onboard" aria-labelledby="onboard-heading">
+      <h2 className="board__onboard-title" id="onboard-heading">
+        {verified ? "Start your first board" : "One step first"}
+      </h2>
+      <p className="board__onboard-lead">
+        A trip board is one shared canvas per trip: lanes for dates, transport,
+        stay, food and whatever else you add. Everyone drops in options,
+        dot-votes on them, and an organiser locks in the winners — which land in
+        the Decided column with a running cost.
+      </p>
+
+      {verified ? (
+        <>
+          <button type="button" className="board__cta" onClick={onCreate}>
+            Create your first trip
+          </button>
+          <p className="board__onboard-note">
+            You'll be its owner, and you can invite the others with a link.
+          </p>
+        </>
+      ) : (
+        <div className="board__onboard-gate">
+          <p className="board__onboard-note">
+            Creating a board needs a verified email address. We sent a link to{" "}
+            <strong>{email ?? "your address"}</strong> — open it and come back.
+          </p>
+          <p className="board__onboard-note">
+            You don't have to wait to take part: you can already join a board
+            you've been invited to, propose options, vote and chat.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
  * The authenticated boards overview. Expresses the Board paradigm: a spatial
  * canvas — now a wall of trip-board tiles the caller can open (Phase 1.1).
  */
@@ -115,19 +177,11 @@ export function Dashboard() {
           </button>
         </p>
       ) : list.length === 0 ? (
-        <>
-          <p className="board__muted">
-            No boards yet. Create your first one to start planning on the
-            canvas.
-          </p>
-          <button
-            type="button"
-            className="board__cta"
-            onClick={() => setCreateOpen(true)}
-          >
-            Create your first trip
-          </button>
-        </>
+        <Onboarding
+          verified={user?.emailVerified ?? false}
+          email={user?.email}
+          onCreate={() => setCreateOpen(true)}
+        />
       ) : (
         <>
           <div className="board__tiles" aria-label="Your trip boards">
