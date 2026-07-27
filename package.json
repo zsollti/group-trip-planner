@@ -22,7 +22,8 @@
       "@prisma/client",
       "@prisma/engines",
       "prisma",
-      "argon2"
+      "argon2",
+      "sharp"
     ]
   },
   "devDependencies": {

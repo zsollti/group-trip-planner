@@ -35,6 +35,11 @@ Thumbs.db
 # ---- Claude Code local settings ----
 .claude/settings.local.json
 
+# ---- Uploaded images (local-disk storage driver, Phase 6.1) ----
+# User content, never source. The R2 driver replaces this directory entirely.
+var/
+apps/api/var/
+
 # ---- Local planning docs (kept local, not tracked) ----
 SRS.md
 PLANNING.md
