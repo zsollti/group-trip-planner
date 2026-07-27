@@ -167,8 +167,7 @@ describe("BoardCanvas", () => {
     const hostel = screen.getByText("Hostel");
     // Villa (3 votes) is rendered before Hostel (1 vote) despite the server order.
     expect(
-      villa.compareDocumentPosition(hostel) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      villa.compareDocumentPosition(hostel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
@@ -274,9 +273,10 @@ describe("BoardCanvas", () => {
 
     // A participant can't edit a locked card, so the title opens the detail view.
     fireEvent.click(await screen.findByText("Beach House"));
-    const dialog = await screen.findByRole("dialog", {
-      name: /Beach House — details/i,
-    });
+    // Since Phase 6.3 every dialog is named by its visible heading (rendered by
+    // the shared Dialog and wired with aria-labelledby), not a separate
+    // aria-label that could drift from it.
+    const dialog = await screen.findByRole("dialog", { name: /Beach House/i });
     expect(within(dialog).getByText("Stay")).toBeInTheDocument();
     expect(
       within(dialog).getByText(/Sleeps eight, sea view/),

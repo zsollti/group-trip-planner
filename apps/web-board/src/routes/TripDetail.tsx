@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -23,6 +23,7 @@ import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
 import { NotificationBell } from "../components/NotificationBell";
 import { ChatPanel } from "../components/ChatPanel";
+import { Dialog } from "../components/Dialog";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -62,17 +63,6 @@ export function TripDetail() {
   // Keep the board live: refetch lanes/cost when anyone proposes, votes, or an
   // organizer locks/unlocks — pushed over the same socket (Phase 4.5 retrofit).
   useBoardLiveSync(tripSocket.socket, id);
-
-  // Escape closes the delete-confirmation dialog (its backdrop no longer
-  // dismisses, so this is the keyboard path alongside Cancel). Phase 3.5 a11y.
-  useEffect(() => {
-    if (!confirmingDelete) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setConfirmingDelete(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [confirmingDelete]);
 
   async function onDelete() {
     setActionError(null);
@@ -211,9 +201,24 @@ export function TripDetail() {
           ) : null}
 
           {categories.isPending ? (
-            <p className="board__muted">Loading lanes…</p>
+            <p className="board__muted" role="status">
+              Loading lanes…
+            </p>
           ) : categories.isError ? (
-            <p className="board__muted">Couldn't load the category lanes.</p>
+            /* Was a muted line with no way out: the lanes ARE the board, so a
+               failure here empties the screen. Announce it and offer a retry. */
+            <>
+              <p className="board__form-error" role="alert">
+                Couldn't load the category lanes.
+              </p>
+              <button
+                type="button"
+                className="board__cta"
+                onClick={() => void categories.refetch()}
+              >
+                Try again
+              </button>
+            </>
           ) : (
             <BoardCanvas
               tripId={trip.data.id}
@@ -271,39 +276,34 @@ export function TripDetail() {
           />
 
           {confirmingDelete ? (
-            <div className="board__backdrop" role="presentation">
-              <div
-                className="board__dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Delete board"
-              >
-                <p className="board__eyebrow">Delete board</p>
-                <h2 className="board__title">Delete “{trip.data.name}”?</h2>
-                <p className="board__muted">
-                  This permanently removes the board and its membership for
-                  everyone. This can't be undone.
-                </p>
-                <div className="board__dialog-actions">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    autoFocus
-                    onClick={() => setConfirmingDelete(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    disabled={deleteTrip.isPending}
-                    onClick={onDelete}
-                  >
-                    {deleteTrip.isPending ? "Deleting…" : "Delete board"}
-                  </Button>
-                </div>
+            <Dialog
+              eyebrow="Delete board"
+              title={`Delete “${trip.data.name}”?`}
+              describedById="delete-board-blurb"
+              onClose={() => setConfirmingDelete(false)}
+            >
+              <p className="board__muted" id="delete-board-blurb">
+                This permanently removes the board and its membership for
+                everyone. This can't be undone.
+              </p>
+              <div className="board__dialog-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={deleteTrip.isPending}
+                  onClick={onDelete}
+                >
+                  {deleteTrip.isPending ? "Deleting…" : "Delete board"}
+                </Button>
               </div>
-            </div>
+            </Dialog>
           ) : null}
         </>
       )}

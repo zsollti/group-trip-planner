@@ -156,6 +156,85 @@ describe("web-board auth flow", () => {
     });
   });
 
+  it("announces a lane-load failure and retries it (Phase 6.3)", async () => {
+    setAccessToken("access-token");
+    // The shared query client retries once on its own, so "fail the first call"
+    // would be silently repaired by that retry and never reach the error state.
+    // Fail until the test says otherwise instead.
+    let failCategories = true;
+    let categoriesCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.endsWith("/auth/refresh")) {
+          return json({
+            accessToken: "access-token",
+            user: {
+              id: "u1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              emailVerified: true,
+            },
+          });
+        }
+        if (u.includes("/categories")) {
+          categoriesCalls += 1;
+          return failCategories ? json({ message: "boom" }, 500) : json([]);
+        }
+        if (u.includes("/notifications"))
+          return json({ notifications: [], unreadCount: 0, nextCursor: null });
+        // Before the /trips/t1 branch: the cost strip's URL contains it too.
+        if (u.includes("/dashboard"))
+          return json({
+            committed: [],
+            projected: [],
+            headcount: 1,
+            staleHeadcount: false,
+          });
+        if (u.includes("/trips/t1")) {
+          return json({
+            id: "t1",
+            name: "Lisbon 2026",
+            description: null,
+            destination: null,
+            coverImageUrl: null,
+            defaultCurrency: "EUR",
+            startDate: null,
+            endDate: null,
+            status: "ACTIVE",
+            role: "OWNER",
+            memberCount: 1,
+            viewerMuted: false,
+            version: 1,
+          });
+        }
+        return json({ message: "not found" }, 404);
+      }),
+    );
+
+    renderAt("/trips/t1");
+
+    // The lanes ARE the board: a silent failure leaves a blank screen, so the
+    // error is announced and carries a way out.
+    const alert = await screen.findByRole("alert", undefined, {
+      timeout: 4000,
+    });
+    expect(alert).toHaveTextContent(/couldn't load the category lanes/i);
+
+    const before = categoriesCalls;
+    failCategories = false;
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    // The retry refetches and the board recovers without a page reload.
+    await waitFor(() => {
+      expect(categoriesCalls).toBeGreaterThan(before);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
   it("toggles the mention-email preference from settings (Phase 5.3)", async () => {
     setAccessToken("access-token");
     const patched: unknown[] = [];

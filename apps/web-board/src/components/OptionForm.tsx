@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
@@ -7,6 +7,7 @@ import {
   type OptionView,
 } from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
+import { Dialog } from "./Dialog";
 
 /** A datetime-local input value ("YYYY-MM-DDTHH:mm") from an ISO string. */
 function toLocalInput(iso: string | null): string {
@@ -71,14 +72,6 @@ export function OptionForm({
   const [endsAt, setEndsAt] = useState(toLocalInput(option?.endsAt ?? null));
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -120,21 +113,13 @@ export function OptionForm({
   const pending = propose.isPending || edit.isPending;
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <form
-        className="board__dialog board__dialog--wide"
-        role="dialog"
-        aria-modal="true"
-        aria-label={isEdit ? "Edit option" : "Propose an option"}
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={onSubmit}
-        noValidate
-      >
-        <p className="board__eyebrow">{isEdit ? "Edit" : "Propose"}</p>
-        <h2 className="board__title">
-          {isEdit ? "Edit option" : "Propose an option"}
-        </h2>
-
+    <Dialog
+      eyebrow={isEdit ? "Edit" : "Propose"}
+      title={isEdit ? "Edit option" : "Propose an option"}
+      size="wide"
+      onClose={onClose}
+    >
+      <form onSubmit={onSubmit} noValidate>
         <div className="board__form-grid">
           <div className="board__form-wide">
             <Field htmlFor="opt-title" label="Title">
@@ -272,6 +257,6 @@ export function OptionForm({
           </Button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

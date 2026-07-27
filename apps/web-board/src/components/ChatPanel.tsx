@@ -332,7 +332,9 @@ export function ChatPanel({
       {open ? (
         <section className="board__chat" role="dialog" aria-label="Trip chat">
           <header className="board__chat-head">
-            <strong>{activeChannel ? channelLabel(activeChannel) : "Chat"}</strong>
+            <strong>
+              {activeChannel ? channelLabel(activeChannel) : "Chat"}
+            </strong>
             <button
               type="button"
               className="board__chat-close"
@@ -378,11 +380,22 @@ export function ChatPanel({
 
           <div className="board__chat-log" ref={logRef}>
             {chat.status === "loading" ? (
-              <p className="board__muted">Loading messages…</p>
-            ) : chat.status === "error" ? (
-              <p className="board__form-error" role="alert">
-                Couldn't load chat.
+              <p className="board__muted" role="status">
+                Loading messages…
               </p>
+            ) : chat.status === "error" ? (
+              <>
+                <p className="board__form-error" role="alert">
+                  Couldn't load chat.
+                </p>
+                <button
+                  type="button"
+                  className="board__chat-older"
+                  onClick={chat.reload}
+                >
+                  Try again
+                </button>
+              </>
             ) : (
               <>
                 {chat.hasMore ? (
