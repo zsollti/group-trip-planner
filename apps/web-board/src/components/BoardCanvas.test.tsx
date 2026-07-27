@@ -87,7 +87,28 @@ function mockFetch() {
   );
 }
 
-function renderBoard(myRole: TripRole) {
+/** Like {@link mockFetch}, but the category has no options at all. */
+function mockEmptyFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("/dashboard")) {
+        return json({
+          committed: [],
+          projected: [],
+          lines: [],
+          hasStaleHeadcount: false,
+          memberCount: 2,
+        });
+      }
+      if (u.includes("/options")) return json([]);
+      return json({ message: "not found" }, 404);
+    }),
+  );
+}
+
+function renderBoard(myRole: TripRole, frozen = false) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <BoardCanvas
@@ -96,7 +117,7 @@ function renderBoard(myRole: TripRole) {
         defaultCurrency="EUR"
         myRole={myRole}
         myUserId="u1"
-        frozen={false}
+        frozen={frozen}
         onOpenChannel={() => undefined}
       />
     </QueryClientProvider>,
@@ -121,6 +142,32 @@ describe("BoardCanvas", () => {
     expect(within(decided).getByText("Beach House")).toBeInTheDocument();
     // The proposed card is not inside Decided.
     expect(within(decided).queryByText("Hostel")).not.toBeInTheDocument();
+  });
+
+  it("turns an empty lane into a propose CTA that opens the form (Phase 6.4)", async () => {
+    mockEmptyFetch();
+    renderBoard("PARTICIPANT");
+
+    const cta = await screen.findByRole("button", {
+      name: /propose the first option/i,
+    });
+    fireEvent.click(cta);
+
+    expect(
+      await screen.findByRole("dialog", { name: /propose an option/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains an empty lane instead of offering a CTA that would fail", async () => {
+    // A Guest may not propose, and a frozen board accepts nothing — neither
+    // should be handed an action the server would refuse.
+    mockEmptyFetch();
+    renderBoard("GUEST");
+
+    expect(await screen.findByText("No options yet")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /propose the first option/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows drag grips for an organizer", async () => {

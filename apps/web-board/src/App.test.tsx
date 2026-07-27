@@ -156,6 +156,46 @@ describe("web-board auth flow", () => {
     });
   });
 
+  it("sends an unverified new user to verify instead of a CTA that 403s (Phase 6.4)", async () => {
+    setAccessToken("access-token");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.endsWith("/auth/refresh")) {
+          return json({
+            accessToken: "access-token",
+            user: {
+              id: "u1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              // Signing in does not require verification, so this is exactly
+              // what a just-registered account looks like.
+              emailVerified: false,
+            },
+          });
+        }
+        if (u.includes("/notifications"))
+          return json({ notifications: [], unreadCount: 0, nextCursor: null });
+        if (u.includes("/dashboard"))
+          return json({ trips: [], total: 0, limit: 20, offset: 0 });
+        return json({ message: "not found" }, 404);
+      }),
+    );
+
+    renderAt("/");
+
+    // The step that actually unblocks them, addressed to their inbox...
+    expect(
+      await screen.findByText(/verified email address/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("ada@example.com")).toBeInTheDocument();
+    // ...and not the create CTA, whose request the server would refuse.
+    expect(
+      screen.queryByRole("button", { name: /create your first trip/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("announces a lane-load failure and retries it (Phase 6.3)", async () => {
     setAccessToken("access-token");
     // The shared query client retries once on its own, so "fail the first call"

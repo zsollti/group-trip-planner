@@ -60,13 +60,15 @@ preference, so both must be handled — and any rule keyed only to
 
 Loading / empty / error / populated. An error state must **say what failed** and
 **offer a way out** — a muted sentence with no retry is not an error state.
+Likewise an empty state must **name the next action**, or say why there isn't
+one for this viewer (Phase 6.4).
 
 | Surface             | Loading  | Empty              | Error             | Populated |
 | ------------------- | -------- | ------------------ | ----------------- | --------- |
-| Boards overview     | skeleton | CTA                | alert + Retry     | tiles     |
+| Boards overview     | skeleton | onboarding + CTA   | alert + Retry     | tiles     |
 | Trip detail (trip)  | ✓        | n/a                | alert + Back      | ✓         |
 | Trip detail (lanes) | ✓        | n/a                | alert + Try again | canvas    |
-| Categories/options  | ✓        | ghost lane         | inherits lanes    | cards     |
+| Categories/options  | ✓        | propose CTA        | inherits lanes    | cards     |
 | Cost strip          | ✓        | "Price an option…" | alert             | bars      |
 | Chat                | ✓        | "say hello"        | alert + Try again | ✓         |
 | Members             | ✓        | n/a                | alert + Try again | list      |
@@ -85,6 +87,11 @@ Loading / empty / error / populated. An error state must **say what failed** and
 - [x] The cost strip's error has no retry button: it sits inside the board,
       which re-queries on the surrounding refetch, and it never occupies the
       whole screen.
+- [x] **An empty state never offers an action the server would refuse.** The
+      new-user dashboard hid a real break: creating a trip needs a verified
+      email but signing in does not, so a just-registered account got the
+      full-strength "Create your first trip" CTA and a 403 on submit. Empty
+      lanes apply the same rule for Guests and ended boards.
 
 ## 4. A11y floor
 
