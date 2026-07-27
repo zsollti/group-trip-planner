@@ -44,7 +44,6 @@ function invalidateMembership(
 ) {
   void qc.invalidateQueries({ queryKey: memberKeys.list(tripId) });
   void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
-  void qc.invalidateQueries({ queryKey: tripKeys.list() });
   void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
 }
 
@@ -134,7 +133,8 @@ export function useLeaveTrip(
       apiFetch<void>(`/trips/${tripId}/members/leave`, { method: "POST" }),
     onSuccess: () => {
       qc.removeQueries({ queryKey: tripKeys.detail(tripId) });
-      void qc.invalidateQueries({ queryKey: tripKeys.list() });
+      // The trip drops off the caller's home dashboard.
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
     },
   });
 }

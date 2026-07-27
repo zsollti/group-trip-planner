@@ -81,12 +81,10 @@ export function useJoinTrip(): UseMutationResult<
         method: "POST",
       }),
     onSuccess: (result) => {
-      void qc.invalidateQueries({ queryKey: tripKeys.list() });
       void qc.invalidateQueries({ queryKey: tripKeys.detail(result.tripId) });
-      // A new member changes the head count → re-price the cost dashboard.
-      void qc.invalidateQueries({
-        queryKey: dashboardKeys.trip(result.tripId),
-      });
+      // The trip appears on the caller's home dashboard, and a new member
+      // changes the head count → re-price the trip's cost dashboard too.
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
     },
   });
 }
