@@ -74,11 +74,12 @@ export class MembersController {
   @RequirePermission("member.manage")
   changeRole(
     @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
     @Param("userId") userId: string,
     @Body(new ZodValidationPipe(ChangeMemberRoleInput))
     body: ChangeMemberRoleInput,
   ): Promise<TripMemberView> {
-    return this.members.changeRole(ctx, userId, body.role);
+    return this.members.changeRole(ctx, user, userId, body.role);
   }
 
   /** Kick a member — soft removal (may rejoin via a live link). Replies 204. */
@@ -88,9 +89,10 @@ export class MembersController {
   @RequirePermission("member.manage")
   kick(
     @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
     @Param("userId") userId: string,
   ): Promise<void> {
-    return this.members.kick(ctx, userId);
+    return this.members.kick(ctx, user, userId);
   }
 
   /** Block a member — ejection + hard bar. Replies 204. */
@@ -113,9 +115,10 @@ export class MembersController {
   @RequirePermission("member.manage")
   unblock(
     @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
     @Param("userId") userId: string,
   ): Promise<void> {
-    return this.members.unblock(ctx, userId);
+    return this.members.unblock(ctx, user, userId);
   }
 
   /** Transfer ownership to another member (Owner only, FR-12). Replies 204. */

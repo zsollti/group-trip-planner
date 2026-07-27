@@ -13,6 +13,7 @@ import {
   type TripMemberView,
   type TripMuteView,
 } from "@gtp/types";
+import { memberAudit } from "../activity/audit.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { TripContext } from "../trips/trip-context.js";
 import { toTripBlockView, toTripMemberView } from "./member.mapper.js";
@@ -85,6 +86,7 @@ export class MembersService {
    */
   async changeRole(
     ctx: TripContext,
+    actor: User,
     targetUserId: string,
     newRole: AssignableRole,
   ): Promise<TripMemberView> {
@@ -106,14 +108,31 @@ export class MembersService {
       );
     }
     if (target.role === newRole) {
-      // No-op change: return the current view without a write.
+      // No-op change: return the current view without a write — and without an
+      // audit row, so the feed never reports a change that did not happen.
       return toTripMemberView(target, ctx.trip.ownerId);
     }
 
-    const updated = await this.prisma.tripMembership.update({
-      where: { id: target.id },
-      data: { role: newRole },
-      include: { user: { select: { displayName: true } } },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.tripMembership.update({
+        where: { id: target.id },
+        data: { role: newRole },
+        include: { user: { select: { displayName: true } } },
+      });
+      await tx.auditEvent.create({
+        data: memberAudit(
+          ctx.trip.id,
+          actor.id,
+          "MEMBER_ROLE_CHANGED",
+          targetUserId,
+          {
+            targetName: target.user.displayName,
+            fromRole: target.role,
+            toRole: newRole,
+          },
+        ),
+      });
+      return row;
     });
     return toTripMemberView(updated, ctx.trip.ownerId);
   }
@@ -123,7 +142,11 @@ export class MembersService {
    * deleted, but no block is written, so they may rejoin through a live global
    * link. Strictly-lower-role enforced.
    */
-  async kick(ctx: TripContext, targetUserId: string): Promise<void> {
+  async kick(
+    ctx: TripContext,
+    actor: User,
+    targetUserId: string,
+  ): Promise<void> {
     const target = await this.requireTargetMembership(ctx, targetUserId);
     if (!canActOn(ctx.role, target.role)) {
       throw new ForbiddenException(
@@ -133,6 +156,15 @@ export class MembersService {
     await this.prisma.$transaction([
       this.prisma.tripMembership.delete({ where: { id: target.id } }),
       this.touchMembership(ctx.trip.id),
+      this.prisma.auditEvent.create({
+        data: memberAudit(
+          ctx.trip.id,
+          actor.id,
+          "MEMBER_KICKED",
+          targetUserId,
+          { targetName: target.user.displayName },
+        ),
+      }),
     ]);
   }
 
@@ -170,6 +202,15 @@ export class MembersService {
         where: { id: ctx.trip.id },
         data: { membershipChangedAt: new Date() },
       });
+      await tx.auditEvent.create({
+        data: memberAudit(
+          ctx.trip.id,
+          actor.id,
+          "MEMBER_BLOCKED",
+          targetUserId,
+          { targetName: target.user.displayName },
+        ),
+      });
     });
   }
 
@@ -179,13 +220,38 @@ export class MembersService {
    * `member.manage` capability (already checked by the guard) is required;
    * removing a nonexistent block is idempotent (still 204).
    */
-  async unblock(ctx: TripContext, targetUserId: string): Promise<void> {
+  async unblock(
+    ctx: TripContext,
+    actor: User,
+    targetUserId: string,
+  ): Promise<void> {
     if (!UUID_RE.test(targetUserId)) {
       throw new NotFoundException("Member not found");
     }
-    await this.prisma.tripBlock.deleteMany({
-      where: { tripId: ctx.trip.id, userId: targetUserId },
+    // Read the block first: its name snapshot is the only record of who this
+    // was once the row is gone, and it tells us whether anything was undone.
+    const block = await this.prisma.tripBlock.findUnique({
+      where: { tripId_userId: { tripId: ctx.trip.id, userId: targetUserId } },
+      include: { user: { select: { displayName: true } } },
     });
+    // Removing a nonexistent block stays idempotent (204) — and writes no audit
+    // row, so the feed does not report an unblock that undid nothing.
+    if (!block) return;
+
+    await this.prisma.$transaction([
+      this.prisma.tripBlock.deleteMany({
+        where: { tripId: ctx.trip.id, userId: targetUserId },
+      }),
+      this.prisma.auditEvent.create({
+        data: memberAudit(
+          ctx.trip.id,
+          actor.id,
+          "MEMBER_UNBLOCKED",
+          targetUserId,
+          { targetName: block.user.displayName },
+        ),
+      }),
+    ]);
   }
 
   /**
@@ -202,6 +268,14 @@ export class MembersService {
         },
       }),
       this.touchMembership(ctx.trip.id),
+      // A departure is audited for the same reason a kick is: without it the
+      // feed shows removals but not exits, and the trip is left wondering where
+      // someone went. Actor and target are the same person here.
+      this.prisma.auditEvent.create({
+        data: memberAudit(ctx.trip.id, actor.id, "MEMBER_LEFT", actor.id, {
+          targetName: actor.displayName,
+        }),
+      }),
     ]);
   }
 
@@ -254,6 +328,15 @@ export class MembersService {
       await tx.trip.update({
         where: { id: ctx.trip.id },
         data: { ownerId: targetUserId, version: { increment: 1 } },
+      });
+      await tx.auditEvent.create({
+        data: memberAudit(
+          ctx.trip.id,
+          actor.id,
+          "OWNERSHIP_TRANSFERRED",
+          targetUserId,
+          { targetName: target.user.displayName },
+        ),
       });
     });
   }

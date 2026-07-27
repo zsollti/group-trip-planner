@@ -23,6 +23,7 @@ import {
   type UnlockOptionInput,
   type UpdateOptionInput,
 } from "@gtp/types";
+import { optionAudit } from "../activity/audit.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
@@ -152,7 +153,11 @@ export class OptionsService {
    * un-stales a headcount.
    */
   private nextHeadcountConfirmedAt(
-    before: { headcountIsFixed: boolean; headcount: number | null; headcountConfirmedAt: Date | null },
+    before: {
+      headcountIsFixed: boolean;
+      headcount: number | null;
+      headcountConfirmedAt: Date | null;
+    },
     input: UpdateOptionInput,
   ): Date | null {
     if (!input.headcountIsFixed) return null;
@@ -628,7 +633,9 @@ export class OptionsService {
           data: {
             startDate: null,
             endDate: null,
-            expiresAt: new Date(fallbackExpiresAt(ctx.trip.createdAt.getTime())),
+            expiresAt: new Date(
+              fallbackExpiresAt(ctx.trip.createdAt.getTime()),
+            ),
           },
         });
       }
@@ -673,13 +680,9 @@ const DATE_REJECTION_MESSAGE: Record<LockDatesRejection, string> = {
   OVER_HORIZON: "These dates are too far in the future to lock.",
 };
 
-/** Build an {@link AuditEvent} row for a lock/unlock (written inside the txn). */
-function auditData(
-  tripId: string,
-  actorId: string,
-  action: "OPTION_LOCKED" | "OPTION_UNLOCKED",
-  targetId: string,
-  metadata: Prisma.InputJsonValue,
-): Prisma.AuditEventUncheckedCreateInput {
-  return { tripId, actorId, action, targetType: "OPTION", targetId, metadata };
-}
+/**
+ * Build an {@link AuditEvent} row for a lock/unlock (written inside the txn).
+ * Delegates to the shared builder so option and membership events land in the
+ * same shape — the Phase-5.4 feed reads them through one mapper.
+ */
+const auditData = optionAudit;
