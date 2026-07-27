@@ -80,7 +80,7 @@ export function Login() {
           type="button"
           variant="secondary"
           onClick={() => {
-            window.location.href = googleSignInUrl();
+            window.location.href = googleSignInUrl(next);
           }}
         >
           Continue with Google
