@@ -21,7 +21,6 @@ export { createQueryClient } from "./query.js";
 export { useRegister, useLogin, useVerifyEmail } from "./auth.js";
 export {
   tripKeys,
-  useMyTrips,
   useTrip,
   useTripPreview,
   useCreateTrip,
