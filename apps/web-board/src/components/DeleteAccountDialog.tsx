@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
 import { ApiError, useAuth, useDeletionPreview } from "@gtp/api-client";
+import { Dialog } from "./Dialog";
 
 /**
  * Board-paradigm account-deletion surface: a card floating on the canvas. Shows
@@ -15,14 +16,6 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
   const preview = useDeletionPreview();
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const impact = preview.data;
   const nothingOwned =
@@ -45,19 +38,12 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <div
-        className="board__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Delete account"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="board__eyebrow">Danger zone</p>
-        <h2 className="board__title">Delete your account</h2>
-
+    <Dialog eyebrow="Danger zone" title="Delete your account" onClose={onClose}>
+      <>
         {preview.isPending ? (
-          <p className="board__muted">Checking what this affects…</p>
+          <p className="board__muted" role="status">
+            Checking what this affects…
+          </p>
         ) : preview.isError ? (
           <p className="board__form-error" role="alert">
             Couldn't load the impact.{" "}
@@ -130,7 +116,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }

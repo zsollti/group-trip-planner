@@ -201,6 +201,8 @@ export interface ChatController {
   hasMore: boolean;
   loadingOlder: boolean;
   loadOlder: () => void;
+  /** Re-run the history load — the way out of the `error` status. */
+  reload: () => void;
   send: (body: string) => void;
   remove: (messageId: string) => void;
   /** Toggle the viewer's reaction with `emoji` on a message (optimistic). */
@@ -235,6 +237,8 @@ export function useChat(
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const cursorRef = useRef<string | null>(null);
+  // Bumping this re-runs the history load; it is what `reload()` drives.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const upsert = useCallback((incoming: ChatMessage) => {
     setMessages((prev) => {
@@ -267,7 +271,7 @@ export function useChat(
     return () => {
       cancelled = true;
     };
-  }, [tripId, channelId]);
+  }, [tripId, channelId, reloadKey]);
 
   // Live stream: new + deleted broadcasts for this channel.
   useEffect(() => {
@@ -281,9 +285,7 @@ export function useChat(
     const onReaction = (update: ReactionUpdate) => {
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === update.messageId
-            ? { ...m, reactions: update.reactions }
-            : m,
+          m.id === update.messageId ? { ...m, reactions: update.reactions } : m,
         ),
       );
     };
@@ -395,7 +397,10 @@ export function useChat(
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
-          const groups = m.reactions.map((g) => ({ ...g, userIds: [...g.userIds] }));
+          const groups = m.reactions.map((g) => ({
+            ...g,
+            userIds: [...g.userIds],
+          }));
           const group = groups.find((g) => g.emoji === emoji);
           if (group?.userIds.includes(myUserId)) {
             willAdd = false;
@@ -405,7 +410,10 @@ export function useChat(
           } else {
             groups.push({ emoji, userIds: [myUserId] });
           }
-          return { ...m, reactions: groups.filter((g) => g.userIds.length > 0) };
+          return {
+            ...m,
+            reactions: groups.filter((g) => g.userIds.length > 0),
+          };
         }),
       );
       socket.emit(willAdd ? REACTION_ADD_EVENT : REACTION_REMOVE_EVENT, {
@@ -444,6 +452,7 @@ export function useChat(
     hasMore: nextCursor !== null,
     loadingOlder,
     loadOlder,
+    reload: () => setReloadKey((k) => k + 1),
     send,
     remove,
     toggleReaction,

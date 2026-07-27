@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
 import {
@@ -21,6 +21,7 @@ import {
   useUnblockMember,
 } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
+import { Dialog } from "./Dialog";
 
 const ROLE_LABEL: Record<TripRole, string> = {
   OWNER: "Owner",
@@ -62,14 +63,6 @@ export function MemberDialog({
 
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const assignableRoles = ASSIGNABLE.filter(
     (r) => ROLE_RANK[r] < ROLE_RANK[myRole],
@@ -115,23 +108,30 @@ export function MemberDialog({
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <div
-        className="board__dialog board__dialog--tall"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Crew"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="board__eyebrow">Crew</p>
-        <h2 className="board__title">Members &amp; roles</h2>
-
+    <Dialog
+      eyebrow="Crew"
+      title="Members & roles"
+      size="tall"
+      onClose={onClose}
+    >
+      <>
         {members.isPending ? (
-          <p className="board__muted">Loading crew…</p>
-        ) : members.isError ? (
-          <p className="board__form-error" role="alert">
-            Couldn't load the member list.
+          <p className="board__muted" role="status">
+            Loading crew…
           </p>
+        ) : members.isError ? (
+          <>
+            <p className="board__form-error" role="alert">
+              Couldn't load the member list.
+            </p>
+            <button
+              type="button"
+              className="board__cta"
+              onClick={() => void members.refetch()}
+            >
+              Try again
+            </button>
+          </>
         ) : (
           <>
             <ul className="board__invite-items">
@@ -306,7 +306,7 @@ export function MemberDialog({
             </Button>
           </div>
         )}
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }

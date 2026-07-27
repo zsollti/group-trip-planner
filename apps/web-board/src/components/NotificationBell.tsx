@@ -63,6 +63,7 @@ export function NotificationBell({ socket }: { socket?: LiveSocket | null }) {
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<NotificationView | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const list = useNotifications();
   const markRead = useMarkNotificationRead();
@@ -85,6 +86,9 @@ export function NotificationBell({ socket }: { socket?: LiveSocket | null }) {
 
   useEffect(() => {
     if (!open) return;
+    // Captured for the cleanup below (see Menu.tsx for why).
+    const root = rootRef.current;
+    const trigger = triggerRef.current;
     const onPointer = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -101,6 +105,13 @@ export function NotificationBell({ socket }: { socket?: LiveSocket | null }) {
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
+      // Opening does not move focus (the trigger keeps it), but a user who has
+      // tabbed into the panel would lose focus to <body> when it closes. Same
+      // rule as the ⋯ Menu: if focus is still in here, hand it back.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && (root?.contains(active) ?? false)) {
+        trigger?.focus();
+      }
     };
   }, [open]);
 
@@ -118,6 +129,7 @@ export function NotificationBell({ socket }: { socket?: LiveSocket | null }) {
   return (
     <div className="bell" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="bell__trigger"
         aria-haspopup="true"

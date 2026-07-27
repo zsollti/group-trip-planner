@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Field, Input } from "@gtp/ui-primitives";
@@ -10,6 +10,7 @@ import {
   useUpdateTrip,
 } from "@gtp/api-client";
 import { ImagePicker } from "./ImagePicker";
+import { Dialog } from "./Dialog";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -58,7 +59,6 @@ export function EditBoardDialog({
   const {
     register,
     handleSubmit,
-    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<UpdateTripInput>({
     resolver: zodResolver(UpdateTripInput),
@@ -70,15 +70,6 @@ export function EditBoardDialog({
       version: trip.version,
     },
   });
-
-  useEffect(() => {
-    setFocus("name");
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, setFocus]);
 
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
@@ -97,16 +88,8 @@ export function EditBoardDialog({
   });
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <div
-        className="board__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Edit board"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="board__eyebrow">Edit board</p>
-        <h2 className="board__title">Edit trip details</h2>
+    <Dialog eyebrow="Edit board" title="Edit trip details" onClose={onClose}>
+      <>
         {conflict ? (
           <div>
             <p className="board__form-error" role="alert">
@@ -185,11 +168,13 @@ export function EditBoardDialog({
               busy={setCover.isPending || removeCover.isPending}
               error={coverError}
               onSave={(file) => void saveCover(file)}
-              onRemove={trip.coverImageUrl ? () => void clearCover() : undefined}
+              onRemove={
+                trip.coverImageUrl ? () => void clearCover() : undefined
+              }
             />
           </form>
         )}
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }

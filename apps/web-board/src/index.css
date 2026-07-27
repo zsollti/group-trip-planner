@@ -1,7 +1,25 @@
 /* UI C — Trip Board: playful, tactile, colorful lanes on a canvas.
- * Phase 3.5 theme (first pass): a warm "trip" palette — sand paper + travel
- * teal — replacing the original purple. Light + dark. The final theme
- * (typography/textures/committed palette) is a later conversation. */
+ * ---------------------------------------------------------------------------
+ * THE TRIP THEME (committed, Phase 6.3). The Phase-3.5 pass introduced the warm
+ * "trip" palette — sand paper + travel teal — as a cheap, reversible swap for
+ * the original purple, with the final say deferred. This is that final say: the
+ * palette is now the board's identity (it is what the three committed
+ * README screenshots show), promoted from an ad-hoc set of colours to a token
+ * contract. Every surface reads these and only these.
+ *
+ * The contract, in four groups:
+ *   surfaces  --board-bg (canvas) / --lane-bg (raised paper) / --board-dot
+ *   ink       --board-fg (strong) / --board-dim (secondary)
+ *   line      --lane-line
+ *   intent    --board-accent + --board-on-accent
+ *             --board-danger + --board-on-danger
+ *   depth     --board-shadow (elevation) / --board-scrim (modal backdrop)
+ *
+ * Every colour pair is chosen so its foreground clears WCAG AA on its own
+ * background in BOTH themes — which is why `--board-on-danger` exists rather
+ * than a hardcoded white: dark mode's danger is a light red, and white text on
+ * it fails. Depth is tokenised for the same reason: a dark shadow is invisible
+ * against a dark surface, so dark mode leans on a darker, denser shadow. */
 :root {
   color-scheme: light dark;
   --board-bg: #f5efe3;
@@ -12,7 +30,10 @@
   --board-on-accent: #ffffff;
   --lane-bg: #fffdf8;
   --lane-line: #e7ddc9;
-  --board-danger: #c0392b;
+  --board-danger: #b3261e;
+  --board-on-danger: #ffffff;
+  --board-shadow: 20 40 38;
+  --board-scrim: rgba(35, 40, 38, 0.5);
   font-family:
     "Inter",
     system-ui,
@@ -24,7 +45,11 @@
 
 /* Dark tokens: applied automatically when the OS prefers dark AND the user has
  * not chosen a theme, or explicitly when they toggle to dark. The manual choice
- * (data-theme on <html>) always wins over the OS default (Phase 3.5). */
+ * (data-theme on <html>) always wins over the OS default (Phase 3.5).
+ *
+ * Kept as one declaration list shared by both selectors so the two can never
+ * drift — a drift here is exactly the class of bug that made the decorative
+ * backdrop ignore the manual toggle before Phase 6.3. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --board-bg: #14201e;
@@ -36,6 +61,13 @@
     --lane-bg: #1b2b28;
     --lane-line: #2c3d39;
     --board-danger: #ff6b6b;
+    /* Dark mode's danger is a light red — white on it fails AA, so the
+       readable pairing is the dark canvas ink. */
+    --board-on-danger: #2a0f0d;
+    --board-shadow: 0 0 0;
+    --board-scrim: rgba(4, 10, 9, 0.66);
+    /* The decorative motifs need a touch more presence on a dark canvas. */
+    --board-decor-opacity: 0.08;
   }
 }
 :root[data-theme="dark"] {
@@ -48,6 +80,10 @@
   --lane-bg: #1b2b28;
   --lane-line: #2c3d39;
   --board-danger: #ff6b6b;
+  --board-on-danger: #2a0f0d;
+  --board-shadow: 0 0 0;
+  --board-scrim: rgba(4, 10, 9, 0.66);
+  --board-decor-opacity: 0.08;
 }
 
 * {
@@ -73,17 +109,15 @@ body {
   pointer-events: none;
   color: var(--board-fg);
 }
+/* Opacity comes from a token, not a second media query: the manual dark toggle
+   sets no media state, so a `prefers-color-scheme` rule here would keep the
+   light-mode value on a manually-darkened board (fixed in Phase 6.3). */
 .board__decor svg {
   position: absolute;
   width: clamp(52px, 8vw, 108px);
   height: auto;
-  opacity: 0.05;
+  opacity: var(--board-decor-opacity, 0.05);
   transform: rotate(var(--r, 0deg));
-}
-@media (prefers-color-scheme: dark) {
-  .board__decor svg {
-    opacity: 0.08;
-  }
 }
 
 .board {
@@ -182,7 +216,7 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 16px;
   padding: 1.75rem;
-  box-shadow: 0 16px 40px rgba(20, 40, 38, 0.15);
+  box-shadow: 0 16px 40px rgb(var(--board-shadow) / 0.15);
 }
 
 .board__alt {
@@ -424,7 +458,7 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 14px;
   padding: 0.85rem;
-  box-shadow: 0 6px 18px rgba(20, 40, 38, 0.07);
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
 }
 
 .lane--decided {
@@ -535,7 +569,7 @@ body {
   font-size: 1rem;
 }
 .lane__card--dragging {
-  box-shadow: 0 10px 26px rgba(20, 40, 38, 0.28);
+  box-shadow: 0 10px 26px rgb(var(--board-shadow) / 0.28);
   position: relative;
   z-index: 3;
 }
@@ -614,7 +648,7 @@ body {
   padding: 1.1rem 1rem 1rem;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 6px 18px rgba(20, 40, 38, 0.08);
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.08);
   transition: transform 0.08s ease;
 }
 .board__tile:hover {
@@ -646,7 +680,7 @@ body {
 .board__backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20, 16, 30, 0.5);
+  background: var(--board-scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -659,13 +693,22 @@ body {
   border: 1px solid var(--lane-line);
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 20px 50px rgba(20, 40, 38, 0.25);
+  box-shadow: 0 20px 50px rgb(var(--board-shadow) / 0.25);
 }
 .board__dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
   margin-top: 0.5rem;
+}
+/* A confirmation step: the question stacks above its buttons rather than
+   sitting in the row with them. (Used by the crew dialog; the rule was missing
+   until Phase 6.3, so the prompt text was being squeezed into the button row.) */
+.board__dialog-actions--stack {
+  display: block;
+}
+.board__dialog-actions--stack > .board__muted {
+  margin-bottom: 0.6rem;
 }
 
 /* --- Invite dialog --- */
@@ -1063,7 +1106,7 @@ body {
   align-items: center;
   gap: 0.75rem;
   margin: 1rem 0;
-  color: var(--board-muted);
+  color: var(--board-dim);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1073,7 +1116,7 @@ body {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--board-line);
+  background: var(--lane-line);
 }
 
 /* Cost tally — pinned on the canvas, stays put as the lanes scroll (Phase 3.3). */
@@ -1090,7 +1133,7 @@ body {
   background: var(--lane-bg);
   border: 2px solid var(--board-accent);
   border-radius: 14px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 10px rgb(var(--board-shadow) / 0.12);
 }
 .board__tally-title {
   margin: 0;
@@ -1107,7 +1150,7 @@ body {
   padding: 0.35rem 0.5rem;
   border-radius: 8px;
   background: var(--board-danger);
-  color: #fff;
+  color: var(--board-on-danger);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -1569,7 +1612,7 @@ body {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(20, 40, 38, 0.22);
+  box-shadow: 0 12px 30px rgb(var(--board-shadow) / 0.22);
 }
 .menu__list--left {
   right: auto;
@@ -1641,7 +1684,7 @@ body {
   cursor: pointer;
   background: var(--board-accent);
   color: var(--board-on-accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 14px rgb(var(--board-shadow) / 0.22);
 }
 .board__chat-badge {
   display: inline-flex;
@@ -1653,7 +1696,7 @@ body {
   padding: 0 0.3rem;
   border-radius: 999px;
   background: var(--board-danger);
-  color: #fff;
+  color: var(--board-on-danger);
   font-size: 0.68rem;
   font-weight: 800;
   vertical-align: middle;
@@ -1670,7 +1713,7 @@ body {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 14px;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 34px rgb(var(--board-shadow) / 0.28);
   overflow: hidden;
 }
 .board__chat-head {
@@ -1721,7 +1764,7 @@ body {
   white-space: nowrap;
 }
 .board__chat-tab:hover {
-  color: var(--board-ink);
+  color: var(--board-fg);
 }
 .board__chat-tab--active {
   background: var(--board-accent);
@@ -1737,7 +1780,7 @@ body {
   padding: 0 0.25rem;
   border-radius: 999px;
   background: var(--board-danger);
-  color: #fff;
+  color: var(--board-on-danger);
   font-size: 0.62rem;
   line-height: 1;
 }
@@ -1875,7 +1918,7 @@ body {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 10px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.24);
   z-index: 2;
 }
 .board__reaction-picker button {
@@ -1896,7 +1939,7 @@ body {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 10px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.24);
   max-height: 8rem;
   overflow-y: auto;
 }
@@ -1952,7 +1995,7 @@ body {
   padding: 0 0.2rem;
   border-radius: 999px;
   background: var(--board-danger);
-  color: #fff;
+  color: var(--board-on-danger);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.05rem;
@@ -1967,7 +2010,7 @@ body {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 14px;
-  box-shadow: 0 12px 30px rgba(20, 40, 38, 0.22);
+  box-shadow: 0 12px 30px rgb(var(--board-shadow) / 0.22);
   overflow: hidden;
 }
 .bell__head {
@@ -2060,7 +2103,7 @@ body {
   border: 1px solid var(--lane-line);
   border-left: 3px solid var(--board-accent);
   border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(20, 40, 38, 0.26);
+  box-shadow: 0 12px 30px rgb(var(--board-shadow) / 0.26);
 }
 .bell__toast-body {
   display: flex;

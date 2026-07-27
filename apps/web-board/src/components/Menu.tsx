@@ -31,11 +31,16 @@ export function Menu({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
     firstItemRef.current?.focus();
+    // Captured for the cleanup below: reading a ref there is unreliable, since
+    // React may have detached it by the time the cleanup runs.
+    const root = rootRef.current;
+    const trigger = triggerRef.current;
     const onPointer = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -52,12 +57,26 @@ export function Menu({
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
+      // Hand focus back to the trigger on close. Opening moved focus into the
+      // list, so without this an Escape or an outside click drops focus onto
+      // <body> and a keyboard user restarts from the top of the document.
+      // Selecting an item is the exception — it may open a dialog, which claims
+      // focus itself; that runs after this, so the dialog still wins.
+      const active = document.activeElement;
+      if (
+        active === null ||
+        active === document.body ||
+        (active instanceof HTMLElement && (root?.contains(active) ?? false))
+      ) {
+        trigger?.focus();
+      }
     };
   }, [open]);
 
   return (
     <div className="menu" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={
           "menu__trigger" + (triggerClassName ? ` ${triggerClassName}` : "")

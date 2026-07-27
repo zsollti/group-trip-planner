@@ -1,7 +1,7 @@
-import { useEffect } from "react";
 import { Button } from "@gtp/ui-primitives";
 import { useTripActivity } from "@gtp/api-client";
 import { activityHeadline, type ActivityAction } from "@gtp/types";
+import { Dialog } from "./Dialog";
 
 /** A glyph per action — a quick visual scan of what kind of event a line is. */
 const ICON: Record<ActivityAction, string> = {
@@ -45,31 +45,15 @@ export function ActivityDialog({
 }) {
   const activity = useTripActivity(tripId);
 
-  // Escape closes, matching the other board dialogs (backdrop click does not).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const events = activity.data?.pages.flatMap((p) => p.events) ?? [];
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <div
-        className="board__dialog board__dialog--tall"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Activity"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="board__eyebrow">History</p>
-        <h2 className="board__title">Activity</h2>
-
+    <Dialog eyebrow="History" title="Activity" size="tall" onClose={onClose}>
+      <>
         {activity.isPending ? (
-          <p className="board__muted">Loading activity…</p>
+          <p className="board__muted" role="status">
+            Loading activity…
+          </p>
         ) : activity.isError ? (
           <>
             <p className="board__form-error" role="alert">
@@ -126,7 +110,7 @@ export function ActivityDialog({
             Close
           </Button>
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }

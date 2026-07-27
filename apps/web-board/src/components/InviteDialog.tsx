@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import {
   ROLE_RANK,
@@ -13,6 +13,7 @@ import {
   useDisableInvite,
   useTripInvites,
 } from "@gtp/api-client";
+import { Dialog } from "./Dialog";
 
 const ROLE_LABEL: Record<TripRole, string> = {
   OWNER: "Owner",
@@ -65,14 +66,6 @@ export function InviteDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -101,17 +94,13 @@ export function InviteDialog({
   }
 
   return (
-    <div className="board__backdrop" role="presentation">
-      <div
-        className="board__dialog board__dialog--tall"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Invite people"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="board__eyebrow">Invite</p>
-        <h2 className="board__title">Invite people to this board</h2>
-
+    <Dialog
+      eyebrow="Invite"
+      title="Invite people to this board"
+      size="tall"
+      onClose={onClose}
+    >
+      <>
         <form onSubmit={onCreate} noValidate>
           <fieldset className="board__radio-group">
             <legend className="board__field-label">Link type</legend>
@@ -196,11 +185,22 @@ export function InviteDialog({
         <div className="board__invite-list">
           <p className="board__eyebrow">Existing links</p>
           {invites.isPending ? (
-            <p className="board__muted">Loading links…</p>
-          ) : invites.isError ? (
-            <p className="board__form-error" role="alert">
-              Couldn't load invite links.
+            <p className="board__muted" role="status">
+              Loading links…
             </p>
+          ) : invites.isError ? (
+            <>
+              <p className="board__form-error" role="alert">
+                Couldn't load invite links.
+              </p>
+              <button
+                type="button"
+                className="board__cta"
+                onClick={() => void invites.refetch()}
+              >
+                Try again
+              </button>
+            </>
           ) : invites.data.length === 0 ? (
             <p className="board__muted">No links yet. Create one above.</p>
           ) : (
@@ -244,7 +244,7 @@ export function InviteDialog({
             </ul>
           )}
         </div>
-      </div>
-    </div>
+      </>
+    </Dialog>
   );
 }
