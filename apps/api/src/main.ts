@@ -5,11 +5,11 @@
  * logging (pino), and `GET /health`. Auth endpoints arrive in Phase 0.6.
  */
 import "reflect-metadata";
-import cookieParser from "cookie-parser";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
 import { ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
+import { applyHttpHardening } from "./common/http-hardening.js";
 import { WsCorsAdapter } from "./chat/ws-cors.adapter.js";
 
 async function bootstrap(): Promise<void> {
@@ -27,10 +27,9 @@ async function bootstrap(): Promise<void> {
 
   const env = app.get<Env>(ENV);
 
-  // Parse the refresh-token cookie; lock CORS to the frontend origins and allow
-  // credentials so the httpOnly refresh cookie can flow cross-origin.
-  app.use(cookieParser());
-  app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
+  // Security headers, cookie parsing and the CORS lock — see the docblock on
+  // applyHttpHardening for the policy and why it is shared with the e2e suite.
+  applyHttpHardening(app, env);
 
   // Real-time chat gateway (Phase 4.1): lock socket CORS to the same origins.
   app.useWebSocketAdapter(new WsCorsAdapter(app, env.CORS_ORIGINS));

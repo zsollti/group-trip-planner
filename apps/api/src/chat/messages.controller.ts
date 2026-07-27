@@ -6,6 +6,11 @@ import { RequirePermission } from "../authz/require-permission.decorator.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { TripCtx } from "../trips/trip-context.decorator.js";
 import type { TripContext } from "../trips/trip-context.js";
+import {
+  parseCursor,
+  parseLimit,
+  requireIdParam,
+} from "../common/query-params.js";
 import { MessagesService } from "./messages.service.js";
 
 /**
@@ -29,10 +34,12 @@ export class MessagesController {
     @Query("cursor") cursor?: string,
     @Query("limit") limit?: string,
   ): Promise<MessagePage> {
-    const parsedLimit = limit ? Number(limit) : undefined;
-    const safeLimit =
-      parsedLimit && Number.isFinite(parsedLimit) ? parsedLimit : undefined;
-    return this.messages.history(ctx.trip.id, channelId, cursor, safeLimit);
+    return this.messages.history(
+      ctx.trip.id,
+      channelId,
+      parseCursor(cursor),
+      parseLimit(limit),
+    );
   }
 
   /** Reconnect catch-up: messages after the client's last-seen id (Phase 4.4). */
@@ -44,7 +51,13 @@ export class MessagesController {
     @Param("channelId") channelId: string,
     @Query("after") after: string,
   ): Promise<MessageView[]> {
+    // No anchor means the client has seen nothing yet — an empty catch-up, not
+    // an error. A *malformed* anchor is refused rather than cast in the database.
     if (!after) return Promise.resolve([]);
-    return this.messages.since(ctx.trip.id, channelId, after);
+    return this.messages.since(
+      ctx.trip.id,
+      channelId,
+      requireIdParam(after, "after"),
+    );
   }
 }

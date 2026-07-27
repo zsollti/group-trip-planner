@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   can,
   canManageOption,
+  isHttpUrl,
   type CategoryView,
   type OptionView,
   type TripRole,
@@ -165,7 +166,7 @@ export function OptionCard({
       {dates ? field("lane__dates", <>🗓 {dates}</>) : null}
       {costLabel(option) ? field("lane__cost", costLabel(option)) : null}
       {option.description ? field("lane__notes", option.description) : null}
-      {option.url ? (
+      {option.url && isHttpUrl(option.url) ? (
         <a
           className="lane__link"
           href={option.url}
