@@ -31,6 +31,7 @@ import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
 import { CostTally } from "./CostTally";
 import { DecidedColumn, type DecidedItem } from "./DecidedColumn";
+import { sortLanes, useLaneSort, type LaneSort } from "../lib/laneSort";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
 interface DndData {
@@ -75,6 +76,7 @@ export function BoardCanvas({
 }) {
   const catIds = categories.map((c) => c.id);
   const opts = useCategoriesOptions(tripId, catIds);
+  const [laneSort, setLaneSort] = useLaneSort();
   const reorderCats = useReorderCategories(tripId);
   const boardLock = useBoardLock(tripId);
   const boardUnlock = useBoardUnlock(tripId);
@@ -118,6 +120,17 @@ export function BoardCanvas({
 
   const dndEnabled = can(myRole, "decision.lock") && !frozen;
 
+  // Display order. Sorting by "still undecided" is a per-user view, so it must
+  // not touch the stored positions — and lane drag has to stand down while it is
+  // on, since a drag reorders by index and the displayed indices would no longer
+  // be the stored ones. Card gestures (lock/unlock, within-lane reorder) are
+  // unaffected: they are scoped to a single lane either way.
+  const displayCategories = useMemo(
+    () => sortLanes(categories, opts.byCategory, laneSort),
+    [categories, opts.byCategory, laneSort],
+  );
+  const laneDragEnabled = dndEnabled && laneSort === "manual";
+
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     const a = active.data.current as DndData | undefined;
@@ -127,7 +140,9 @@ export function BoardCanvas({
 
     if (a.type === "lane") {
       if (!over || o?.type !== "lane" || over.id === active.id) return;
-      const ids = categories.map((c) => c.id);
+      // Only reachable in manual sort (laneDragEnabled), where the displayed
+      // order is the stored order — so these indices are the server's.
+      const ids = displayCategories.map((c) => c.id);
       const from = ids.indexOf(a.categoryId ?? "");
       const to = ids.indexOf(o.categoryId ?? "");
       if (from < 0 || to < 0 || from === to) return;
@@ -192,11 +207,31 @@ export function BoardCanvas({
       if (option.status === "LOCKED") decided.push({ option, category });
     }
   }
-  const laneIds = categories.map((c) => `lane:${c.id}`);
+  const laneIds = displayCategories.map((c) => `lane:${c.id}`);
 
   return (
     <>
       <CostTally tripId={tripId} />
+      <div className="board__lanetools">
+        <label className="board__lanesort" htmlFor="lane-sort">
+          <span>Sort lanes</span>
+          <select
+            id="lane-sort"
+            className="board__select"
+            value={laneSort}
+            onChange={(e) => setLaneSort(e.target.value as LaneSort)}
+          >
+            <option value="manual">Manual order</option>
+            <option value="undecided">Undecided first</option>
+          </select>
+        </label>
+        {laneSort === "undecided" && dndEnabled ? (
+          <p className="board__muted" role="status">
+            Drag to reorder lanes is off while sorting — switch to manual order
+            to rearrange them.
+          </p>
+        ) : null}
+      </div>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -216,7 +251,7 @@ export function BoardCanvas({
             items={laneIds}
             strategy={horizontalListSortingStrategy}
           >
-            {categories.map((category) => (
+            {displayCategories.map((category) => (
               <CategoryLane
                 key={category.id}
                 tripId={tripId}
@@ -227,6 +262,7 @@ export function BoardCanvas({
                 myUserId={myUserId}
                 frozen={frozen}
                 dndEnabled={dndEnabled}
+                laneDragEnabled={laneDragEnabled}
                 onOpenChannel={onOpenChannel}
               />
             ))}

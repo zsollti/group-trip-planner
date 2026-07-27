@@ -33,14 +33,16 @@ export function OptionDetail({
   const cost = costLabel(option);
   const locked = option.status === "LOCKED";
 
+  // No backdrop-click dismiss: every dialog on the board closes by Esc or an
+  // explicit control only, so a stray click never discards what you were looking
+  // at (or, in the form dialogs, what you were typing).
   return (
-    <div className="board__backdrop" role="presentation" onClick={onClose}>
+    <div className="board__backdrop" role="presentation">
       <article
         className="board__dialog"
         role="dialog"
         aria-modal="true"
         aria-label={`${option.title} — details`}
-        onClick={(e) => e.stopPropagation()}
       >
         <p className="board__eyebrow lane__tag lane__tag--badge">
           {category.name}

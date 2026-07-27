@@ -80,6 +80,39 @@ export const ReorderCategoriesInput = z.object({
 });
 export type ReorderCategoriesInput = z.infer<typeof ReorderCategoriesInput>;
 
+/**
+ * Whether a category may be deleted. Everything is deletable **except Dates**:
+ * locking a Dates option is the trip's only route to writing back its
+ * start/end dates and the expiry derived from them (Phase 2.5), and
+ * `@@unique([tripId, builtinKey])` means a deleted Dates category can never be
+ * recreated — the trip would silently fall back to created-plus-a-year with no
+ * way back. Custom categories and the other four built-ins are unaffected.
+ *
+ * One definition: the API enforces it, the front-end hides the control with it.
+ */
+export function canDeleteCategory(category: {
+  readonly builtinKey: CategoryBuiltinKey | null;
+}): boolean {
+  return category.builtinKey !== "DATES";
+}
+
+/**
+ * Whether an option form for this category should offer the cost fields
+ * (amount / currency / cost-type / headcount) and a link. Dates options answer
+ * "when", not "how much": their cost fields were dead weight on every form, and
+ * the cost engine already ignores amount-less options, so hiding them changes
+ * no totals. Custom categories keep the full form — only the built-ins carry
+ * enough known intent to tailor.
+ */
+export function categoryOptionFields(category: {
+  readonly builtinKey: CategoryBuiltinKey | null;
+}): { readonly cost: boolean; readonly url: boolean; readonly dates: boolean } {
+  if (category.builtinKey === "DATES") {
+    return { cost: false, url: false, dates: true };
+  }
+  return { cost: true, url: true, dates: true };
+}
+
 /** One built-in category's seed shape (no id/version — those are DB-assigned). */
 export interface BuiltinCategorySeed {
   readonly builtinKey: CategoryBuiltinKey;

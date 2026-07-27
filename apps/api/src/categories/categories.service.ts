@@ -7,6 +7,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import {
   BUILTIN_CATEGORIES,
+  canDeleteCategory,
   type CreateCategoryInput,
   type CategoryView,
   type RenameCategoryInput,
@@ -123,9 +124,18 @@ export class CategoriesService {
    * Delete a category — a **hard cascade** (SRS FR-20): its options, votes, and
    * (Phase 4) chat channel go with it, and the loss is permanent even in History
    * (accepted, SRS §15). The front-ends surface that in the delete confirmation.
+   *
+   * The Dates category is the one exception ({@link canDeleteCategory}) — 409
+   * rather than 403, because this isn't about the caller's role: no one may
+   * delete it, Owner included.
    */
   async deleteCategory(ctx: TripContext, categoryId: string): Promise<void> {
     const existing = await this.requireCategory(ctx, categoryId);
+    if (!canDeleteCategory(existing)) {
+      throw new ConflictException(
+        "The Dates category can't be deleted — it's the trip's only way to set its dates.",
+      );
+    }
     await this.prisma.category.delete({ where: { id: existing.id } });
   }
 

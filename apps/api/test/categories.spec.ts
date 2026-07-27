@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { BUILTIN_CATEGORIES } from "@gtp/types";
+import {
+  BUILTIN_CATEGORIES,
+  canDeleteCategory,
+  categoryOptionFields,
+} from "@gtp/types";
 
 /**
  * The built-in category seed set is pure data with no DB — this pins the shape a
@@ -38,6 +42,56 @@ describe("BUILTIN_CATEGORIES", () => {
   it("gives every built-in a non-empty name", () => {
     for (const c of BUILTIN_CATEGORIES) {
       assert.ok(c.name.trim().length > 0, `${c.builtinKey} has a name`);
+    }
+  });
+});
+
+/**
+ * Dates is the one undeletable category: it is the trip's only route to writing
+ * back start/end dates, and `@@unique([tripId, builtinKey])` makes the loss
+ * permanent. One definition, enforced by the API and read by the front-end.
+ */
+describe("canDeleteCategory", () => {
+  it("refuses Dates and allows every other built-in", () => {
+    assert.equal(canDeleteCategory({ builtinKey: "DATES" }), false);
+    for (const c of BUILTIN_CATEGORIES) {
+      if (c.builtinKey === "DATES") continue;
+      assert.equal(
+        canDeleteCategory({ builtinKey: c.builtinKey }),
+        true,
+        `${c.builtinKey} stays deletable`,
+      );
+    }
+  });
+
+  it("allows custom categories (null key)", () => {
+    assert.equal(canDeleteCategory({ builtinKey: null }), true);
+  });
+});
+
+/** Which fields an option form offers, per category. */
+describe("categoryOptionFields", () => {
+  it("drops cost and link for Dates, keeps the date range", () => {
+    assert.deepEqual(categoryOptionFields({ builtinKey: "DATES" }), {
+      cost: false,
+      url: false,
+      dates: true,
+    });
+  });
+
+  it("gives every other built-in and custom category the full form", () => {
+    for (const key of [
+      "TRANSPORT",
+      "ACCOMMODATION",
+      "ACTIVITIES",
+      "BUDGET",
+      null,
+    ] as const) {
+      assert.deepEqual(
+        categoryOptionFields({ builtinKey: key }),
+        { cost: true, url: true, dates: true },
+        `${key ?? "custom"} keeps the full form`,
+      );
     }
   });
 });

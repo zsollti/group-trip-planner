@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button, Field, Input } from "@gtp/ui-primitives";
-import type { CostType, OptionView } from "@gtp/types";
+import {
+  categoryOptionFields,
+  type CategoryBuiltinKey,
+  type CostType,
+  type OptionView,
+} from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
 
 /** A datetime-local input value ("YYYY-MM-DDTHH:mm") from an ISO string. */
@@ -18,20 +23,28 @@ function toLocalInput(iso: string | null): string {
  * changed or is locked → the caller reloads). Validation is delegated to the
  * server contract; only the payload shaping (blanks → omitted, local dates → ISO)
  * happens here.
+ *
+ * The visible fields are tailored per category ({@link categoryOptionFields}):
+ * a Dates option is title/notes/start/end only, since asking "how much does this
+ * date range cost per person" never made sense. `currency` is still sent — the
+ * contract requires it — but it is the trip's own and never shown.
  */
 export function OptionForm({
   tripId,
   categoryId,
+  categoryBuiltinKey,
   currency: tripCurrency,
   option,
   onClose,
 }: {
   tripId: string;
   categoryId: string;
+  categoryBuiltinKey: CategoryBuiltinKey | null;
   currency: string;
   option?: OptionView;
   onClose: () => void;
 }) {
+  const fields = categoryOptionFields({ builtinKey: categoryBuiltinKey });
   const propose = useProposeOption(tripId, categoryId);
   const edit = useEditOption(tripId, categoryId);
   const isEdit = Boolean(option);
@@ -145,75 +158,82 @@ export function OptionForm({
               />
             </Field>
           </div>
-          <div className="board__form-wide">
-            <Field htmlFor="opt-url" label="Link (optional)">
-              <Input
-                id="opt-url"
-                type="url"
-                placeholder="https://…"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </Field>
-          </div>
+          {fields.url ? (
+            <div className="board__form-wide">
+              <Field htmlFor="opt-url" label="Link (optional)">
+                <Input
+                  id="opt-url"
+                  type="url"
+                  placeholder="https://…"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+              </Field>
+            </div>
+          ) : null}
 
-          <Field htmlFor="opt-amount" label="Amount (optional)">
-            <Input
-              id="opt-amount"
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </Field>
-          <Field htmlFor="opt-currency" label="Currency">
-            <Input
-              id="opt-currency"
-              value={currency}
-              maxLength={3}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            />
-          </Field>
+          {fields.cost ? (
+            <>
+              <Field htmlFor="opt-amount" label="Amount (optional)">
+                <Input
+                  id="opt-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </Field>
+              <Field htmlFor="opt-currency" label="Currency">
+                <Input
+                  id="opt-currency"
+                  value={currency}
+                  maxLength={3}
+                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                />
+              </Field>
 
-          <Field htmlFor="opt-costtype" label="Cost is">
-            <select
-              id="opt-costtype"
-              className="board__select"
-              value={costType}
-              onChange={(e) => setCostType(e.target.value as CostType)}
-            >
-              <option value="PER_PERSON">Per person</option>
-              <option value="TOTAL">Total for the group</option>
-            </select>
-          </Field>
-          {headcountIsFixed ? (
-            <Field htmlFor="opt-headcount" label="Headcount">
-              <Input
-                id="opt-headcount"
-                type="number"
-                min="1"
-                step="1"
-                value={headcount}
-                onChange={(e) => setHeadcount(e.target.value)}
-              />
-            </Field>
-          ) : (
-            <div />
-          )}
+              <Field htmlFor="opt-costtype" label="Cost is">
+                <select
+                  id="opt-costtype"
+                  className="board__select"
+                  value={costType}
+                  onChange={(e) => setCostType(e.target.value as CostType)}
+                >
+                  <option value="PER_PERSON">Per person</option>
+                  <option value="TOTAL">Total for the group</option>
+                </select>
+              </Field>
+              {headcountIsFixed ? (
+                <Field htmlFor="opt-headcount" label="Headcount">
+                  <Input
+                    id="opt-headcount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={headcount}
+                    onChange={(e) => setHeadcount(e.target.value)}
+                  />
+                </Field>
+              ) : (
+                <div />
+              )}
 
-          <div className="board__form-wide">
-            <label className="board__checkbox">
-              <input
-                type="checkbox"
-                checked={headcountIsFixed}
-                onChange={(e) => setHeadcountIsFixed(e.target.checked)}
-              />
-              <span>
-                Fix the headcount (otherwise it tracks the trip's member count)
-              </span>
-            </label>
-          </div>
+              <div className="board__form-wide">
+                <label className="board__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={headcountIsFixed}
+                    onChange={(e) => setHeadcountIsFixed(e.target.checked)}
+                  />
+                  <span>
+                    Fix the headcount (otherwise it tracks the trip's member
+                    count)
+                  </span>
+                </label>
+              </div>
+            </>
+          ) : null}
 
           <Field htmlFor="opt-starts" label="Starts (optional)">
             <Input

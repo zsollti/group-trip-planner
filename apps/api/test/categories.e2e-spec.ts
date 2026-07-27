@@ -233,6 +233,29 @@ describe("Categories (e2e)", () => {
     assert.equal(count, 0, "row is gone from the DB");
   });
 
+  it("refuses to delete the Dates category, even for the Owner", async () => {
+    const owner = await makeUser("dates-owner");
+    const trip = await createTrip(owner.accessToken, "Dates guard");
+    const cats = (await listCategories(owner.accessToken, trip.id).expect(200))
+      .body as Cat[];
+    const dates = cats.find((c) => c.builtinKey === "DATES")!;
+
+    // 409, not 403: the Owner is fully entitled to manage categories — it is
+    // this particular category that cannot go, since losing it would strand the
+    // trip with no way to set its dates and no way to get one back.
+    await http()
+      .delete(`/trips/${trip.id}/categories/${dates.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(409);
+
+    const after = (await listCategories(owner.accessToken, trip.id).expect(200))
+      .body as Cat[];
+    assert.ok(
+      after.some((c) => c.id === dates.id),
+      "Dates category survives the attempt",
+    );
+  });
+
   it("blocks non-Organizers and non-members", async () => {
     const owner = await makeUser("guard-owner");
     const participant = await makeUser("guard-part");
