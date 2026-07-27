@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
+import { GlobalThrottlerGuard } from "./common/per-user-throttle.js";
 import { ScheduleModule } from "@nestjs/schedule";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
@@ -69,6 +70,6 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     ActivityModule,
     UploadsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: GlobalThrottlerGuard }],
 })
 export class AppModule {}

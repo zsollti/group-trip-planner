@@ -17,6 +17,9 @@ import {
 } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
+import { OPTION_CREATE_THROTTLE } from "../common/throttle-policy.js";
+import { PerUserThrottle } from "../common/per-user-throttle.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
@@ -70,7 +73,13 @@ export class OptionsController {
 
   /** Propose an option (Participant+). */
   @Post()
-  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    TripContextGuard,
+    PermissionGuard,
+    UserThrottlerGuard,
+  )
+  @PerUserThrottle(OPTION_CREATE_THROTTLE)
   @RequirePermission("option.propose")
   proposeOption(
     @TripCtx() ctx: TripContext,

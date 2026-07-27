@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
+import { SocketRateLimiter } from "../common/socket-rate-limiter.js";
 import { NotificationsModule } from "../notifications/notifications.module.js";
 import { RealtimeModule } from "../realtime/realtime.module.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
@@ -26,6 +27,9 @@ import { MessagesController } from "./messages.controller.js";
     MessagesService,
     TripContextGuard,
     PermissionGuard,
+    // Gateway-local: the socket budget is per user, and one instance of this
+    // holds the counters for the process (Phase 7.1).
+    SocketRateLimiter,
   ],
   exports: [ChannelsService],
 })

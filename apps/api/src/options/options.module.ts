@@ -8,6 +8,7 @@ import { OptionsController } from "./options.controller.js";
 import { OptionsService } from "./options.service.js";
 import { VotesController } from "./votes.controller.js";
 import { LockingController } from "./locking.controller.js";
+import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 
 /**
  * Options (Phase 2.2). Reuses the Phase-1.2 authorization spine — TripContextGuard
@@ -20,6 +21,11 @@ import { LockingController } from "./locking.controller.js";
 @Module({
   imports: [AuthModule, RealtimeModule, NotificationsModule],
   controllers: [OptionsController, VotesController, LockingController],
-  providers: [OptionsService, TripContextGuard, PermissionGuard],
+  providers: [
+    OptionsService,
+    TripContextGuard,
+    PermissionGuard,
+    UserThrottlerGuard,
+  ],
 })
 export class OptionsModule {}

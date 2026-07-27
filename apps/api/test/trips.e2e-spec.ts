@@ -7,6 +7,7 @@ import request from "supertest";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
+import { TRIP_CREATE_THROTTLE } from "../src/common/throttle-policy.js";
 import { TokenService } from "../src/auth/token.service.js";
 
 /**
@@ -335,5 +336,50 @@ describe("Trips (e2e)", () => {
       where: { tripId: created.body.id },
     });
     assert.equal(remaining, 0, "memberships cascaded on trip delete");
+  });
+  it("caps trip creation per user, and keys the budget on the account not the IP (Phase 7.1)", async () => {
+    // Users are inserted directly rather than registered: the register route's
+    // own 5/min limit is per IP and would fire first in a suite that already
+    // creates several accounts from this address.
+    async function directUser(label: string) {
+      const email = `trips+${label}+${suffix}@example.com`;
+      emails.push(email);
+      const user = await prisma.user.create({
+        data: {
+          email,
+          displayName: label,
+          emailVerified: true,
+          passwordHash: "x",
+        },
+      });
+      return { user, accessToken: await tokens_.signAccessToken(user) };
+    }
+
+    const flooder = await directUser("flood-a");
+    const bystander = await directUser("flood-b");
+    const limit = TRIP_CREATE_THROTTLE.default.limit;
+
+    for (let i = 0; i < limit; i += 1) {
+      await request(app.getHttpServer())
+        .post("/trips")
+        .set("Authorization", `Bearer ${flooder.accessToken}`)
+        .send({ name: `Flood ${i}` })
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post("/trips")
+      .set("Authorization", `Bearer ${flooder.accessToken}`)
+      .send({ name: "One too many" })
+      .expect(429);
+
+    // A different account from the SAME address is untouched. This is the whole
+    // point of keying on the user, and it did NOT hold before 7.1: the global
+    // APP_GUARD throttler read the same @Throttle budget and tracked it by IP,
+    // so one office NAT meant one shared allowance.
+    await request(app.getHttpServer())
+      .post("/trips")
+      .set("Authorization", `Bearer ${bystander.accessToken}`)
+      .send({ name: "Unaffected" })
+      .expect(201);
   });
 });
