@@ -124,10 +124,16 @@ test("a member who drops offline gets the messages they missed on reconnect", as
     // --- and the recovered client is live again, not merely caught up ------
     // A page that refilled its history but never rebound its socket would pass
     // every assertion above and still be dead.
+    //
+    // The reply deliberately shares no words with the question. `getByText` is
+    // a substring match, so an answer of "still here" would also match the
+    // owner's own "still here?" already on their page — the assertion would
+    // pass without the reply ever arriving, and would only start *failing*
+    // (as a strict-mode violation) once the feature it tests began working.
     await sendMessage(ownerPage, "still here?");
     await expect(memberPage.getByText("still here?")).toBeVisible();
-    await sendMessage(memberPage, "still here");
-    await expect(ownerPage.getByText("still here")).toBeVisible();
+    await sendMessage(memberPage, "back and talking");
+    await expect(ownerPage.getByText("back and talking")).toBeVisible();
   } finally {
     await memberContext.close();
   }
