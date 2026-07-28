@@ -4,6 +4,7 @@ import {
   can,
   canActOn,
   canAssignRole,
+  canDeleteMessage,
   type TripAction,
   type TripRole,
 } from "@gtp/types";
@@ -164,5 +165,37 @@ describe("canAssignRole() — the strictly-lower rule for role changes", () => {
       assert.equal(canAssignRole("PARTICIPANT", target), false);
       assert.equal(canAssignRole("GUEST", target), false);
     }
+  });
+});
+
+/**
+ * The last target-scoped rule without direct coverage (Phase 7.4). Its sibling
+ * `canManageOption` is unit-tested in `options.spec.ts`; this one was only ever
+ * exercised through the chat e2e suite, which cannot enumerate the matrix.
+ */
+describe("canDeleteMessage() — own message vs. anyone's", () => {
+  it("every member may delete their own message, Guests included", () => {
+    for (const role of ROLES) {
+      assert.ok(
+        canDeleteMessage(role, true),
+        `${role} must be able to delete their own message`,
+      );
+    }
+  });
+
+  it("only Organizers may delete someone else's", () => {
+    assert.ok(canDeleteMessage("OWNER", false));
+    assert.ok(canDeleteMessage("CO_ORGANIZER", false));
+    assert.equal(canDeleteMessage("PARTICIPANT", false), false);
+    assert.equal(canDeleteMessage("GUEST", false), false);
+  });
+
+  it("authorship is what saves a Participant, not their rank", () => {
+    // The pair that matters: same role, opposite answers. If this ever collapses
+    // into one answer the ownership half of the rule has been lost.
+    assert.notEqual(
+      canDeleteMessage("PARTICIPANT", true),
+      canDeleteMessage("PARTICIPANT", false),
+    );
   });
 });

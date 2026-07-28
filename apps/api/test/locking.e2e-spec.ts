@@ -200,6 +200,81 @@ describe("Locking (e2e)", () => {
     assert.equal(rows.find((o) => o.id === b.id)!.status, "PROPOSED");
   });
 
+  /**
+   * The two tests above submit their stale version *after* the winner has
+   * committed, which is a fair simulation of the race but not the race itself:
+   * a read-check-then-write implementation would pass them and still lose a
+   * genuine interleaving. These two fire the requests together (Phase 7.4).
+   */
+  it("multi-select: concurrent locks of the same option — exactly one wins", async () => {
+    const owner = await makeUser("par-ms-owner");
+    const trip = await createTrip(owner.accessToken, "Parallel multi");
+    const cats = await categories(owner.accessToken, trip.id);
+    const transport = cats.TRANSPORT!;
+    const opt = await propose(owner.accessToken, trip.id, transport.id, "Ferry");
+    const url = `${optionsUrl(trip.id, transport.id)}/${opt.id}/lock`;
+
+    // Five callers all read version 0 and submit at once.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        http()
+          .post(url)
+          .set("Authorization", `Bearer ${owner.accessToken}`)
+          .send({
+            optionVersion: opt.version,
+            categoryVersion: transport.version,
+          }),
+      ),
+    );
+
+    const statuses = results.map((r) => r.status).sort();
+    assert.deepEqual(
+      statuses,
+      [201, 409, 409, 409, 409],
+      "exactly one concurrent locker may win; the rest are 409",
+    );
+
+    // And the database agrees — one lock, audited once.
+    const audits = await prisma.auditEvent.count({
+      where: { tripId: trip.id, targetId: opt.id, action: "OPTION_LOCKED" },
+    });
+    assert.equal(audits, 1, "the losing attempts wrote no audit trail");
+  });
+
+  it("single-choice: concurrent locks of DIFFERENT options — one decision stands", async () => {
+    const owner = await makeUser("par-sc-owner");
+    const trip = await createTrip(owner.accessToken, "Parallel single");
+    const cats = await categories(owner.accessToken, trip.id);
+    const stay = cats.ACCOMMODATION!;
+    const a = await propose(owner.accessToken, trip.id, stay.id, "Villa A");
+    const b = await propose(owner.accessToken, trip.id, stay.id, "Villa B");
+
+    // Both organizers read the same category version, then commit at once. This
+    // is the invariant that matters: a single-choice category must never end up
+    // with two locked options, whatever the interleaving.
+    const [resA, resB] = await Promise.all([
+      http()
+        .post(`${optionsUrl(trip.id, stay.id)}/${a.id}/lock`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ optionVersion: a.version, categoryVersion: stay.version }),
+      http()
+        .post(`${optionsUrl(trip.id, stay.id)}/${b.id}/lock`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ optionVersion: b.version, categoryVersion: stay.version }),
+    ]);
+
+    assert.deepEqual(
+      [resA!.status, resB!.status].sort(),
+      [201, 409],
+      "one locker wins, the other is told to re-read",
+    );
+
+    const locked = await prisma.option.count({
+      where: { categoryId: stay.id, status: "LOCKED" },
+    });
+    assert.equal(locked, 1, "a single-choice category holds one decision");
+  });
+
   it("single-choice: locking a new option displaces the previously-locked sibling (audited)", async () => {
     const owner = await makeUser("disp-owner");
     const trip = await createTrip(owner.accessToken, "Displace");

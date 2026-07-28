@@ -286,4 +286,55 @@ describe("Lifecycle + Dates write-back (e2e)", () => {
     });
     assert.equal(rowAfter.status, "HISTORY");
   });
+
+  /**
+   * The transition backbone (SRS §10) is not only "expired trips move" — it is
+   * that **nothing else does**. An over-broad predicate in the hourly job would
+   * freeze live trips wholesale, and the test above (`moved >= 1`) would not
+   * notice. Phase 7.4.
+   */
+  it("the expiry job moves only trips whose expiry has passed, and is idempotent", async () => {
+    const owner = await makeUser("job-owner");
+    const expired = await createTrip(owner.accessToken, "Long over");
+    const upcoming = await createTrip(owner.accessToken, "Still planning");
+
+    await prisma.trip.update({
+      where: { id: expired.id },
+      data: { expiresAt: new Date(Date.now() - DAY) },
+    });
+    await prisma.trip.update({
+      where: { id: upcoming.id },
+      data: { expiresAt: new Date(Date.now() + 30 * DAY) },
+    });
+
+    await lifecycle.expireTrips();
+
+    assert.equal(
+      (await prisma.trip.findUniqueOrThrow({ where: { id: expired.id } }))
+        .status,
+      "HISTORY",
+    );
+    assert.equal(
+      (await prisma.trip.findUniqueOrThrow({ where: { id: upcoming.id } }))
+        .status,
+      "ACTIVE",
+      "a trip whose expiry is still ahead must be left alone",
+    );
+
+    // Running again re-moves nothing: the job's predicate excludes trips it has
+    // already flipped, so an hourly schedule does not rewrite the same rows.
+    const before = await prisma.trip.findUniqueOrThrow({
+      where: { id: expired.id },
+    });
+    await lifecycle.expireTrips();
+    const after = await prisma.trip.findUniqueOrThrow({
+      where: { id: expired.id },
+    });
+    assert.equal(after.status, "HISTORY");
+    assert.deepEqual(
+      after.updatedAt,
+      before.updatedAt,
+      "an already-expired trip is not touched again",
+    );
+  });
 });

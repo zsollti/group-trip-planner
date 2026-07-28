@@ -15,6 +15,12 @@ out/
 coverage/
 .nyc_output/
 
+# ---- Playwright (Phase 7.4) ----
+# Reports and traces are per-run artefacts; CI uploads them on failure.
+playwright-report/
+test-results/
+.playwright/
+
 # ---- Environment & secrets ----
 .env
 .env.*

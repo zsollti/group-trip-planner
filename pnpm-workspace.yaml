@@ -1,3 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # The Playwright suite (Phase 7.4). Kept out of `apps/` deliberately: it is not
+  # a deployable app, and its `test:e2e` script is named so `turbo run test` does
+  # not pick it up — the browser journey is its own CI step.
+  - "e2e"

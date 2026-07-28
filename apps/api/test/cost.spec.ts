@@ -164,6 +164,30 @@ describe("computeCostDashboard — committed", () => {
     ]);
   });
 
+  it("sorts the subtotals by currency whatever order the options arrive in", () => {
+    // The contract promises sorted subtotals and the cost strip renders them in
+    // array order, so a stable currency order is a real guarantee — but every
+    // other case here happens to feed them in alphabetical order already, which
+    // would pass without any sorting at all (Phase 7.4).
+    const d = computeCostDashboard(
+      [
+        option({ id: "a", status: "LOCKED", amount: 10, currency: "USD" }),
+        option({ id: "b", categoryId: "cat-2", status: "LOCKED", amount: 10, currency: "CHF" }),
+        option({ id: "c", categoryId: "cat-3", status: "LOCKED", amount: 10, currency: "HUF" }),
+      ],
+      1,
+      null,
+    );
+    assert.deepEqual(
+      d.committed.map((s) => s.currency),
+      ["CHF", "HUF", "USD"],
+    );
+    assert.deepEqual(
+      d.projected.map((s) => s.currency),
+      ["CHF", "HUF", "USD"],
+    );
+  });
+
   it("a multi-select category can contribute several locked options", () => {
     const d = computeCostDashboard(
       [
