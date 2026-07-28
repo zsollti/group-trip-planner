@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Bundler resolution matches how Playwright loads these files: extensionless
+    // relative imports, no emit. DOM is in `lib` for the snippets that run
+    // inside the page via `page.evaluate`.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": ["tests", "support", "playwright.config.ts"]
+}

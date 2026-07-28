@@ -49,6 +49,14 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  // The Playwright suite runs in Node but also ships snippets that the browser
+  // evaluates (`page.evaluate`), so it needs both sets of globals.
+  {
+    files: ["e2e/**/*.ts"],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
   // Keep Prettier last so it disables stylistic rules.
   prettier,
 );

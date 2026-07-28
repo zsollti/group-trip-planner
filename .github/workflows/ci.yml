@@ -71,3 +71,23 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # Kept as its own step so a browser that fails to download is obviously
+      # not a failing test. `--with-deps` installs the system libraries Chromium
+      # needs on the Ubuntu runner.
+      - name: Install Playwright browser
+        run: pnpm --filter @gtp/e2e run e2e:install
+
+      # The browser journeys (Phase 7.4). They start their own API and static
+      # web server against the Postgres service above, so nothing else in this
+      # job needs to be running.
+      - name: End-to-end tests
+        run: pnpm --filter @gtp/e2e run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

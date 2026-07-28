@@ -49,7 +49,7 @@ and a Plan / 💶 Cost tab switch. For the phone-in-hand, casual-planning case.
 - **Frontend:** React + TypeScript + Vite — three UI paradigms explored, converged to the Trip Board (above)
 - **Shared:** Zod contracts + typed API client in `packages/`
 - **Real-time:** WebSockets · **Auth:** JWT access + server-stored refresh token
-- **Testing:** Vitest (unit/integration) + Playwright (E2E)
+- **Testing:** `node:test` against a real Postgres (API) + Vitest (board) + Playwright (browser journeys) — see [`docs/test-strategy.md`](./docs/test-strategy.md)
 
 ## Development
 
