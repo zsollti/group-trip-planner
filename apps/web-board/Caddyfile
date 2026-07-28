@@ -1,0 +1,53 @@
+# Serves the built Trip Board SPA. Railway provides $PORT; fall back to 80.
+:{$PORT:80} {
+	root * /srv
+	encode gzip
+
+	# SPA history fallback: serve real files if they exist, else hand every
+	# route to index.html so React Router resolves it client-side.
+	try_files {path} /index.html
+	file_server
+
+	# Long-cache the fingerprinted assets; never cache the HTML entrypoint.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+
+	# --- Security headers (Phase 7.5) ---
+	#
+	# The Phase-7.2 sweep hardened the API's edge with helmet but recorded the
+	# SPA's own headers as out of scope, because they come from here rather than
+	# from application code. This block closes that gap. Everything below is
+	# static-file-server policy — there is no server-side rendering, so the
+	# headers are the whole story.
+	#
+	# CSP notes, in the order the directives appear:
+	#   - script-src 'self': Vite emits external, fingerprinted module scripts
+	#     and no inline script, so no hash or nonce is needed.
+	#   - style-src allows 'unsafe-inline' because inline `style` attributes are
+	#     unavoidable here: dnd-kit writes drag transforms onto the element and
+	#     the avatar fallback sets its own hue. This is the one relaxation, and
+	#     it is the weakest directive of the set — style injection is a real but
+	#     much narrower risk than script injection, which stays locked down.
+	#   - img-src carries blob: for the upload picker's local preview (Phase 6.2
+	#     previews with an objectURL so trying a picture costs no upload) and the
+	#     API origin for covers and avatars served by GET /media/:name.
+	#   - connect-src needs the websocket origin spelled out separately: a ws(s)
+	#     URL is not covered by the matching https:// entry.
+	#   - frame-ancestors 'none' is the modern X-Frame-Options; both are sent
+	#     because the legacy header still governs some embedded webviews.
+	#
+	# API_ORIGIN / API_WS_ORIGIN are runtime service variables (see DEPLOY.md).
+	# They default to the local API so `docker run` of this image works offline.
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: {$API_ORIGIN:http://localhost:3000}; font-src 'self'; connect-src 'self' {$API_ORIGIN:http://localhost:3000} {$API_WS_ORIGIN:ws://localhost:3000}; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# Deny the powerful APIs this app never asks for, so a compromised
+		# dependency cannot prompt for them either.
+		Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+		# Caddy advertises itself by default; nothing downstream needs to know.
+		-Server
+	}
+}

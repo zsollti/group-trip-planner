@@ -8,8 +8,13 @@ import {
   setApiBaseUrl,
 } from "@gtp/api-client";
 import { App } from "./App";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { initErrorReporting } from "./lib/monitoring";
 import { applyTheme, getStoredTheme } from "./lib/theme";
 import "./index.css";
+
+// Before anything can throw. No-ops without VITE_SENTRY_DSN (Phase 7.5).
+initErrorReporting();
 
 // Apply the saved light/dark choice before first paint (no flash of OS theme).
 applyTheme(getStoredTheme());
@@ -26,12 +31,15 @@ const queryClient = createQueryClient();
 
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    {/* Outermost, so a throw inside any provider is still caught. */}
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   </StrictMode>,
 );

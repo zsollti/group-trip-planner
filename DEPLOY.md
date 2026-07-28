@@ -1,182 +1,308 @@
-# Deploy — Railway (Phase 0.8 dry-run)
+# Deploy — production runbook (Railway)
 
-Puts the walking skeleton on a public URL: **register → verify → login** works
-from the internet. Three Railway services in one project:
+Everything needed to put **Group Trip Planner** on a public URL and keep it
+there: the services, the environment matrix, migrations, backups, monitoring,
+and the CI-gated deploy on merge to `main`.
 
-| Service    | What it is                       | Built from                     | Public? |
-| ---------- | -------------------------------- | ------------------------------ | ------- |
-| `Postgres` | Managed database                 | Railway plugin                 | no      |
-| `api`      | NestJS API + runs the migration  | `apps/api/Dockerfile`          | yes     |
-| `web-deck` | React SPA (Command Deck), static | `apps/web-deck/Dockerfile`     | yes     |
+**Production only, no staging.** The full gate (lint · typecheck · build · unit
+· integration · Playwright) runs on every pull request; merging to `main` is the
+deploy. There is no second environment to drift out of sync with this one.
 
-The API and the web app get **separate** `*.up.railway.app` domains — i.e. two
-different sites. That's the whole reason this dry-run exists: it forces the
-cross-site cookie + CORS handshake now, while the app is tiny. The config below
-handles it (`SameSite=None; Secure` refresh cookie + a locked CORS origin).
+| Service     | What it is                              | Built from                  | Public |
+| ----------- | --------------------------------------- | --------------------------- | ------ |
+| `Postgres`  | Managed database + daily backups        | Railway plugin              | no     |
+| `api`       | NestJS API; applies migrations on boot  | `apps/api/Dockerfile`       | yes    |
+| `web-board` | The Trip Board SPA, static behind Caddy | `apps/web-board/Dockerfile` | yes    |
 
-> **Cost:** everything here fits the Railway **Trial** ($5 credit). See
-> [Teardown](#7-teardown-stop-usage) to stop usage when you're done demoing.
+The API and the web app get **separate** domains — two different sites. That is
+the constraint the whole auth transport is built around, and Phase 0.8 proved it
+early on purpose: the refresh cookie is `SameSite=None; Secure` and the API
+answers CORS with an explicit origin allowlist. Both halves have to line up, or
+login appears to work and silent refresh quietly fails.
+
+> **Cost.** This fits Railway's Trial ($5 credit) but consumes it while running —
+> the database is the main drain. See [Teardown](#10-teardown) to stop usage.
 
 ---
 
 ## 0. Prerequisites
 
-- A Railway account (Trial is fine), signed in with GitHub.
-- This branch (`phase-0.8-railway-deploy`) merged to `main`, **or** pushed —
-  Railway deploys from a GitHub branch, so the Dockerfiles + `railway.json`
-  files must be on the branch you point it at.
-- One secret generated locally (used in step 3):
+- A Railway account, signed in with GitHub, with the app installed on
+  `zsollti/group-trip-planner`.
+- The code on `main` (Railway builds from a branch or an upload; both need the
+  Dockerfiles and `railway.json` files present).
+- One secret generated locally:
 
   ```bash
-  # A strong JWT signing secret (min 16 chars; this gives 64 hex chars).
-  openssl rand -hex 32
+  openssl rand -hex 32     # JWT_SECRET — the API refuses the placeholder in production
   ```
 
-  Copy the output somewhere for a moment — you'll paste it into the API service.
+---
+
+## 1. Project + database
+
+1. Railway → **New Project** → **Deploy PostgreSQL**.
+2. Leave the service named **`Postgres`** — the API references it as
+   `${{Postgres.DATABASE_URL}}`, which breaks if it is renamed.
+
+### Backups
+
+Postgres service → **Settings → Backups** → enable **daily** snapshots and set
+retention (7 days is plenty here). Railway takes these on the managed volume; no
+application change is involved.
+
+Two things worth knowing before you need them:
+
+- A restore replaces the volume, so note the point-in-time you restore to.
+- Backups cover the **database only**. Uploaded images live on the API's volume
+  (§4) and are not in the snapshot; they are re-uploadable content, and losing
+  them costs a cover photo rather than a trip's decisions.
 
 ---
 
-## 1. Create the project + database
+## 2. The `api` service
 
-1. Railway dashboard → **New Project** → **Deploy PostgreSQL** (or **Empty
-   Project**, then **+ New** → **Database** → **PostgreSQL**).
-2. You now have a project with a **Postgres** service. Leave it — no config
-   needed. It exposes a `DATABASE_URL` we reference from the API in step 3.
-
----
-
-## 2. Create the API service
-
-1. In the project: **+ New** → **GitHub Repo** → pick
-   `zsollti/group-trip-planner`. If the repo isn't listed, click **Configure
-   GitHub App** and grant Railway access to it (this is the repo authorization
-   we skipped at signup).
-2. Railway creates a service from the repo. Rename it to **`api`** (service
-   Settings → Name).
-3. **Settings → Source**
-   - **Branch:** `main` (or `phase-0.8-railway-deploy` if not yet merged).
-   - **Root Directory:** leave empty / `/`. The Dockerfile builds from the
-     repo root on purpose (pnpm workspace).
-   - **Config-as-code / Railway config file:** set to **`apps/api/railway.json`**.
-     That file selects the Dockerfile builder and the `/health` healthcheck.
-   - If your Railway UI has no config-path field, instead add a service
-     **variable** `RAILWAY_DOCKERFILE_PATH = apps/api/Dockerfile` — same effect.
-4. **Don't deploy yet** — set the variables in step 3 first (a boot without
-   `DATABASE_URL`/`JWT_SECRET` fails fast by design).
-
----
-
-## 3. API environment variables
-
-API service → **Variables** → add these. Use Railway's **reference** syntax for
-the database so it always tracks the Postgres service:
-
-| Variable          | Value                                   | Notes                                        |
-| ----------------- | --------------------------------------- | -------------------------------------------- |
-| `DATABASE_URL`    | `${{Postgres.DATABASE_URL}}`            | Reference variable — click "Add Reference".  |
-| `JWT_SECRET`      | *(paste the `openssl rand -hex 32`)*    | Required, min 16 chars.                       |
-| `NODE_ENV`        | `production`                            | Also baked in the image; set it to be sure.   |
-| `COOKIE_SAMESITE` | `none`                                  | **Required** — api & web are different sites. |
-| `COOKIE_SECURE`   | `true`                                  | Cross-site `SameSite=None` cookies must be Secure. |
-| `CORS_ORIGINS`    | *(fill in step 5)*                      | The web app's `https://…` origin.             |
-| `WEB_APP_URL`     | *(fill in step 5)*                      | Where verification links point.               |
-| `API_PUBLIC_URL`  | *(the API's own https domain)*          | Where unsubscribe links point (clicked from a mail client, so they must reach the API directly). |
-
-Optional (only if you want real emails instead of logged links):
-`RESEND_API_KEY`, `EMAIL_FROM`. Without `RESEND_API_KEY`, the verification link
-is written to the API logs — fine for a dry-run (see step 6).
-
-Then **Settings → Networking → Generate Domain** for the API. Copy it, e.g.
-`https://gtp-api-production.up.railway.app`. Trigger a **Deploy**.
-
-Watch the build/deploy logs. On success you'll see the migration apply
-(`prisma migrate deploy`) then `API listening…`, and the service goes green.
-Verify: open `https://<api-domain>/health` → `{"status":"ok","db":"up",…}`.
-
----
-
-## 4. Create the web service
-
-1. **+ New** → **GitHub Repo** → same repo (Railway lets one repo back multiple
-   services). Rename to **`web-deck`**.
+1. **+ New** → **GitHub Repo** → `zsollti/group-trip-planner`. Rename the
+   service to **`api`** (Settings → Name) — the deploy workflow targets it by
+   name.
 2. **Settings → Source**
-   - **Branch:** same as the API.
-   - **Root Directory:** empty / `/`.
-   - **Config file:** **`apps/web-deck/railway.json`** (or variable
-     `RAILWAY_DOCKERFILE_PATH = apps/web-deck/Dockerfile`).
-3. **Variables** → add **`VITE_API_URL`** = the API domain from step 3
-   (`https://gtp-api-production.up.railway.app`, no trailing slash).
-   > This is read at **build time** (Vite inlines it). It must be set *before*
-   > the build, and changing it later needs a redeploy.
-4. **Settings → Networking → Generate Domain** for the web app. Copy it, e.g.
-   `https://gtp-web-deck-production.up.railway.app`. Deploy.
+   - **Root Directory:** empty / `/` — the Dockerfile builds from the repo root
+     because this is a pnpm workspace.
+   - **Config file:** `apps/api/railway.json` (selects the Dockerfile builder and
+     the `/health` healthcheck). If the field is missing in your UI, add a
+     service variable `RAILWAY_DOCKERFILE_PATH = apps/api/Dockerfile` instead.
+   - **Turn OFF automatic deploys on push.** Deploys come from the CI-gated
+     workflow in §8; leaving both on means every merge deploys twice, and the
+     Railway-native one starts before CI has finished.
+3. **Settings → Networking → Generate Domain**, port **3000**. Copy the domain.
+4. Set the variables in §3 **before** the first deploy — a boot without
+   `DATABASE_URL`/`JWT_SECRET` fails fast by design.
 
 ---
 
-## 5. Wire the two origins together (the cross-site step)
+## 3. Environment matrix
 
-Now that both domains exist, close the loop on the API:
+### `api`
 
-1. API service → **Variables**:
-   - `CORS_ORIGINS` = the **web** domain, e.g.
-     `https://gtp-web-deck-production.up.railway.app`
-     (comma-separate if you add more front-ends later).
-   - `WEB_APP_URL` = the same web domain.
-2. Redeploy the API (Railway usually redeploys automatically on a variable
-   change).
+| Variable          | Value                                | Why                                                                                             |
+| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`    | `${{Postgres.DATABASE_URL}}`         | Reference variable — tracks the Postgres service over the private net.                          |
+| `JWT_SECRET`      | _(the `openssl rand -hex 32` value)_ | Required. Production **rejects** the `.env.example` placeholder.                                |
+| `NODE_ENV`        | `production`                         | Baked into the image too; set it so the production checks are on.                               |
+| `COOKIE_SAMESITE` | `none`                               | Required — api and web are different sites.                                                     |
+| `COOKIE_SECURE`   | `true`                               | A `SameSite=None` cookie without `Secure` is dropped by every browser.                          |
+| `CORS_ORIGINS`    | `https://<web-board domain>`         | The origin allowlist. Production **refuses to boot** on a non-https one.                        |
+| `WEB_APP_URL`     | `https://<web-board domain>`         | Where verification / unsubscribe links land in the SPA.                                         |
+| `API_PUBLIC_URL`  | `https://<api domain>`               | Unsubscribe links are clicked from a mail client with no session, so they hit the API directly. |
+| `UPLOAD_DIR`      | `/data/uploads`                      | **Must be absolute, on the volume from §4.** See the warning there.                             |
 
-Why this matters: the browser only sends the httpOnly refresh cookie on a
-cross-site request when it's `SameSite=None; Secure` (step 3) **and** the API
-answers CORS with `Access-Control-Allow-Origin: <web domain>` +
-`Allow-Credentials: true` (that origin must be in `CORS_ORIGINS`). Both halves
-have to line up or login "works" but silent-refresh fails.
+Optional but wanted in a real deployment:
+
+| Variable               | Value                                       | Effect                                                                       |
+| ---------------------- | ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `RESEND_API_KEY`       | _(Resend key)_                              | Sends real email. Without it, verification links are written to the logs.    |
+| `EMAIL_FROM`           | `Trips <no-reply@your-domain>`              | Needs a domain verified with Resend; the default sender is Resend's sandbox. |
+| `SENTRY_DSN`           | _(project DSN)_                             | Turns on error reporting. Unset = the SDK is never initialised.              |
+| `SENTRY_ENVIRONMENT`   | `production`                                | Separates real events from a local reproduction.                             |
+| `SENTRY_RELEASE`       | _(commit sha)_                              | Links a stack trace to source. Optional; events still group without it.      |
+| `GOOGLE_CLIENT_ID`     | _(OAuth client id)_                         | All **three** are needed, or `GET /auth/google` 404s and the button is off.  |
+| `GOOGLE_CLIENT_SECRET` | _(OAuth client secret)_                     |                                                                              |
+| `GOOGLE_CALLBACK_URL`  | `https://<api domain>/auth/google/callback` | Must match the Google console entry **byte for byte**.                       |
+
+### `web-board`
+
+| Variable          | Value                   | Notes                                                                                                         |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL`    | `https://<api domain>`  | **Build-time.** Vite inlines it; changing it needs a rebuild.                                                 |
+| `VITE_SENTRY_DSN` | _(browser project DSN)_ | **Build-time.** Omit and the SDK is tree-shaken out of the bundle entirely.                                   |
+| `VITE_APP_ENV`    | `production`            | **Build-time.** Labels browser events.                                                                        |
+| `API_ORIGIN`      | `https://<api domain>`  | **Runtime.** Feeds the CSP in `apps/web-board/Caddyfile`.                                                     |
+| `API_WS_ORIGIN`   | `wss://<api domain>`    | **Runtime.** A `wss://` origin is not covered by the matching `https://` entry — the websocket needs its own. |
+
+> The build-time / runtime split is the one that catches people. The three
+> `VITE_*` values are frozen into the JavaScript when the image is built; the two
+> Caddy values are read when the container starts. A `VITE_*` change that is not
+> followed by a rebuild silently keeps the old value.
 
 ---
 
-## 6. Verify the live skeleton (Definition of Done)
+## 4. Persistent storage for uploads
 
-Open the **web** domain in a browser and:
+Covers and avatars are re-encoded and written to disk by the local storage
+driver (`StorageDriver` / `LocalDiskStorage`, Phase 6.1 — swapping in R2 is a
+provider change and nothing above the seam moves).
 
-1. **Register** with a real-looking email + password.
-2. **Verify email:** if you set `RESEND_API_KEY`, click the emailed link.
-   Otherwise open the **API service logs** in Railway, find the logged
-   verification URL, and open it.
-3. **Login** with the same credentials → you land on the app's empty
-   authenticated dashboard.
-4. Reload the page — you stay logged in (silent refresh via the cookie worked).
+**A container's filesystem is discarded on every redeploy.** Without a volume,
+every uploaded image disappears the next time `main` is merged, while the
+database rows keep pointing at them — so the app serves 404s for pictures that
+users can see are missing but cannot re-attach.
 
-If all four pass, Phase 0.8 is done: the walking skeleton runs at a public URL.
+1. `api` service → **Settings → Volumes** → **Add Volume**, mount path
+   **`/data`**.
+2. Confirm `UPLOAD_DIR=/data/uploads` in the variables (§3). The directory is
+   created on first write.
+
+The API enforces this: in production it refuses to start on a relative
+`UPLOAD_DIR`, with a message saying why. That check exists because this is a
+data-loss bug no test can see — it needs two deploys to appear.
 
 ---
 
-## 7. Teardown (stop usage)
+## 5. The `web-board` service
 
-Trial credit is consumed while services run. To stop it after demoing:
+1. **+ New** → **GitHub Repo** → same repo (one repo can back several services).
+   Rename to **`web-board`**.
+2. **Settings → Source** → Root Directory empty / `/`; config file
+   `apps/web-board/railway.json`. Turn off automatic deploys, as with the API.
+3. Add the variables from §3.
+4. **Settings → Networking → Generate Domain**, port **80** (Caddy).
+5. Go back and set the API's `CORS_ORIGINS` / `WEB_APP_URL` to this domain, then
+   redeploy the API.
 
-- **Pause** or **Remove** the `api` and `web-deck` services (and `Postgres` if
-  you don't need the data). Project Settings → **Danger** → delete the project
-  removes everything at once.
-- Redeploying later is just re-creating the services from this same config.
+### Google OAuth
+
+The Google client is created in the [Cloud console](https://console.cloud.google.com/apis/credentials).
+Add the production callback as an **Authorized redirect URI**:
+
+```
+https://<api domain>/auth/google/callback
+```
+
+It must match `GOOGLE_CALLBACK_URL` exactly — Google compares the string, not the
+URL semantics, so a trailing slash is a different URI. The local
+`http://localhost:3000/auth/google/callback` entry can stay alongside it.
+
+---
+
+## 6. Monitoring
+
+**Health check.** `GET /health` pings the database and answers `503` when it
+cannot reach it, so a green check means "up **and** connected", not "the process
+is running". Railway's own healthcheck already points at it
+(`apps/api/railway.json`), and the deploy workflow polls it after shipping.
+
+**Errors — Sentry.** Two projects, one per runtime: a **Node** project for the
+API (`SENTRY_DSN`) and a **Browser/React** one for the board (`VITE_SENTRY_DSN`).
+Both are opt-in — with no DSN the SDK is never initialised, which is how local
+development and CI run.
+
+> Both sides scrub their events before sending, and the API's scrub is
+> load-bearing rather than decorative: `sendDefaultPii: false` governs the
+> _user's identity_, not the request envelope around it, and with the scrub
+> disabled a thrown error inside `POST /auth/login` carried the plaintext
+> password, the `Authorization` header and the refresh cookie to the ingest
+> endpoint. See `apps/api/src/observability/instrument.ts`. The browser side
+> strips invite and verification tokens out of URLs and breadcrumbs, since
+> `/join/:token` _is_ the credential.
+
+**Uptime ping.** Point an external monitor at `https://<api domain>/health` on a
+5-minute interval — [UptimeRobot](https://uptimerobot.com) and Better Stack both
+do this on a free tier. It has to be external: a monitor running inside the
+platform you are monitoring cannot tell you the platform is down. Alert on two
+consecutive failures to ride out a redeploy.
+
+---
+
+## 7. Migrations
+
+The API container runs `prisma migrate deploy` before it boots, so a deploy
+applies any pending migration against the managed database. Running it at start
+rather than at build time is deliberate — the database is only reachable over
+Railway's private network, which does not exist during a build.
+
+If a migration fails, the process exits non-zero, Railway restarts it, and the
+old deployment keeps serving. `migrate deploy` never generates or resets a
+schema; it applies committed migration files in order and nothing else.
+
+---
+
+## 8. CI/CD — deploy on merge
+
+`.github/workflows/deploy.yml` runs on `workflow_run` of the **CI** workflow
+completing on `main`, and only proceeds when it concluded green. That ordering is
+the point: a `push`-triggered deploy would race CI and could ship code that had
+not passed it. It is also why Railway's own auto-deploy is switched off (§2) —
+this workflow is the single path to production.
+
+Set up, once:
+
+1. Railway → project **Settings → Tokens** → create a **project token** scoped to
+   the production environment.
+2. GitHub repo → **Settings → Secrets and variables → Actions**:
+   - secret **`RAILWAY_TOKEN`** = that token.
+   - variable **`API_PUBLIC_URL`** = `https://<api domain>` — the workflow's
+     post-deploy health poll uses it, and warns rather than fails if it is unset.
+
+The API deploys first and on its own, so the schema the new frontend expects is
+in place before that frontend is served.
+
+`workflow_dispatch` is enabled too, for the case that needs it most: a variable
+change. The three `VITE_*` values are compiled into the bundle, so changing one
+in Railway does nothing until something rebuilds the image.
+
+---
+
+## 9. Verify the live deployment
+
+Open the web domain and walk the real path:
+
+1. **Register** → the account is created unverified.
+2. **Verify** — click the emailed link, or find the logged URL in the API logs if
+   Resend is not configured.
+3. **Create a trip**, **invite** someone (or open the invite link in a private
+   window), **propose** an option, **vote**, then **drag a card to Decided**.
+4. **Upload a cover image**, then redeploy the API and reload — the cover must
+   still be there. This is the check that the volume in §4 is actually mounted,
+   and it is the only way to catch a missing one.
+5. Open the board in two windows and post a chat message — it should appear in
+   both without a reload (the websocket is up, so `API_WS_ORIGIN` is right).
+6. Reload a signed-in page — you stay signed in (cross-site silent refresh
+   worked).
+
+---
+
+## 10. Teardown
+
+Trial credit is consumed while services run:
+
+- **Remove the deployment** on `api`, `web-board` and `Postgres` (the database is
+  the main drain). The service tiles, variables and domains stay, so a
+  **Redeploy** brings everything back in seconds.
+- Project Settings → **Danger** → delete the project removes everything at once;
+  rebuilding from this document is then the recovery path.
 
 ---
 
 ## Troubleshooting
 
-- **Build fails on `argon2`** (native module): the slim base normally uses a
-  prebuilt binary. If not, add build tools to `apps/api/Dockerfile` before the
-  install step:
+- **`Invalid environment configuration` at boot.** A required variable is
+  missing or a production check failed. The message lists every problem at once
+  and names the variable — including the three production-only rules (absolute
+  `UPLOAD_DIR`, https-only `CORS_ORIGINS`, no placeholder `JWT_SECRET`).
+- **API boots then `/health` 503s.** The database is unreachable. Confirm
+  `DATABASE_URL` is the `${{Postgres.DATABASE_URL}}` reference and that Postgres
+  is running. The healthcheck pings the DB on purpose.
+- **Login works but a reload signs you out**, or a CORS error appears in the
+  console. The cross-site pair is misaligned: `CORS_ORIGINS` must be the exact
+  web origin, with `COOKIE_SAMESITE=none`, `COOKIE_SECURE=true`, over https.
+- **The board loads but calls `localhost:3000`.** `VITE_API_URL` was not set at
+  build time. Set it and rebuild — it is build-time only.
+- **Everything renders but nothing loads, with CSP errors in the console.**
+  `API_ORIGIN` / `API_WS_ORIGIN` on the web service do not match the API domain.
+  They are separate entries by necessity: a `wss://` origin is not covered by the
+  matching `https://` one.
+- **Chat and live updates never connect, but the REST calls work.**
+  `API_WS_ORIGIN` specifically — the fetches pass CSP while the socket is blocked.
+- **Cover images and avatars vanished after a deploy.** The volume from §4 is not
+  mounted, or `UPLOAD_DIR` points off it. In production the API refuses to start
+  on a relative path, so the likely cause is an absolute path outside `/data`.
+- **Images 404 or are blocked cross-origin.** `GET /media/:name` opts itself out
+  of the API's strict `Cross-Origin-Resource-Policy` (Phase 7.2) because an
+  `<img>` on the web domain is a cross-origin read; if that opt-out is ever
+  removed, every cover and avatar breaks in the browser and in no test.
+- **Google sign-in returns `redirect_uri_mismatch`.** `GOOGLE_CALLBACK_URL` and
+  the console's Authorized redirect URI differ — compare them character by
+  character, trailing slash included.
+- **Build fails on `argon2`.** The slim base normally uses a prebuilt binary. If
+  it does not, add build tools before the install step in `apps/api/Dockerfile`:
   `RUN apt-get install -y --no-install-recommends python3 make g++`.
-- **API boots then 503s on `/health`:** the DB isn't reachable — confirm
-  `DATABASE_URL` is the `${{Postgres.DATABASE_URL}}` reference and Postgres is
-  running. The healthcheck pings the DB on purpose.
-- **`Invalid environment configuration` in logs:** a required var is missing
-  (`DATABASE_URL`/`JWT_SECRET`). The message lists exactly which — set it.
-- **Login works but reload logs you out / CORS error in console:** the
-  cross-site pair is misaligned. Recheck `CORS_ORIGINS` == exact web origin,
-  `COOKIE_SAMESITE=none`, `COOKIE_SECURE=true`, and that you're on `https`.
-- **Web shows a blank page / calls `localhost:3000`:** `VITE_API_URL` wasn't set
-  at build time. Set it and redeploy the web service (it's build-time only).
-- **Prisma "engine not found" at runtime:** the client is generated inside the
-  image on the same platform it runs on, so this shouldn't occur; if it does
-  after a base-image change, ensure `apps/api/prisma` is copied before install
-  (it is) so `prisma generate` runs during postinstall.

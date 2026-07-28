@@ -1,0 +1,98 @@
+name: Deploy
+
+# Production-only, no staging (Phase-7 decision 2): the full gate runs on every
+# pull request, and merging to main is the deploy.
+#
+# The trigger is deliberately `workflow_run` rather than `push`. A push-triggered
+# deploy would race the CI job and ship code that had not passed it; this only
+# starts once the CI workflow has *finished on main*, and the guard below drops
+# the run unless it finished green. Railway's own GitHub auto-deploy is left
+# switched off for the same reason — see DEPLOY.md — so this workflow is the
+# single path from merge to production.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Also available by hand, for redeploying after a variable change (which
+  # needs a rebuild for the web app: Vite inlines VITE_* at build time).
+  workflow_dispatch:
+
+# Never let two deploys of the same service overlap. Not cancel-in-progress: a
+# half-applied migration is worse than a queued deploy.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    # `workflow_run` fires on failure too, so the conclusion has to be checked
+    # explicitly. On workflow_dispatch there is no upstream run to inspect.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    environment: production
+
+    steps:
+      # workflow_run checks out the default branch by default, which is what we
+      # want, but pin it to the exact commit CI validated so a merge landing
+      # mid-run cannot slip an unverified commit into the deploy.
+      - name: Checkout the commit CI passed
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # Absent on a fork, or before the owner has minted a project token. Fail
+      # loudly rather than reporting a green deploy that never happened.
+      - name: Require the Railway token
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN is not set. Add a Railway project token" \
+                 "as a repository secret (see DEPLOY.md §CI/CD)."
+            exit 1
+          fi
+
+      - name: Install the Railway CLI
+        run: npm install -g @railway/cli
+
+      # The API first, and on its own: its container runs `prisma migrate
+      # deploy` at start, so the schema the new frontend expects is in place
+      # before that frontend is served. Migrations in this project are additive
+      # (every one to date adds a column, table or index), so the brief window
+      # where the old API meets the new schema is safe.
+      - name: Deploy the API
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service api --ci
+
+      - name: Deploy the Trip Board
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service web-board --ci
+
+      # A deploy that boots but cannot reach Postgres is the failure worth
+      # catching automatically; /health returns 503 for exactly that case.
+      - name: Verify the deployed API is healthy
+        env:
+          API_URL: ${{ vars.API_PUBLIC_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::warning::Repository variable API_PUBLIC_URL is unset;" \
+                 "skipping the post-deploy health check."
+            exit 0
+          fi
+          for attempt in $(seq 1 20); do
+            code=$(curl -fsS -o /tmp/health.json -w '%{http_code}' "$API_URL/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "Healthy after ${attempt} attempt(s): $(cat /tmp/health.json)"
+              exit 0
+            fi
+            echo "attempt ${attempt}: HTTP ${code:-no response}"
+            sleep 15
+          done
+          echo "::error::$API_URL/health did not return 200 within five minutes."
+          exit 1

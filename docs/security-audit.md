@@ -235,8 +235,83 @@ Deliberate, with reasoning — not oversights.
   run as part of this pass.
 - The sweep is a **code audit plus targeted tests**, not a penetration test. No
   fuzzing, no automated scanner (ZAP/Burp), no dependency-confusion review.
-- CSP is helmet's default. It governs only framework error pages here — the SPA
-  is served separately by Caddy, whose headers are **not** covered by this
-  audit and should get their own pass at 7.5.
+- CSP is helmet's default on the API. It governs only framework error pages
+  there — the SPA is served separately by Caddy. ~~Not covered by this audit;
+  give it its own pass at 7.5.~~ **Closed in 7.5, see the addendum below.**
 - Per project convention the frontend has no screenshot tests; the rendered
   result is reviewed by the owner.
+
+---
+
+## Addendum — Phase 7.5 (deploy)
+
+Two items the 7.2 sweep could not reach, because neither exists until the app is
+actually deployed.
+
+### The SPA's own headers (the deferred item above)
+
+`apps/web-board/Caddyfile` now sends a **Content-Security-Policy**, `nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a `Permissions-Policy`
+denying geolocation/camera/microphone/payment/USB, and drops Caddy's `Server`
+banner.
+
+- `script-src 'self'` with no `unsafe-inline` and no nonce — Vite emits external
+  fingerprinted modules and no inline script.
+- `style-src` **does** allow `'unsafe-inline'`, and this is the one relaxation in
+  the set. Inline `style` attributes are unavoidable here: dnd-kit writes drag
+  transforms onto the element and the avatar fallback sets its own hue. Style
+  injection is a real but far narrower risk than script injection.
+- `connect-src` and `img-src` are driven by `API_ORIGIN` / `API_WS_ORIGIN`
+  service variables. The websocket needs its own entry — a `wss://` origin is
+  **not** covered by the matching `https://` one, and getting that wrong breaks
+  only chat and live updates while every REST call keeps working.
+
+**Verified against the real image, not the config file.** `vite preview` (what
+the e2e suite normally serves) sends no headers at all, so a CSP mistake is
+invisible to every test in this repo. The deploy image was therefore built and
+run, and the three Playwright journeys were re-run against it through the new
+`E2E_WEB_URL` seam — all three pass, which exercises the REST origin, the
+websocket origin and the image origin in a real browser.
+
+### Sentry sends more than `sendDefaultPii: false` implies
+
+Error reporting was added in this phase, which means a new third party receives
+data from inside request handling. The SDK option that reads as though it
+covers this does not.
+
+With the scrub disabled and an error thrown inside `POST /auth/login`, the event
+sent to the ingest endpoint contained the **plaintext password**, the
+**`Authorization` header**, and the **refresh cookie** (twice — once under
+`headers`, once under `cookies`), despite `sendDefaultPii: false`. That option
+governs the _user's identity_ — IP address, user id — not the request envelope
+around it. Confirmed empirically against a local ingest stand-in rather than
+inferred from the documentation.
+
+`beforeSend` in `apps/api/src/observability/instrument.ts` is therefore
+load-bearing: it drops the body wholesale (a field-name denylist is a list
+someone forgets to extend) and removes both headers, mirroring the redaction
+pino already applies. Method, path and stack trace survive, which is what a
+report needs.
+
+The browser side has its own version of the problem: `/join/:token` **is** the
+credential, so a raw URL in an event or a breadcrumb hands out a working invite.
+`apps/web-board/src/lib/monitoring.ts` redacts invite and verification tokens
+from both, and is unit-tested — the leak is otherwise invisible, since the app
+behaves identically either way and the evidence only ever appears in someone
+else's dashboard.
+
+Both sides are **opt-in**: with no DSN the SDK is never initialised, so local
+development and CI send nothing anywhere.
+
+### New production-only startup checks
+
+Three settings whose development defaults are convenient and whose production
+values are load-bearing now fail startup instead of shipping green
+(`apps/api/src/config/env.ts`, unit-tested in `test/env.spec.ts`):
+
+- `UPLOAD_DIR` must be absolute — a relative path lives inside the container and
+  is discarded on every redeploy, silently losing every cover and avatar.
+- every `CORS_ORIGINS` entry must be `https://` — this is the strict-CORS
+  requirement enforced rather than documented, and it stops the localhost
+  default reaching production.
+- `JWT_SECRET` must not be the `.env.example` placeholder.

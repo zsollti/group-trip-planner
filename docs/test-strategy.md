@@ -124,6 +124,32 @@ In CI the browser install and the journeys are **separate steps** from `pnpm
 test`, so a browser that fails to download is obviously not a failing test. The
 Playwright report is uploaded as an artifact when a run fails.
 
+### Running the journeys against the deploy image (Phase 7.5)
+
+`vite preview` serves the built bundle but sends **no security headers**, so the
+Content-Security-Policy the production container actually serves is invisible to
+every test here — and a CSP mistake fails silently in exactly one place, a real
+browser in production. `E2E_WEB_URL` points the journeys at an already-running
+frontend so the shipped image can be exercised directly:
+
+```bash
+docker build -f apps/web-board/Dockerfile \
+  --build-arg VITE_API_URL=http://localhost:3100 -t gtp-web-board .
+docker run -d -p 4173:80 --name gtp-board \
+  -e API_ORIGIN=http://localhost:3100 -e API_WS_ORIGIN=ws://localhost:3100 \
+  gtp-web-board
+E2E_WEB_URL=http://localhost:4173 pnpm --filter @gtp/e2e run test:e2e
+```
+
+The reconnect journey is what makes this worth doing: it is the only test that
+would notice `connect-src` missing the `ws://` origin, because a CSP that blocks
+the websocket leaves every REST call working.
+
+CI deliberately stays on `vite preview` — it already builds the bundle, and
+building the image a second time would cost minutes of every run for one header
+check. So this is a **deliberate, manual gate**: run it when the Caddyfile, the
+API origin, or anything about how the frontend is served changes.
+
 ---
 
 ## 5. Known limits
@@ -140,3 +166,9 @@ Playwright report is uploaded as an artifact when a run fails.
   unexercised; only the queue, the templating and the token logic are.
 - **Coverage is not measured**, deliberately — the posture is demonstrative, and
   a percentage would invite writing tests to move the number.
+- **The production CSP is not checked by CI**, only by the manual run above. A
+  Caddyfile change that breaks it would pass every automated gate.
+- **Nothing tests the deployed environment itself.** The `railway.json` files,
+  the volume mount and the service variables are verified by the checklist in
+  `DEPLOY.md` §9 and by the deploy workflow's post-deploy `/health` poll — not by
+  a test in this repo.

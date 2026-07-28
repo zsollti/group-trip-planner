@@ -14,7 +14,10 @@ const boolFromString = z
   .enum(["true", "false", "1", "0"])
   .transform((v) => v === "true" || v === "1");
 
-export const envSchema = z.object({
+/** The placeholder shipped in .env.example — never a real signing secret. */
+const PLACEHOLDER_JWT_SECRET = "change-me-to-a-long-random-secret";
+
+const baseEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -80,10 +83,31 @@ export const envSchema = z.object({
   THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
 
+  // --- Error reporting (Phase 7.5) ---
+  // Opt-in: unset means the Sentry SDK is never initialised. These are read
+  // straight from process.env by observability/instrument.ts, which has to run
+  // before this schema is parsed; they are declared here so the environment
+  // contract stays complete and a malformed value still fails startup.
+  SENTRY_DSN: z.string().url().optional(),
+  // Separates production events from a local reproduction in the Sentry UI.
+  // Defaults to NODE_ENV at init time.
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  // Identifies the build a report came from. Set it to the deployed commit.
+  SENTRY_RELEASE: z.string().optional(),
+  // Performance tracing is off by default — errors are what this deployment
+  // needs, and spans are the expensive half of the free-tier quota.
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+
   // --- Image uploads (Phase 6.1) ---
   // Where re-encoded images are written by the local-disk driver. Must sit
   // outside the served source tree; nothing maps it as a web root, and bytes
   // only leave through the media route. Swapped for R2 later.
+  //
+  // In production this must be an ABSOLUTE path onto a mounted volume. A
+  // container's own filesystem is thrown away on every redeploy, so a relative
+  // default would lose every cover and avatar the next time main is merged —
+  // a data-loss bug that no test can see because it needs two deploys to show
+  // up. See DEPLOY.md; the deployed value is /data/uploads.
   UPLOAD_DIR: z.string().default("./var/uploads"),
   // Hard ceiling on an accepted upload, enforced while reading the request so
   // an oversized body is refused mid-stream rather than buffered whole.
@@ -95,6 +119,68 @@ export const envSchema = z.object({
   // Longest edge kept on re-encode; larger images are scaled down (never up).
   UPLOAD_MAX_DIMENSION: z.coerce.number().int().positive().default(2048),
 });
+
+/**
+ * Checks that only apply to a real deployment (Phase 7.5).
+ *
+ * Each of these is a setting whose development default is *convenient* and
+ * whose production value is *load-bearing* — exactly the shape of mistake that
+ * ships green, because every test runs with NODE_ENV=test and is therefore
+ * blind to it. Enforcing them here converts three silent production failures
+ * into one readable startup error, alongside the rest of the env contract.
+ */
+export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== "production") return;
+
+  // A container filesystem does not survive a redeploy. A relative UPLOAD_DIR
+  // resolves inside it, so every cover and avatar would vanish on the next
+  // merge to main — and the app would keep serving 404s for rows that still
+  // hold a URL. Production must point this at a mounted volume.
+  if (!isAbsolutePosixOrWindowsPath(env.UPLOAD_DIR)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["UPLOAD_DIR"],
+      message:
+        "must be an absolute path onto a persistent volume in production " +
+        "(e.g. /data/uploads) — a relative path lives inside the container " +
+        "and is discarded on every redeploy",
+    });
+  }
+
+  // Strict CORS is a Phase-7 requirement, and the default origin list is the
+  // three local dev servers. Shipping that would let a page served from a
+  // developer's laptop drive a production session. Every deployed origin is
+  // https:// in any case: the refresh cookie is Secure, so an http origin
+  // could not complete a login even if it were allowed.
+  const insecure = env.CORS_ORIGINS.filter(
+    (origin) => !origin.startsWith("https://"),
+  );
+  if (insecure.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["CORS_ORIGINS"],
+      message:
+        `every production origin must be https:// — got ${insecure.join(", ")}. ` +
+        "Set this to the deployed web origin(s); the localhost default is a " +
+        "development convenience.",
+    });
+  }
+
+  if (env.JWT_SECRET === PLACEHOLDER_JWT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["JWT_SECRET"],
+      message:
+        "is still the .env.example placeholder — generate a real secret " +
+        "(openssl rand -hex 32)",
+    });
+  }
+});
+
+/** True for `/data/uploads` and `C:\data\uploads`, false for `./var/uploads`. */
+function isAbsolutePosixOrWindowsPath(value: string): boolean {
+  return value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value);
+}
 
 export type Env = z.infer<typeof envSchema>;
 
