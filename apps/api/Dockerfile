@@ -60,4 +60,11 @@ EXPOSE 3000
 # Apply any pending migrations against the managed Postgres, then boot. Running
 # migrate at container start (not build) means the DB is reachable via Railway's
 # private network. On failure the process exits non-zero and Railway restarts.
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
+#
+# `--import ./dist/observability/instrument.js` starts Sentry in the loader
+# phase (Phase 7.5). main.ts imports the same module anyway, so errors would be
+# captured either way; preloading it is what lets the SDK install its ESM hooks
+# *before* the libraries it instruments are resolved, which is where the
+# request/query breadcrumbs attached to a report come from. Evaluated once —
+# both paths resolve to the same module URL. No-ops without SENTRY_DSN.
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node --import ./dist/observability/instrument.js dist/main.js"]

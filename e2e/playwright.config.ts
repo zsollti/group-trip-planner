@@ -24,6 +24,32 @@ const API_URL = `http://localhost:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
 
 /**
+ * Point the journeys at an already-running frontend instead of starting
+ * `vite preview` (Phase 7.5).
+ *
+ * The reason this exists: `vite preview` sends no security headers, so the
+ * Content-Security-Policy the production image actually serves — from
+ * `apps/web-board/Caddyfile` — is invisible to this suite. A CSP mistake is a
+ * completely silent class of bug in every test we have, and shows up only in a
+ * real browser against the real container, which is precisely the gap Phase 7.2
+ * recorded and deferred to here.
+ *
+ * So: build and run the deploy image, then re-run these journeys against it.
+ *
+ *   docker build -f apps/web-board/Dockerfile \
+ *     --build-arg VITE_API_URL=http://localhost:3100 -t gtp-web-board .
+ *   docker run -d -p 4173:80 --name gtp-board \
+ *     -e API_ORIGIN=http://localhost:3100 -e API_WS_ORIGIN=ws://localhost:3100 \
+ *     gtp-web-board
+ *   E2E_WEB_URL=http://localhost:4173 pnpm --filter @gtp/e2e run test:e2e
+ *
+ * CI keeps using `vite preview`: it already builds the bundle, and building the
+ * image a second time would buy a few minutes of runtime for one header check.
+ */
+const EXTERNAL_WEB_URL = process.env.E2E_WEB_URL;
+const WEB_BASE_URL = EXTERNAL_WEB_URL ?? WEB_URL;
+
+/**
  * The dev-compose database, unless the environment names another (CI does). The
  * suite writes real rows and cleans up after itself by email prefix.
  */
@@ -49,7 +75,7 @@ export default defineConfig({
     ? [["github"], ["list"], ["html", { open: "never" }]]
     : [["list"]],
   use: {
-    baseURL: WEB_URL,
+    baseURL: WEB_BASE_URL,
     trace: "retain-on-failure",
     video: "off",
     screenshot: "off",
@@ -75,24 +101,29 @@ export default defineConfig({
         LOG_LEVEL: "warn",
         // The SPA is a separate origin from the API here, exactly as it will be
         // in production — so CORS is genuinely exercised rather than bypassed.
-        CORS_ORIGINS: `${WEB_URL},http://127.0.0.1:${WEB_PORT}`,
-        WEB_APP_URL: WEB_URL,
+        CORS_ORIGINS: `${WEB_BASE_URL},http://127.0.0.1:${WEB_PORT}`,
+        WEB_APP_URL: WEB_BASE_URL,
         API_PUBLIC_URL: API_URL,
         // No RESEND_API_KEY: mail is logged, never sent, from a test run.
       },
     },
-    {
-      command: `pnpm --filter @gtp/web-board... run build && pnpm --filter @gtp/web-board exec vite preview --port ${WEB_PORT} --strictPort`,
-      url: WEB_URL,
-      timeout: 180_000,
-      reuseExistingServer: false,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        // Baked into the bundle at build time (Vite gives an existing process
-        // variable priority over any .env file).
-        VITE_API_URL: API_URL,
-      },
-    },
+    // Skipped when E2E_WEB_URL names a frontend that is already running.
+    ...(EXTERNAL_WEB_URL
+      ? []
+      : [
+          {
+            command: `pnpm --filter @gtp/web-board... run build && pnpm --filter @gtp/web-board exec vite preview --port ${WEB_PORT} --strictPort`,
+            url: WEB_URL,
+            timeout: 180_000,
+            reuseExistingServer: false,
+            stdout: "pipe" as const,
+            stderr: "pipe" as const,
+            env: {
+              // Baked into the bundle at build time (Vite gives an existing
+              // process variable priority over any .env file).
+              VITE_API_URL: API_URL,
+            },
+          },
+        ]),
   ],
 });

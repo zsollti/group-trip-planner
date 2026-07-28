@@ -1,6 +1,9 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+// The Nest wiring lives on the /setup subpath; the package root is the SDK.
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { GlobalThrottlerGuard } from "./common/per-user-throttle.js";
+import { sentryEnabled } from "./observability/instrument.js";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
@@ -24,6 +27,11 @@ import { UploadsModule } from "./uploads/uploads.module.js";
 
 @Module({
   imports: [
+    // Error reporting (Phase 7.5), registered only when a DSN is configured —
+    // see observability/instrument.ts. Wiring it unconditionally would install
+    // an exception filter that reports to nothing, which reads as monitoring
+    // being on when it is not.
+    ...(sentryEnabled ? [SentryModule.forRoot()] : []),
     // First: validate the environment (fails fast) and expose it globally.
     ConfigModule.forRoot(),
     // Structured JSON request/app logging, level driven by the validated env.
@@ -70,6 +78,15 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     ActivityModule,
     UploadsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: GlobalThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: GlobalThrottlerGuard },
+    // Reports unhandled exceptions. It extends Nest's BaseExceptionFilter, so
+    // the HTTP responses clients see are unchanged; 4xx HttpExceptions (a 404
+    // for a non-member, a 409 on a lost lock race) are expected behaviour and
+    // are not reported.
+    ...(sentryEnabled
+      ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }]
+      : []),
+  ],
 })
 export class AppModule {}

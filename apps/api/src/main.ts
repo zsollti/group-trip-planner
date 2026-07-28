@@ -4,6 +4,9 @@
  * Wires up: Zod env validation at startup (fail-fast), Prisma, structured JSON
  * logging (pino), and `GET /health`. Auth endpoints arrive in Phase 0.6.
  */
+// Must stay first: Sentry has to initialise before the modules it instruments
+// are loaded (Phase 7.5). No-ops entirely when SENTRY_DSN is unset.
+import "./observability/instrument.js";
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
