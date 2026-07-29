@@ -8,9 +8,7 @@ sentiment through **advisory voting**, and record explicit, audited **decisions*
 — with a live per-currency cost picture of what you have committed to and what
 you are heading towards.
 
-<!-- LIVE-URL: replace once the production deploy is up (DEPLOY.md §9). -->
-
-🔗 **Live demo:** _deploying — see [`DEPLOY.md`](./DEPLOY.md)_ ·
+🔗 **Live demo:** <https://web-board-production.up.railway.app> ·
 📸 Screens below · 🧭 [Three UIs explored](#three-uis-one-backend--the-design-exploration)
 
 ![Trip Board — the chosen UI](docs/alternatives/board.png)
