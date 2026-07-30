@@ -87,6 +87,10 @@ one for this viewer (Phase 6.4).
 - [x] The cost strip's error has no retry button: it sits inside the board,
       which re-queries on the surrounding refetch, and it never occupies the
       whole screen.
+- [x] **A limit reached is a state too** (polish pass). At the policy-layer
+      category cap the trailing "＋ Add category" tile states the limit instead of
+      opening a form the server would 403 — the same rule as the empty states
+      below, applied to a *full* surface rather than an empty one.
 - [x] **An empty state never offers an action the server would refuse.** The
       new-user dashboard hid a real break: creating a trip needs a verified
       email but signing in does not, so a just-registered account got the
@@ -114,6 +118,16 @@ one for this viewer (Phase 6.4).
 - [x] Visible `:focus-visible` ring on every interactive control.
 - [x] Every control has an accessible name; icon-only buttons carry
       `aria-label`, decorative glyphs and the backdrop are `aria-hidden`.
+- [x] **No half-implemented ARIA widgets** (polish pass). The chat channel
+      switcher advertised `role="tablist"`/`role="tab"` while handling no arrow
+      keys and owning no `tabpanel` — a promise to a screen-reader user that the
+      row never kept. It is now a `role="group"` of `aria-pressed` toggles, the
+      same call `Menu` documents for not pretending to be an ARIA menu.
+- [x] **Truncated text is never lost text.** The board shortens category, option
+      and channel names to 15 characters in compact positions; every one of those
+      carries the full value on `title`, and the accessible name (heading
+      `aria-label`, button `aria-label`) stays unabbreviated — a screen reader is
+      never read an ellipsis. The option detail dialog shows names in full.
 - [x] Drag-and-drop is progressive enhancement — every gesture has a
       keyboard/menu equivalent (lock/unlock, reorder, move to Decided).
 - [x] Touch targets ≥44px on the primary controls at phone width.

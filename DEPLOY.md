@@ -89,7 +89,7 @@ Two things worth knowing before you need them:
 | `DATABASE_URL`    | `${{Postgres.DATABASE_URL}}`         | Reference variable — tracks the Postgres service over the private net.                          |
 | `JWT_SECRET`      | _(the `openssl rand -hex 32` value)_ | Required. Production **rejects** the `.env.example` placeholder.                                |
 | `NODE_ENV`        | `production`                         | Baked into the image too; set it so the production checks are on.                               |
-| `COOKIE_SAMESITE` | `none`                               | Required — api and web are different sites.                                                     |
+| `COOKIE_SAMESITE` | `lax`                                | `lax` **only** if the api is a subdomain of the web app's domain (§5, "Same-site API domain"). `none` otherwise — which breaks sign-in on mobile. |
 | `COOKIE_SECURE`   | `true`                               | A `SameSite=None` cookie without `Secure` is dropped by every browser.                          |
 | `CORS_ORIGINS`    | `https://<web-board domain>`         | The origin allowlist. Production **refuses to boot** on a non-https one.                        |
 | `WEB_APP_URL`     | `https://<web-board domain>`         | Where verification / unsubscribe links land in the SPA.                                         |
@@ -158,6 +158,37 @@ data-loss bug no test can see — it needs two deploys to appear.
 4. **Settings → Networking → Generate Domain**, port **80** (Caddy).
 5. Go back and set the API's `CORS_ORIGINS` / `WEB_APP_URL` to this domain, then
    redeploy the API.
+
+### Same-site API domain (required, or mobile sign-in breaks)
+
+**Put the API on a subdomain of the web app's domain** — `api.example.com` next to
+`trips.example.com`, not a generated `*.up.railway.app` host. This is not a
+cosmetic preference; a foreign API domain breaks sign-in on every phone.
+
+Why: the session is an httpOnly refresh cookie set on the **API** origin, and the
+SPA trades it for an access token with a cross-site `POST /auth/refresh`. If the
+API is on a different registrable domain, that cookie is a **third-party** cookie.
+Desktop Chrome still sends it, so the deployment looks healthy. Every iOS browser
+is WebKit, and WebKit blocks third-party cookies outright — the refresh 401s, the
+route guard bounces to the sign-in card, and the user is dumped back on the login
+page. Google sign-in fails completely, because OAuth has no other way to deliver a
+token; email/password appears to work until the first reload, which makes this
+easy to misdiagnose.
+
+Put both on one registrable domain and the cookie is same-site, `Lax` is enough,
+and no browser has an opinion about it. The two hosts are still different
+*origins*, so CORS is still required and unchanged.
+
+1. `api` service → **Settings → Networking → Custom Domain** → `api.<your domain>`;
+   add the CNAME it gives you at your DNS provider.
+2. Set `GOOGLE_CALLBACK_URL` to `https://api.<your domain>/auth/google/callback`
+   and add the same string in the Google console (below).
+3. Set `COOKIE_SAMESITE=lax`. Leave `COOKIE_DOMAIN` **unset** — a host-only cookie
+   on the API host is correct, since that host is what the refresh call goes to.
+4. Point the web service's API base URL at the new host and redeploy it.
+
+Keep the old generated domain attached until the new one serves traffic, so
+nothing 404s mid-switch.
 
 ### Google OAuth
 
@@ -284,7 +315,14 @@ Trial credit is consumed while services run:
   is running. The healthcheck pings the DB on purpose.
 - **Login works but a reload signs you out**, or a CORS error appears in the
   console. The cross-site pair is misaligned: `CORS_ORIGINS` must be the exact
-  web origin, with `COOKIE_SAMESITE=none`, `COOKIE_SECURE=true`, over https.
+  web origin, `COOKIE_SECURE=true`, over https — and `COOKIE_SAMESITE` must match
+  the topology (`lax` for a same-site api subdomain, `none` for a foreign one).
+- **Signing in works on a laptop but not on a phone** — Google sign-in returns to
+  the login page, and email/password drops the session on reload. The API is on a
+  different registrable domain than the web app, so the refresh cookie is a
+  third-party cookie and mobile browsers refuse to send it. Fix the topology
+  (§5, "Same-site API domain"); no application setting works around it. The
+  sign-in card now says so rather than failing silently.
 - **The board loads but calls `localhost:3000`.** `VITE_API_URL` was not set at
   build time. Set it and rebuild — it is build-time only.
 - **Everything renders but nothing loads, with CSP errors in the console.**

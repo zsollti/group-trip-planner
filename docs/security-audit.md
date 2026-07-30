@@ -133,6 +133,18 @@ parent of the resource they are addressing.**
       another origin.
 - [x] Secure/`SameSite` cookie behaviour is env-driven and was proven end-to-end
       against the real cross-site deployment in Phase 0.8.
+- [x] **The refresh cookie must not be cross-site.** Found in the polish pass,
+      from production use rather than from this checklist: `SameSite=None` makes
+      the cookie legal, not *deliverable*. With the API on a different registrable
+      domain than the app, `POST /auth/refresh` is a third-party cookie request,
+      and WebKit — every browser on iOS — blocks those unconditionally. The
+      deployment tested clean on desktop Chrome and was **completely unusable on a
+      phone**: Google sign-in dead (OAuth delivers the session only via that
+      cookie), email/password surviving exactly until the first reload. Availability
+      is a security property, and "works in the browser I tested" is how this class
+      of bug ships. The fix is topological — put the API on a subdomain of the app's
+      domain and drop to `SameSite=Lax` (`DEPLOY.md` §5). No code change makes a
+      blocked cookie arrive.
 
 ## 7. Secrets
 

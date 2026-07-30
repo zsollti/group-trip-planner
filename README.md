@@ -150,7 +150,7 @@ a coverage percentage.
 
 |                 |                                                                                                                                                                                       |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Tests**       | 386 API tests (`node:test` against a real Postgres) · 55 board tests (Vitest) · 3 Playwright browser journeys — all CI-gating. [`docs/test-strategy.md`](docs/test-strategy.md)       |
+| **Tests**       | 390 API tests (`node:test` against a real Postgres) · 76 board tests (Vitest) · 3 Playwright browser journeys — all CI-gating. [`docs/test-strategy.md`](docs/test-strategy.md)       |
 | **Security**    | OWASP sweep with findings and _accepted risks_ written down. [`docs/security-audit.md`](docs/security-audit.md)                                                                       |
 | **Performance** | Index audit driven by asking the database, not reading the schema; N+1 tests that assert _shape_ rather than a magic number. [`docs/performance-audit.md`](docs/performance-audit.md) |
 | **UI**          | Four-state review, one focus-trapping modal, a committed token contract. [`docs/ui-audit.md`](docs/ui-audit.md)                                                                       |
