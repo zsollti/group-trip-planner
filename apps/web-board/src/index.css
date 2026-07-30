@@ -1689,6 +1689,10 @@ body {
   left: 0;
 }
 .menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   text-align: left;
   background: none;
   border: none;
@@ -1698,6 +1702,27 @@ body {
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
   cursor: pointer;
+}
+/* A count on a menu item — unread messages on a collapsed chat channel. */
+.menu__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--board-danger);
+  color: var(--board-on-danger);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+/* The item currently in effect (the open channel). */
+.menu__item[aria-current="true"] {
+  font-weight: 700;
+  color: var(--board-accent);
 }
 .menu__item:hover,
 .menu__item:focus-visible {
@@ -1810,13 +1835,57 @@ body {
 .board__msg-del:hover {
   color: var(--board-danger);
 }
-/* Channel switcher tabs (Phase 4.5): General + on-demand category discussions. */
+/* Channel switcher (Phase 4.5): the trip channel + on-demand category
+   discussions. One row, never a scroller — the chips that fit are shown and the
+   rest collapse behind "＋N" (see useFitCount). */
+/* The padding lives on the wrapper, not the row: the row's `clientWidth` is what
+   the fit calculation measures against, and clientWidth includes padding — so a
+   padded row would report space the chips can't actually use. */
+.board__chat-switcher {
+  position: relative;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--lane-line);
+}
 .board__chat-tabs {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 0.3rem;
-  padding: 0.4rem 0.6rem;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--lane-line);
+  overflow: hidden;
+}
+/* The measured copy of the full channel list: same metrics as the real row, but
+   off-flow so it neither paints nor takes up space. `visibility: hidden` (not
+   `display: none`) is required — a display-none element has no offsetWidth. */
+.board__chat-measure {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.6rem;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+/* The Menu wrapper is the flex child here, so it carries the no-shrink. */
+.board__chat-tabs > .menu {
+  flex: 0 0 auto;
+}
+.board__chat-more {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  color: var(--board-dim);
+  white-space: nowrap;
+}
+.board__chat-more:hover {
+  color: var(--board-fg);
 }
 .board__chat-tab {
   flex: 0 0 auto;

@@ -15,6 +15,18 @@ import {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
+import { Menu } from "./Menu";
+import { partitionByFit, useFitCount } from "../lib/fitTabs";
+import { truncateName } from "../lib/truncate";
+
+/**
+ * Width the "＋N" overflow trigger claims in the switcher row, and the flex gap
+ * between chips — both matched to `.board__chat-more` / `.board__chat-tabs` in
+ * `index.css`. Kept generous: over-reserving costs one chip, under-reserving
+ * reintroduces the overflow this replaced.
+ */
+const OVERFLOW_RESERVE_PX = 56;
+const TAB_GAP_PX = 5;
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, {
@@ -173,15 +185,20 @@ function MessageRow({
  * reactions, and @mention autocomplete + highlighting. Chat stays open in a
  * History trip (chat is exempt from the freeze, FR-10).
  *
- * Phase 4.5 adds **channels**: a switcher across the auto-created General channel
- * and any on-demand **category** discussions (FR-29). A category channel is
- * reached either from its switcher tab or by the board's per-lane "Discuss"
- * action, which flows a channel id in through `requestChannelId` (opening the
- * panel and selecting that channel). A deleted category's channel cascades away
+ * Phase 4.5 adds **channels**: a switcher across the trip-wide channel and any
+ * on-demand **category** discussions (FR-29). A category channel is reached
+ * either from its switcher chip or by the board's per-lane "Discuss" action,
+ * which flows a channel id in through `requestChannelId` (opening the panel and
+ * selecting that channel). A deleted category's channel cascades away
  * server-side; it is hidden here as soon as its category is gone.
+ *
+ * The switcher keeps to **one row**: the chips that fit are shown and the rest
+ * collapse behind a "＋N" menu ({@link useFitCount}). It used to scroll
+ * horizontally, which hid the tail of the list on a panel this narrow.
  */
 export function ChatPanel({
   tripId,
+  tripName,
   tripSocket,
   categories,
   myRole,
@@ -190,6 +207,9 @@ export function ChatPanel({
   onRequestHandled,
 }: {
   tripId: string;
+  /** Labels the trip-wide channel — it is this trip's conversation, so the chip
+   *  reads the board's name rather than a generic "General". */
+  tripName: string;
   tripSocket: TripSocket;
   categories: CategoryView[];
   myRole: TripRole;
@@ -230,12 +250,33 @@ export function ChatPanel({
 
   const totalUnread = listed.reduce((sum, c) => sum + (unread[c.id] ?? 0), 0);
 
-  function channelLabel(channel: ChannelView): string {
-    if (channel.type === "GENERAL") return "General";
+  /** The channel's full name — the trip's own name for the trip-wide channel. */
+  function channelName(channel: ChannelView): string {
+    if (channel.type === "GENERAL") return tripName;
     return channel.categoryId
       ? (categoryName.get(channel.categoryId) ?? "Discussion")
       : "Discussion";
   }
+  /** Shortened for a chip; `channelName` stays available for `title`. */
+  function channelLabel(channel: ChannelView): string {
+    return truncateName(channelName(channel));
+  }
+
+  // One row of chips: those that fit, plus a "＋N" menu for the remainder. The
+  // active channel is always among the visible ones — collapsing the channel you
+  // are reading would leave the row showing everywhere you *aren't*.
+  const fit = useFitCount(listed.length, OVERFLOW_RESERVE_PX, TAB_GAP_PX);
+  const { shown: shownChannels, hidden: hiddenChannels } = useMemo(
+    () =>
+      partitionByFit(listed, fit.visibleCount, (c) => c.id === activeChannelId),
+    [listed, fit.visibleCount, activeChannelId],
+  );
+  // Surfaced on the trigger: a collapsed channel's unread count must not vanish
+  // with the chip.
+  const hiddenUnread = hiddenChannels.reduce(
+    (sum, c) => sum + (unread[c.id] ?? 0),
+    0,
+  );
 
   function selectChannel(id: string) {
     setActiveId(id);
@@ -332,7 +373,7 @@ export function ChatPanel({
       {open ? (
         <section className="board__chat" role="dialog" aria-label="Trip chat">
           <header className="board__chat-head">
-            <strong>
+            <strong title={activeChannel ? channelName(activeChannel) : undefined}>
               {activeChannel ? channelLabel(activeChannel) : "Chat"}
             </strong>
             <button
@@ -346,35 +387,93 @@ export function ChatPanel({
           </header>
 
           {listed.length > 1 ? (
-            <div
-              className="board__chat-tabs"
-              role="tablist"
-              aria-label="Channels"
-            >
-              {listed.map((c) => {
-                const isActive = c.id === activeChannelId;
-                const badge = !isActive ? (unread[c.id] ?? 0) : 0;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={
-                      "board__chat-tab" +
-                      (isActive ? " board__chat-tab--active" : "")
-                    }
-                    onClick={() => selectChannel(c.id)}
-                  >
+            <div className="board__chat-switcher">
+              {/* Off-flow copy of the full list, measured to decide how many chips
+                  fit. aria-hidden and untabbable — the real row is below. */}
+              <div
+                className="board__chat-measure"
+                ref={fit.measureRef}
+                aria-hidden="true"
+              >
+                {listed.map((c) => (
+                  <span key={c.id} className="board__chat-tab">
                     {channelLabel(c)}
-                    {badge > 0 ? (
-                      <span className="board__chat-tabbadge" aria-hidden="true">
-                        {badge}
+                    {(unread[c.id] ?? 0) > 0 ? (
+                      <span className="board__chat-tabbadge">
+                        {unread[c.id]}
                       </span>
                     ) : null}
-                  </button>
-                );
-              })}
+                  </span>
+                ))}
+              </div>
+
+              {/* Not a `tablist`: there are no tabpanels and no arrow-key
+                  contract to honour, and the overflow trigger could not live
+                  inside one. Toggle buttons with aria-pressed say what this is —
+                  the same call Menu documents. */}
+              <div
+                className="board__chat-tabs"
+                role="group"
+                aria-label="Channels"
+                ref={fit.containerRef}
+              >
+                {shownChannels.map((c) => {
+                  const isActive = c.id === activeChannelId;
+                  const badge = !isActive ? (unread[c.id] ?? 0) : 0;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={isActive}
+                      title={channelName(c)}
+                      className={
+                        "board__chat-tab" +
+                        (isActive ? " board__chat-tab--active" : "")
+                      }
+                      onClick={() => selectChannel(c.id)}
+                    >
+                      {channelLabel(c)}
+                      {badge > 0 ? (
+                        <span
+                          className="board__chat-tabbadge"
+                          aria-label={`${badge} unread`}
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+                {hiddenChannels.length > 0 ? (
+                  <Menu
+                    label={
+                      hiddenUnread > 0
+                        ? `${hiddenChannels.length} more channels, ${hiddenUnread} unread`
+                        : `${hiddenChannels.length} more channels`
+                    }
+                    triggerClassName="board__chat-more"
+                    trigger={
+                      <>
+                        ＋{hiddenChannels.length}
+                        {hiddenUnread > 0 ? (
+                          <span
+                            className="board__chat-tabbadge"
+                            aria-hidden="true"
+                          >
+                            {hiddenUnread}
+                          </span>
+                        ) : null}
+                      </>
+                    }
+                    items={hiddenChannels.map((c) => ({
+                      label: channelName(c),
+                      badge: unread[c.id] ?? 0,
+                      selected: c.id === activeChannelId,
+                      onSelect: () => selectChannel(c.id),
+                    }))}
+                  />
+                ) : null}
+              </div>
             </div>
           ) : null}
 
