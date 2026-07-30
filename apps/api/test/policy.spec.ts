@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  BUILTIN_CATEGORIES,
+  DEFAULT_MAX_TRIP_CATEGORIES,
   DEFAULT_MAX_TRIP_MEMBERS,
+  maxTripCategories,
   maxTripMembers,
   maxTripHorizonDays,
   pickSuccessor,
@@ -30,6 +33,18 @@ describe("policy.maxTripMembers / maxTripHorizonDays", () => {
   it("exposes a (stubbed) horizon default for Phase 2", () => {
     assert.equal(maxTripHorizonDays(), 365);
     assert.equal(maxTripHorizonDays({ maxHorizonDaysOverride: 90 }), 90);
+  });
+
+  it("caps categories at the five built-ins plus three", () => {
+    assert.equal(maxTripCategories(), DEFAULT_MAX_TRIP_CATEGORIES);
+    assert.equal(maxTripCategories(), 8);
+    assert.equal(maxTripCategories(), BUILTIN_CATEGORIES.length + 3);
+    assert.equal(maxTripCategories({}), 8);
+  });
+
+  it("honours a per-trip category override (the same subscription seam)", () => {
+    assert.equal(maxTripCategories({ maxCategoriesOverride: 20 }), 20);
+    assert.equal(maxTripCategories({ maxCategoriesOverride: null }), 8);
   });
 });
 

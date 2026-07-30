@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@gtp/ui-primitives";
-import { CATEGORY_NAME_MAX_LENGTH } from "@gtp/types";
+import { CATEGORY_NAME_MAX_LENGTH, maxTripCategories } from "@gtp/types";
 import { ApiError, useCreateCategory } from "@gtp/api-client";
 
 /**
@@ -8,9 +8,23 @@ import { ApiError, useCreateCategory } from "@gtp/api-client";
  * dialog with a board-native affordance at the end of the lane row (à la Trello's
  * "add list"). Organizers only; opens an inline form for the name + single-choice
  * flag and creates the category (which appends at the end).
+ *
+ * At the policy-layer cap (`maxTripCategories`) the tile states the limit instead
+ * of offering the form: an affordance must never propose an action the server
+ * would refuse (`docs/ui-audit.md` §3). The server enforces the cap regardless —
+ * this is the explanation, not the enforcement.
  */
-export function AddCategoryLane({ tripId }: { tripId: string }) {
+export function AddCategoryLane({
+  tripId,
+  categoryCount,
+}: {
+  tripId: string;
+  /** How many categories the trip already has, built-ins included. */
+  categoryCount: number;
+}) {
   const create = useCreateCategory(tripId);
+  const cap = maxTripCategories();
+  const atCap = categoryCount >= cap;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [singleChoice, setSingleChoice] = useState(false);
@@ -75,6 +89,10 @@ export function AddCategoryLane({ tripId }: { tripId: string }) {
             </Button>
           </div>
         </form>
+      ) : atCap ? (
+        <p className="lane__add-cap">
+          {cap} categories is the maximum. Delete one to add another.
+        </p>
       ) : (
         <button
           type="button"

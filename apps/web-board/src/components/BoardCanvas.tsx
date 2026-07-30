@@ -268,7 +268,10 @@ export function BoardCanvas({
             ))}
           </SortableContext>
           {can(myRole, "category.manage") && !frozen ? (
-            <AddCategoryLane tripId={tripId} />
+            <AddCategoryLane
+              tripId={tripId}
+              categoryCount={categories.length}
+            />
           ) : null}
         </div>
       </DndContext>

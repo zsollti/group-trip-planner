@@ -4,6 +4,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
+import { BUILTIN_CATEGORIES, maxTripCategories } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
@@ -15,7 +16,8 @@ import { TokenService } from "../src/auth/token.service.js";
  *    defaults and positions;
  *  - an Organizer creates/renames/reorders/deletes; a rename conflict is a 409;
  *  - a non-Organizer is 403, a non-member is 404;
- *  - delete is a hard cascade (the row is gone).
+ *  - delete is a hard cascade (the row is gone);
+ *  - the policy-layer category cap and the 32-character name cap hold.
  */
 describe("Categories (e2e)", () => {
   let app: INestApplication;
@@ -155,6 +157,61 @@ describe("Categories (e2e)", () => {
     const cats = (await listCategories(owner.accessToken, trip.id).expect(200))
       .body as Cat[];
     assert.equal(cats.length, 6);
+  });
+
+  it("refuses a category past the policy cap, built-ins counted", async () => {
+    const owner = await makeUser("cap-owner");
+    const trip = await createTrip(owner.accessToken, "Full Board");
+
+    // Five built-ins are seeded, so the cap allows exactly three more.
+    const room = maxTripCategories() - BUILTIN_CATEGORIES.length;
+    for (let i = 0; i < room; i++) {
+      await http()
+        .post(`/trips/${trip.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: `Extra ${i}`, singleChoice: false })
+        .expect(201);
+    }
+
+    const refused = await http()
+      .post(`/trips/${trip.id}/categories`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "One too many", singleChoice: false })
+      .expect(403);
+    assert.match(refused.body.message, /limit of 8 categories/);
+
+    const cats = (await listCategories(owner.accessToken, trip.id).expect(200))
+      .body as Cat[];
+    assert.equal(cats.length, maxTripCategories(), "the cap held");
+
+    // Deleting one makes room again — the cap is a ceiling, not a one-way door.
+    const extra = cats.find((c) => c.name === "Extra 0");
+    assert.ok(extra);
+    await http()
+      .delete(`/trips/${trip.id}/categories/${extra.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+    await http()
+      .post(`/trips/${trip.id}/categories`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Room again", singleChoice: false })
+      .expect(201);
+  });
+
+  it("rejects a name longer than the 32-character cap", async () => {
+    const owner = await makeUser("cap-name-owner");
+    const trip = await createTrip(owner.accessToken, "Long Names");
+
+    await http()
+      .post(`/trips/${trip.id}/categories`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "x".repeat(33), singleChoice: false })
+      .expect(400);
+    await http()
+      .post(`/trips/${trip.id}/categories`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "x".repeat(32), singleChoice: false })
+      .expect(201);
   });
 
   it("renames with optimistic concurrency — a stale version is a 409", async () => {

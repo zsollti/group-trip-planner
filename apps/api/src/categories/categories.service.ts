@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 import {
   BUILTIN_CATEGORIES,
   canDeleteCategory,
+  maxTripCategories,
   type CreateCategoryInput,
   type CategoryView,
   type RenameCategoryInput,
@@ -65,12 +67,28 @@ export class CategoriesService {
   /**
    * Create a custom category, appended after the existing ones. It is never a
    * built-in (no `builtinKey`), so the `[tripId, builtinKey]` unique constraint
-   * doesn't apply — a trip may hold any number of custom categories.
+   * doesn't apply.
+   *
+   * Refused once the trip is at the policy-layer category cap — resolved via
+   * `maxTripCategories`, never a literal, so a subscription tier can raise it
+   * without touching this handler. The cap counts **all** categories, built-ins
+   * included: it bounds the width of the lane row, and a seeded lane takes just
+   * as much room as a custom one.
    */
   async createCategory(
     ctx: TripContext,
     input: CreateCategoryInput,
   ): Promise<CategoryView> {
+    const count = await this.prisma.category.count({
+      where: { tripId: ctx.trip.id },
+    });
+    const cap = maxTripCategories();
+    if (count >= cap) {
+      throw new ForbiddenException(
+        `This board is at its limit of ${cap} categories. Delete one to add another.`,
+      );
+    }
+
     const last = await this.prisma.category.aggregate({
       where: { tripId: ctx.trip.id },
       _max: { position: true },

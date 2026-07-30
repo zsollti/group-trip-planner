@@ -18,6 +18,15 @@ export const DEFAULT_MAX_TRIP_MEMBERS = 30;
 export const DEFAULT_MAX_TRIP_HORIZON_DAYS = 365;
 
 /**
+ * Default cap on a trip's categories: the five built-ins ({@link BUILTIN_CATEGORIES})
+ * plus three custom ones. A board shows its categories as lanes in one
+ * horizontal row, so the limit is as much a layout constraint as a quota —
+ * past eight, the row stops being scannable and every lane gets too narrow to
+ * read. Subscription-configurable, like the member cap.
+ */
+export const DEFAULT_MAX_TRIP_CATEGORIES = 8;
+
+/**
  * The minimal, framework-free trip shape the policy functions read. Only the
  * override fields matter; both are optional/nullable and fall back to the
  * defaults, so a bare `{}` (or nothing) yields the MVP limits.
@@ -27,6 +36,8 @@ export interface TripPolicyContext {
   readonly maxMembersOverride?: number | null;
   /** Per-trip horizon override (post-MVP). */
   readonly maxHorizonDaysOverride?: number | null;
+  /** Per-trip category-cap override (subscription tier, post-MVP). */
+  readonly maxCategoriesOverride?: number | null;
 }
 
 /**
@@ -45,6 +56,16 @@ export function maxTripMembers(trip?: TripPolicyContext): number {
  */
 export function maxTripHorizonDays(trip?: TripPolicyContext): number {
   return trip?.maxHorizonDaysOverride ?? DEFAULT_MAX_TRIP_HORIZON_DAYS;
+}
+
+/**
+ * The category cap for a trip. Enforced when a custom category is created; the
+ * board also reads it to stop offering an "add category" affordance the server
+ * would refuse. Never inline the number at a call site — call this, so raising
+ * the cap for a paid tier is one override rather than a hunt through handlers.
+ */
+export function maxTripCategories(trip?: TripPolicyContext): number {
+  return trip?.maxCategoriesOverride ?? DEFAULT_MAX_TRIP_CATEGORIES;
 }
 
 /** A trip member as the successor cascade sees it: role + tenure. */
