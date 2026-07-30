@@ -6,6 +6,11 @@ export interface MenuItem {
   onSelect: () => void;
   danger?: boolean;
   disabled?: boolean;
+  /** A count to show alongside the label — unread messages on a collapsed chat
+   *  channel, say. Omitted or 0 renders nothing. */
+  badge?: number;
+  /** Marks the item as the one currently in effect (the open channel). */
+  selected?: boolean;
 }
 
 /**
@@ -103,12 +108,18 @@ export function Menu({
                 "menu__item" + (item.danger ? " menu__item--danger" : "")
               }
               disabled={item.disabled}
+              aria-current={item.selected ? "true" : undefined}
               onClick={() => {
                 setOpen(false);
                 item.onSelect();
               }}
             >
               {item.label}
+              {item.badge ? (
+                <span className="menu__badge" aria-label={`${item.badge} unread`}>
+                  {item.badge}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
