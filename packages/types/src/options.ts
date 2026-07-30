@@ -23,8 +23,19 @@ export type CostType = z.infer<typeof CostType>;
 export const OptionStatus = z.enum(["PROPOSED", "LOCKED"]);
 export type OptionStatus = z.infer<typeof OptionStatus>;
 
+/**
+ * Longest an option title may be (characters). Short on purpose: a title is a
+ * card label on a lane, not a description — the `description` field carries the
+ * detail. The board truncates it further for display (`DISPLAY_NAME_LENGTH`).
+ */
+export const OPTION_TITLE_MAX_LENGTH = 32;
+
 /** Option title: required, human-facing, bounded. */
-export const optionTitleSchema = z.string().trim().min(1).max(120);
+export const optionTitleSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(OPTION_TITLE_MAX_LENGTH);
 
 const optionalText = (max: number) =>
   z

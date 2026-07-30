@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@gtp/ui-primitives";
+import { CATEGORY_NAME_MAX_LENGTH } from "@gtp/types";
 import { ApiError, useCreateCategory } from "@gtp/api-client";
 
 /**
@@ -41,6 +42,7 @@ export function AddCategoryLane({ tripId }: { tripId: string }) {
             autoFocus
             aria-label="New category name"
             placeholder="Category name"
+            maxLength={CATEGORY_NAME_MAX_LENGTH}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {

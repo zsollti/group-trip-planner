@@ -12,6 +12,7 @@ import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
 import { VoteDots } from "./optionControls";
 import { costLabel, dateRangeLabel } from "./optionFormat";
+import { isTruncated, truncateName } from "../lib/truncate";
 
 /**
  * One option card (Phase 3.5) — the presentational card shared by the category
@@ -146,13 +147,16 @@ export function OptionCard({
     >
       <div className="lane__card-head">
         <strong>
+          {/* Shortened for the card, full on `title`/`aria-label` — the detail
+              view this opens is where the whole title is shown. */}
           <button
             type="button"
             className="lane__field-btn"
-            title={editable ? "Edit option" : "View details"}
+            title={option.title}
+            aria-label={`${option.title} — ${editable ? "edit option" : "view details"}`}
             onClick={editable ? openEdit : openView}
           >
-            {option.title}
+            {truncateName(option.title)}
           </button>
         </strong>
         <div className="lane__card-tools">
@@ -162,7 +166,14 @@ export function OptionCard({
           ) : null}
         </div>
       </div>
-      {categoryTag ? <p className="lane__tag">{categoryTag}</p> : null}
+      {categoryTag ? (
+        <p
+          className="lane__tag"
+          title={isTruncated(categoryTag) ? categoryTag : undefined}
+        >
+          {truncateName(categoryTag)}
+        </p>
+      ) : null}
       {dates ? field("lane__dates", <>🗓 {dates}</>) : null}
       {costLabel(option) ? field("lane__cost", costLabel(option)) : null}
       {option.description ? field("lane__notes", option.description) : null}

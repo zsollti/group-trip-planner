@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
+  OPTION_TITLE_MAX_LENGTH,
   type CategoryBuiltinKey,
   type CostType,
   type OptionView,
@@ -126,6 +127,7 @@ export function OptionForm({
               <Input
                 id="opt-title"
                 value={title}
+                maxLength={OPTION_TITLE_MAX_LENGTH}
                 onChange={(e) => setTitle(e.target.value)}
                 required
               />
