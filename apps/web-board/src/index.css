@@ -537,6 +537,15 @@ body {
   color: var(--board-accent);
   background: color-mix(in srgb, var(--board-accent) 8%, transparent);
 }
+/* Shown in place of the add button at the category cap: states the limit rather
+   than offering a form the server would refuse. */
+.lane__add-cap {
+  margin: 0;
+  padding: 0.85rem;
+  color: var(--board-dim);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
 .lane__add-form {
   display: flex;
   flex-direction: column;
