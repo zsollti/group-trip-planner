@@ -27,8 +27,19 @@ export const CategoryBuiltinKey = z.enum([
 ]);
 export type CategoryBuiltinKey = z.infer<typeof CategoryBuiltinKey>;
 
+/**
+ * Longest a category name may be (characters). A name is a lane header on a
+ * board that shows several lanes side by side, so it is deliberately short; the
+ * board truncates it further for display (`DISPLAY_NAME_LENGTH`).
+ */
+export const CATEGORY_NAME_MAX_LENGTH = 32;
+
 /** Category name: required, human-facing, bounded. */
-export const categoryNameSchema = z.string().trim().min(1).max(80);
+export const categoryNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CATEGORY_NAME_MAX_LENGTH);
 
 /**
  * A category as shown on the trip's planning surface. `builtinKey` is non-null

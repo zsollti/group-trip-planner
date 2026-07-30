@@ -4,6 +4,7 @@ import { Button } from "@gtp/ui-primitives";
 import {
   can,
   canDeleteCategory,
+  CATEGORY_NAME_MAX_LENGTH,
   type CategoryView,
   type OptionView,
   type TripRole,
@@ -20,6 +21,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { isTruncated, truncateName } from "../lib/truncate";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
 import { OptionCard } from "./OptionCard";
@@ -161,6 +163,7 @@ function LaneHeader({
               data-gtp-input
               autoFocus
               aria-label={`Rename ${category.name}`}
+              maxLength={CATEGORY_NAME_MAX_LENGTH}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onBlur={submit}
@@ -173,21 +176,29 @@ function LaneHeader({
             />
           </form>
         ) : (
-          <h2 className="lane__title">
+          // The header shows a shortened name with the full one on `title`, so a
+          // long name can't stretch the lane but stays readable on hover — and
+          // the h2's aria-label keeps it intact for a screen reader.
+          <h2 className="lane__title" aria-label={category.name}>
             {isOrganizer ? (
               <button
                 type="button"
                 className="lane__title-btn"
-                title="Rename category"
+                title={category.name}
+                aria-label={`${category.name} — rename category`}
                 onClick={() => {
                   setDraft(category.name);
                   setEditing(true);
                 }}
               >
-                {category.name}
+                {truncateName(category.name)}
               </button>
             ) : (
-              category.name
+              <span
+                title={isTruncated(category.name) ? category.name : undefined}
+              >
+                {truncateName(category.name)}
+              </span>
             )}
           </h2>
         )}
