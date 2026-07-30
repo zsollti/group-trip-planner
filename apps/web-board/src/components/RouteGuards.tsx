@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
-import { useAuth } from "@gtp/api-client";
+import { OAUTH_RETURN_MARKER, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
 
 /** Canvas-style splash while the silent refresh resolves on load. */
@@ -16,10 +16,19 @@ function BoardSplash() {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const location = useLocation();
+  const [params] = useSearchParams();
 
   if (status === "loading") return <BoardSplash />;
   if (status === "unauthenticated") {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Carry the OAuth return marker across the bounce — and only that, so a
+    // protected route's own query can't rewrite the sign-in card's `next`.
+    // Landing here right after a provider round-trip means the silent refresh
+    // failed, and the card can say so instead of looking like a fresh visit.
+    const provider = params.get(OAUTH_RETURN_MARKER);
+    const to = provider
+      ? `/login?${OAUTH_RETURN_MARKER}=${encodeURIComponent(provider)}`
+      : "/login";
+    return <Navigate to={to} replace state={{ from: location.pathname }} />;
   }
   return <>{children}</>;
 }

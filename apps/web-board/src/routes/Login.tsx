@@ -4,7 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { LoginInput } from "@gtp/types";
-import { ApiError, googleSignInUrl, useAuth } from "@gtp/api-client";
+import {
+  ApiError,
+  googleSignInUrl,
+  OAUTH_RETURN_GOOGLE,
+  OAUTH_RETURN_MARKER,
+  useAuth,
+} from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
 
 export function Login() {
@@ -16,6 +22,11 @@ export function Login() {
   const registerHref = next
     ? `/register?next=${encodeURIComponent(next)}`
     : "/register";
+  // Reaching the sign-in card *with* the OAuth return marker means the provider
+  // round-trip finished but the session didn't survive it — the silent refresh
+  // couldn't read its cookie. Without this the page looks like a fresh visit and
+  // the failure is invisible (which is exactly how it presented on mobile).
+  const oauthFailed = params.get(OAUTH_RETURN_MARKER) === OAUTH_RETURN_GOOGLE;
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -40,6 +51,12 @@ export function Login() {
       <div className="board__auth">
         <p className="board__eyebrow">Trip Board</p>
         <h1 className="board__title">Sign in</h1>
+        {oauthFailed ? (
+          <p className="board__form-error" role="alert">
+            Google sign-in didn't complete. Your browser may be blocking cookies
+            set by the API — try again, or sign in with your email and password.
+          </p>
+        ) : null}
         <form onSubmit={onSubmit} noValidate>
           <Field htmlFor="email" label="Email" error={errors.email?.message}>
             <Input

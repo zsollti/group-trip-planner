@@ -91,7 +91,11 @@ export {
   useMarkAllNotificationsRead,
   useNotificationLiveSync,
 } from "./notifications.js";
-export { googleSignInUrl } from "./oauth.js";
+export {
+  googleSignInUrl,
+  OAUTH_RETURN_GOOGLE,
+  OAUTH_RETURN_MARKER,
+} from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
 export { useStartDiscussion } from "./channels.js";
