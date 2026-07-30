@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CategoryView, OptionView } from "@gtp/types";
-import { needsDecision, sortLanes } from "./laneSort";
+import { laneRank, needsDecision, sortLanes } from "./laneSort";
 
 /**
  * Lane ordering is a per-user *view* over the server's stored positions, so the
@@ -86,10 +86,29 @@ describe("sortLanes", () => {
     ]);
   });
 
-  it("floats undecided lanes first, preserving manual order within each group", () => {
+  it("floats undecided lanes first, preserving manual order within each tier", () => {
     expect(
       sortLanes([a, b, c, d], options, "undecided").map((x) => x.id),
-    ).toEqual(["b", "d", "a", "c"]);
+    ).toEqual(["b", "d", "c", "a"]);
+  });
+
+  it("sinks a decided lane behind an empty one, to the end of the row", () => {
+    // The tier that was missing. Grouping only by needsDecision left `a`
+    // (decided) among the empty lanes in position order, so deciding a lane's
+    // option didn't visibly move it out of the way.
+    expect(sortLanes([a, c], options, "undecided").map((x) => x.id)).toEqual([
+      "c",
+      "a",
+    ]);
+  });
+
+  it("ranks the three tiers pending → empty → decided", () => {
+    expect(laneRank(options.b)).toBe(0);
+    expect(laneRank(options.c)).toBe(1);
+    expect(laneRank(options.a)).toBe(2);
+    // A multi-select lane that still holds proposals is decided from its first
+    // lock onwards — the decision is what settles it for this view.
+    expect(laneRank([opt("PROPOSED"), opt("LOCKED")])).toBe(2);
   });
 
   it("does not mutate the array it is given", () => {
