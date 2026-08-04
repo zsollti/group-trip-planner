@@ -245,6 +245,28 @@ If a migration fails, the process exits non-zero, Railway restarts it, and the
 old deployment keeps serving. `migrate deploy` never generates or resets a
 schema; it applies committed migration files in order and nothing else.
 
+### Seeding (and resetting) the public demo trip
+
+The README publishes credentials for a demo account so a visitor can see a
+populated board without registering. That data comes from `demo:seed`, which is
+**not** run automatically — a deploy must never rewrite trip data.
+
+Run it against production deliberately, from a shell with the production
+`DATABASE_URL` (Railway → the `api` service → *Connect* gives you one):
+
+```bash
+railway run --service api pnpm --filter @gtp/api demo:seed
+```
+
+It deletes the demo user's trips and rebuilds them, so the same command is both
+the initial seed and the reset when visitors have edited the demo. It touches
+nothing owned by a real account, and it is safe to re-run at any time.
+
+Re-run it whenever the demo has been left in a poor state. If that becomes
+frequent, the natural next step is a scheduled Railway cron job on the same
+command — the script is already idempotent, so nothing has to change to support
+that.
+
 ---
 
 ## 8. CI/CD — deploy on merge

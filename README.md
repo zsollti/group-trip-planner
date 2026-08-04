@@ -11,6 +11,19 @@ you are heading towards.
 🔗 **Live demo:** <https://trips.zsoltpinter.dev> ·
 📸 Screens below · 🧭 [Three UIs explored](#three-uis-one-backend--the-design-exploration)
 
+> **Try it without signing up.** A demo account is already a member of a trip
+> that is mid-flight — four decisions locked, the activities vote still running,
+> and chat history to read:
+>
+> | | |
+> | --- | --- |
+> | **Email** | `demo@example.com` |
+> | **Password** | `demo-trip-2026` |
+>
+> It is a shared account, so treat anything you change as public. The trip is
+> rebuilt from a seed script, so feel free to drag a card into **Decided** and
+> see what happens.
+
 ![Trip Board — the chosen UI](docs/alternatives/board.png)
 
 ---
@@ -232,7 +245,8 @@ docker compose up -d db
 
 cp apps/api/.env.example apps/api/.env    # then set JWT_SECRET
 pnpm --filter @gtp/api db:migrate:deploy  # apply migrations
-pnpm --filter @gtp/api db:seed            # optional demo user
+pnpm --filter @gtp/api db:seed            # optional bare demo user
+pnpm --filter @gtp/api demo:seed          # the populated demo trip (see above)
 
 pnpm --filter @gtp/api dev                # API      → http://localhost:3000
 pnpm --filter @gtp/web-board dev          # Trip Board → http://localhost:5175
@@ -240,6 +254,14 @@ pnpm --filter @gtp/web-board dev          # Trip Board → http://localhost:5175
 
 Without a `RESEND_API_KEY`, verification and invite links are written to the API
 log instead of being emailed — which is what you want locally.
+
+`demo:seed` builds the public demo trip — five members, thirteen options across
+the built-in categories, four locked decisions, a front-runner in a second
+currency, a stale vote and a stale headcount, and two chat channels. It is
+re-runnable: it deletes the demo user's trips and rebuilds them, so it doubles as
+the reset for when visitors have edited the live demo. Real accounts are never
+touched. Trip dates are computed relative to now, so the demo never drifts into
+the past.
 
 The full gate, the same one CI runs:
 
