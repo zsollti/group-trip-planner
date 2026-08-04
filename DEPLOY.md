@@ -251,12 +251,35 @@ The README publishes credentials for a demo account so a visitor can see a
 populated board without registering. That data comes from `demo:seed`, which is
 **not** run automatically — a deploy must never rewrite trip data.
 
-Run it against production deliberately, from a shell with the production
-`DATABASE_URL` (Railway → the `api` service → *Connect* gives you one):
+Run it deliberately, one of two ways.
+
+**Inside the container (preferred).** `apps/api/prisma` is copied into the image
+and `@gtp/types` is built there, so the script is already present and the private
+`DATABASE_URL` resolves:
 
 ```bash
-railway run --service api pnpm --filter @gtp/api demo:seed
+railway ssh --service api
+# the image's WORKDIR is /app/apps/api
+pnpm demo:seed
 ```
+
+**From your machine (fallback).** `railway run` will *not* work here: it injects
+the service's variables into a local process, and `DATABASE_URL` points at
+`*.railway.internal`, which does not resolve outside Railway. Use the Postgres
+service's **public** URL instead — Railway exposes it as `DATABASE_PUBLIC_URL`
+(Postgres service → *Variables*):
+
+```bash
+DATABASE_URL="<DATABASE_PUBLIC_URL>" pnpm --filter @gtp/api demo:seed
+```
+
+```powershell
+$env:DATABASE_URL="<DATABASE_PUBLIC_URL>"; pnpm --filter @gtp/api demo:seed
+```
+
+A shell variable takes precedence over `apps/api/.env`, so a local `.env` cannot
+silently redirect this at your development database — but check the trip id the
+script prints against production before assuming it landed.
 
 It deletes the demo user's trips and rebuilds them, so the same command is both
 the initial seed and the reset when visitors have edited the demo. It touches
