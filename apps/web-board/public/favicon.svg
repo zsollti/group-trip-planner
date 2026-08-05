@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Trip Board">
+  <!-- Three lanes of descending height: the board's columns, and the ranking
+       the app is actually for. Colours are the board accent and surface tokens
+       from src/index.css, so the mark matches the product. A solid tile rather
+       than a transparent glyph, so it stays legible against light and dark
+       browser chrome alike. -->
+  <rect width="32" height="32" rx="7" fill="#0f766e" />
+  <rect x="6" y="8" width="5" height="16" rx="2.5" fill="#f5efe3" />
+  <rect x="13.5" y="8" width="5" height="11" rx="2.5" fill="#f5efe3" opacity=".72" />
+  <rect x="21" y="8" width="5" height="7" rx="2.5" fill="#f5efe3" opacity=".45" />
+</svg>

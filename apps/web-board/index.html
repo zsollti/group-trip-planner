@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trip Board · Group Trip Planner</title>
+
+    <!-- SVG first: browsers that support it get the crisp, scalable mark. The
+         96px PNG is the fallback for those that do not, and apple-touch-icon is
+         what iOS uses when the app is added to a home screen. All same-origin,
+         so the Caddyfile's img-src 'self' covers them. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-96.png" type="image/png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <meta
       name="description"
       content="Plan a trip as a group: propose options, compare them side by side, vote to signal preference, and record explicit, audited decisions — with a live per-currency cost picture."
