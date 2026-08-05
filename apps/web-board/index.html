@@ -4,6 +4,55 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trip Board · Group Trip Planner</title>
+    <meta
+      name="description"
+      content="Plan a trip as a group: propose options, compare them side by side, vote to signal preference, and record explicit, audited decisions — with a live per-currency cost picture."
+    />
+
+    <!-- Link previews (Open Graph). Crawlers do not run JavaScript, so
+         everything a preview card shows has to be in this static document —
+         the SPA's own <title> updates are invisible to them.
+
+         The URLs here are absolute and hardcoded rather than built from an env
+         var: Open Graph requires absolute URLs, this app has exactly one
+         canonical public origin, and a relative or missing og:image is the
+         difference between a preview card and a blank one. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Group Trip Planner" />
+    <meta property="og:url" content="https://trips.zsoltpinter.dev/" />
+    <meta
+      property="og:title"
+      content="Group Trip Planner — decide where to go, together"
+    />
+    <meta
+      property="og:description"
+      content="Propose options, compare them, vote, and record audited decisions with a live per-currency cost picture. Demo login: demo@example.com / demo-trip-2026"
+    />
+    <meta
+      property="og:image"
+      content="https://trips.zsoltpinter.dev/og-image.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Trip Board: category lanes of option cards, a Decided lane, and a cost strip showing committed and projected totals."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Matches --board-bg in both themes (src/index.css), so mobile browser
+         chrome does not sit in a contrasting colour against the board. -->
+    <meta
+      name="theme-color"
+      content="#f5efe3"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#14201e"
+      media="(prefers-color-scheme: dark)"
+    />
   </head>
   <body>
     <div id="root"></div>
