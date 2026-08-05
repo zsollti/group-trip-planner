@@ -137,6 +137,10 @@ are the same objects the server enforces and the UI reads.
 permissions, staleness, cost aggregation, rate limits — is on the server. The
 shared package holds the _definitions_; the API holds the _enforcement_.
 
+Why each of these tools and not the obvious alternative — including the two
+choices I reversed, and the ones I deliberately did not make — is in
+[`docs/decisions.md`](docs/decisions.md).
+
 ---
 
 ## Feature tour
