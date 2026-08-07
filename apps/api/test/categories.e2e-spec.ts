@@ -12,7 +12,7 @@ import { TokenService } from "../src/auth/token.service.js";
 
 /**
  * Categories integration test (real DB) — the Phase-2.1 DoD:
- *  - a new trip is seeded with the five built-ins at the right single_choice
+ *  - a new trip is seeded with the four built-ins at the right single_choice
  *    defaults and positions;
  *  - an Organizer creates/renames/reorders/deletes; a rename conflict is a 409;
  *  - a non-Organizer is 403, a non-member is 404;
@@ -115,7 +115,7 @@ describe("Categories (e2e)", () => {
     if (app) await app.close();
   });
 
-  it("seeds a new trip with the five built-ins at the right defaults", async () => {
+  it("seeds a new trip with the four built-ins at the right defaults", async () => {
     const owner = await makeUser("seed-owner");
     const trip = await createTrip(owner.accessToken, "Seeded Trip");
 
@@ -124,8 +124,8 @@ describe("Categories (e2e)", () => {
 
     assert.deepEqual(
       cats.map((c) => c.builtinKey),
-      ["DATES", "TRANSPORT", "ACCOMMODATION", "ACTIVITIES", "BUDGET"],
-      "built-ins in display order",
+      ["DATES", "TRANSPORT", "ACCOMMODATION", "ACTIVITIES"],
+      "built-ins in display order — Budget is retired from the seed",
     );
     assert.ok(
       cats.every((c) => c.isBuiltin),
@@ -136,7 +136,7 @@ describe("Categories (e2e)", () => {
     assert.equal(byKey.TRANSPORT.singleChoice, false);
     assert.deepEqual(
       cats.map((c) => c.position),
-      [0, 1, 2, 3, 4],
+      [0, 1, 2, 3],
     );
   });
 
@@ -152,18 +152,18 @@ describe("Categories (e2e)", () => {
     assert.equal(created.body.isBuiltin, false);
     assert.equal(created.body.builtinKey, null);
     assert.equal(created.body.singleChoice, true);
-    assert.equal(created.body.position, 5, "appended after the five built-ins");
+    assert.equal(created.body.position, 4, "appended after the four built-ins");
 
     const cats = (await listCategories(owner.accessToken, trip.id).expect(200))
       .body as Cat[];
-    assert.equal(cats.length, 6);
+    assert.equal(cats.length, BUILTIN_CATEGORIES.length + 1);
   });
 
   it("refuses a category past the policy cap, built-ins counted", async () => {
     const owner = await makeUser("cap-owner");
     const trip = await createTrip(owner.accessToken, "Full Board");
 
-    // Five built-ins are seeded, so the cap allows exactly three more.
+    // The built-ins are seeded, so the cap allows exactly the remainder.
     const room = maxTripCategories() - BUILTIN_CATEGORIES.length;
     for (let i = 0; i < room; i++) {
       await http()
@@ -271,21 +271,21 @@ describe("Categories (e2e)", () => {
     const trip = await createTrip(owner.accessToken, "Delete");
     const cats = (await listCategories(owner.accessToken, trip.id).expect(200))
       .body as Cat[];
-    const budget = cats.find((c) => c.builtinKey === "BUDGET")!;
+    const victim = cats.find((c) => c.builtinKey === "ACTIVITIES")!;
 
     await http()
-      .delete(`/trips/${trip.id}/categories/${budget.id}`)
+      .delete(`/trips/${trip.id}/categories/${victim.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .expect(204);
 
     const after = (await listCategories(owner.accessToken, trip.id).expect(200))
       .body as Cat[];
     assert.ok(
-      !after.some((c) => c.id === budget.id),
+      !after.some((c) => c.id === victim.id),
       "deleted category no longer listed",
     );
     const count = await prisma.category.count({
-      where: { id: budget.id },
+      where: { id: victim.id },
     });
     assert.equal(count, 0, "row is gone from the DB");
   });

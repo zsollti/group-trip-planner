@@ -18,11 +18,14 @@ export const DEFAULT_MAX_TRIP_MEMBERS = 30;
 export const DEFAULT_MAX_TRIP_HORIZON_DAYS = 365;
 
 /**
- * Default cap on a trip's categories: the five built-ins ({@link BUILTIN_CATEGORIES})
- * plus three custom ones. A board shows its categories as lanes in one
- * horizontal row, so the limit is as much a layout constraint as a quota —
- * past eight, the row stops being scannable and every lane gets too narrow to
- * read. Subscription-configurable, like the member cap.
+ * Default cap on a trip's categories: the four seeded built-ins
+ * ({@link BUILTIN_CATEGORIES}) plus four of your own. A board shows its
+ * categories as lanes in one horizontal row, so the limit is as much a layout
+ * constraint as a quota — past eight, the row stops being scannable and every
+ * lane gets too narrow to read. That is why the number did **not** drop when
+ * Budget left the seed: eight is what the row can hold, so retiring a built-in
+ * buys a custom lane rather than shrinking the board.
+ * Subscription-configurable, like the member cap.
  */
 export const DEFAULT_MAX_TRIP_CATEGORIES = 8;
 
