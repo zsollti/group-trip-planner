@@ -84,7 +84,14 @@ test("a member who drops offline gets the messages they missed on reconnect", as
 
     await openChat(ownerPage);
     await openChat(memberPage);
+    // **Both** sockets, not just the member's. The baseline message below is
+    // sent by the member and asserted on the owner's screen, so an owner who has
+    // not finished joining the trip room yet simply misses it — an intermittent
+    // failure with nothing wrong in the application. Waiting on the indicator
+    // the app already publishes is the fix; the drop below is what this journey
+    // is actually about.
     await expect(memberPage.getByText("Live")).toBeVisible();
+    await expect(ownerPage.getByText("Live")).toBeVisible();
 
     // A baseline message, so the client has a last-seen id to catch up from —
     // the anchor the recovery is built on.

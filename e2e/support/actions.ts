@@ -80,17 +80,15 @@ export async function createBoard(page: Page, name: string): Promise<string> {
 }
 
 /**
- * One category lane, located by its visible heading.
+ * One category lane, located as the landmark it now is.
  *
- * The lane element carries no accessible name of its own — it is a plain
- * `<section>` — so this is the suite's one structural coupling to a class name.
- * Kept in a single helper so a future landmark/`aria-label` on the lane is a
- * one-line change here rather than a rewrite of every test.
+ * This used to filter `section.lane` by its heading — the suite's one structural
+ * coupling to a class name — because the lane carried no accessible name. It
+ * does now (`aria-labelledby` on its heading), which the helper always
+ * anticipated, so the coupling is gone.
  */
 export function laneNamed(page: Page, name: string): Locator {
-  return page
-    .locator("section.lane")
-    .filter({ has: page.getByRole("heading", { name, level: 2 }) });
+  return page.getByRole("region", { name });
 }
 
 /** The Decided rail — locked picks across every lane, above the lanes. */

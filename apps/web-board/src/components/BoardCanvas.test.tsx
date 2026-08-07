@@ -144,6 +144,91 @@ describe("BoardCanvas", () => {
     expect(within(decided).queryByText("Hostel")).not.toBeInTheDocument();
   });
 
+  it("keeps a decision in its own lane as well as the rail", async () => {
+    // Two copies on purpose, answering different questions: the lane says what
+    // we picked and what we picked it over, the rail says what the trip looks
+    // like now. Before this, a lane showed only the options a group rejected.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(within(lane).getByText("Beach House")).toBeInTheDocument();
+    // …still alongside the option it beat, which is the point.
+    expect(within(lane).getByText("Hostel")).toBeInTheDocument();
+
+    const decided = screen.getByRole("region", { name: "Decided" });
+    expect(within(decided).getByText("Beach House")).toBeInTheDocument();
+  });
+
+  it("offers unlock from the lane copy too, not only from the rail", async () => {
+    mockFetch();
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    fireEvent.click(
+      within(lane).getByRole("button", { name: /actions for beach house/i }),
+    );
+
+    expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
+  });
+
+  it("does not call a lane holding a decision empty", async () => {
+    // The defect this fixes: a lane whose only option was locked fell into the
+    // empty state and offered "Propose the first option" — the new-board CTA,
+    // on a question that had just been answered.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/options")) return json([locked]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(within(lane).getByText("Beach House")).toBeInTheDocument();
+    expect(
+      within(lane).queryByRole("button", { name: /propose the first option/i }),
+    ).toBeNull();
+  });
+
+  it("does not tell an ended trip that a settled lane decided nothing", async () => {
+    // The same defect at its most misleading: a frozen board rendered "Nothing
+    // was decided here" on a lane where something plainly was.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/options")) return json([locked]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    renderBoard("OWNER", true);
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(within(lane).getByText("Beach House")).toBeInTheDocument();
+    expect(within(lane).queryByText("Nothing was decided here")).toBeNull();
+  });
+
   it("names the category each decision answers, since the rail is cross-lane", async () => {
     // The rail collects decisions from every lane, so a chip that only said
     // "Beach House" would not say which question it settled. The lane it came
@@ -233,8 +318,10 @@ describe("BoardCanvas", () => {
   it("hides drag grips from a non-organizer (participant)", async () => {
     mockFetch();
     renderBoard("PARTICIPANT");
-    // Cards still render (and locked stays in Decided), but no drag affordance.
-    expect(await screen.findByText("Beach House")).toBeInTheDocument();
+    // Cards still render (a decision appears in both its lane and the rail),
+    // but there is no drag affordance anywhere.
+    const decided = await screen.findByRole("region", { name: "Decided" });
+    expect(within(decided).getByText("Beach House")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /drag/i })).toBeNull();
   });
 
@@ -369,8 +456,10 @@ describe("BoardCanvas", () => {
     );
     renderBoard("PARTICIPANT");
 
-    // A participant can't edit a locked card, so the title opens the detail view.
-    fireEvent.click(await screen.findByText("Beach House"));
+    // A participant can't edit a locked card, so the title opens the detail
+    // view. Reached from the lane copy — the rail chip opens the same dialog.
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    fireEvent.click(within(lane).getByText("Beach House"));
     // Since Phase 6.3 every dialog is named by its visible heading (rendered by
     // the shared Dialog and wired with aria-labelledby), not a separate
     // aria-label that could drift from it.

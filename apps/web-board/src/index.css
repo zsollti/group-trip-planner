@@ -1252,6 +1252,25 @@ body {
 .board__detail-notes {
   white-space: pre-wrap;
 }
+/* The lane's settled answer, pinned above its remaining candidates. Reads as
+   resolved rather than merely different: the accent edge is the same one the
+   Decided rail uses, so the eye connects the two copies of one decision. */
+.lane__card--settled {
+  border-left: 3px solid var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 5%, var(--lane-bg));
+}
+/* Separates the decision from the options it beat. Not a heading — it labels a
+   position in a list, and promoting it would put a second h-level inside a lane
+   that already has one. */
+.lane__alt-head {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+
 /* Click-to-edit parameters on a card (Phase 3.5): a text button that opens the
  * full edit form; hints editability on hover/focus without adding chrome. */
 .lane__field-btn {

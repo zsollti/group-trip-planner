@@ -216,7 +216,11 @@ function LaneHeader({
           // The header shows a shortened name with the full one on `title`, so a
           // long name can't stretch the lane but stays readable on hover — and
           // the h2's aria-label keeps it intact for a screen reader.
-          <h2 className="lane__title" aria-label={category.name}>
+          <h2
+            className="lane__title"
+            id={`lane-title-${category.id}`}
+            aria-label={category.name}
+          >
             {isOrganizer ? (
               <button
                 type="button"
@@ -286,6 +290,7 @@ export function CategoryLane({
   tripId,
   category,
   options,
+  decided,
   defaultCurrency,
   myRole,
   myUserId,
@@ -297,6 +302,21 @@ export function CategoryLane({
   tripId: string;
   category: CategoryView;
   options: OptionView[];
+  /**
+   * This lane's **locked** options, pinned above the open ones.
+   *
+   * A decision used to leave its lane entirely and live only in the Decided
+   * rail, which meant a lane showed the options a group rejected and not the one
+   * it chose — the comparison the lane exists for, missing its conclusion. It
+   * also drove the lane into its empty state, so a settled question offered
+   * "Propose the first option", and an ended trip said "Nothing was decided
+   * here" about a lane where something plainly was.
+   *
+   * The rail still carries them too. The two are not duplicates: the lane answers
+   * "what did we pick, and over what?", the rail answers "what does this trip
+   * look like now?".
+   */
+  decided: OptionView[];
   defaultCurrency: string;
   myRole: TripRole;
   myUserId: string | undefined;
@@ -387,7 +407,18 @@ export function CategoryLane({
   ) : undefined;
 
   return (
-    <section ref={setNodeRef} style={laneStyle} className="lane">
+    /* Named after its heading rather than with a duplicated `aria-label`, the
+       same rule the dialogs follow — the heading already carries the full
+       category name where the visible text is truncated, so the two cannot
+       drift. This matters more since a decision started appearing in both its
+       lane and the rail: "which Beach House" is now a real question, for a
+       screen reader reading landmarks and for a test locating one. */
+    <section
+      ref={setNodeRef}
+      style={laneStyle}
+      className="lane"
+      aria-labelledby={`lane-title-${category.id}`}
+    >
       <LaneHeader
         tripId={tripId}
         category={category}
@@ -431,12 +462,36 @@ export function CategoryLane({
         </div>
       ) : null}
 
+      {/* Settled first, and outside the SortableContext: a decision is no longer
+          a candidate, so it takes no part in the lane's ordering and carries no
+          drag grip. Unlock is still on its own "⋯", the same action the rail
+          chip offers — both go through `useUnlockAction`, so they cannot
+          diverge. */}
+      {decided.map((o) => (
+        <OptionCard
+          key={o.id}
+          tripId={tripId}
+          category={category}
+          option={o}
+          myRole={myRole}
+          myUserId={myUserId}
+          frozen={frozen}
+          settled
+        />
+      ))}
+      {decided.length > 0 && options.length > 0 ? (
+        <p className="lane__alt-head">Also proposed</p>
+      ) : null}
+
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         {options.length === 0 ? (
-          /* An empty lane is where a new board spends most of its first
+          /* Empty only when nothing at all is here — a lane holding a decision
+             is not empty, it is answered.
+
+             An empty lane is where a new board spends most of its first
              minutes, so it names the next action rather than just reporting
              emptiness — and says why when there isn't one (Phase 6.4). */
-          canPropose ? (
+          decided.length > 0 ? null : canPropose ? (
             <button
               type="button"
               className="lane__card lane__card--ghost lane__card--cta"

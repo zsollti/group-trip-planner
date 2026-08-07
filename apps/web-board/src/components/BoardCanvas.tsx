@@ -142,6 +142,19 @@ export function BoardCanvas({
     return m;
   }, [categories, opts.byCategory]);
 
+  // Locked options per category. They appear twice on purpose: pinned at the
+  // top of their own lane, where they are the answer to that lane's question,
+  // and in the Decided rail, where they are the trip's itinerary.
+  const decidedByCategory = useMemo(() => {
+    const m: Record<string, OptionView[]> = {};
+    for (const c of categories) {
+      m[c.id] = (opts.byCategory[c.id] ?? []).filter(
+        (o) => o.status === "LOCKED",
+      );
+    }
+    return m;
+  }, [categories, opts.byCategory]);
+
   const dndEnabled = can(myRole, "decision.lock") && !frozen;
 
   // Display order. Sorting by "still undecided" is a per-user view, so it must
@@ -308,6 +321,7 @@ export function BoardCanvas({
                 tripId={tripId}
                 category={category}
                 options={proposedByCategory[category.id] ?? []}
+                decided={decidedByCategory[category.id] ?? []}
                 defaultCurrency={defaultCurrency}
                 myRole={myRole}
                 myUserId={myUserId}
