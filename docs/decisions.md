@@ -219,6 +219,32 @@ affordable only because the backend, the contract package and the API client wer
 built once and shared, which is itself the argument for keeping business logic
 out of the component tree.
 
+**Retiring the Budget category.**
+
+The trip was seeded with five built-in categories; it is now seeded with four.
+Budget was the one that did not survive using the app.
+
+A category on this board is a question with competing answers: you propose
+options, the group dot-votes, an organizer locks one in. A budget is not that
+shape. It is a constraint the other decisions are measured against, and there is
+no version of "€800 per person" that beats "€900 per person" by getting more
+votes.
+
+The concrete harm was in the cost engine. Every non-Dates option carries cost
+fields, and the committed total sums **every** locked option across **every**
+category — so locking a figure in the Budget lane added it to the same total as
+the flights and the hotel that figure was supposed to bound. The number that
+looked most authoritative on the board was the one double-counting.
+
+The trip's cost is already an emergent property of what the other lanes decide.
+A target to compare it against belongs on the trip, next to the total, not in a
+lane pretending to be a decision.
+
+The enum value stays. Trips created before this still have their Budget row, and
+removing the value from the schema would make every one of those categories fail
+to parse — a contract change dressed up as a cleanup. Nothing creates a new one;
+the old ones are ordinary deletable categories.
+
 ---
 
 ## Things I deliberately did not build

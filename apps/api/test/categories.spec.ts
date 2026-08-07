@@ -12,10 +12,17 @@ import {
  * trip-creation transaction writes from.
  */
 describe("BUILTIN_CATEGORIES", () => {
-  it("seeds exactly the five documented categories, in order", () => {
+  it("seeds exactly the four documented categories, in order", () => {
     assert.deepEqual(
       BUILTIN_CATEGORIES.map((c) => c.builtinKey),
-      ["DATES", "TRANSPORT", "ACCOMMODATION", "ACTIVITIES", "BUDGET"],
+      ["DATES", "TRANSPORT", "ACCOMMODATION", "ACTIVITIES"],
+    );
+  });
+
+  it("no longer seeds Budget, which double-counted into the cost total", () => {
+    assert.ok(
+      !BUILTIN_CATEGORIES.some((c) => c.builtinKey === "BUDGET"),
+      "Budget is retired from the seed",
     );
   });
 
@@ -27,13 +34,12 @@ describe("BUILTIN_CATEGORIES", () => {
     assert.equal(byKey.TRANSPORT, false);
     assert.equal(byKey.ACCOMMODATION, true);
     assert.equal(byKey.ACTIVITIES, false);
-    assert.equal(byKey.BUDGET, true);
   });
 
-  it("has contiguous positions 0..4 and unique keys", () => {
+  it("has contiguous positions from 0 and unique keys", () => {
     assert.deepEqual(
       BUILTIN_CATEGORIES.map((c) => c.position),
-      [0, 1, 2, 3, 4],
+      BUILTIN_CATEGORIES.map((_, i) => i),
     );
     const keys = new Set(BUILTIN_CATEGORIES.map((c) => c.builtinKey));
     assert.equal(keys.size, BUILTIN_CATEGORIES.length, "keys are unique");
@@ -84,6 +90,8 @@ describe("categoryOptionFields", () => {
       "TRANSPORT",
       "ACCOMMODATION",
       "ACTIVITIES",
+      // Retired from the seed, but still parseable on older trips — so the
+      // form it gets is still part of the contract.
       "BUDGET",
       null,
     ] as const) {

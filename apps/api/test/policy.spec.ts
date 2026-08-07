@@ -35,11 +35,14 @@ describe("policy.maxTripMembers / maxTripHorizonDays", () => {
     assert.equal(maxTripHorizonDays({ maxHorizonDaysOverride: 90 }), 90);
   });
 
-  it("caps categories at the five built-ins plus three", () => {
+  it("caps categories at eight — what one lane row can hold", () => {
     assert.equal(maxTripCategories(), DEFAULT_MAX_TRIP_CATEGORIES);
     assert.equal(maxTripCategories(), 8);
-    assert.equal(maxTripCategories(), BUILTIN_CATEGORIES.length + 3);
     assert.equal(maxTripCategories({}), 8);
+    // Deliberately NOT `BUILTIN_CATEGORIES.length + n`: the cap is a layout
+    // budget for the row, so retiring a built-in buys a custom lane rather
+    // than shrinking the board.
+    assert.ok(maxTripCategories() > BUILTIN_CATEGORIES.length);
   });
 
   it("honours a per-trip category override (the same subscription seam)", () => {

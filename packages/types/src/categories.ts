@@ -17,6 +17,12 @@ import { z } from "zod";
  * Stable identity for a built-in category (mirrors the Prisma enum). Survives a
  * rename, so it — not the mutable name — identifies the Dates category for the
  * Phase-2.5 date write-back and drives the seeded `singleChoice` defaults.
+ *
+ * `BUDGET` is **retired, not removed**: it is no longer seeded (see
+ * {@link BUILTIN_CATEGORIES}), but trips created before it was retired still
+ * carry a Budget row, and dropping the value here would make every one of those
+ * categories fail to parse. It stays until those rows are gone; nothing creates
+ * a new one.
  */
 export const CategoryBuiltinKey = z.enum([
   "DATES",
@@ -133,13 +139,22 @@ export interface BuiltinCategorySeed {
 }
 
 /**
- * The five built-in categories every trip is seeded with, in display order (SRS
- * §6). The `singleChoice` defaults encode the domain: a trip settles on **one**
- * date range, **one** place to stay, and **one** budget (single-choice), but may
- * keep several transport legs and many activities (multi-select) — FR-19 pins
- * Dates single-choice and Transport multi-select; the rest follow the same
- * "is there one right answer?" reading. This is the single definition of the
- * seed; the trip-creation transaction writes exactly these rows.
+ * The built-in categories every trip is seeded with, in display order (SRS §6).
+ * The `singleChoice` defaults encode the domain: a trip settles on **one** date
+ * range and **one** place to stay (single-choice), but may keep several
+ * transport legs and many activities (multi-select) — FR-19 pins Dates
+ * single-choice and Transport multi-select; the rest follow the same "is there
+ * one right answer?" reading. This is the single definition of the seed; the
+ * trip-creation transaction writes exactly these rows.
+ *
+ * **Budget was retired from the seed.** A lane holds competing options you vote
+ * between and lock one of; a budget is a *constraint*, not a candidate. Worse,
+ * it was double-counting: every non-Dates option already carries cost fields and
+ * `cost.ts` sums the committed total across **every** locked option in any
+ * category, so locking "€800 per person" in a Budget lane added that €800 to the
+ * same total as the actual flights and hotel. The trip's cost is already an
+ * emergent property of the other lanes' decisions — a target to compare it
+ * against belongs on the trip, not in a lane.
  */
 export const BUILTIN_CATEGORIES: readonly BuiltinCategorySeed[] = [
   { builtinKey: "DATES", name: "Dates", singleChoice: true, position: 0 },
@@ -161,5 +176,4 @@ export const BUILTIN_CATEGORIES: readonly BuiltinCategorySeed[] = [
     singleChoice: false,
     position: 3,
   },
-  { builtinKey: "BUDGET", name: "Budget", singleChoice: true, position: 4 },
 ];
