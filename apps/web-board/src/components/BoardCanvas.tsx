@@ -1,12 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCorners,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -31,13 +35,33 @@ import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
 import { CostTally } from "./CostTally";
 import { DecidedRail, type DecidedItem } from "./DecidedRail";
+import { costLabel } from "./optionFormat";
 import { sortLanes, useLaneSort, type LaneSort } from "../lib/laneSort";
+import { truncateName } from "../lib/truncate";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
 interface DndData {
   type: "lane" | "card" | "locked" | "decided";
   categoryId?: string;
 }
+
+/**
+ * Whatever is under the pointer, falling back to nearest-corner.
+ *
+ * `closestCorners` alone compares the dragged item's corners to every
+ * droppable's, which is fine when the droppables are all the same shape — as
+ * they were when Decided was a lane in the same row. It is not fine now: the
+ * rail is a full-width strip and the lanes are 15rem columns, and a card lifted
+ * over the rail can still have a lane corner nearer to it than the enormous
+ * target it is visibly inside. Asking "what is the pointer actually over?" first
+ * is the answer dnd-kit documents for mixed-size droppables; corners still
+ * decide the within-lane reorder, where the pointer is often between two cards
+ * and over neither.
+ */
+const pointerFirst: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : closestCorners(args);
+};
 
 /**
  * The board canvas (Phase 3.5). Lifts every category's options to one place so it
@@ -131,7 +155,28 @@ export function BoardCanvas({
   );
   const laneDragEnabled = dndEnabled && laneSort === "manual";
 
+  /**
+   * The card currently in hand, so {@link DragOverlay} can show it.
+   *
+   * The overlay is not decoration. `.board__canvas` scrolls horizontally, and a
+   * box that scrolls on one axis clips on both — so a card dragged upward out of
+   * the lane row towards the Decided rail was cut off at the canvas edge and
+   * simply disappeared, while dnd-kit auto-scrolled the row instead of noticing
+   * the rail. The overlay renders in dnd-kit's own layer above everything, which
+   * is what lets a card travel from a lane to a target outside its container at
+   * all. It did not matter while Decided was itself a lane inside that container.
+   */
+  const [dragging, setDragging] = useState<OptionView | null>(null);
+
+  function handleDragStart(e: DragStartEvent) {
+    const a = e.active.data.current as DndData | undefined;
+    if (a?.type === "card" || a?.type === "locked") {
+      setDragging(optionById.get(String(e.active.id)) ?? null);
+    }
+  }
+
   function handleDragEnd(e: DragEndEvent) {
+    setDragging(null);
     const { active, over } = e;
     const a = active.data.current as DndData | undefined;
     if (!a) return;
@@ -213,8 +258,10 @@ export function BoardCanvas({
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={pointerFirst}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setDragging(null)}
       >
         {/* The trip so far, above the open questions. Both live inside the DnD
             context because the rail is the drop target for drag-to-decide; the
@@ -278,6 +325,23 @@ export function BoardCanvas({
             />
           ) : null}
         </div>
+        {/* Renders above every container, so a card can be carried out of the
+            horizontally-scrolling lane row and onto the rail. Deliberately a
+            plain preview and not an `OptionCard`: the card in hand is not
+            interactive, and mounting a second copy of one would duplicate its
+            mutations and its dialog. */}
+        <DragOverlay dropAnimation={null}>
+          {dragging ? (
+            <article className="lane__card lane__card--option lane__card--dragging">
+              <div className="lane__card-head">
+                <strong>{truncateName(dragging.title)}</strong>
+              </div>
+              {costLabel(dragging) ? (
+                <span className="lane__cost">{costLabel(dragging)}</span>
+              ) : null}
+            </article>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </>
   );
