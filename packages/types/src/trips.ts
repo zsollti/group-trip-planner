@@ -40,12 +40,57 @@ export const currencySchema = z
   .regex(/^[A-Z]{3}$/, "must be a 3-letter currency code")
   .default("EUR");
 
-export const CreateTripInput = z.object({
-  name: tripNameSchema,
-  description: optionalText(2000),
-  destination: optionalText(120),
-  defaultCurrency: currencySchema,
-});
+/** Optional ISO date-time; empty normalises to undefined. */
+const optionalDateTime = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.string().datetime({ offset: true }).optional(),
+);
+
+/**
+ * Create a trip. `startDate`/`endDate` are **optional and all-or-nothing**: a
+ * group that already knows when it is going says so here, and the trip is seeded
+ * with its Dates decision already made rather than being asked a question it has
+ * answered (post-launch).
+ *
+ * They are not a second way to store the trip's dates. A trip's dates have
+ * exactly one writer — locking an option in the Dates category — so supplying
+ * them here seeds a **pre-locked Dates option** and lets the ordinary write-back
+ * set the columns. Reopening the question is then the ordinary unlock, not a
+ * special case. The same `planLockedDates` rules apply (no past start, nothing
+ * beyond the planning horizon), so nothing can enter through create that could
+ * not be locked afterwards.
+ */
+export const CreateTripInput = z
+  .object({
+    name: tripNameSchema,
+    description: optionalText(2000),
+    destination: optionalText(120),
+    defaultCurrency: currencySchema,
+    startDate: optionalDateTime,
+    endDate: optionalDateTime,
+  })
+  .superRefine((val, ctx) => {
+    // All-or-nothing: one date alone can neither seed a lockable option nor
+    // compute an expiry, so it would be silently dropped.
+    if ((val.startDate === undefined) !== (val.endDate === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [val.startDate === undefined ? "startDate" : "endDate"],
+        message: "Give both dates, or neither.",
+      });
+    }
+    if (
+      val.startDate !== undefined &&
+      val.endDate !== undefined &&
+      Date.parse(val.endDate) < Date.parse(val.startDate)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endDate"],
+        message: "End must not be before start.",
+      });
+    }
+  });
 export type CreateTripInput = z.infer<typeof CreateTripInput>;
 
 /**

@@ -821,6 +821,15 @@ body {
   }
 }
 
+/* A note under a group of fields, explaining what filling them in does — as
+   opposed to a per-field `hint`, which explains what the field wants. */
+.board__field-note {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--board-dim);
+}
+
 .board__field-label {
   display: block;
   font-size: 0.85rem;

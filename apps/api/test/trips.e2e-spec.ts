@@ -221,6 +221,177 @@ describe("Trips (e2e)", () => {
     await prisma.tripMembership.create({ data: { tripId, userId, role } });
   }
 
+  /**
+   * Optional create-form dates (post-launch). The contract is that they are not
+   * a second writer of the trip's date columns: they seed an already-locked
+   * Dates option and the ordinary write-back does the rest, so unlocking still
+   * reopens the question. These assert that from the outside — the columns, the
+   * lane, and the fact that the same rules a later lock enforces apply here.
+   *
+   * Users are inserted directly (`makeVerifiedUser`) for the reason given above
+   * — these cases need several accounts and the register route's own per-IP
+   * limit would fire before the behaviour under test.
+   */
+  describe("creating a trip with dates", () => {
+    /** An ISO instant `days` from now, at midday UTC to dodge timezone edges. */
+    function isoInDays(days: number): string {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() + days);
+      d.setUTCHours(12, 0, 0, 0);
+      return d.toISOString();
+    }
+
+    it("writes the trip's dates and seeds a locked Dates option", async () => {
+      const owner = await makeVerifiedUser("dated");
+      const startDate = isoInDays(30);
+      const endDate = isoInDays(37);
+
+      const trip = await http()
+        .post("/trips")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: "Lisbon, booked", startDate, endDate })
+        .expect(201);
+
+      // The trip's own columns are `@db.Date` — date-only by design, since a
+      // trip runs on days, not instants. The option keeps the full instant.
+      const day = (iso: string) => iso.slice(0, 10);
+      assert.equal(day(trip.body.startDate), day(startDate));
+      assert.equal(day(trip.body.endDate), day(endDate));
+      // Expiry follows the locked end date (+1 month), not the +1 year fallback.
+      const expiry = new Date(trip.body.expiresAt).getTime();
+      assert.ok(
+        expiry < Date.now() + 300 * 24 * 3600 * 1000,
+        "expiry derives from the dates, not the one-year fallback",
+      );
+
+      const cats = await http()
+        .get(`/trips/${trip.body.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      const dates = (cats.body as { id: string; builtinKey: string }[]).find(
+        (c) => c.builtinKey === "DATES",
+      )!;
+
+      const opts = await http()
+        .get(`/trips/${trip.body.id}/categories/${dates.id}/options`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      assert.equal(opts.body.length, 1, "the Dates lane is not left empty");
+      assert.equal(opts.body[0].status, "LOCKED");
+      assert.equal(new Date(opts.body[0].startsAt).toISOString(), startDate);
+      assert.equal(new Date(opts.body[0].endsAt).toISOString(), endDate);
+    });
+
+    it("leaves the Dates lane empty when no dates are given", async () => {
+      const owner = await makeVerifiedUser("undated");
+      const trip = await http()
+        .post("/trips")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: "Someday" })
+        .expect(201);
+
+      assert.equal(trip.body.startDate, null);
+      assert.equal(trip.body.endDate, null);
+
+      const cats = await http()
+        .get(`/trips/${trip.body.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      const dates = (cats.body as { id: string; builtinKey: string }[]).find(
+        (c) => c.builtinKey === "DATES",
+      )!;
+      const opts = await http()
+        .get(`/trips/${trip.body.id}/categories/${dates.id}/options`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      assert.equal(opts.body.length, 0);
+    });
+
+    it("applies the same date rules a later lock would (FR-25)", async () => {
+      const owner = await makeVerifiedUser("baddates");
+      const post = (body: Record<string, unknown>) =>
+        http()
+          .post("/trips")
+          .set("Authorization", `Bearer ${owner.accessToken}`)
+          .send(body);
+
+      // A past start is refused here exactly as it is at lock time.
+      const past = await post({
+        name: "Backdated",
+        startDate: isoInDays(-3),
+        endDate: isoInDays(4),
+      });
+      assert.equal(past.status, 400);
+
+      // Beyond the planning horizon.
+      const far = await post({
+        name: "Far future",
+        startDate: isoInDays(500),
+        endDate: isoInDays(507),
+      });
+      assert.equal(far.status, 400);
+
+      // End before start, and one date without the other — both schema-level.
+      const reversed = await post({
+        name: "Reversed",
+        startDate: isoInDays(37),
+        endDate: isoInDays(30),
+      });
+      assert.equal(reversed.status, 400);
+
+      const lonely = await post({ name: "Half", startDate: isoInDays(30) });
+      assert.equal(
+        lonely.status,
+        400,
+        "one date alone is refused, not dropped",
+      );
+    });
+
+    it("lets the group reopen the question by unlocking", async () => {
+      const owner = await makeVerifiedUser("reopen");
+      const trip = await http()
+        .post("/trips")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: "Maybe Lisbon",
+          startDate: isoInDays(30),
+          endDate: isoInDays(37),
+        })
+        .expect(201);
+
+      const cats = await http()
+        .get(`/trips/${trip.body.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      const dates = (cats.body as { id: string; builtinKey: string }[]).find(
+        (c) => c.builtinKey === "DATES",
+      )!;
+      const opts = await http()
+        .get(`/trips/${trip.body.id}/categories/${dates.id}/options`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      const seeded = opts.body[0] as { id: string; version: number };
+
+      await http()
+        .post(
+          `/trips/${trip.body.id}/categories/${dates.id}/options/${seeded.id}/unlock`,
+        )
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        // 201: the unlock route is a plain @Post, as the locking suite asserts.
+        .send({ version: seeded.version })
+        .expect(201);
+
+      // Unlocking reverts the trip to the created+1y fallback (FR-9) — proof the
+      // seeded option really is the single writer of the date columns.
+      const after = await http()
+        .get(`/trips/${trip.body.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      assert.equal(after.body.startDate, null);
+      assert.equal(after.body.endDate, null);
+    });
+  });
+
   it("Owner edits trip details; version bumps and a stale edit 409s", async () => {
     const owner = await makeVerifiedUser("editor");
     const created = await http()

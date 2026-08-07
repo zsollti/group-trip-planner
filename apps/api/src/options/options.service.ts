@@ -34,6 +34,14 @@ import {
   toOptionView,
 } from "./option.mapper.js";
 
+/**
+ * Title for the Dates option seeded from the create form. Deliberately not the
+ * date range itself — the card renders `startsAt`/`endsAt` in the reader's own
+ * locale right beneath the title, and a title that restated them would be both
+ * duplicated and formatted server-side in someone else's conventions.
+ */
+const SEEDED_DATES_TITLE = "Trip dates";
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -52,6 +60,63 @@ export class OptionsService {
     private readonly realtime: RealtimeGateway,
     private readonly notifications: NotificationsService,
   ) {}
+
+  /**
+   * Seed a brand-new trip's Dates decision as an **already-locked option**, when
+   * the creator supplied dates on the create form (post-launch).
+   *
+   * Called inside the trip-creation transaction, so a trip whose columns say it
+   * runs 3–10 August can never exist without the locked option those columns
+   * were derived from. The caller has already validated the dates with
+   * `planLockedDates` and written `startDate`/`endDate`/`expiresAt` from its
+   * result — this writes the option that justifies them.
+   *
+   * Why an option rather than just the columns: the trip's dates have exactly
+   * one writer, the Dates lock. Setting the columns directly would make create a
+   * second writer, and the board would show an empty Dates lane above a trip
+   * that clearly has dates — with unlocking, the ordinary way to reopen the
+   * question, having nothing to unlock. Seeded this way, every later path
+   * (unlock, propose an alternative, re-lock) already works.
+   *
+   * Audited as an ordinary `OPTION_LOCKED` by the creator, because that is what
+   * it is; the activity feed should not have a hole where the trip's dates came
+   * from.
+   */
+  static async seedLockedDates(
+    tx: Prisma.TransactionClient,
+    tripId: string,
+    ownerId: string,
+    dates: { startDate: Date; endDate: Date },
+  ): Promise<void> {
+    // The `@@unique([tripId, builtinKey])` row seeded moments ago in this same
+    // transaction.
+    const category = await tx.category.findFirstOrThrow({
+      where: { tripId, builtinKey: "DATES" },
+      select: { id: true },
+    });
+    const option = await tx.option.create({
+      data: {
+        categoryId: category.id,
+        proposerId: ownerId,
+        title: SEEDED_DATES_TITLE,
+        // Dates options carry no cost — `categoryOptionFields` hides those
+        // fields on this category, and the cost engine ignores an unpriced
+        // option anyway.
+        currency: "EUR",
+        startsAt: dates.startDate,
+        endsAt: dates.endDate,
+        status: "LOCKED",
+        lockedById: ownerId,
+        lockedAt: new Date(),
+      },
+      select: { id: true, title: true },
+    });
+    await tx.auditEvent.create({
+      data: auditData(tripId, ownerId, "OPTION_LOCKED", option.id, {
+        optionTitle: option.title,
+      }),
+    });
+  }
 
   /**
    * Push a "this lane changed" signal to everyone viewing the trip (Phase 4.5
@@ -672,8 +737,13 @@ export class OptionsService {
   }
 }
 
-/** User-facing messages for a rejected Dates lock (FR-25). */
-const DATE_REJECTION_MESSAGE: Record<LockDatesRejection, string> = {
+/**
+ * User-facing messages for a rejected Dates lock (FR-25). Exported because trip
+ * creation can now supply dates too, and seeds them as a pre-locked Dates option
+ * — same rules, so it must be the same wording rather than a second set that
+ * drifts.
+ */
+export const DATE_REJECTION_MESSAGE: Record<LockDatesRejection, string> = {
   NO_DATES: "Add a start and end date to this option before locking it.",
   END_BEFORE_START: "The end date can't be before the start date.",
   PAST: "You can't lock dates that start in the past.",
