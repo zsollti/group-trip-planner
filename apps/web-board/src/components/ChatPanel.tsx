@@ -417,33 +417,41 @@ export function ChatPanel({
                 aria-label="Channels"
                 ref={fit.containerRef}
               >
-                {shownChannels.map((c) => {
-                  const isActive = c.id === activeChannelId;
-                  const badge = !isActive ? (unread[c.id] ?? 0) : 0;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      aria-pressed={isActive}
-                      title={channelName(c)}
-                      className={
-                        "board__chat-tab" +
-                        (isActive ? " board__chat-tab--active" : "")
-                      }
-                      onClick={() => selectChannel(c.id)}
-                    >
-                      {channelLabel(c)}
-                      {badge > 0 ? (
-                        <span
-                          className="board__chat-tabbadge"
-                          aria-label={`${badge} unread`}
-                        >
-                          {badge}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                {/* The chips clip, the overflow menu must not. Only this inner
+                    strip carries `overflow: hidden` — when the row itself did,
+                    it also clipped the Menu's absolutely-positioned popover to
+                    the height of one chip, so every collapsed channel but the
+                    first was unreachable. The strip spans the row, so the fit
+                    arithmetic (which measures the row) is unaffected. */}
+                <div className="board__chat-strip">
+                  {shownChannels.map((c) => {
+                    const isActive = c.id === activeChannelId;
+                    const badge = !isActive ? (unread[c.id] ?? 0) : 0;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={isActive}
+                        title={channelName(c)}
+                        className={
+                          "board__chat-tab" +
+                          (isActive ? " board__chat-tab--active" : "")
+                        }
+                        onClick={() => selectChannel(c.id)}
+                      >
+                        {channelLabel(c)}
+                        {badge > 0 ? (
+                          <span
+                            className="board__chat-tabbadge"
+                            aria-label={`${badge} unread`}
+                          >
+                            {badge}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
                 {hiddenChannels.length > 0 ? (
                   <Menu
                     label={

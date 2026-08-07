@@ -1693,6 +1693,11 @@ body {
   flex-direction: column;
   gap: 0.1rem;
   padding: 0.3rem;
+  /* A long list scrolls itself rather than running off the bottom of whatever
+     contains it — the chat panel is a fixed-height box that clips, so a full
+     nine-channel overflow menu on a short viewport had nowhere to go. */
+  max-height: min(18rem, 60vh);
+  overflow-y: auto;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 12px;
@@ -1865,6 +1870,20 @@ body {
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.3rem;
+}
+/* The clip lives here and not on the row above, so that the "＋N" popover — a
+   sibling of this strip, absolutely positioned — is free to drop below the row.
+   With the clip on the row, the popover was cut to one chip's height: the first
+   collapsed channel showed as a sliver and the rest could never be clicked.
+   Spans the row (`flex: 1 1 auto`) so `useFitCount`, which measures the row's
+   clientWidth, still sees the same space it always did. */
+.board__chat-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
 }
 /* The measured copy of the full channel list: same metrics as the real row, but
