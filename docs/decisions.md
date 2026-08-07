@@ -245,6 +245,32 @@ removing the value from the schema would make every one of those categories fail
 to parse — a contract change dressed up as a cleanup. Nothing creates a new one;
 the old ones are ordinary deletable categories.
 
+**Selection mode belongs to the trip, not the category.**
+
+Each category carries a `single_choice` flag: lock one option and the others
+release, or keep several winners. The seed used to guess it per category —
+Dates and Accommodation single, Transport and Activities multi — on a reading of
+what those words usually mean.
+
+The reading is not wrong so much as not knowable. A trip to one city wants one
+hotel; a trip down a coast wants a different one every third night. A weekend
+away has one flight each way, which is two locked options in a category the seed
+called single-choice. Guessing per category means guessing wrong for half of
+them, and there was no way for a group to say so.
+
+So every category now seeds single-choice — a category is a question, and a
+question has an answer — and Organizers switch any of them either way. The
+stricter default is the safe one precisely _because_ it is reversible.
+
+Two rules bound it, both refused with a 409 rather than a 403, because neither
+is about the caller's role and an Owner is refused for the same reason anyone
+else is. Dates cannot be widened: the trip's `start_date`/`end_date` hold one
+range, written from the one locked Dates option, and a second winner there would
+have nothing to write back to. And a category cannot be narrowed while two of
+its options are locked — the flag would leave it already violating its own
+invariant, with nobody having chosen which decision survives. The error names
+the count and tells the caller to unlock down to one.
+
 ---
 
 ## Things I deliberately did not build

@@ -8,11 +8,12 @@ import {
 import type { Prisma } from "@prisma/client";
 import {
   BUILTIN_CATEGORIES,
+  canBeMultiSelect,
   canDeleteCategory,
   maxTripCategories,
   type CreateCategoryInput,
   type CategoryView,
-  type RenameCategoryInput,
+  type UpdateCategoryInput,
   type ReorderCategoriesInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -34,7 +35,7 @@ export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Seed a new trip's five built-in categories (SRS §6). Called **inside the
+   * Seed a new trip's built-in categories (SRS §6). Called **inside the
    * trip-creation transaction** so a trip never exists without its categories;
    * takes the transaction client to share that atomic scope. The seed set and
    * its `singleChoice` defaults are the single definition in `@gtp/types`.
@@ -108,23 +109,62 @@ export class CategoriesService {
   }
 
   /**
-   * Rename a category with optimistic concurrency (SRS §6). The write is
-   * conditioned on the `version` the caller last saw: `updateMany` touches zero
-   * rows if someone else renamed it in the meantime, surfaced as a 409 so the
-   * front-end can prompt a reload. A category from another trip is a plain 404
-   * (scoped lookup — no cross-trip edit). Built-ins are renamable (FR-18); their
-   * `builtinKey` preserves identity regardless of the display name.
+   * Update a category's name and selection mode, with optimistic concurrency
+   * (SRS §6). The write is conditioned on the `version` the caller last saw:
+   * `updateMany` touches zero rows if someone else changed it in the meantime,
+   * surfaced as a 409 so the front-end can prompt a reload. A category from
+   * another trip is a plain 404 (scoped lookup — no cross-trip edit). Built-ins
+   * are renamable (FR-18); their `builtinKey` preserves identity regardless of
+   * the display name.
+   *
+   * Two rules guard the selection mode, both 409 rather than 403 — neither is
+   * about the caller's role, and an Owner is refused for the same reason anyone
+   * else is:
+   *
+   *  - **Dates is always single-choice** ({@link canBeMultiSelect}). The trip
+   *    holds one date range, written from the one locked Dates option; a second
+   *    winner there would have nothing to write back to.
+   *  - **Narrowing to single-choice needs the extra winners gone first.** A
+   *    single-choice category's invariant is at most one locked option, and the
+   *    lock path keeps it by unlocking the sibling as it goes. Flipping the flag
+   *    under two locked options would leave the category already in violation,
+   *    with no user action having chosen which one survives. Refused, naming the
+   *    count — the caller unlocks down to one and tries again.
    */
-  async renameCategory(
+  async updateCategory(
     ctx: TripContext,
     categoryId: string,
-    input: RenameCategoryInput,
+    input: UpdateCategoryInput,
   ): Promise<CategoryView> {
     const existing = await this.requireCategory(ctx, categoryId);
 
+    if (!input.singleChoice && !canBeMultiSelect(existing)) {
+      throw new ConflictException(
+        "Dates has to stay single-choice — the trip runs over one date range.",
+      );
+    }
+    if (input.singleChoice && !existing.singleChoice) {
+      const locked = await this.prisma.option.count({
+        where: {
+          categoryId: existing.id,
+          status: "LOCKED",
+          deletedAt: null,
+        },
+      });
+      if (locked > 1) {
+        throw new ConflictException(
+          `“${existing.name}” has ${locked} decided options. Unlock all but one before making it single-choice.`,
+        );
+      }
+    }
+
     const result = await this.prisma.category.updateMany({
       where: { id: existing.id, version: input.version },
-      data: { name: input.name, version: { increment: 1 } },
+      data: {
+        name: input.name,
+        singleChoice: input.singleChoice,
+        version: { increment: 1 },
+      },
     });
     if (result.count === 0) {
       throw new ConflictException(

@@ -60,7 +60,7 @@ export {
   categoryKeys,
   useTripCategories,
   useCreateCategory,
-  useRenameCategory,
+  useUpdateCategory,
   useDeleteCategory,
   useReorderCategories,
 } from "./categories.js";

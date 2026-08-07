@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Button } from "@gtp/ui-primitives";
 import {
   can,
+  canBeMultiSelect,
   canDeleteCategory,
   CATEGORY_NAME_MAX_LENGTH,
   type CategoryView,
@@ -13,7 +14,7 @@ import {
   ApiError,
   useDeleteCategory,
   useDeleteOption,
-  useRenameCategory,
+  useUpdateCategory,
   useStartDiscussion,
 } from "@gtp/api-client";
 import {
@@ -25,7 +26,7 @@ import { isTruncated, truncateName } from "../lib/truncate";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
 import { OptionCard } from "./OptionCard";
-import { Menu } from "./Menu";
+import { Menu, type MenuItem } from "./Menu";
 
 /**
  * One proposed option card, made sortable within its lane (Phase 3.5). The drag
@@ -123,10 +124,43 @@ function LaneHeader({
   onDiscuss: () => void;
   discussing: boolean;
 }) {
-  const rename = useRenameCategory(tripId);
+  const update = useUpdateCategory(tripId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(category.name);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Write the category, keeping whichever field this edit isn't changing.
+   *
+   * The endpoint is a full replace, so a rename has to carry the current
+   * selection mode and vice versa — otherwise renaming a lane would quietly
+   * reset how it decides.
+   *
+   * The 409 is two different things and they need different words: a version
+   * clash is "someone else got there first", while a refused selection-mode
+   * change is a rule the server is explaining (Dates, or too many locked
+   * options). Only the first is fixed by reloading, so the server's own message
+   * is shown whenever it has one to give.
+   */
+  async function save(next: { name?: string; singleChoice?: boolean }) {
+    setError(null);
+    try {
+      await update.mutateAsync({
+        categoryId: category.id,
+        name: next.name ?? category.name,
+        singleChoice: next.singleChoice ?? category.singleChoice,
+        version: category.version,
+      });
+      return true;
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not update this category",
+      );
+      return false;
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -135,23 +169,26 @@ function LaneHeader({
       setEditing(false);
       return;
     }
-    setError(null);
-    try {
-      await rename.mutateAsync({
-        categoryId: category.id,
-        name,
-        version: category.version,
-      });
-      setEditing(false);
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 409
-          ? "Changed elsewhere — reload."
-          : err instanceof ApiError
-            ? err.message
-            : "Rename failed",
-      );
-    }
+    if (await save({ name })) setEditing(false);
+  }
+
+  // Built once so the "⋯" can be dropped entirely when it would be empty.
+  const laneMenuItems: MenuItem[] = [];
+  if (canBeMultiSelect(category)) {
+    laneMenuItems.push({
+      label: category.singleChoice
+        ? "Allow several winners"
+        : "Keep only one winner",
+      onSelect: () => void save({ singleChoice: !category.singleChoice }),
+      disabled: update.isPending,
+    });
+  }
+  if (canDeleteCategory(category)) {
+    laneMenuItems.push({
+      label: "Delete category",
+      onSelect: onRequestDelete,
+      danger: true,
+    });
   }
 
   return (
@@ -215,19 +252,15 @@ function LaneHeader({
             💬
           </button>
           {grip}
-          {/* Dates has no Delete: it is the trip's only date-setting path and
-              cannot be recreated once gone (canDeleteCategory). With no other
-              menu item, the whole "⋯" goes rather than offering a dead one. */}
-          {isOrganizer && canDeleteCategory(category) ? (
+          {/* Dates gets neither item: it is the trip's only date-setting path
+              and cannot be recreated once gone (canDeleteCategory), and it holds
+              one date range so it cannot go multi-select (canBeMultiSelect).
+              With nothing to offer, the whole "⋯" goes rather than showing a
+              menu of things that would be refused. */}
+          {isOrganizer && laneMenuItems.length > 0 ? (
             <Menu
               label={`${category.name} lane actions`}
-              items={[
-                {
-                  label: "Delete category",
-                  onSelect: onRequestDelete,
-                  danger: true,
-                },
-              ]}
+              items={laneMenuItems}
             />
           ) : null}
         </div>
