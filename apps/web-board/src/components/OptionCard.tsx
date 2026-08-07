@@ -7,16 +7,18 @@ import {
   type OptionView,
   type TripRole,
 } from "@gtp/types";
-import { ApiError, useLockOption, useUnlockOption } from "@gtp/api-client";
+import { ApiError, useLockOption } from "@gtp/api-client";
 import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
 import { VoteDots } from "./optionControls";
+import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
-import { isTruncated, truncateName } from "../lib/truncate";
+import { truncateName } from "../lib/truncate";
 
 /**
  * One option card (Phase 3.5) — the presentational card shared by the category
- * lanes (proposed) and the global Decided column (locked). Content-first: title,
+ * lanes (proposed) and, before the Decided rail replaced it, the Decided column.
+ * Content-first: title,
  * dates, cost, notes, link, proposer, then the public vote tally. All *actions*
  * (Edit, Delete, and Lock/"Move to Decided"/Unlock) collapse into a single "⋯"
  * menu so a lane of 20 cards isn't a wall of buttons — drag stays the primary
@@ -38,7 +40,6 @@ export function OptionCard({
   style,
   grip,
   dragging = false,
-  categoryTag,
 }: {
   tripId: string;
   category: CategoryView;
@@ -53,10 +54,11 @@ export function OptionCard({
   style?: CSSProperties;
   grip?: ReactNode;
   dragging?: boolean;
-  categoryTag?: string;
 }) {
   const lock = useLockOption(tripId, category.id);
-  const unlock = useUnlockOption(tripId, category.id);
+  // Shared with the Decided rail's chip, so "undo this decision" behaves the
+  // same wherever a locked option is reachable from.
+  const unlock = useUnlockAction(tripId, category.id, option);
   const [actionError, setActionError] = useState<string | null>(null);
   const [viewing, setViewing] = useState(false);
 
@@ -77,19 +79,6 @@ export function OptionCard({
       setActionError(err instanceof ApiError ? err.message : "Could not lock");
     }
   }
-  async function doUnlock() {
-    setActionError(null);
-    try {
-      await unlock.mutateAsync({
-        optionId: option.id,
-        version: option.version,
-      });
-    } catch (err) {
-      setActionError(
-        err instanceof ApiError ? err.message : "Could not unlock",
-      );
-    }
-  }
 
   const openView = () => setViewing(true);
 
@@ -101,7 +90,7 @@ export function OptionCard({
   if (canDecide) {
     items.push(
       locked
-        ? { label: "Unlock", onSelect: doUnlock, disabled: unlock.isPending }
+        ? { label: "Unlock", onSelect: unlock.run, disabled: unlock.pending }
         : {
             label: category.singleChoice ? "Move to Decided" : "Lock card",
             onSelect: doLock,
@@ -141,7 +130,6 @@ export function OptionCard({
       style={style}
       className={
         "lane__card lane__card--option" +
-        (categoryTag ? " lane__card--decided" : "") +
         (dragging ? " lane__card--dragging" : "")
       }
     >
@@ -166,14 +154,6 @@ export function OptionCard({
           ) : null}
         </div>
       </div>
-      {categoryTag ? (
-        <p
-          className="lane__tag"
-          title={isTruncated(categoryTag) ? categoryTag : undefined}
-        >
-          {truncateName(categoryTag)}
-        </p>
-      ) : null}
       {dates ? field("lane__dates", <>🗓 {dates}</>) : null}
       {costLabel(option) ? field("lane__cost", costLabel(option)) : null}
       {option.description ? field("lane__notes", option.description) : null}
@@ -203,9 +183,9 @@ export function OptionCard({
         myRole={myRole}
         frozen={frozen}
       />
-      {actionError ? (
+      {(actionError ?? unlock.error) ? (
         <p className="board__form-error" role="alert">
-          {actionError}
+          {actionError ?? unlock.error}
         </p>
       ) : null}
       {viewing ? (

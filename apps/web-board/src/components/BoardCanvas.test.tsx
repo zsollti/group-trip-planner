@@ -132,7 +132,7 @@ describe("BoardCanvas", () => {
     window.localStorage.clear();
   });
 
-  it("puts locked options in the Decided column and proposed ones in the lane", async () => {
+  it("puts locked options in the Decided rail and proposed ones in the lane", async () => {
     mockFetch();
     renderBoard("OWNER");
 
@@ -142,6 +142,57 @@ describe("BoardCanvas", () => {
     expect(within(decided).getByText("Beach House")).toBeInTheDocument();
     // The proposed card is not inside Decided.
     expect(within(decided).queryByText("Hostel")).not.toBeInTheDocument();
+  });
+
+  it("names the category each decision answers, since the rail is cross-lane", async () => {
+    // The rail collects decisions from every lane, so a chip that only said
+    // "Beach House" would not say which question it settled. The lane it came
+    // from can no longer supply that context by position.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const decided = await screen.findByRole("region", { name: "Decided" });
+    expect(within(decided).getByText("Stay")).toBeInTheDocument();
+  });
+
+  it("keeps unlock reachable without a drag", async () => {
+    // Drag-to-unlock is progressive enhancement; the menu is the keyboard and
+    // touch path, and it is the only one jsdom can exercise.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const decided = await screen.findByRole("region", { name: "Decided" });
+    fireEvent.click(
+      within(decided).getByRole("button", { name: /actions for beach house/i }),
+    );
+
+    expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
+  });
+
+  it("offers a viewer with no decision rights no unlock", async () => {
+    mockFetch();
+    renderBoard("PARTICIPANT");
+
+    const decided = await screen.findByRole("region", { name: "Decided" });
+    fireEvent.click(
+      within(decided).getByRole("button", { name: /actions for beach house/i }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Unlock" })).toBeNull();
+    // But the decision is still readable in full.
+    expect(
+      screen.getByRole("button", { name: "View details" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says what the rail is for while it is still empty", async () => {
+    mockEmptyFetch();
+    renderBoard("OWNER");
+
+    const decided = await screen.findByRole("region", { name: "Decided" });
+    expect(
+      within(decided).getByText(/nothing settled yet/i),
+    ).toBeInTheDocument();
   });
 
   it("turns an empty lane into a propose CTA that opens the form (Phase 6.4)", async () => {
