@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   BUILTIN_CATEGORIES,
+  canBeMultiSelect,
   canDeleteCategory,
   categoryOptionFields,
 } from "@gtp/types";
@@ -26,14 +27,14 @@ describe("BUILTIN_CATEGORIES", () => {
     );
   });
 
-  it("pins the single-choice defaults (FR-19: Dates single, Transport multi)", () => {
-    const byKey = Object.fromEntries(
-      BUILTIN_CATEGORIES.map((c) => [c.builtinKey, c.singleChoice]),
-    );
-    assert.equal(byKey.DATES, true);
-    assert.equal(byKey.TRANSPORT, false);
-    assert.equal(byKey.ACCOMMODATION, true);
-    assert.equal(byKey.ACTIVITIES, false);
+  it("seeds every built-in single-choice — multi-select is opt-in per trip", () => {
+    // The flags used to guess per category (Transport and Activities
+    // multi-select). Whether a trip wants one flight or a leg each way is a
+    // property of the trip, not of the word "Transport", so the seed takes the
+    // stricter reading and the trip changes what it needs.
+    for (const c of BUILTIN_CATEGORIES) {
+      assert.equal(c.singleChoice, true, `${c.builtinKey} seeds single-choice`);
+    }
   });
 
   it("has contiguous positions from 0 and unique keys", () => {
@@ -57,6 +58,26 @@ describe("BUILTIN_CATEGORIES", () => {
  * back start/end dates, and `@@unique([tripId, builtinKey])` makes the loss
  * permanent. One definition, enforced by the API and read by the front-end.
  */
+describe("canBeMultiSelect", () => {
+  it("refuses Dates and allows every other built-in", () => {
+    // The trip holds one date range, written from the one locked Dates option;
+    // a second winner there would have nothing to write back to.
+    assert.equal(canBeMultiSelect({ builtinKey: "DATES" }), false);
+    for (const c of BUILTIN_CATEGORIES) {
+      if (c.builtinKey === "DATES") continue;
+      assert.equal(
+        canBeMultiSelect({ builtinKey: c.builtinKey }),
+        true,
+        `${c.builtinKey} may hold several winners`,
+      );
+    }
+  });
+
+  it("allows a custom category", () => {
+    assert.equal(canBeMultiSelect({ builtinKey: null }), true);
+  });
+});
+
 describe("canDeleteCategory", () => {
   it("refuses Dates and allows every other built-in", () => {
     assert.equal(canDeleteCategory({ builtinKey: "DATES" }), false);

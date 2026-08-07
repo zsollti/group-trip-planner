@@ -30,7 +30,12 @@ describe("Home dashboard (e2e)", () => {
     const email = `home+${label}+${suffix}@example.com`;
     emails.push(email);
     const user = await prisma.user.create({
-      data: { email, displayName: label, emailVerified: true, passwordHash: "x" },
+      data: {
+        email,
+        displayName: label,
+        emailVerified: true,
+        passwordHash: "x",
+      },
     });
     const accessToken = await tokens_.signAccessToken(user);
     return { user, accessToken };
@@ -45,12 +50,35 @@ describe("Home dashboard (e2e)", () => {
     return res.body as { id: string };
   }
 
+  /**
+   * Widen every non-Dates built-in to multi-select and return them.
+   *
+   * Built-ins all seed single-choice now — multi-select became a per-trip choice
+   * rather than a per-category guess — so this takes the route an organizer
+   * takes rather than assuming the seed hands one over.
+   */
   async function multiSelectCategories(accessToken: string, tripId: string) {
     const res = await http()
       .get(`/trips/${tripId}/categories`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    return (res.body as CategoryView[]).filter((c) => !c.singleChoice);
+    const widenable = (res.body as CategoryView[]).filter(
+      (c) => c.builtinKey !== "DATES",
+    );
+    const out: CategoryView[] = [];
+    for (const c of widenable) {
+      if (!c.singleChoice) {
+        out.push(c);
+        continue;
+      }
+      const updated = await http()
+        .patch(`/trips/${tripId}/categories/${c.id}`)
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ name: c.name, singleChoice: false, version: c.version })
+        .expect(200);
+      out.push(updated.body as CategoryView);
+    }
+    return out;
   }
 
   async function propose(
@@ -76,7 +104,9 @@ describe("Home dashboard (e2e)", () => {
     categoryVersion: number,
   ) {
     await http()
-      .post(`/trips/${tripId}/categories/${categoryId}/options/${optionId}/lock`)
+      .post(
+        `/trips/${tripId}/categories/${categoryId}/options/${optionId}/lock`,
+      )
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ optionVersion, categoryVersion })
       .expect(201);
@@ -114,7 +144,9 @@ describe("Home dashboard (e2e)", () => {
         where: { email: { in: emails } },
         select: { id: true },
       });
-      await prisma.trip.deleteMany({ where: { ownerId: { in: users.map((u) => u.id) } } });
+      await prisma.trip.deleteMany({
+        where: { ownerId: { in: users.map((u) => u.id) } },
+      });
       await prisma.user.deleteMany({ where: { email: { in: emails } } });
     }
     if (app) await app.close();
@@ -128,12 +160,25 @@ describe("Home dashboard (e2e)", () => {
 
     // Category `decided`: one locked TOTAL option (committed = 200) → not pending.
     const locked = await propose(owner.accessToken, trip.id, decided!.id, {
-      title: "Villa", amount: 200, currency: "EUR", costType: "TOTAL",
+      title: "Villa",
+      amount: 200,
+      currency: "EUR",
+      costType: "TOTAL",
     });
-    await lock(owner.accessToken, trip.id, decided!.id, locked.id, locked.version, decided!.version);
+    await lock(
+      owner.accessToken,
+      trip.id,
+      decided!.id,
+      locked.id,
+      locked.version,
+      decided!.version,
+    );
     // Category `open`: a proposal with no lock → one pending decision.
     await propose(owner.accessToken, trip.id, open!.id, {
-      title: "Museum pass", amount: 30, currency: "EUR", costType: "PER_PERSON",
+      title: "Museum pass",
+      amount: 30,
+      currency: "EUR",
+      costType: "PER_PERSON",
     });
 
     // A second, ended trip (past expiry → effective History).
@@ -173,7 +218,10 @@ describe("Home dashboard (e2e)", () => {
     assert.equal(page2.trips.length, 1);
     // No overlap between the pages.
     const ids1 = new Set(page1.trips.map((t) => t.id));
-    assert.equal(page2.trips.some((t) => ids1.has(t.id)), false);
+    assert.equal(
+      page2.trips.some((t) => ids1.has(t.id)),
+      false,
+    );
   });
 
   it("lists only the caller's own trips", async () => {
@@ -183,10 +231,16 @@ describe("Home dashboard (e2e)", () => {
 
     const strangerView = await home(stranger.accessToken);
     assert.equal(strangerView.total, 0);
-    assert.equal(strangerView.trips.some((t) => t.id === trip.id), false);
+    assert.equal(
+      strangerView.trips.some((t) => t.id === trip.id),
+      false,
+    );
 
     const ownerView = await home(owner.accessToken);
-    assert.equal(ownerView.trips.some((t) => t.id === trip.id), true);
+    assert.equal(
+      ownerView.trips.some((t) => t.id === trip.id),
+      true,
+    );
   });
 
   it("requires authentication", async () => {

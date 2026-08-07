@@ -12,7 +12,7 @@ import {
 import {
   CreateCategoryInput,
   ReorderCategoriesInput,
-  RenameCategoryInput,
+  UpdateCategoryInput,
   type CategoryView,
 } from "@gtp/types";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
@@ -66,16 +66,20 @@ export class CategoriesController {
     return this.categories.reorderCategories(ctx, body);
   }
 
-  /** Rename a category (Organizers) — optimistic concurrency, 409 on conflict. */
+  /**
+   * Update a category's name + selection mode (Organizers) — optimistic
+   * concurrency, 409 on conflict, on Dates going multi-select, and on narrowing
+   * to single-choice with more than one option still locked.
+   */
   @Patch(":categoryId")
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
   @RequirePermission("category.manage")
-  renameCategory(
+  updateCategory(
     @TripCtx() ctx: TripContext,
     @Param("categoryId") categoryId: string,
-    @Body(new ZodValidationPipe(RenameCategoryInput)) body: RenameCategoryInput,
+    @Body(new ZodValidationPipe(UpdateCategoryInput)) body: UpdateCategoryInput,
   ): Promise<CategoryView> {
-    return this.categories.renameCategory(ctx, categoryId, body);
+    return this.categories.updateCategory(ctx, categoryId, body);
   }
 
   /** Delete a category (Organizers) — hard cascade. Replies 204. */

@@ -8,7 +8,7 @@ import {
 import type {
   CategoryView,
   CreateCategoryInput,
-  RenameCategoryInput,
+  UpdateCategoryInput,
   ReorderCategoriesInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
@@ -47,23 +47,25 @@ export function useCreateCategory(
 }
 
 /**
- * Rename a category (Organizers). The caller passes the `version` they last saw;
- * a 409 {@link ApiError} means it changed underneath them and the UI should
- * prompt a reload.
+ * Update a category's name and selection mode (Organizers). A full replace: the
+ * caller sends both fields plus the `version` they last saw. A 409
+ * {@link ApiError} means either that it changed underneath them, or that the
+ * selection-mode change was refused (Dates, or too many locked options) — the
+ * message says which, and is written to be shown as-is.
  */
-export function useRenameCategory(
+export function useUpdateCategory(
   tripId: string,
 ): UseMutationResult<
   CategoryView,
   ApiError,
-  { categoryId: string } & RenameCategoryInput
+  { categoryId: string } & UpdateCategoryInput
 > {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ categoryId, name, version }) =>
+    mutationFn: ({ categoryId, name, singleChoice, version }) =>
       apiFetch<CategoryView>(`/trips/${tripId}/categories/${categoryId}`, {
         method: "PATCH",
-        body: { name, version },
+        body: { name, singleChoice, version },
       }),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) }),

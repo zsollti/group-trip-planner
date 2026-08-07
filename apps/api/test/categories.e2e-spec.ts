@@ -132,8 +132,11 @@ describe("Categories (e2e)", () => {
       "all seeded categories are built-in",
     );
     const byKey = Object.fromEntries(cats.map((c) => [c.builtinKey, c]));
-    assert.equal(byKey.DATES.singleChoice, true);
-    assert.equal(byKey.TRANSPORT.singleChoice, false);
+    // Every built-in now seeds single-choice; multi-select is opt-in per trip.
+    for (const c of cats) {
+      assert.equal(c.singleChoice, true, `${c.builtinKey} seeds single-choice`);
+    }
+    assert.ok(byKey.DATES, "Dates is seeded");
     assert.deepEqual(
       cats.map((c) => c.position),
       [0, 1, 2, 3],
@@ -225,7 +228,7 @@ describe("Categories (e2e)", () => {
     const renamed = await http()
       .patch(`/trips/${trip.id}/categories/${dates.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ name: "When", version: 0 })
+      .send({ name: "When", singleChoice: true, version: 0 })
       .expect(200);
     assert.equal(renamed.body.name, "When");
     assert.equal(renamed.body.version, 1, "version bumped");
@@ -235,8 +238,123 @@ describe("Categories (e2e)", () => {
     await http()
       .patch(`/trips/${trip.id}/categories/${dates.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ name: "Whenever", version: 0 })
+      .send({ name: "Whenever", singleChoice: true, version: 0 })
       .expect(409);
+  });
+
+  /**
+   * The selection mode is now a per-trip choice rather than a per-category
+   * guess, so the two rules that bound it are the interesting surface: Dates
+   * cannot widen, and nothing can narrow while it would break its own invariant.
+   * Both are 409 rather than 403 — an Owner is refused for the same reason
+   * anyone else is, because neither is about the caller's role.
+   */
+  describe("selection mode", () => {
+    it("lets an Organizer switch a category to multi-select and back", async () => {
+      const owner = await makeUser("mode-owner");
+      const trip = await createTrip(owner.accessToken, "Modes");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const stay = cats.find((c) => c.builtinKey === "ACCOMMODATION")!;
+      assert.equal(stay.singleChoice, true, "seeded single-choice");
+
+      const wide = await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: stay.name, singleChoice: false, version: stay.version })
+        .expect(200);
+      assert.equal(wide.body.singleChoice, false);
+
+      const back = await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: stay.name,
+          singleChoice: true,
+          version: wide.body.version,
+        })
+        .expect(200);
+      assert.equal(back.body.singleChoice, true);
+    });
+
+    it("refuses to make Dates multi-select, even for the Owner", async () => {
+      const owner = await makeUser("mode-dates");
+      const trip = await createTrip(owner.accessToken, "Dates mode");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const dates = cats.find((c) => c.builtinKey === "DATES")!;
+
+      const res = await http()
+        .patch(`/trips/${trip.id}/categories/${dates.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: dates.name, singleChoice: false, version: dates.version })
+        .expect(409);
+      assert.match(res.body.message, /one date range/i);
+    });
+
+    it("refuses to narrow a category that already has two decisions", async () => {
+      const owner = await makeUser("mode-narrow");
+      const trip = await createTrip(owner.accessToken, "Narrow");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const acts = cats.find((c) => c.builtinKey === "ACTIVITIES")!;
+
+      // Widen it, then lock two options — legal only while multi-select.
+      const wide = await http()
+        .patch(`/trips/${trip.id}/categories/${acts.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ name: acts.name, singleChoice: false, version: acts.version })
+        .expect(200);
+
+      const optionsUrl = `/trips/${trip.id}/categories/${acts.id}/options`;
+      const locked: { id: string; version: number }[] = [];
+      for (const title of ["Museum", "Beach"]) {
+        const opt = await http()
+          .post(optionsUrl)
+          .set("Authorization", `Bearer ${owner.accessToken}`)
+          .send({ title, currency: "EUR" })
+          .expect(201);
+        await http()
+          .post(`${optionsUrl}/${opt.body.id}/lock`)
+          .set("Authorization", `Bearer ${owner.accessToken}`)
+          .send({ optionVersion: opt.body.version, categoryVersion: 1 })
+          .expect(201);
+        locked.push({ id: opt.body.id, version: opt.body.version });
+      }
+
+      // Narrowing now would leave the category in violation of its own rule,
+      // with nobody having chosen which decision survives.
+      const refused = await http()
+        .patch(`/trips/${trip.id}/categories/${acts.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: acts.name,
+          singleChoice: true,
+          version: wide.body.version,
+        })
+        .expect(409);
+      assert.match(refused.body.message, /Unlock all but one/i);
+
+      // Unlock one and it goes through — the message told the caller the truth.
+      await http()
+        .post(`${optionsUrl}/${locked[0]!.id}/unlock`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ version: locked[0]!.version + 1 })
+        .expect(201);
+
+      await http()
+        .patch(`/trips/${trip.id}/categories/${acts.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: acts.name,
+          singleChoice: true,
+          version: wide.body.version,
+        })
+        .expect(200);
+    });
   });
 
   it("reorders the full set; a partial list is a 400", async () => {

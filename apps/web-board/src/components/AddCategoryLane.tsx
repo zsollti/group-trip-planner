@@ -27,7 +27,9 @@ export function AddCategoryLane({
   const atCap = categoryCount >= cap;
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [singleChoice, setSingleChoice] = useState(false);
+  // Matches the contract's default: a category is a question, so one answer
+  // unless you say otherwise. Reversible from the lane's own menu either way.
+  const [singleChoice, setSingleChoice] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
@@ -38,7 +40,7 @@ export function AddCategoryLane({
     try {
       await create.mutateAsync({ name: trimmed, singleChoice });
       setName("");
-      setSingleChoice(false);
+      setSingleChoice(true);
       setOpen(false);
     } catch (err) {
       setError(
@@ -66,10 +68,10 @@ export function AddCategoryLane({
           <label className="board__checkbox">
             <input
               type="checkbox"
-              checked={singleChoice}
-              onChange={(e) => setSingleChoice(e.target.checked)}
+              checked={!singleChoice}
+              onChange={(e) => setSingleChoice(!e.target.checked)}
             />
-            Single-choice (only one locked pick)
+            Allow several winners
           </label>
           {error ? (
             <p className="board__form-error" role="alert">

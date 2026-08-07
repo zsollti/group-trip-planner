@@ -114,12 +114,14 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     ).toHaveAttribute("aria-pressed", "true");
 
     // --- the owner locks the decision --------------------------------------
-    // Transport is multi-select, so the action reads "Lock card" (a
-    // single-choice lane offers "Move to Decided" instead).
+    // Every category seeds single-choice now, so the action reads "Move to
+    // Decided"; a lane widened to multi-select offers "Lock card" instead. The
+    // exact label is asserted rather than matched loosely — it is the sentence
+    // that tells an organizer whether locking this will release a sibling.
     await ownerCard
       .getByRole("button", { name: `Actions for ${optionTitle}` })
       .click();
-    await ownerPage.getByRole("button", { name: "Lock card" }).click();
+    await ownerPage.getByRole("button", { name: "Move to Decided" }).click();
 
     // The decision leaves its lane and lands in the Decided rail.
     const ownerDecided = decidedRail(ownerPage);

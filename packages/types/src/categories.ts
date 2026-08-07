@@ -65,26 +65,54 @@ export const CategoryView = z.object({
 export type CategoryView = z.infer<typeof CategoryView>;
 
 /**
- * Create a custom category (Organizers). `singleChoice` defaults to multi-select
- * — the common case for a user-added bucket of proposals; the creator opts into
- * single-choice explicitly.
+ * Create a custom category (Organizers). `singleChoice` defaults to **true**:
+ * a category is a question, and most questions have one answer. Keeping several
+ * winners is the interesting case, so it is the one you opt into — and it can be
+ * switched later either way ({@link UpdateCategoryInput}), which is what makes
+ * the stricter default the safe one.
  */
 export const CreateCategoryInput = z.object({
   name: categoryNameSchema,
-  singleChoice: z.boolean().default(false),
+  singleChoice: z.boolean().default(true),
 });
 export type CreateCategoryInput = z.infer<typeof CreateCategoryInput>;
 
 /**
- * Rename a category (Organizers), carrying the `version` the client last saw.
- * The backend rejects the write with a 409 if the category changed since (SRS
- * §6 optimistic concurrency — the "changed since you opened it — reload" path).
+ * Update a category's editable fields (Organizers), carrying the `version` the
+ * client last saw. The backend rejects the write with a 409 if the category
+ * changed since (SRS §6 optimistic concurrency — the "changed since you opened
+ * it — reload" path).
+ *
+ * A full-object replace, not a patch: `singleChoice` is sent on every write, so
+ * a rename cannot silently reset it and the two edits share one concurrency
+ * token. Two rules the backend enforces and the board mirrors —
+ * {@link canBeMultiSelect} pins Dates, and a switch to single-choice is refused
+ * while more than one option is locked.
  */
-export const RenameCategoryInput = z.object({
+export const UpdateCategoryInput = z.object({
   name: categoryNameSchema,
+  singleChoice: z.boolean(),
   version: z.number().int().nonnegative(),
 });
-export type RenameCategoryInput = z.infer<typeof RenameCategoryInput>;
+export type UpdateCategoryInput = z.infer<typeof UpdateCategoryInput>;
+
+/**
+ * Whether this category may hold more than one locked option.
+ *
+ * True for everything **except Dates**. A trip runs over one continuous span —
+ * its `startDate`/`endDate` columns hold exactly one range, written from the one
+ * locked Dates option — so a Dates category with two winners has no meaning the
+ * rest of the app could represent. Every other question is legitimately either
+ * kind: one place to stay, or three; one flight, or a leg each way.
+ *
+ * One definition: the API refuses the write with it, the board hides the control
+ * with it.
+ */
+export function canBeMultiSelect(category: {
+  readonly builtinKey: CategoryBuiltinKey | null;
+}): boolean {
+  return category.builtinKey !== "DATES";
+}
 
 /**
  * Reorder the trip's categories (Organizers). The client sends the full set of
@@ -140,12 +168,20 @@ export interface BuiltinCategorySeed {
 
 /**
  * The built-in categories every trip is seeded with, in display order (SRS §6).
- * The `singleChoice` defaults encode the domain: a trip settles on **one** date
- * range and **one** place to stay (single-choice), but may keep several
- * transport legs and many activities (multi-select) — FR-19 pins Dates
- * single-choice and Transport multi-select; the rest follow the same "is there
- * one right answer?" reading. This is the single definition of the seed; the
- * trip-creation transaction writes exactly these rows.
+ *
+ * **All seed single-choice.** The `singleChoice` flags used to encode a guess at
+ * the domain — Transport and Activities multi-select, on the reading that a trip
+ * keeps several legs and many activities. The guess was half right and the shape
+ * was wrong: whether a trip wants one flight or a leg each way, one hotel or a
+ * different city every third night, is a property of *that* trip, not of the
+ * word "Transport". Guessing per category meant guessing wrong for half of them
+ * with no way to say so.
+ *
+ * So the seed takes the stricter reading — a category is a question, and a
+ * question has an answer — and the trip changes what it needs
+ * ({@link UpdateCategoryInput}). Dates is the one that cannot
+ * ({@link canBeMultiSelect}): the trip has one date range, and two winners there
+ * would have nothing to write back to.
  *
  * **Budget was retired from the seed.** A lane holds competing options you vote
  * between and lock one of; a budget is a *constraint*, not a candidate. Worse,
@@ -161,7 +197,7 @@ export const BUILTIN_CATEGORIES: readonly BuiltinCategorySeed[] = [
   {
     builtinKey: "TRANSPORT",
     name: "Transport",
-    singleChoice: false,
+    singleChoice: true,
     position: 1,
   },
   {
@@ -173,7 +209,7 @@ export const BUILTIN_CATEGORIES: readonly BuiltinCategorySeed[] = [
   {
     builtinKey: "ACTIVITIES",
     name: "Activities",
-    singleChoice: false,
+    singleChoice: true,
     position: 3,
   },
 ];

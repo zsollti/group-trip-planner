@@ -32,7 +32,12 @@ describe("Trip dashboard (e2e)", () => {
     const email = `dash+${label}+${suffix}@example.com`;
     emails.push(email);
     const user = await prisma.user.create({
-      data: { email, displayName: label, emailVerified: verified, passwordHash: "x" },
+      data: {
+        email,
+        displayName: label,
+        emailVerified: verified,
+        passwordHash: "x",
+      },
     });
     const accessToken = await tokens_.signAccessToken(user);
     return { user, accessToken, email };
@@ -57,7 +62,9 @@ describe("Trip dashboard (e2e)", () => {
   }
 
   function join(accessToken: string, token: string) {
-    return http().post(`/join/${token}`).set("Authorization", `Bearer ${accessToken}`);
+    return http()
+      .post(`/join/${token}`)
+      .set("Authorization", `Bearer ${accessToken}`);
   }
 
   async function categories(accessToken: string, tripId: string) {
@@ -68,11 +75,32 @@ describe("Trip dashboard (e2e)", () => {
     return res.body as CategoryView[];
   }
 
-  /** A multi-select built-in category (locking there guards on the option). */
-  async function multiSelectCategory(accessToken: string, tripId: string) {
+  /**
+   * A multi-select built-in category (locking there guards on the option).
+   *
+   * Every built-in now **seeds** single-choice — multi-select became a per-trip
+   * choice rather than a per-category guess — so this widens one, which is the
+   * same route a real organizer takes. `skip` lets a caller ask for a second
+   * distinct category.
+   */
+  async function multiSelectCategory(
+    accessToken: string,
+    tripId: string,
+    skip: string[] = [],
+  ) {
     const cats = await categories(accessToken, tripId);
-    const cat = cats.find((c) => !c.singleChoice);
-    assert.ok(cat, "expected a multi-select built-in category");
+    const cat = cats.find(
+      (c) => c.builtinKey !== "DATES" && !skip.includes(c.id),
+    );
+    assert.ok(cat, "expected a widenable built-in category");
+    if (cat.singleChoice) {
+      const res = await http()
+        .patch(`/trips/${tripId}/categories/${cat.id}`)
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ name: cat.name, singleChoice: false, version: cat.version })
+        .expect(200);
+      return res.body as CategoryView;
+    }
     return cat;
   }
 
@@ -94,7 +122,12 @@ describe("Trip dashboard (e2e)", () => {
     return res.body as { id: string; version: number };
   }
 
-  function vote(accessToken: string, tripId: string, categoryId: string, optionId: string) {
+  function vote(
+    accessToken: string,
+    tripId: string,
+    categoryId: string,
+    optionId: string,
+  ) {
     return http()
       .post(`${optionsUrl(tripId, categoryId)}/${optionId}/votes`)
       .set("Authorization", `Bearer ${accessToken}`)
@@ -151,7 +184,9 @@ describe("Trip dashboard (e2e)", () => {
         where: { email: { in: emails } },
         select: { id: true },
       });
-      await prisma.trip.deleteMany({ where: { ownerId: { in: users.map((u) => u.id) } } });
+      await prisma.trip.deleteMany({
+        where: { ownerId: { in: users.map((u) => u.id) } },
+      });
       await prisma.user.deleteMany({ where: { email: { in: emails } } });
     }
     if (app) await app.close();
@@ -164,13 +199,22 @@ describe("Trip dashboard (e2e)", () => {
 
     // Two dynamic PER_PERSON options (live count = 1 = just the owner).
     const locked = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Flight", amount: 100, currency: "EUR", costType: "PER_PERSON",
+      title: "Flight",
+      amount: 100,
+      currency: "EUR",
+      costType: "PER_PERSON",
     });
     const runner = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Train", amount: 40, currency: "EUR", costType: "PER_PERSON",
+      title: "Train",
+      amount: 40,
+      currency: "EUR",
+      costType: "PER_PERSON",
     });
     const alsoRan = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Bus", amount: 20, currency: "EUR", costType: "PER_PERSON",
+      title: "Bus",
+      amount: 20,
+      currency: "EUR",
+      costType: "PER_PERSON",
     });
 
     // The runner outvotes the also-ran → it is the category front-runner. But the
@@ -178,23 +222,44 @@ describe("Trip dashboard (e2e)", () => {
     await vote(owner.accessToken, trip.id, cat.id, runner.id);
 
     // Lock "Flight" in this (multi-select) category. Committed = 100 (×1 head).
-    await lock(owner.accessToken, trip.id, cat.id, locked.id, locked.version, cat.version);
+    await lock(
+      owner.accessToken,
+      trip.id,
+      cat.id,
+      locked.id,
+      locked.version,
+      cat.version,
+    );
 
     const d = await dashboard(owner.accessToken, trip.id);
     assert.equal(d.memberCount, 1);
 
     // A locked option means the category is decided → NO front-runner is added,
     // so committed and projected are identical here.
-    assert.deepEqual(sub(d.committed, "EUR"), { currency: "EUR", group: 100, perPerson: 100 });
-    assert.deepEqual(sub(d.projected, "EUR"), { currency: "EUR", group: 100, perPerson: 100 });
+    assert.deepEqual(sub(d.committed, "EUR"), {
+      currency: "EUR",
+      group: 100,
+      perPerson: 100,
+    });
+    assert.deepEqual(sub(d.projected, "EUR"), {
+      currency: "EUR",
+      group: 100,
+      perPerson: 100,
+    });
 
     // The breakdown carries exactly the one locked line.
     const lockedLines = d.lines.filter((l) => l.kind === "LOCKED");
     assert.equal(lockedLines.length, 1);
     assert.equal(lockedLines[0]!.title, "Flight");
-    assert.equal(d.lines.some((l) => l.kind === "FRONT_RUNNER"), false);
+    assert.equal(
+      d.lines.some((l) => l.kind === "FRONT_RUNNER"),
+      false,
+    );
     // Unused proposals still exist but never appear as committed/front-runner.
-    assert.equal(d.lines.some((l) => l.optionId === alsoRan.id), false);
+    assert.equal(
+      d.lines.some((l) => l.optionId === alsoRan.id),
+      false,
+    );
   });
 
   it("an open category contributes its top-voted proposal to the projection only", async () => {
@@ -203,17 +268,27 @@ describe("Trip dashboard (e2e)", () => {
     const cat = await multiSelectCategory(owner.accessToken, trip.id);
 
     const hi = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Nice hotel", amount: 500, currency: "EUR", costType: "TOTAL",
+      title: "Nice hotel",
+      amount: 500,
+      currency: "EUR",
+      costType: "TOTAL",
     });
     await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Hostel", amount: 120, currency: "EUR", costType: "TOTAL",
+      title: "Hostel",
+      amount: 120,
+      currency: "EUR",
+      costType: "TOTAL",
     });
     await vote(owner.accessToken, trip.id, cat.id, hi.id); // front-runner
 
     const d = await dashboard(owner.accessToken, trip.id);
     // Nothing locked → committed empty; projection = the front-runner (TOTAL 500).
     assert.equal(sub(d.committed, "EUR"), undefined);
-    assert.deepEqual(sub(d.projected, "EUR"), { currency: "EUR", group: 500, perPerson: 500 });
+    assert.deepEqual(sub(d.projected, "EUR"), {
+      currency: "EUR",
+      group: 500,
+      perPerson: 500,
+    });
     const fr = d.lines.filter((l) => l.kind === "FRONT_RUNNER");
     assert.equal(fr.length, 1);
     assert.equal(fr[0]!.title, "Nice hotel");
@@ -222,22 +297,49 @@ describe("Trip dashboard (e2e)", () => {
   it("keeps currencies separate and never sums across them (FR-27)", async () => {
     const owner = await makeUser("m-owner");
     const trip = await createTrip(owner.accessToken, "Multi-currency");
-    const cats = (await categories(owner.accessToken, trip.id)).filter((c) => !c.singleChoice);
-    assert.ok(cats.length >= 2, "need two multi-select categories");
-    const [c1, c2] = cats;
+    const c1 = await multiSelectCategory(owner.accessToken, trip.id);
+    const c2 = await multiSelectCategory(owner.accessToken, trip.id, [c1.id]);
 
-    const eur = await propose(owner.accessToken, trip.id, c1!.id, {
-      title: "EUR total", amount: 300, currency: "EUR", costType: "TOTAL",
+    const eur = await propose(owner.accessToken, trip.id, c1.id, {
+      title: "EUR total",
+      amount: 300,
+      currency: "EUR",
+      costType: "TOTAL",
     });
-    const huf = await propose(owner.accessToken, trip.id, c2!.id, {
-      title: "HUF total", amount: 90000, currency: "HUF", costType: "TOTAL",
+    const huf = await propose(owner.accessToken, trip.id, c2.id, {
+      title: "HUF total",
+      amount: 90000,
+      currency: "HUF",
+      costType: "TOTAL",
     });
-    await lock(owner.accessToken, trip.id, c1!.id, eur.id, eur.version, c1!.version);
-    await lock(owner.accessToken, trip.id, c2!.id, huf.id, huf.version, c2!.version);
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c1.id,
+      eur.id,
+      eur.version,
+      c1.version,
+    );
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c2.id,
+      huf.id,
+      huf.version,
+      c2.version,
+    );
 
     const d = await dashboard(owner.accessToken, trip.id);
-    assert.deepEqual(sub(d.committed, "EUR"), { currency: "EUR", group: 300, perPerson: 300 });
-    assert.deepEqual(sub(d.committed, "HUF"), { currency: "HUF", group: 90000, perPerson: 90000 });
+    assert.deepEqual(sub(d.committed, "EUR"), {
+      currency: "EUR",
+      group: 300,
+      perPerson: 300,
+    });
+    assert.deepEqual(sub(d.committed, "HUF"), {
+      currency: "HUF",
+      group: 90000,
+      perPerson: 90000,
+    });
     assert.equal(d.committed.length, 2); // two separate subtotals, not one sum
   });
 
@@ -245,19 +347,40 @@ describe("Trip dashboard (e2e)", () => {
     const owner = await makeUser("st-owner");
     const joiner = await makeUser("st-joiner");
     const trip = await createTrip(owner.accessToken, "Stale headcount");
-    const cats = (await categories(owner.accessToken, trip.id)).filter((c) => !c.singleChoice);
-    const [c1, c2] = cats;
+    const c1 = await multiSelectCategory(owner.accessToken, trip.id);
+    const c2 = await multiSelectCategory(owner.accessToken, trip.id, [c1.id]);
 
     // A FIXED-headcount TOTAL option (confirmed now, at 2 heads) + a DYNAMIC one.
-    const fixed = await propose(owner.accessToken, trip.id, c1!.id, {
-      title: "Villa", amount: 400, currency: "EUR", costType: "TOTAL",
-      headcount: 2, headcountIsFixed: true,
+    const fixed = await propose(owner.accessToken, trip.id, c1.id, {
+      title: "Villa",
+      amount: 400,
+      currency: "EUR",
+      costType: "TOTAL",
+      headcount: 2,
+      headcountIsFixed: true,
     });
-    const dynamic = await propose(owner.accessToken, trip.id, c2!.id, {
-      title: "Group taxi", amount: 60, currency: "EUR", costType: "TOTAL",
+    const dynamic = await propose(owner.accessToken, trip.id, c2.id, {
+      title: "Group taxi",
+      amount: 60,
+      currency: "EUR",
+      costType: "TOTAL",
     });
-    await lock(owner.accessToken, trip.id, c1!.id, fixed.id, fixed.version, c1!.version);
-    await lock(owner.accessToken, trip.id, c2!.id, dynamic.id, dynamic.version, c2!.version);
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c1.id,
+      fixed.id,
+      fixed.version,
+      c1.version,
+    );
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c2.id,
+      dynamic.id,
+      dynamic.version,
+      c2.version,
+    );
 
     // Before any membership change, nothing is stale.
     const before = await dashboard(owner.accessToken, trip.id);
@@ -291,8 +414,12 @@ describe("Trip dashboard (e2e)", () => {
     // A fixed-headcount proposal that becomes its category's front-runner (voted),
     // so it feeds the projection and can flip the trip-level stale warning.
     const opt = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Cabin", amount: 300, currency: "EUR", costType: "TOTAL",
-      headcount: 2, headcountIsFixed: true,
+      title: "Cabin",
+      amount: 300,
+      currency: "EUR",
+      costType: "TOTAL",
+      headcount: 2,
+      headcountIsFixed: true,
     });
     await vote(owner.accessToken, trip.id, cat.id, opt.id);
 
@@ -301,15 +428,23 @@ describe("Trip dashboard (e2e)", () => {
       await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
     ).expect(201);
 
-    assert.equal((await dashboard(owner.accessToken, trip.id)).hasStaleHeadcount, true);
+    assert.equal(
+      (await dashboard(owner.accessToken, trip.id)).hasStaleHeadcount,
+      true,
+    );
 
     // Editing the fixed headcount re-confirms it against the current roster.
     await http()
       .patch(`${optionsUrl(trip.id, cat.id)}/${opt.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .send({
-        title: "Cabin", amount: 300, currency: "EUR", costType: "TOTAL",
-        headcount: 3, headcountIsFixed: true, version: 0,
+        title: "Cabin",
+        amount: 300,
+        currency: "EUR",
+        costType: "TOTAL",
+        headcount: 3,
+        headcountIsFixed: true,
+        version: 0,
       })
       .expect(200);
 
