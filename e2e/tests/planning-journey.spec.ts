@@ -131,7 +131,11 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     // here: a screen reader should not be read a punctuation mark.
     await expect(ownerDecided.getByText("Transport")).toBeVisible();
     await expect(ownerDecided.getByText("Ada")).toBeVisible();
-    await expect(ownerTransport.getByText(optionTitle)).toHaveCount(0);
+    // It stays in its lane too, now marked settled — the lane is where you see
+    // what the group chose *over what*, so the winner leaving was backwards.
+    await expect(
+      ownerTransport.locator(".lane__card--settled", { hasText: optionTitle }),
+    ).toBeVisible();
 
     // …and the participant sees the decision without touching anything.
     await expect(decidedRail(memberPage).getByText(optionTitle)).toBeVisible();

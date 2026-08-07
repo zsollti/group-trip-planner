@@ -89,10 +89,14 @@ test("an owner locks a decision by dragging a card onto the Decided rail", async
   // The grip is the drag handle; the card body is click-to-view.
   await dragOnto(page, card.getByRole("button", { name: /^Drag /i }), rail);
 
-  // The decision is in the rail and gone from its lane — the lock really ran,
-  // rather than the card merely being dropped somewhere that looked right.
+  // In the rail, and marked settled back in its lane. Both together are the
+  // proof that the lock really ran on the server, rather than the card merely
+  // having been dropped somewhere that looked right — the lane card only gains
+  // that class once the option comes back LOCKED.
   await expect(rail.getByText(optionTitle)).toBeVisible();
-  await expect(transport.getByText(optionTitle)).toHaveCount(0);
+  await expect(
+    transport.locator(".lane__card--settled", { hasText: optionTitle }),
+  ).toBeVisible();
 });
 
 test("dragging a decision off the rail unlocks it back into its lane", async ({
@@ -124,5 +128,6 @@ test("dragging a decision off the rail unlocks it back into its lane", async ({
   await dragOnto(page, rail.getByRole("button", { name: /^Drag / }), stay);
 
   await expect(stay.getByText(optionTitle)).toBeVisible();
+  await expect(stay.locator(".lane__card--settled")).toHaveCount(0);
   await expect(rail.getByText(optionTitle)).toHaveCount(0);
 });

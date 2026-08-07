@@ -40,6 +40,7 @@ export function OptionCard({
   style,
   grip,
   dragging = false,
+  settled = false,
 }: {
   tripId: string;
   category: CategoryView;
@@ -54,6 +55,14 @@ export function OptionCard({
   style?: CSSProperties;
   grip?: ReactNode;
   dragging?: boolean;
+  /**
+   * Render as the lane's settled answer rather than one of its candidates.
+   * Purely presentational — the actions are unchanged, and the vote control
+   * stays because voting is advisory and deliberately allowed on a locked
+   * option (Phase 2.3): the tally keeps recording what the group thinks, it
+   * just no longer decides anything.
+   */
+  settled?: boolean;
 }) {
   const lock = useLockOption(tripId, category.id);
   // Shared with the Decided rail's chip, so "undo this decision" behaves the
@@ -130,6 +139,7 @@ export function OptionCard({
       style={style}
       className={
         "lane__card lane__card--option" +
+        (settled ? " lane__card--settled" : "") +
         (dragging ? " lane__card--dragging" : "")
       }
     >
