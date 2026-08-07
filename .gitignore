@@ -53,5 +53,12 @@ IMPLEMENTATION.md
 UI-SPECS.md
 
 # ---- Personal CV/LinkedIn workspace (never published) ----
+# The repository is public. Everything in here is private job-search material:
+# CV drafts, the rendered PDF, and the LinkedIn/portfolio notes.
+job-search/
+
+# Kept so the old repo-root copies stay ignored if one is ever restored.
 linkedin.md
 aurora.md
+cv.html
+cv.pdf
