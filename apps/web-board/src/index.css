@@ -1128,8 +1128,13 @@ body {
 }
 
 /* Planning categories (Phase 2.1). */
+/* The single-choice/multi-select label under a lane's name. The top margin used
+   to be -0.5rem, cancelling `.lane__title`'s own 0.75rem bottom margin — but the
+   title only carries that margin OUTSIDE the header. Inside `.lane__head` it is
+   overridden to 0, so the negative pull had nothing left to cancel and closed
+   the gap onto the name itself. */
 .lane__meta {
-  margin: -0.5rem 0 0.6rem;
+  margin: 0.35rem 0 0.7rem;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
