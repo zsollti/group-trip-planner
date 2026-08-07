@@ -30,7 +30,7 @@ import {
 import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
 import { CostTally } from "./CostTally";
-import { DecidedColumn, type DecidedItem } from "./DecidedColumn";
+import { DecidedRail, type DecidedItem } from "./DecidedRail";
 import { sortLanes, useLaneSort, type LaneSort } from "../lib/laneSort";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
@@ -211,42 +211,46 @@ export function BoardCanvas({
 
   return (
     <>
-      <CostTally tripId={tripId} />
-      <div className="board__lanetools">
-        <label className="board__lanesort" htmlFor="lane-sort">
-          <span>Sort lanes</span>
-          <select
-            id="lane-sort"
-            className="board__select"
-            value={laneSort}
-            onChange={(e) => setLaneSort(e.target.value as LaneSort)}
-          >
-            <option value="manual">Manual order</option>
-            <option value="undecided">Undecided first</option>
-          </select>
-        </label>
-        {laneSort === "undecided" && dndEnabled ? (
-          <p className="board__muted" role="status">
-            Drag to reorder lanes is off while sorting — switch to manual order
-            to rearrange them.
-          </p>
-        ) : null}
-      </div>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragEnd={handleDragEnd}
       >
-        <div className="board__canvas" aria-label="Category lanes">
-          {/* Decided is pinned first and is never part of the sortable set. */}
-          <DecidedColumn
+        {/* The trip so far, above the open questions. Both live inside the DnD
+            context because the rail is the drop target for drag-to-decide; the
+            cost strip joins them so the band reads as one summary rather than
+            two unrelated widgets. */}
+        <div className="board__summary">
+          <CostTally tripId={tripId} />
+          <DecidedRail
             tripId={tripId}
             items={decided}
             myRole={myRole}
-            myUserId={myUserId}
             frozen={frozen}
             dndEnabled={dndEnabled}
           />
+        </div>
+        <div className="board__lanetools">
+          <label className="board__lanesort" htmlFor="lane-sort">
+            <span>Sort lanes</span>
+            <select
+              id="lane-sort"
+              className="board__select"
+              value={laneSort}
+              onChange={(e) => setLaneSort(e.target.value as LaneSort)}
+            >
+              <option value="manual">Manual order</option>
+              <option value="undecided">Undecided first</option>
+            </select>
+          </label>
+          {laneSort === "undecided" && dndEnabled ? (
+            <p className="board__muted" role="status">
+              Drag to reorder lanes is off while sorting — switch to manual
+              order to rearrange them.
+            </p>
+          ) : null}
+        </div>
+        <div className="board__canvas" aria-label="Category lanes">
           <SortableContext
             items={laneIds}
             strategy={horizontalListSortingStrategy}

@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { cleanupE2EData, disconnect } from "../support/db";
 import {
   createBoard,
-  decidedColumn,
+  decidedRail,
   laneNamed,
   seedAndSignIn,
   signUpAndIn,
@@ -50,7 +50,7 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
 
   // The seeded lanes are there — this is the board a new trip actually gets.
   await expect(laneNamed(ownerPage, "Transport")).toBeVisible();
-  await expect(decidedColumn(ownerPage)).toBeVisible();
+  await expect(decidedRail(ownerPage)).toBeVisible();
 
   // --- the owner mints an invite link --------------------------------------
   // Reading the copied link back is the honest test of the affordance: the token
@@ -121,16 +121,16 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
       .click();
     await ownerPage.getByRole("button", { name: "Lock card" }).click();
 
-    // The decision leaves its lane and lands in the Decided column.
-    const ownerDecided = decidedColumn(ownerPage);
+    // The decision leaves its lane and lands in the Decided rail.
+    const ownerDecided = decidedRail(ownerPage);
     await expect(ownerDecided.getByText(optionTitle)).toBeVisible();
-    await expect(ownerDecided.getByText(/✦ Decided · Ada/)).toBeVisible();
+    // The chip names both the lane the decision answers and who called it.
+    await expect(ownerDecided.getByText("Transport")).toBeVisible();
+    await expect(ownerDecided.getByText(/· Ada/)).toBeVisible();
     await expect(ownerTransport.getByText(optionTitle)).toHaveCount(0);
 
     // …and the participant sees the decision without touching anything.
-    await expect(
-      decidedColumn(memberPage).getByText(optionTitle),
-    ).toBeVisible();
+    await expect(decidedRail(memberPage).getByText(optionTitle)).toBeVisible();
 
     // --- the boards overview reflects the finished decision ----------------
     await ownerPage.getByRole("link", { name: "‹ Boards" }).click();

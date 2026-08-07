@@ -76,6 +76,7 @@ one for this viewer (Phase 6.4).
 | Notifications       | ✓        | ✓                  | ✓                 | list      |
 | Settings            | ✓        | n/a                | alert + Try again | panels    |
 | Activity feed       | ✓        | ✓                  | alert + Try again | feed      |
+| Decided rail        | inherits | "nothing settled"  | inherits lanes    | chips     |
 
 - [x] The trip-lanes error was the worst gap: a muted line with no retry, on the
       one query whose failure empties the whole screen. Now `role="alert"` with
@@ -90,7 +91,7 @@ one for this viewer (Phase 6.4).
 - [x] **A limit reached is a state too** (polish pass). At the policy-layer
       category cap the trailing "＋ Add category" tile states the limit instead of
       opening a form the server would 403 — the same rule as the empty states
-      below, applied to a *full* surface rather than an empty one.
+      below, applied to a _full_ surface rather than an empty one.
 - [x] **An empty state never offers an action the server would refuse.** The
       new-user dashboard hid a real break: creating a trip needs a verified
       email but signing in does not, so a just-registered account got the
@@ -129,7 +130,17 @@ one for this viewer (Phase 6.4).
       `aria-label`, button `aria-label`) stays unabbreviated — a screen reader is
       never read an ellipsis. The option detail dialog shows names in full.
 - [x] Drag-and-drop is progressive enhancement — every gesture has a
-      keyboard/menu equivalent (lock/unlock, reorder, move to Decided).
+      keyboard/menu equivalent (lock/unlock, reorder, move to Decided). The
+      Decided **rail** keeps this: each chip carries a "⋯" menu with Unlock,
+      so the drag-out gesture is never the only way to undo a decision.
+- [x] **A surface that behaves differently looks different** (polish pass).
+      Decided was a `.lane` — identical width, card shape and chrome to a
+      category, distinguished only by a dashed border — pinned first in the
+      lane row. It reads as a category and it is not one: lanes are the trip's
+      open questions, Decided is the answers. It is now a rail above them,
+      beside the cost it produces. Each chip names the lane it answers, which
+      the old column got for free from a `categoryTag` prop that no longer has
+      a caller.
 - [x] Touch targets ≥44px on the primary controls at phone width.
 
 ## Known limits

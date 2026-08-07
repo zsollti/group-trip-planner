@@ -93,7 +93,7 @@ export function laneNamed(page: Page, name: string): Locator {
     .filter({ has: page.getByRole("heading", { name, level: 2 }) });
 }
 
-/** The global Decided column — locked picks across every lane. */
-export function decidedColumn(page: Page): Locator {
+/** The Decided rail — locked picks across every lane, above the lanes. */
+export function decidedRail(page: Page): Locator {
   return page.getByRole("region", { name: "Decided" });
 }

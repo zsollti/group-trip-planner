@@ -15,10 +15,10 @@ you are heading towards.
 > that is mid-flight — four decisions locked, the activities vote still running,
 > and chat history to read:
 >
-> | | |
-> | --- | --- |
-> | **Email** | `demo@example.com` |
-> | **Password** | `demo-trip-2026` |
+> |              |                    |
+> | ------------ | ------------------ |
+> | **Email**    | `demo@example.com` |
+> | **Password** | `demo-trip-2026`   |
 >
 > It is a shared account, so treat anything you change as public. The trip is
 > rebuilt from a seed script, so feel free to drag a card into **Decided** and
@@ -195,7 +195,7 @@ decision, so the numbers agree across all three.
 ### 🏆 Trip Board — the product (`apps/web-board`)
 
 A spatial planning **canvas**: categories are columns, options are cards, and you
-**drag a card onto the "Decided" column to record the group's decision**. It won
+**drag a card onto the "Decided" rail to record the group's decision**. It won
 because it makes the app's central idea — comparing options, then committing to
 one — a physical gesture rather than a form field, and because the cost strip
 sits beside the thing you are about to decide.

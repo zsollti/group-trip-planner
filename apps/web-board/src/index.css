@@ -444,6 +444,150 @@ body {
   font-size: 0.85rem;
 }
 
+/* --- The summary band: what the trip costs, and what it has settled on -------
+ *
+ * "Decided" used to be a lane — same width, same card shape, a dashed border its
+ * only distinguishing mark — pinned first in the horizontal row. It read as a
+ * category, which is precisely what it is not: the lanes are the trip's open
+ * questions and this is the answers. Laid flat above them, next to the cost it
+ * produces, the top of the board states the trip so far instead of asking anyone
+ * to notice that one column in the row behaves differently.
+ *
+ * It is still the drop target for drag-to-decide, and a full-width strip is a
+ * much easier one to hit than a 15rem column that scrolls out of view as soon as
+ * a board has more than four lanes. */
+.board__summary {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+/* Side by side once there is room for both to be readable; the cost strip is
+   the narrower of the two, and the rail takes the slack. */
+@media (min-width: 60rem) {
+  .board__summary {
+    grid-template-columns: minmax(16rem, 22rem) 1fr;
+    align-items: start;
+  }
+}
+/* The cost strip owns its own margin when it stands alone; inside the band the
+   grid gap does that job. */
+.board__summary .board__cost-strip {
+  margin-bottom: 0;
+}
+
+.decided {
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  padding: 0.55rem 0.85rem 0.7rem;
+  min-height: 100%;
+}
+/* The drop affordance: the whole strip lights up, not a thin edge. */
+.decided--drop-active {
+  border-color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 8%, var(--lane-bg));
+}
+.decided__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.decided__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+  font-size: 0.72rem;
+}
+/* Wraps rather than scrolls: the whole point of moving out of the lane row was
+   to stop hiding decisions behind a horizontal scrollbar. */
+.decided__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.decided__empty {
+  margin: 0;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  color: var(--board-dim);
+}
+.decided__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  padding: 0.3rem 0.3rem 0.3rem 0.55rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  background: var(--board-bg);
+  font-size: 0.8rem;
+}
+.decided__chip--dragging {
+  border-color: var(--board-accent);
+}
+.decided__cat {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-accent) 14%, transparent);
+  color: var(--board-accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.decided__title {
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.decided__title:hover {
+  color: var(--board-accent);
+}
+.decided__title:focus-visible,
+.decided__grip:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.decided__meta {
+  color: var(--board-dim);
+  white-space: nowrap;
+}
+.decided__cost {
+  font-variant-numeric: tabular-nums;
+}
+.decided__grip {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--board-dim);
+  cursor: grab;
+  touch-action: none;
+}
+/* The chip's menu is smaller than the card's — it sits in a 2rem-tall pill. */
+.decided__chip .menu__trigger {
+  padding: 0 0.2rem;
+  line-height: 1;
+}
+
 /* --- Canvas + lanes --- */
 .board__canvas {
   display: flex;
@@ -459,10 +603,6 @@ body {
   border-radius: 14px;
   padding: 0.85rem;
   box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
-}
-
-.lane--decided {
-  border-style: dashed;
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
@@ -582,12 +722,6 @@ body {
   position: relative;
   z-index: 3;
 }
-.lane--drop-active {
-  border-color: var(--board-accent);
-  border-style: solid;
-  background: color-mix(in srgb, var(--board-accent) 8%, var(--lane-bg));
-}
-
 .lane__title {
   font-size: 0.9rem;
   margin: 0 0 0.75rem;
@@ -1090,9 +1224,6 @@ body {
 .board__detail-notes {
   white-space: pre-wrap;
 }
-.lane__card--decided {
-  border-left: 3px solid var(--board-accent);
-}
 /* Click-to-edit parameters on a card (Phase 3.5): a text button that opens the
  * full edit form; hints editability on hover/focus without adding chrome. */
 .lane__field-btn {
@@ -1457,8 +1588,7 @@ body {
     scroll-snap-type: x mandatory;
     scroll-padding-left: 0.9rem;
   }
-  .lane,
-  .board__tally {
+  .lane {
     flex-basis: min(16rem, 82vw);
     scroll-snap-align: start;
   }
