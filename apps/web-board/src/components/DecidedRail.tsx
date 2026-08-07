@@ -75,46 +75,51 @@ function DecidedChip({
         "decided__chip" + (isDragging ? " decided__chip--dragging" : "")
       }
     >
-      {dndEnabled ? (
+      {/* Row one: which question, and what won. */}
+      <div className="decided__line">
+        {dndEnabled ? (
+          <button
+            type="button"
+            className="decided__grip"
+            aria-label={`Drag ${option.title} out of Decided to unlock it`}
+            {...attributes}
+            {...listeners}
+          >
+            ⠿
+          </button>
+        ) : null}
+        <span
+          className="decided__cat"
+          title={isTruncated(category.name) ? category.name : undefined}
+        >
+          {truncateName(category.name)}
+        </span>
         <button
           type="button"
-          className="decided__grip"
-          aria-label={`Drag ${option.title} out of Decided to unlock it`}
-          {...attributes}
-          {...listeners}
+          className="decided__title"
+          title={option.title}
+          aria-label={`${option.title} — view details`}
+          onClick={() => setViewing(true)}
         >
-          ⠿
+          {truncateName(option.title)}
         </button>
-      ) : null}
-      <span
-        className="decided__cat"
-        title={isTruncated(category.name) ? category.name : undefined}
-      >
-        {truncateName(category.name)}
-      </span>
-      <button
-        type="button"
-        className="decided__title"
-        title={option.title}
-        aria-label={`${option.title} — view details`}
-        onClick={() => setViewing(true)}
-      >
-        {truncateName(option.title)}
-      </button>
-      {dates ? <span className="decided__meta">🗓 {dates}</span> : null}
-      {cost ? (
-        <span className="decided__meta decided__cost">{cost}</span>
-      ) : null}
-      {/* Who called it. A decision without an author is a fact that appeared
-          from nowhere — the card this replaced said so too. */}
-      {option.lockedByName ? (
-        <span className="decided__meta">· {option.lockedByName}</span>
-      ) : null}
-      <Menu label={`Actions for ${option.title}`} items={items} />
+        <Menu label={`Actions for ${option.title}`} items={items} />
+      </div>
+      {/* Row two: what it costs, and who called it. A decision without an
+          author is a fact that appeared from nowhere. Always rendered, so a
+          chip missing a price is still the same height as its neighbours — a
+          ragged row is harder to scan than a mostly-empty line. */}
+      <div className="decided__line decided__line--meta">
+        {dates ? <span>🗓 {dates}</span> : null}
+        {cost ? <span className="decided__cost">{cost}</span> : null}
+        {option.lockedByName ? (
+          <span className="decided__by">{option.lockedByName}</span>
+        ) : null}
+      </div>
       {unlock.error ? (
-        <span className="board__form-error" role="alert">
+        <p className="board__form-error" role="alert">
           {unlock.error}
-        </span>
+        </p>
       ) : null}
       {viewing ? (
         <OptionDetail
