@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
+import { maxTripHorizonDays, planLockedDates } from "@gtp/types";
 import type {
   CreateTripInput,
   TripDetail,
@@ -14,6 +16,10 @@ import type {
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CategoriesService } from "../categories/categories.service.js";
 import { ChannelsService } from "../chat/channels.service.js";
+import {
+  DATE_REJECTION_MESSAGE,
+  OptionsService,
+} from "../options/options.service.js";
 import { ImageAttachmentService } from "../uploads/image-attachment.service.js";
 import type { UploadedImageFile } from "../uploads/uploads.service.js";
 import type { TripContext } from "./trip-context.js";
@@ -38,12 +44,19 @@ export class TripsService {
   ) {}
 
   /**
-   * Create a trip, the creator's Owner membership, the five built-in categories,
+   * Create a trip, the creator's Owner membership, the built-in categories,
    * **and the General chat channel in one transaction** — a trip must never exist
    * without its owner, its planning categories (Phase 2.1), or its General channel
    * (Phase 4.1). The caller is already known to be verified (route guard).
+   *
+   * Dates on the create form are optional (post-launch). When given they are
+   * validated by the **same** `planLockedDates` rules a later lock would apply,
+   * and seeded as an already-locked Dates option — so the trip's date columns
+   * still have exactly one writer, and the group can unlock to reopen the
+   * question like any other decision.
    */
   async createTrip(user: User, input: CreateTripInput): Promise<TripDetail> {
+    const dates = this.planCreateDates(input);
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
         data: {
@@ -51,7 +64,9 @@ export class TripsService {
           description: input.description ?? null,
           destination: input.destination ?? null,
           defaultCurrency: input.defaultCurrency,
-          expiresAt: oneYearFromNow(),
+          startDate: dates?.startDate ?? null,
+          endDate: dates?.endDate ?? null,
+          expiresAt: dates?.expiresAt ?? oneYearFromNow(),
           ownerId: user.id,
         },
       });
@@ -60,11 +75,46 @@ export class TripsService {
       });
       await CategoriesService.seedBuiltins(tx, created.id);
       await ChannelsService.createGeneral(tx, created.id);
+      if (dates) {
+        await OptionsService.seedLockedDates(tx, created.id, user.id, dates);
+      }
       return created;
     });
 
     // Freshly created: exactly one member (the owner).
     return toTripDetail({ ...trip, _count: { memberships: 1 } }, "OWNER");
+  }
+
+  /**
+   * Validate optional create-form dates and derive the trip's columns from them,
+   * or null when none were given.
+   *
+   * Runs the identical rule a Dates lock runs — no past start, nothing beyond the
+   * planning horizon, expiry at end + 1 month — reusing `planLockedDates` and the
+   * lock's own rejection messages. Nothing may enter through create that could
+   * not have been locked afterwards; otherwise the create form becomes a way to
+   * smuggle a trip into a state the rest of the app refuses to produce.
+   *
+   * The schema has already guaranteed both dates are present or both absent.
+   */
+  private planCreateDates(
+    input: CreateTripInput,
+  ): { startDate: Date; endDate: Date; expiresAt: Date } | null {
+    if (!input.startDate || !input.endDate) return null;
+    const plan = planLockedDates(
+      input.startDate,
+      input.endDate,
+      Date.now(),
+      maxTripHorizonDays(),
+    );
+    if (!plan.ok) {
+      throw new BadRequestException(DATE_REJECTION_MESSAGE[plan.reason]);
+    }
+    return {
+      startDate: new Date(plan.startDate),
+      endDate: new Date(plan.endDate),
+      expiresAt: new Date(plan.expiresAt),
+    };
   }
 
   /** The caller's trips (any role), newest first. */
