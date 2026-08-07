@@ -514,7 +514,7 @@ body {
 .decided__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 .decided__empty {
   margin: 0;
@@ -522,16 +522,45 @@ body {
   font-size: 0.85rem;
   color: var(--board-dim);
 }
+/* A small two-row card, not a pill: one line for the question and its answer,
+   one for the price and who called it. A single line forced every value onto the
+   same baseline, so a rail of five decisions read as one long sentence; two rows
+   give the title somewhere to be the loudest thing in the chip. */
 .decided__chip {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  flex-direction: column;
+  gap: 0.15rem;
   max-width: 100%;
-  padding: 0.3rem 0.3rem 0.3rem 0.55rem;
+  min-width: 11rem;
+  padding: 0.4rem 0.35rem 0.45rem 0.5rem;
   border: 1px solid var(--lane-line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--board-bg);
   font-size: 0.8rem;
+}
+.decided__line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+/* The second row lines up under the title, clear of the grip in the first. */
+.decided__line--meta {
+  gap: 0.5rem;
+  white-space: nowrap;
+  padding-left: 0.1rem;
+  color: var(--board-dim);
+  font-size: 0.74rem;
+  min-height: 1.1em;
+}
+/* Pushes the "⋯" to the right edge of the first row. */
+.decided__line .menu {
+  margin-left: auto;
+}
+/* Decorative separator, so it stays out of the accessible name — and out of the
+   way entirely when the name is the only thing on the row. */
+.decided__by:not(:first-child)::before {
+  content: "· ";
 }
 .decided__chip--dragging {
   border-color: var(--board-accent);
@@ -548,6 +577,9 @@ body {
   letter-spacing: 0.03em;
 }
 .decided__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   font: inherit;
   font-weight: 600;
   background: none;
@@ -565,10 +597,6 @@ body {
   outline: 2px solid var(--board-accent);
   outline-offset: 2px;
   border-radius: 4px;
-}
-.decided__meta {
-  color: var(--board-dim);
-  white-space: nowrap;
 }
 .decided__cost {
   font-variant-numeric: tabular-nums;

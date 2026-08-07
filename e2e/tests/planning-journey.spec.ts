@@ -124,9 +124,11 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     // The decision leaves its lane and lands in the Decided rail.
     const ownerDecided = decidedRail(ownerPage);
     await expect(ownerDecided.getByText(optionTitle)).toBeVisible();
-    // The chip names both the lane the decision answers and who called it.
+    // The chip names both the lane the decision answers and who called it. The
+    // separator between them is a CSS pseudo-element and deliberately absent
+    // here: a screen reader should not be read a punctuation mark.
     await expect(ownerDecided.getByText("Transport")).toBeVisible();
-    await expect(ownerDecided.getByText(/· Ada/)).toBeVisible();
+    await expect(ownerDecided.getByText("Ada")).toBeVisible();
     await expect(ownerTransport.getByText(optionTitle)).toHaveCount(0);
 
     // …and the participant sees the decision without touching anything.
