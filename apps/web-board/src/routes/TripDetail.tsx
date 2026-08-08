@@ -9,7 +9,11 @@ import {
   useTripCategories,
   useTripSocket,
 } from "@gtp/api-client";
-import { can, type TripDetail as TripDetailData } from "@gtp/types";
+import {
+  can,
+  tripDateRange,
+  type TripDetail as TripDetailData,
+} from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { useAuth } from "@gtp/api-client";
 import { EditBoardDialog } from "../components/EditBoardDialog";
@@ -227,6 +231,7 @@ export function TripDetail() {
               myRole={trip.data.role}
               myUserId={user?.id}
               frozen={trip.data.status === "HISTORY"}
+              tripDates={tripDateRange(trip.data)}
               onOpenChannel={setOpenChannelId}
             />
           )}

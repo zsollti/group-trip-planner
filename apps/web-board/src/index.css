@@ -1130,6 +1130,20 @@ body {
   font-weight: 600;
   color: var(--board-fg);
 }
+/* An option whose dates fall entirely outside the trip's settled range.
+   Advisory, never a rejection — so this borrows the danger hue for attention
+   without the error treatment (no border, no alert role): the value is still
+   the primary content and may well be deliberate. */
+.lane__dates--elsewhere,
+.decided__elsewhere {
+  color: var(--board-danger);
+}
+.lane__elsewhere,
+.board__detail-note {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--board-danger);
+}
 .lane__notes {
   margin: 0;
   font-size: 0.8rem;

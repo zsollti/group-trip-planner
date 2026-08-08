@@ -22,6 +22,7 @@ import {
   can,
   type CategoryView,
   type OptionView,
+  type TripDateRange,
   type TripRole,
 } from "@gtp/types";
 import {
@@ -87,6 +88,7 @@ export function BoardCanvas({
   myRole,
   myUserId,
   frozen,
+  tripDates,
   onOpenChannel,
 }: {
   tripId: string;
@@ -95,6 +97,14 @@ export function BoardCanvas({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen: boolean;
+  /**
+   * The trip's settled range, or null while it is still an open question.
+   *
+   * Passed down rather than computed per card: once the trip has dates, an
+   * option's own dates mean "when within the trip", and a card that falls
+   * entirely outside says so (`isOutsideTripDates`).
+   */
+  tripDates: TripDateRange | null;
   /** Open the chat panel on a category's discussion channel (Phase 4.5). */
   onOpenChannel: (channelId: string) => void;
 }) {
@@ -288,6 +298,7 @@ export function BoardCanvas({
             myRole={myRole}
             frozen={frozen}
             dndEnabled={dndEnabled}
+            tripDates={tripDates}
           />
         </div>
         <div className="board__lanetools">
@@ -326,6 +337,7 @@ export function BoardCanvas({
                 myRole={myRole}
                 myUserId={myUserId}
                 frozen={frozen}
+                tripDates={tripDates}
                 dndEnabled={dndEnabled}
                 laneDragEnabled={laneDragEnabled}
                 onOpenChannel={onOpenChannel}

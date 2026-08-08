@@ -2,8 +2,10 @@ import { Button } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
   isHttpUrl,
+  isOutsideTripDates,
   type CategoryView,
   type OptionView,
+  type TripDateRange,
 } from "@gtp/types";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { Dialog } from "./Dialog";
@@ -21,10 +23,13 @@ import { Dialog } from "./Dialog";
 export function OptionDetail({
   category,
   option,
+  tripDates = null,
   onClose,
 }: {
   category: CategoryView;
   option: OptionView;
+  /** The trip's settled range, for the "outside the trip's dates" note. */
+  tripDates?: TripDateRange | null;
   onClose: () => void;
 }) {
   const dates = dateRangeLabel(
@@ -33,6 +38,7 @@ export function OptionDetail({
     categoryOptionFields(category).dateGranularity,
   );
   const cost = costLabel(option);
+  const elsewhere = isOutsideTripDates(option, tripDates);
   const locked = option.status === "LOCKED";
 
   return (
@@ -54,7 +60,17 @@ export function OptionDetail({
           {dates ? (
             <>
               <dt>Dates</dt>
-              <dd>🗓 {dates}</dd>
+              <dd>
+                🗓 {dates}
+                {/* The one surface with room to say why, rather than just
+                    flagging it. Advisory — nothing here was rejected. */}
+                {elsewhere ? (
+                  <em className="board__detail-note">
+                    {" "}
+                    · outside the trip’s dates
+                  </em>
+                ) : null}
+              </dd>
             </>
           ) : null}
           {cost ? (
