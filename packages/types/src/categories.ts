@@ -142,20 +142,47 @@ export function canDeleteCategory(category: {
 }
 
 /**
- * Whether an option form for this category should offer the cost fields
- * (amount / currency / cost-type / headcount) and a link. Dates options answer
- * "when", not "how much": their cost fields were dead weight on every form, and
- * the cost engine already ignores amount-less options, so hiding them changes
- * no totals. Custom categories keep the full form — only the built-ins carry
- * enough known intent to tailor.
+ * How precise an option's `startsAt`/`endsAt` are meant to be.
+ *
+ * The two are not the same question, and one field pair was answering both.
+ *
+ * A **Dates** option *is* the proposal — "shall we go the 6th to the 13th?" —
+ * and the trip's `startDate`/`endDate` columns it writes back to are date-only,
+ * so its time-of-day is noise that only ever caused harm (local midnight sent
+ * from east of Greenwich truncates to the previous day). It speaks `"day"`.
+ *
+ * Everywhere else the dates say *when within the trip*: a flight leaves at
+ * 07:15, a tour starts at 14:00, a booking covers three of the trip's nights.
+ * There the time-of-day is the most useful part of the value. Those speak
+ * `"minute"`.
+ */
+export type OptionDateGranularity = "day" | "minute";
+
+/**
+ * Which fields an option form should offer for this category, and how precise
+ * its dates are ({@link OptionDateGranularity}).
+ *
+ * Dates options answer "when", not "how much": their cost fields were dead
+ * weight on every form, and the cost engine already ignores amount-less
+ * options, so hiding them changes no totals. Custom categories keep the full
+ * form — only the built-ins carry enough known intent to tailor.
+ *
+ * One definition, three readers: the form picks its controls from it, and the
+ * card and the chip format the value with it, so a date is never shown to a
+ * precision it was never captured at.
  */
 export function categoryOptionFields(category: {
   readonly builtinKey: CategoryBuiltinKey | null;
-}): { readonly cost: boolean; readonly url: boolean; readonly dates: boolean } {
+}): {
+  readonly cost: boolean;
+  readonly url: boolean;
+  readonly dates: boolean;
+  readonly dateGranularity: OptionDateGranularity;
+} {
   if (category.builtinKey === "DATES") {
-    return { cost: false, url: false, dates: true };
+    return { cost: false, url: false, dates: true, dateGranularity: "day" };
   }
-  return { cost: true, url: true, dates: true };
+  return { cost: true, url: true, dates: true, dateGranularity: "minute" };
 }
 
 /** One built-in category's seed shape (no id/version — those are DB-assigned). */

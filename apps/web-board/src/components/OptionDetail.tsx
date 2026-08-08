@@ -1,5 +1,10 @@
 import { Button } from "@gtp/ui-primitives";
-import { isHttpUrl, type CategoryView, type OptionView } from "@gtp/types";
+import {
+  categoryOptionFields,
+  isHttpUrl,
+  type CategoryView,
+  type OptionView,
+} from "@gtp/types";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { Dialog } from "./Dialog";
 
@@ -22,7 +27,11 @@ export function OptionDetail({
   option: OptionView;
   onClose: () => void;
 }) {
-  const dates = dateRangeLabel(option.startsAt, option.endsAt);
+  const dates = dateRangeLabel(
+    option.startsAt,
+    option.endsAt,
+    categoryOptionFields(category).dateGranularity,
+  );
   const cost = costLabel(option);
   const locked = option.status === "LOCKED";
 

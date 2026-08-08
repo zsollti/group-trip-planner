@@ -9,14 +9,7 @@ import {
 } from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-
-/** A datetime-local input value ("YYYY-MM-DDTHH:mm") from an ISO string. */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+import { fromDateInput, toDateInput } from "../lib/dateInput";
 
 /**
  * Board-paradigm propose/edit card. Covers the FR-21 fields — title, url,
@@ -30,6 +23,11 @@ function toLocalInput(iso: string | null): string {
  * a Dates option is title/notes/start/end only, since asking "how much does this
  * date range cost per person" never made sense. `currency` is still sent — the
  * contract requires it — but it is the trip's own and never shown.
+ *
+ * The same call picks the **date control**. A Dates option proposes calendar
+ * days, so it gets a day picker and a stored midday-UTC instant; everywhere
+ * else the dates say when *within* the trip something happens, where 07:15 is
+ * the whole point, so those get a datetime picker.
  */
 export function OptionForm({
   tripId,
@@ -47,6 +45,8 @@ export function OptionForm({
   onClose: () => void;
 }) {
   const fields = categoryOptionFields({ builtinKey: categoryBuiltinKey });
+  const dateInputType =
+    fields.dateGranularity === "day" ? "date" : "datetime-local";
   const propose = useProposeOption(tripId, categoryId);
   const edit = useEditOption(tripId, categoryId);
   const isEdit = Boolean(option);
@@ -68,9 +68,11 @@ export function OptionForm({
     option?.headcount != null ? String(option.headcount) : "",
   );
   const [startsAt, setStartsAt] = useState(
-    toLocalInput(option?.startsAt ?? null),
+    toDateInput(option?.startsAt ?? null, fields.dateGranularity),
   );
-  const [endsAt, setEndsAt] = useState(toLocalInput(option?.endsAt ?? null));
+  const [endsAt, setEndsAt] = useState(
+    toDateInput(option?.endsAt ?? null, fields.dateGranularity),
+  );
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
@@ -88,8 +90,8 @@ export function OptionForm({
         headcountIsFixed && headcount.trim() !== ""
           ? Number(headcount)
           : undefined,
-      startsAt: startsAt ? new Date(startsAt).toISOString() : undefined,
-      endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
+      startsAt: fromDateInput(startsAt, fields.dateGranularity),
+      endsAt: fromDateInput(endsAt, fields.dateGranularity),
     };
     try {
       if (option) {
@@ -225,7 +227,7 @@ export function OptionForm({
           <Field htmlFor="opt-starts" label="Starts (optional)">
             <Input
               id="opt-starts"
-              type="datetime-local"
+              type={dateInputType}
               value={startsAt}
               onChange={(e) => setStartsAt(e.target.value)}
             />
@@ -233,7 +235,7 @@ export function OptionForm({
           <Field htmlFor="opt-ends" label="Ends (optional)">
             <Input
               id="opt-ends"
-              type="datetime-local"
+              type={dateInputType}
               value={endsAt}
               onChange={(e) => setEndsAt(e.target.value)}
             />

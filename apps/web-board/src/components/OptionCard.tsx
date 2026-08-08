@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   can,
   canManageOption,
+  categoryOptionFields,
   isHttpUrl,
   type CategoryView,
   type OptionView,
@@ -74,7 +75,11 @@ export function OptionCard({
   const manageable = canManageOption(myRole, option.proposerId === myUserId);
   const canDecide = can(myRole, "decision.lock") && !frozen;
   const locked = option.status === "LOCKED";
-  const dates = dateRangeLabel(option.startsAt, option.endsAt);
+  const dates = dateRangeLabel(
+    option.startsAt,
+    option.endsAt,
+    categoryOptionFields(category).dateGranularity,
+  );
 
   async function doLock() {
     setActionError(null);

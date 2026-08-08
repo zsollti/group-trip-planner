@@ -6,21 +6,7 @@ import { Button, Field, Input } from "@gtp/ui-primitives";
 import { CreateTripInput } from "@gtp/types";
 import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-
-/**
- * A `<input type="date">` value ("2026-09-06") as the ISO instant the contract
- * wants — pinned to **midday UTC**, not local midnight.
- *
- * A trip runs on days, and its `startDate`/`endDate` columns are date-only. Local
- * midnight sent from anywhere east of Greenwich lands on the previous day in UTC
- * and gets truncated to it, so a group in Warsaw would pick the 6th and get a
- * trip starting the 5th. Midday leaves twelve hours of slack in either
- * direction.
- */
-function dayToIso(value: string): string | undefined {
-  if (!value) return undefined;
-  return new Date(`${value}T12:00:00Z`).toISOString();
-}
+import { dayToIso } from "../lib/dateInput";
 
 /**
  * Board-paradigm create-trip surface: a card that floats on the canvas. On
