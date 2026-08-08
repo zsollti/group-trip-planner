@@ -8,6 +8,7 @@ import {
   CATEGORY_NAME_MAX_LENGTH,
   type CategoryView,
   type OptionView,
+  type TripDateRange,
   type TripRole,
 } from "@gtp/types";
 import {
@@ -41,6 +42,7 @@ function SortableOptionCard({
   myRole,
   myUserId,
   frozen,
+  tripDates,
   dndEnabled,
   onEdit,
   onDelete,
@@ -52,6 +54,7 @@ function SortableOptionCard({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen: boolean;
+  tripDates: TripDateRange | null;
   dndEnabled: boolean;
   onEdit: (o: OptionView) => void;
   onDelete: (o: OptionView) => void;
@@ -94,6 +97,7 @@ function SortableOptionCard({
       myRole={myRole}
       myUserId={myUserId}
       frozen={frozen}
+      tripDates={tripDates}
       onEdit={onEdit}
       onDelete={onDelete}
       deleting={deleting}
@@ -295,6 +299,7 @@ export function CategoryLane({
   myRole,
   myUserId,
   frozen = false,
+  tripDates = null,
   dndEnabled = false,
   laneDragEnabled = false,
   onOpenChannel,
@@ -321,6 +326,8 @@ export function CategoryLane({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen?: boolean;
+  /** The trip's settled range, for the "outside the trip's dates" hint. */
+  tripDates?: TripDateRange | null;
   /** Card gestures: lock/unlock and reorder within this lane. */
   dndEnabled?: boolean;
   /** Dragging the lane itself — off while the board sorts by "undecided first",
@@ -476,6 +483,7 @@ export function CategoryLane({
           myRole={myRole}
           myUserId={myUserId}
           frozen={frozen}
+          tripDates={tripDates}
           settled
         />
       ))}
@@ -514,6 +522,7 @@ export function CategoryLane({
               myRole={myRole}
               myUserId={myUserId}
               frozen={frozen}
+              tripDates={tripDates}
               dndEnabled={dndEnabled}
               onEdit={setEditing}
               onDelete={onDelete}

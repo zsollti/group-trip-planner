@@ -100,3 +100,78 @@ export function planLockedDates(
     expiresAt: expiryFromEndDate(end),
   };
 }
+
+/** A trip's settled range — both ends, or nothing (see {@link tripDateRange}). */
+export interface TripDateRange {
+  readonly startDate: string;
+  readonly endDate: string;
+}
+
+/**
+ * A trip's dates as a range, or `null` when they are not settled.
+ *
+ * All-or-nothing, the same rule `CreateTripInput` enforces: one end alone
+ * cannot bound anything, so a half-filled trip counts as undecided.
+ */
+export function tripDateRange(trip: {
+  readonly startDate: string | null;
+  readonly endDate: string | null;
+}): TripDateRange | null {
+  if (!trip.startDate || !trip.endDate) return null;
+  return { startDate: trip.startDate, endDate: trip.endDate };
+}
+
+/**
+ * Slack allowed either side of the trip before an option counts as elsewhere.
+ *
+ * An option's dates are a local wall-clock instant and the trip's are pinned to
+ * midday UTC, so an activity on the first morning can sit up to fourteen hours
+ * before the trip's own start instant. A full day of slack covers every real
+ * offset without needing either value re-interpreted.
+ */
+const OUTSIDE_SLACK_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Does this option fall **entirely** outside the trip's settled dates?
+ *
+ * Advisory only, and deliberately so — nothing rejects it. Once the trip's
+ * range is settled, an option's dates mean "when within the trip", and a
+ * booking a month off is worth pointing at. But the near-misses are all
+ * legitimate: a red-eye home leaves on the last day and lands after it, a
+ * checkout is the morning after the last night, and an option may be proposed
+ * before the range is locked and never revisited. So this asks whether the two
+ * fail to overlap at all, not whether the option is neatly contained — a rule
+ * that flags the hotel booked in March for a trip in July and stays quiet for
+ * everything a traveller would actually do.
+ *
+ * False negatives are cheap here and false positives are not: a warning shown
+ * on a correct option teaches people to ignore warnings.
+ */
+export function isOutsideTripDates(
+  option: {
+    readonly startsAt: string | null;
+    readonly endsAt: string | null;
+  },
+  range: TripDateRange | null,
+): boolean {
+  if (!range) return false;
+  const start = option.startsAt ? Date.parse(option.startsAt) : NaN;
+  const end = option.endsAt ? Date.parse(option.endsAt) : NaN;
+  // A single date is a point: whichever end exists bounds both sides.
+  const optionStart = Number.isNaN(start) ? end : start;
+  const optionEnd = Number.isNaN(end) ? start : end;
+  const tripStart = Date.parse(range.startDate);
+  const tripEnd = Date.parse(range.endDate);
+  if (
+    Number.isNaN(optionStart) ||
+    Number.isNaN(optionEnd) ||
+    Number.isNaN(tripStart) ||
+    Number.isNaN(tripEnd)
+  ) {
+    return false;
+  }
+  return (
+    optionEnd < tripStart - OUTSIDE_SLACK_MS ||
+    optionStart > tripEnd + OUTSIDE_SLACK_MS
+  );
+}

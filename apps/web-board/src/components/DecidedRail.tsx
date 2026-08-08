@@ -1,8 +1,13 @@
 import { useState, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import type { CategoryView, OptionView, TripRole } from "@gtp/types";
-import { can, categoryOptionFields } from "@gtp/types";
+import type {
+  CategoryView,
+  OptionView,
+  TripDateRange,
+  TripRole,
+} from "@gtp/types";
+import { can, categoryOptionFields, isOutsideTripDates } from "@gtp/types";
 import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
 import { useUnlockAction } from "../lib/optionActions";
@@ -31,6 +36,7 @@ function DecidedChip({
   myRole,
   frozen,
   dndEnabled,
+  tripDates,
 }: {
   tripId: string;
   option: OptionView;
@@ -38,6 +44,7 @@ function DecidedChip({
   myRole: TripRole;
   frozen: boolean;
   dndEnabled: boolean;
+  tripDates: TripDateRange | null;
 }) {
   const [viewing, setViewing] = useState(false);
   const unlock = useUnlockAction(tripId, category.id, option);
@@ -58,6 +65,7 @@ function DecidedChip({
     categoryOptionFields(category).dateGranularity,
   );
   const cost = costLabel(option);
+  const elsewhere = isOutsideTripDates(option, tripDates);
   const items: MenuItem[] = [
     { label: "View details", onSelect: () => setViewing(true) },
   ];
@@ -114,7 +122,12 @@ function DecidedChip({
           chip missing a price is still the same height as its neighbours — a
           ragged row is harder to scan than a mostly-empty line. */}
       <div className="decided__line decided__line--meta">
-        {dates ? <span>🗓 {dates}</span> : null}
+        {dates ? (
+          <span className={elsewhere ? "decided__elsewhere" : undefined}>
+            🗓 {dates}
+            {elsewhere ? " · outside the trip’s dates" : ""}
+          </span>
+        ) : null}
         {cost ? <span className="decided__cost">{cost}</span> : null}
         {option.lockedByName ? (
           <span className="decided__by">{option.lockedByName}</span>
@@ -129,6 +142,7 @@ function DecidedChip({
         <OptionDetail
           category={category}
           option={option}
+          tripDates={tripDates}
           onClose={() => setViewing(false)}
         />
       ) : null}
@@ -156,12 +170,15 @@ export function DecidedRail({
   myRole,
   frozen,
   dndEnabled,
+  tripDates,
 }: {
   tripId: string;
   items: DecidedItem[];
   myRole: TripRole;
   frozen: boolean;
   dndEnabled: boolean;
+  /** The trip's settled range, for the "outside the trip's dates" hint. */
+  tripDates: TripDateRange | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: "decided",
@@ -197,6 +214,7 @@ export function DecidedRail({
               myRole={myRole}
               frozen={frozen}
               dndEnabled={dndEnabled}
+              tripDates={tripDates}
             />
           ))
         )}

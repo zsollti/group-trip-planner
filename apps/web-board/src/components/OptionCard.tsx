@@ -4,8 +4,10 @@ import {
   canManageOption,
   categoryOptionFields,
   isHttpUrl,
+  isOutsideTripDates,
   type CategoryView,
   type OptionView,
+  type TripDateRange,
   type TripRole,
 } from "@gtp/types";
 import { ApiError, useLockOption } from "@gtp/api-client";
@@ -34,6 +36,7 @@ export function OptionCard({
   myRole,
   myUserId,
   frozen,
+  tripDates = null,
   onEdit,
   onDelete,
   deleting = false,
@@ -49,6 +52,8 @@ export function OptionCard({
   myRole: TripRole;
   myUserId: string | undefined;
   frozen: boolean;
+  /** The trip's settled range, for the "outside the trip's dates" hint. */
+  tripDates?: TripDateRange | null;
   onEdit?: (o: OptionView) => void;
   onDelete?: (o: OptionView) => void;
   deleting?: boolean;
@@ -80,6 +85,7 @@ export function OptionCard({
     option.endsAt,
     categoryOptionFields(category).dateGranularity,
   );
+  const elsewhere = isOutsideTripDates(option, tripDates);
 
   async function doLock() {
     setActionError(null);
@@ -169,7 +175,22 @@ export function OptionCard({
           ) : null}
         </div>
       </div>
-      {dates ? field("lane__dates", <>🗓 {dates}</>) : null}
+      {dates
+        ? field(
+            "lane__dates" + (elsewhere ? " lane__dates--elsewhere" : ""),
+            <>
+              🗓 {dates}
+              {/* Advisory, never a rejection: the dates now say *when within the
+                trip*, so an option that falls entirely outside the settled
+                range is worth pointing at — a hotel booked for the wrong month
+                — while every near-miss (a red-eye landing the morning after)
+                stays quiet. */}
+              {elsewhere ? (
+                <em className="lane__elsewhere"> · outside the trip’s dates</em>
+              ) : null}
+            </>,
+          )
+        : null}
       {costLabel(option) ? field("lane__cost", costLabel(option)) : null}
       {option.description ? field("lane__notes", option.description) : null}
       {option.url && isHttpUrl(option.url) ? (
@@ -207,6 +228,7 @@ export function OptionCard({
         <OptionDetail
           category={category}
           option={option}
+          tripDates={tripDates}
           onClose={() => setViewing(false)}
         />
       ) : null}

@@ -118,6 +118,7 @@ function renderBoard(myRole: TripRole, frozen = false) {
         myRole={myRole}
         myUserId="u1"
         frozen={frozen}
+        tripDates={null}
         onOpenChannel={() => undefined}
       />
     </QueryClientProvider>,
@@ -395,6 +396,7 @@ describe("BoardCanvas", () => {
           myRole="OWNER"
           myUserId="u1"
           frozen={false}
+          tripDates={null}
           onOpenChannel={() => undefined}
         />
       </QueryClientProvider>,
@@ -468,5 +470,111 @@ describe("BoardCanvas", () => {
     expect(
       within(dialog).getByText(/Sleeps eight, sea view/),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * The advisory hint. Once the trip's dates are settled, an option's dates say
+   * *when within the trip* — so one booked for the wrong month is worth
+   * pointing at, on the card and on the chip that repeats it in the rail.
+   * Nothing rejects it: the option renders normally and keeps every action.
+   */
+  it("flags an option whose dates fall outside the settled trip", async () => {
+    const march = opt({
+      id: "o3",
+      title: "Wrong Month Inn",
+      startsAt: "2026-03-06T14:00:00.000Z",
+      endsAt: "2026-03-09T10:00:00.000Z",
+    });
+    const during = opt({
+      id: "o4",
+      title: "Right Week Inn",
+      startsAt: "2026-09-08T14:00:00.000Z",
+      endsAt: "2026-09-10T10:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/options")) return json([march, during]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <BoardCanvas
+          tripId="t1"
+          categories={[category]}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          tripDates={{
+            startDate: "2026-09-06T12:00:00.000Z",
+            endDate: "2026-09-13T12:00:00.000Z",
+          }}
+          onOpenChannel={() => undefined}
+        />
+      </QueryClientProvider>,
+    );
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    const flagged = within(lane)
+      .getByText(/Wrong Month Inn/)
+      .closest("article");
+    expect(flagged).not.toBeNull();
+    expect(
+      within(flagged as HTMLElement).getByText(/outside the trip/),
+    ).toBeInTheDocument();
+
+    // The option overlapping the trip says nothing — a warning shown on a
+    // correct option teaches people to ignore warnings.
+    const fine = within(lane)
+      .getByText(/Right Week Inn/)
+      .closest("article");
+    expect(
+      within(fine as HTMLElement).queryByText(/outside the trip/),
+    ).toBeNull();
+  });
+
+  it("says nothing about any option while the trip has no dates", async () => {
+    // With no trip range there is nothing to be outside of, so the same card
+    // that was flagged above must render clean.
+    const march = opt({
+      id: "o3",
+      title: "Wrong Month Inn",
+      startsAt: "2026-03-06T14:00:00.000Z",
+      endsAt: "2026-03-09T10:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/options")) return json([march]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(within(lane).getByText(/Wrong Month Inn/)).toBeInTheDocument();
+    expect(screen.queryByText(/outside the trip/)).toBeNull();
   });
 });
