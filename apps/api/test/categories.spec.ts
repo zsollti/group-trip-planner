@@ -103,6 +103,7 @@ describe("categoryOptionFields", () => {
       cost: false,
       url: false,
       dates: true,
+      dateGranularity: "day",
     });
   });
 
@@ -118,9 +119,31 @@ describe("categoryOptionFields", () => {
     ] as const) {
       assert.deepEqual(
         categoryOptionFields({ builtinKey: key }),
-        { cost: true, url: true, dates: true },
+        { cost: true, url: true, dates: true, dateGranularity: "minute" },
         `${key ?? "custom"} keeps the full form`,
       );
     }
+  });
+
+  // The split that makes an option's dates mean something. A Dates option
+  // proposes calendar days and writes back to date-only columns, where a
+  // time-of-day is noise that only ever caused truncation bugs. Every other
+  // category says *when within the trip*, where 07:15 is the useful part.
+  it("asks Dates for days and every other category for a time of day", () => {
+    assert.equal(
+      categoryOptionFields({ builtinKey: "DATES" }).dateGranularity,
+      "day",
+    );
+    for (const key of [
+      "TRANSPORT",
+      "ACCOMMODATION",
+      "ACTIVITIES",
+      null,
+    ] as const)
+      assert.equal(
+        categoryOptionFields({ builtinKey: key }).dateGranularity,
+        "minute",
+        `${key ?? "custom"} captures a time of day`,
+      );
   });
 });

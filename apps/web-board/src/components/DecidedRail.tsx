@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { CategoryView, OptionView, TripRole } from "@gtp/types";
-import { can } from "@gtp/types";
+import { can, categoryOptionFields } from "@gtp/types";
 import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
 import { useUnlockAction } from "../lib/optionActions";
@@ -52,7 +52,11 @@ function DecidedChip({
     opacity: isDragging ? 0.4 : undefined,
   };
 
-  const dates = dateRangeLabel(option.startsAt, option.endsAt);
+  const dates = dateRangeLabel(
+    option.startsAt,
+    option.endsAt,
+    categoryOptionFields(category).dateGranularity,
+  );
   const cost = costLabel(option);
   const items: MenuItem[] = [
     { label: "View details", onSelect: () => setViewing(true) },
