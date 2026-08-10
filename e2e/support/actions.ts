@@ -67,11 +67,23 @@ export async function signIn(page: Page, account: Account): Promise<void> {
 /**
  * Create a board and land on it. Returns the trip id from the URL, which is the
  * only identifier a later step needs.
+ *
+ * `dates` fills the optional range on the create form (`YYYY-MM-DD` each). They
+ * must be in the future — the same write-back rule that guards locking a Dates
+ * option validates them here, and a past start is refused.
  */
-export async function createBoard(page: Page, name: string): Promise<string> {
+export async function createBoard(
+  page: Page,
+  name: string,
+  dates?: { start: string; end: string },
+): Promise<string> {
   await page.getByRole("button", { name: "＋ New board" }).click();
   await page.getByLabel("Trip name").fill(name);
   await page.getByLabel("Destination").fill("Lisbon, Portugal");
+  if (dates) {
+    await page.getByLabel("Start date").fill(dates.start);
+    await page.getByLabel("End date").fill(dates.end);
+  }
   await page.getByRole("button", { name: "Create board" }).click();
 
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
