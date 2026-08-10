@@ -121,15 +121,18 @@ export function tripDateRange(trip: {
   return { startDate: trip.startDate, endDate: trip.endDate };
 }
 
+/** One day in ms — the slack below, and the length of the trip's last day. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Slack allowed either side of the trip before an option counts as elsewhere.
  *
- * An option's dates are a local wall-clock instant and the trip's are pinned to
- * midday UTC, so an activity on the first morning can sit up to fourteen hours
- * before the trip's own start instant. A full day of slack covers every real
- * offset without needing either value re-interpreted.
+ * An option's dates are a local wall-clock instant while the trip's name bare
+ * calendar days, so an activity on the first morning can sit up to fourteen
+ * hours before the trip's own start instant. A full day of slack covers every
+ * real offset without needing either value re-interpreted.
  */
-const OUTSIDE_SLACK_MS = 24 * 60 * 60 * 1000;
+const OUTSIDE_SLACK_MS = DAY_MS;
 
 /**
  * Does this option fall **entirely** outside the trip's settled dates?
@@ -146,6 +149,14 @@ const OUTSIDE_SLACK_MS = 24 * 60 * 60 * 1000;
  *
  * False negatives are cheap here and false positives are not: a warning shown
  * on a correct option teaches people to ignore warnings.
+ *
+ * **The trip's end is the end of its last day, not the instant it parses to.**
+ * `Trip.startDate`/`endDate` are Postgres `date` columns, so they arrive as
+ * midnight UTC — an *instant at the beginning of the last day*, which left the
+ * end side with no effective slack at all and flagged a 9pm dinner on the last
+ * day anywhere west of Greenwich. The last day has to be given its own length
+ * back before the slack means anything. Widening this way is also the safe
+ * direction to be wrong in, per the paragraph above.
  */
 export function isOutsideTripDates(
   option: {
@@ -161,7 +172,8 @@ export function isOutsideTripDates(
   const optionStart = Number.isNaN(start) ? end : start;
   const optionEnd = Number.isNaN(end) ? start : end;
   const tripStart = Date.parse(range.startDate);
-  const tripEnd = Date.parse(range.endDate);
+  // The last day runs until its own end, not from its opening instant.
+  const tripEnd = Date.parse(range.endDate) + DAY_MS;
   if (
     Number.isNaN(optionStart) ||
     Number.isNaN(optionEnd) ||

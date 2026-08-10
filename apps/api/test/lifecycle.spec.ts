@@ -225,9 +225,9 @@ describe("isOutsideTripDates", () => {
       ),
       false,
     );
-    // The trip's own dates are midday UTC while an option's are a local
-    // wall-clock instant, so an activity on the first morning can sit hours
-    // before the trip's start instant without being anywhere else.
+    // The trip's own dates name bare calendar days while an option's are a
+    // local wall-clock instant, so an activity on the first morning can sit
+    // hours before the trip's start instant without being anywhere else.
     assert.equal(
       isOutsideTripDates(option("2026-09-06T06:00:00.000Z"), range),
       false,
@@ -235,6 +235,33 @@ describe("isOutsideTripDates", () => {
     // Past the slack, it is a different week.
     assert.equal(
       isOutsideTripDates(option("2026-09-16T09:00:00.000Z"), range),
+      true,
+    );
+  });
+
+  it("gives the last day its length, for an evening west of Greenwich", () => {
+    // The range as the API actually serves it: `Trip.startDate`/`endDate` are
+    // `@db.Date`, so they come back as midnight UTC — the *start* of the last
+    // day. Read literally that leaves no slack at all on the end side, and a
+    // 9pm dinner on the last day in New York is a different week.
+    const served = {
+      startDate: "2026-07-03T00:00:00.000Z",
+      endDate: "2026-07-10T00:00:00.000Z",
+    };
+    assert.equal(
+      isOutsideTripDates(option("2026-07-10T21:00:00-04:00"), served),
+      false,
+    );
+    assert.equal(
+      isOutsideTripDates(
+        option("2026-07-10T23:30:00-04:00", "2026-07-11T06:10:00-04:00"),
+        served,
+      ),
+      false,
+    );
+    // Still a different week, which is the whole point of the check.
+    assert.equal(
+      isOutsideTripDates(option("2026-07-14T09:00:00.000Z"), served),
       true,
     );
   });
