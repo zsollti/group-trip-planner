@@ -6,6 +6,7 @@ import { Register } from "./routes/Register";
 import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
 import { TripDetail } from "./routes/TripDetail";
+import { Timeline } from "./routes/Timeline";
 import { Join } from "./routes/Join";
 import { Settings } from "./routes/Settings";
 import { Unsubscribed } from "./routes/Unsubscribed";
@@ -62,6 +63,16 @@ export function App() {
           element={
             <RequireAuth>
               <TripDetail />
+            </RequireAuth>
+          }
+        />
+        {/* The itinerary. Its own route, not a mode on the board: different
+            question, different frame, and it stays useful on a frozen trip. */}
+        <Route
+          path="/trips/:id/timeline"
+          element={
+            <RequireAuth>
+              <Timeline />
             </RequireAuth>
           }
         />
