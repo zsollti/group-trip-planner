@@ -134,6 +134,16 @@ export function TripDetail() {
           {/* The socket's personal room carries notifications for every trip the
               user belongs to, not just this one (Phase 5.1, decision 1). */}
           <NotificationBell socket={tripSocket.socket} />
+          {/* Every member, and deliberately not role-gated: reading what the
+              trip turned out to be is not an organizer's privilege. */}
+          {trip.data ? (
+            <Link
+              className="board__timeline-link"
+              to={`/trips/${trip.data.id}/timeline`}
+            >
+              Timeline
+            </Link>
+          ) : null}
           {trip.data && can(trip.data.role, "invite.create") ? (
             <Button
               type="button"
