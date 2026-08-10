@@ -13,7 +13,9 @@ import {
   buildTimeline,
   timelineCandidates,
   tripDateForDisplay,
+  useTimelineProposals,
 } from "../lib/timeline";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 
 /** A trip date, rendered from the calendar day it names rather than its instant. */
 function fmtTripDate(iso: string | null): string {
@@ -47,15 +49,18 @@ export function Timeline() {
     [categories.data],
   );
   const opts = useCategoriesOptions(id ?? "", catIds);
+  const [showProposals, setShowProposals] = useTimelineProposals();
 
   const tripDates = trip.data ? tripDateRange(trip.data) : null;
   const timeline = useMemo(
     () =>
       buildTimeline(
-        timelineCandidates(categories.data ?? [], opts.byCategory),
+        timelineCandidates(categories.data ?? [], opts.byCategory, {
+          includeProposed: showProposals,
+        }),
         tripDates,
       ),
-    [categories.data, opts.byCategory, tripDates],
+    [categories.data, opts.byCategory, tripDates, showProposals],
   );
 
   const notPlaced = timeline.unscheduled.length + timeline.elsewhere.length;
@@ -112,6 +117,18 @@ export function Timeline() {
             {timeline.placedCount === 1 ? "" : "s"} placed
             {notPlaced > 0 ? ` · ${notPlaced} not scheduled` : ""}
           </p>
+
+          {/* An overlay rather than a second mode: the itinerary stays what
+              the page is, and this layers the candidates under it for spotting
+              a clash. */}
+          <div className="tl__controls">
+            <ToggleSwitch
+              checked={showProposals}
+              onChange={setShowProposals}
+              label="Show proposals"
+              description="Draw the options still being decided, under the ones that are settled."
+            />
+          </div>
 
           {opts.isPending ? (
             <p className="board__muted" role="status">

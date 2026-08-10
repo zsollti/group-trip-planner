@@ -188,6 +188,30 @@ describe("TimelineBoard", () => {
     ).toBeInTheDocument();
   });
 
+  it("draws a proposal subordinate to the decisions around it", () => {
+    // The overlay's whole job is to be distinguishable at a glance. If a
+    // candidate rendered identically to a locked option, six candidates in a
+    // multi-select lane would read as six things that are all happening.
+    const { container } = renderTimeline([
+      item(doing, {
+        title: "Settled dinner",
+        startsAt: "2026-07-04T20:00",
+        endsAt: "2026-07-04T22:00",
+      }),
+      item(doing, {
+        title: "Maybe a museum",
+        status: "PROPOSED",
+        startsAt: "2026-07-04T10:00",
+        endsAt: "2026-07-04T12:00",
+      }),
+    ]);
+    const cards = container.querySelectorAll(".tl__card--moment");
+    expect(cards).toHaveLength(2);
+    expect(cards[0]?.className).toContain("tl__card--proposed");
+    expect(cards[1]?.className).not.toContain("tl__card--proposed");
+    expect(screen.getByText("Proposed")).toBeInTheDocument();
+  });
+
   it("warns that a derived axis will move under the reader", () => {
     render(
       <TimelineBoard
