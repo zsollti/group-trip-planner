@@ -56,26 +56,43 @@ jobs:
             exit 1
           fi
 
+      # Pinned. An unpinned `npm install -g` in the deploy path means a bad CLI
+      # release can break production deploys with no change of ours — the one
+      # dependency where "latest" is least welcome. Bump deliberately.
       - name: Install the Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@5.35.1
 
-      # The API first, and on its own: its container runs `prisma migrate
-      # deploy` at start, so the schema the new frontend expects is in place
-      # before that frontend is served. Migrations in this project are additive
-      # (every one to date adds a column, table or index), so the brief window
-      # where the old API meets the new schema is safe.
+      # The API first: its container runs `prisma migrate deploy` at start, so
+      # the schema the new frontend expects is in place before that frontend is
+      # served. Migrations in this project are additive (every one to date adds
+      # a column, table or index), so the brief window where the old API meets
+      # the new schema is safe.
+      #
+      # `continue-on-error` is not indifference — the final step below fails the
+      # job if this one did. It exists because `railway up --ci` streams build
+      # logs and exits non-zero when *the stream* dies, which says nothing about
+      # whether the build succeeded. That happened three times running on
+      # 2026-08-10: the upload was accepted and a build id returned each time,
+      # and the only real damage was that the web deploy below never ran, so a
+      # merged change sat undeployed while the pipeline looked merely red.
       - name: Deploy the API
+        id: api
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service api --ci
+        run: |
+          for attempt in 1 2 3; do
+            if railway up --service api --ci; then exit 0; fi
+            echo "::warning::railway up --service api failed (attempt ${attempt}/3)"
+            sleep 20
+          done
+          exit 1
 
-      - name: Deploy the Trip Board
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service web-board --ci
-
-      # A deploy that boots but cannot reach Postgres is the failure worth
-      # catching automatically; /health returns 503 for exactly that case.
+      # Moved ahead of the web deploy, where it now earns its keep as a gate
+      # rather than a postscript: if the API is not answering, a newer frontend
+      # must not be served against it. A deploy that boots but cannot reach
+      # Postgres is the failure worth catching automatically; /health returns
+      # 503 for exactly that case.
       - name: Verify the deployed API is healthy
         env:
           API_URL: ${{ vars.API_PUBLIC_URL }}
@@ -95,4 +112,28 @@ jobs:
             sleep 15
           done
           echo "::error::$API_URL/health did not return 200 within five minutes."
+          exit 1
+
+      - name: Deploy the Trip Board
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          for attempt in 1 2 3; do
+            if railway up --service web-board --ci; then exit 0; fi
+            echo "::warning::railway up --service web-board failed (attempt ${attempt}/3)"
+            sleep 20
+          done
+          exit 1
+
+      # The API deploy is still allowed to fail the job — after the web app has
+      # had its chance to ship, and after the health check has confirmed there
+      # is a working API behind it. Red here means "go look at the Railway
+      # dashboard", not "nothing was deployed".
+      - name: Fail if the API deploy reported an error
+        if: steps.api.outcome == 'failure'
+        run: |
+          echo "::error::railway up --service api exited non-zero three times." \
+               "The API health check passed and the web app was deployed, so this" \
+               "is most likely Railway's build-log stream rather than the build." \
+               "Confirm the API's latest deployment in the Railway dashboard."
           exit 1
