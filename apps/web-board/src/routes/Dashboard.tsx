@@ -134,7 +134,7 @@ export function Dashboard() {
   const history = list.filter((t) => t.status === "HISTORY");
 
   return (
-    <main className="board">
+    <main className="board board--measure">
       <header className="board__bar">
         <span className="board__brand">GTP · Trip Board</span>
         <div className="board__bar-actions">

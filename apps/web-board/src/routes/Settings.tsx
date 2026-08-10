@@ -74,7 +74,7 @@ export function Settings() {
   }
 
   return (
-    <main className="board">
+    <main className="board board--measure">
       <header className="board__bar">
         <Link className="board__brand board__brand--link" to="/">
           ‹ Boards
