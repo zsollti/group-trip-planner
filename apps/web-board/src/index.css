@@ -2745,3 +2745,18 @@ body {
   max-width: 30rem;
   margin-top: 0.75rem;
 }
+
+/* Gaps and clashes. Both borrow the danger hue for attention and none of the
+   error treatment — no border, no `role="alert"` — because both are advisory
+   and both are sometimes exactly what the trip intended (a night at a friend's
+   place is nowhere booked, and two overlapping legs may be deliberate). */
+.tl__gap {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--board-danger);
+}
+.tl__card-clash {
+  font-weight: 600;
+  color: var(--board-danger);
+}

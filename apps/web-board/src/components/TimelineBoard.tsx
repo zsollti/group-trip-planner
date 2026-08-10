@@ -48,10 +48,13 @@ function nightsLabel(nights: number): string {
 function EntryCard({
   entry,
   variant,
+  clashes,
   onOpen,
 }: {
   entry: TimelineEntry;
   variant: "moment" | "span";
+  /** Collides with another decision in the same category. */
+  clashes: boolean;
   onOpen: () => void;
 }) {
   const cost = costLabel(entry.option);
@@ -87,6 +90,11 @@ function EntryCard({
         {span ? <span>{nightsLabel(span.nights)}</span> : null}
         {cost ? <span>{cost}</span> : null}
         {proposed ? <span className="tl__card-flag">Proposed</span> : null}
+        {clashes ? (
+          <span className="tl__card-clash">
+            Overlaps another {entry.category.name} decision
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -145,8 +153,9 @@ export function TimelineBoard({
     category: CategoryView;
   } | null>(null);
 
-  const { days, spans, unscheduled, elsewhere } = timeline;
+  const { days, spans, unscheduled, elsewhere, overlapping } = timeline;
   const hasTray = unscheduled.length > 0 || elsewhere.length > 0;
+  const uncovered = new Set(timeline.uncoveredNights);
 
   return (
     <>
@@ -209,6 +218,7 @@ export function TimelineBoard({
                       key={entry.option.id}
                       entry={entry}
                       variant="moment"
+                      clashes={overlapping.has(entry.option.id)}
                       onOpen={() =>
                         setViewing({
                           option: entry.option,
@@ -219,6 +229,12 @@ export function TimelineBoard({
                   ))}
                 </div>
               )}
+              {/* Sits with the day rather than in the gutter: the night after
+                  a checkout falls on a row the departing stay still occupies,
+                  so a marker there would land under its own card. */}
+              {uncovered.has(day.key) ? (
+                <p className="tl__gap">Nowhere booked for this night</p>
+              ) : null}
             </div>
           ))}
 
@@ -237,6 +253,7 @@ export function TimelineBoard({
                 <EntryCard
                   entry={span}
                   variant="span"
+                  clashes={overlapping.has(span.option.id)}
                   onOpen={() =>
                     setViewing({
                       option: span.option,

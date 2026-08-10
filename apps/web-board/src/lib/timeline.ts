@@ -137,6 +137,10 @@ export interface Timeline {
   readonly placedCount: number;
   /** The axis hit {@link MAX_TIMELINE_DAYS} and was cut short. */
   readonly truncated: boolean;
+  /** Days inside the trip whose *night* no span covers ({@link uncoveredNights}). */
+  readonly uncoveredNights: readonly string[];
+  /** Options overlapping another decision in the same category. */
+  readonly overlapping: ReadonlySet<string>;
 }
 
 /** An option/category pair before its dates have been looked at. */
@@ -168,6 +172,83 @@ export function timelineCandidates(
     }
   }
   return out;
+}
+
+/**
+ * Nights inside the trip that no span covers.
+ *
+ * This is the check that makes the page worth opening twice: a timeline that
+ * draws what you have is pretty, one that shows the hole is useful. Three
+ * cities and three bookings is exactly where a night goes missing.
+ *
+ * Two deliberate silences, both to keep it from crying wolf:
+ *
+ *  - **Nothing is said until at least one span exists.** A trip that has not
+ *    decided where to sleep yet has *every* night uncovered, and seven
+ *    identical warnings is not information — it is a lane that is simply still
+ *    empty, which the board already shows.
+ *  - **Any span counts as cover, not just an accommodation-shaped one.** The
+ *    night train covers the night you are on it, and so does a lane nobody
+ *    else would call lodging. Asking "is anything here that night" under-warns
+ *    where a stricter rule would accuse a correct trip.
+ *
+ * The last day has no night: you go home on it.
+ */
+function findUncoveredNights(
+  days: readonly TimelineDay[],
+  spans: readonly TimelineSpan[],
+): string[] {
+  if (spans.length === 0) return [];
+  const inTrip = days.filter((d) => !d.outsideTrip);
+  // A span from Fri to Mon covers the nights of Fri, Sat and Sun — its last
+  // day is the morning you leave, not a night you slept through.
+  const covers = (key: string) =>
+    spans.some((s) => s.firstDay <= key && key < s.lastDay);
+  return inTrip
+    .slice(0, -1)
+    .map((d) => d.key)
+    .filter((key) => !covers(key));
+}
+
+/** Do two placed entries occupy the same time? */
+function overlaps(a: TimelineEntry, b: TimelineEntry): boolean {
+  // Two things scheduled for the same instant clash even though neither has a
+  // duration; everything else is a strict overlap, so a checkout at 10:00 and
+  // a check-in at 10:00 are adjacent rather than double-booked.
+  if (a.isPoint && b.isPoint) return a.start === b.start;
+  return a.start < b.end && b.start < a.end;
+}
+
+/**
+ * Decisions that collide with another decision **in the same category**.
+ *
+ * Same category is the whole scope. Being in a hotel while at a museum is not
+ * a clash, it is a trip; two flights at once, or two hotels on one night, is.
+ * Only locked options take part — a proposal overlapping a decision is what
+ * proposing *is*, and flagging it would put a warning on the normal case.
+ */
+function findOverlapping(placed: readonly TimelineEntry[]): Set<string> {
+  const byCategory = new Map<string, TimelineEntry[]>();
+  for (const entry of placed) {
+    if (entry.option.status !== "LOCKED") continue;
+    const list = byCategory.get(entry.category.id);
+    if (list) list.push(entry);
+    else byCategory.set(entry.category.id, [entry]);
+  }
+  const clashing = new Set<string>();
+  for (const list of byCategory.values()) {
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i];
+        const b = list[j];
+        if (a && b && overlaps(a, b)) {
+          clashing.add(a.option.id);
+          clashing.add(b.option.id);
+        }
+      }
+    }
+  }
+  return clashing;
 }
 
 /** Resolve an option's dates to instants, or null when it carries none. */
@@ -324,6 +405,10 @@ export function buildTimeline(
     elsewhere,
     placedCount: placed.length,
     truncated: raw.length >= MAX_TIMELINE_DAYS,
+    // A derived axis is the options' own min/max, so "inside the trip" has no
+    // meaning yet and a missing night cannot be missing from anything.
+    uncoveredNights: axis === "trip" ? findUncoveredNights(days, spans) : [],
+    overlapping: findOverlapping(placed),
   };
 }
 

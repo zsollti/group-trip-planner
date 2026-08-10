@@ -212,6 +212,45 @@ describe("TimelineBoard", () => {
     expect(screen.getByText("Proposed")).toBeInTheDocument();
   });
 
+  it("marks the night nobody booked, on the day it belongs to", () => {
+    const { container } = renderTimeline([
+      item(stay, {
+        title: "Split",
+        startsAt: "2026-07-03T15:00",
+        endsAt: "2026-07-06T10:00",
+      }),
+      item(stay, {
+        title: "Hvar",
+        startsAt: "2026-07-07T15:00",
+        endsAt: "2026-07-10T10:00",
+      }),
+    ]);
+    const gaps = container.querySelectorAll(".tl__gap");
+    expect(gaps).toHaveLength(1);
+    // In the Jul 6 row, not the gutter — the departing stay still occupies
+    // that gutter row, so a marker there would land under its own card.
+    const day = container.querySelector('[data-day="2026-07-06"]');
+    expect(day?.querySelector(".tl__gap")).not.toBeNull();
+  });
+
+  it("names the clash on both decisions involved", () => {
+    renderTimeline([
+      item(doing, {
+        title: "Museum",
+        startsAt: "2026-07-04T10:00",
+        endsAt: "2026-07-04T12:00",
+      }),
+      item(doing, {
+        title: "Boat trip",
+        startsAt: "2026-07-04T11:00",
+        endsAt: "2026-07-04T15:00",
+      }),
+    ]);
+    expect(
+      screen.getAllByText(/overlaps another activities decision/i),
+    ).toHaveLength(2);
+  });
+
   it("warns that a derived axis will move under the reader", () => {
     render(
       <TimelineBoard
