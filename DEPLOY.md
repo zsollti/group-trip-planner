@@ -309,20 +309,37 @@ Set up, once:
    - secret **`RAILWAY_TOKEN`** = that token.
    - variable **`API_PUBLIC_URL`** = `https://<api domain>` — the workflow's
      post-deploy health poll uses it, and warns rather than fails if it is unset.
+   - variable **`WEB_PUBLIC_URL`** = `https://<web domain>` — the frontend
+     deploy verification below uses it, and warns rather than fails if unset.
 
 The API deploys first, so the schema the new frontend expects is in place before
-that frontend is served. The health poll then runs **between** the two deploys,
+that frontend is served. The API health poll runs **between** the two deploys,
 where it acts as a gate: if the API is not answering, the newer frontend is not
 shipped against it.
 
-**A failed API step no longer strands the web app.** `railway up --ci` streams
-build logs and exits non-zero when *the stream* dies, which says nothing about
-whether the build succeeded — on 2026-08-10 that happened three times running,
-each with the upload accepted and a build id returned, and the only real damage
-was that the web deploy never ran and a merged change sat undeployed. Each
-`railway up` now retries three times, the API step is `continue-on-error`, and a
-final step fails the job if it errored. **So red on this workflow means "check
-the API's latest deployment in the Railway dashboard", not "nothing shipped".**
+**Each deploy is verified by outcome, not by the CLI's exit code.**
+`railway up --ci` streams build logs and exits non-zero when *the stream* dies,
+which says nothing about whether the build succeeded. On 2026-08-10 that
+happened repeatedly on both services: the upload was accepted, a build id was
+returned, the dashboard showed **Success**, the site served the new bundle — and
+the command still reported failure. Retrying was tried first and was the wrong
+instrument: the exit code is not flaky, it is wrong, so three attempts just
+produced three identical deployments and failed anyway.
+
+So `.github/scripts/railway-up.sh` treats *that specific* failure as
+"submitted, unverified" and lets the checks decide, while any other non-zero
+exit stays fatal. The checks are:
+
+- **API** — `GET /health`, which answers 503 when it cannot reach Postgres, so
+  green means "up **and** connected".
+- **Trip Board** — the workflow writes the deploying commit to
+  `apps/web-board/public/build.txt` before uploading, Vite copies `public/` into
+  the bundle, and the workflow then polls `<web>/build.txt` until it reports
+  that SHA. This is the check that was missing entirely: twice on 2026-08-10 the
+  only way to answer "did the frontend ship" was to fetch the production CSS
+  bundle and grep it by hand. Note the SPA history fallback serves `index.html`
+  for a missing `/build.txt`, so the poll compares the body exactly rather than
+  trusting a 200.
 
 The CLI is **pinned** (`@railway/cli@5.35.1`). An unpinned `npm install -g` in
 the deploy path lets a bad release break production deploys with no change of

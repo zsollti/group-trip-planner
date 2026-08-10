@@ -62,31 +62,30 @@ jobs:
       - name: Install the Railway CLI
         run: npm install -g @railway/cli@5.35.1
 
+      # Stamp the build with the commit being deployed, so the deploy can be
+      # verified by *outcome* rather than by the CLI's word for it. Vite copies
+      # `public/` into the bundle and Caddy serves it, so the live site ends up
+      # publishing the SHA it was built from at `/build.txt`.
+      #
+      # This exists because there was no automated check that the frontend had
+      # deployed at all. Twice on 2026-08-10 the only way to answer "did it
+      # ship" was to fetch the production CSS bundle and grep it by hand.
+      - name: Stamp the build with the commit SHA
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          mkdir -p apps/web-board/public
+          printf '%s' "$SHA" > apps/web-board/public/build.txt
+
       # The API first: its container runs `prisma migrate deploy` at start, so
       # the schema the new frontend expects is in place before that frontend is
       # served. Migrations in this project are additive (every one to date adds
       # a column, table or index), so the brief window where the old API meets
       # the new schema is safe.
-      #
-      # `continue-on-error` is not indifference — the final step below fails the
-      # job if this one did. It exists because `railway up --ci` streams build
-      # logs and exits non-zero when *the stream* dies, which says nothing about
-      # whether the build succeeded. That happened three times running on
-      # 2026-08-10: the upload was accepted and a build id returned each time,
-      # and the only real damage was that the web deploy below never ran, so a
-      # merged change sat undeployed while the pipeline looked merely red.
       - name: Deploy the API
-        id: api
-        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          for attempt in 1 2 3; do
-            if railway up --service api --ci; then exit 0; fi
-            echo "::warning::railway up --service api failed (attempt ${attempt}/3)"
-            sleep 20
-          done
-          exit 1
+        run: bash .github/scripts/railway-up.sh api
 
       # Moved ahead of the web deploy, where it now earns its keep as a gate
       # rather than a postscript: if the API is not answering, a newer frontend
@@ -117,23 +116,34 @@ jobs:
       - name: Deploy the Trip Board
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          for attempt in 1 2 3; do
-            if railway up --service web-board --ci; then exit 0; fi
-            echo "::warning::railway up --service web-board failed (attempt ${attempt}/3)"
-            sleep 20
-          done
-          exit 1
+        run: bash .github/scripts/railway-up.sh web-board
 
-      # The API deploy is still allowed to fail the job — after the web app has
-      # had its chance to ship, and after the health check has confirmed there
-      # is a working API behind it. Red here means "go look at the Railway
-      # dashboard", not "nothing was deployed".
-      - name: Fail if the API deploy reported an error
-        if: steps.api.outcome == 'failure'
+      # The check the pipeline was missing: proof that the *frontend* being
+      # served is the commit this run deployed. The API has its health poll
+      # above; until now the web app had nothing at all, so a silently skipped
+      # web deploy looked identical to a successful one.
+      #
+      # The SPA history fallback answers `/build.txt` with index.html when the
+      # file is absent, so this compares the body exactly rather than trusting
+      # a 200.
+      - name: Verify the Trip Board is serving this commit
+        env:
+          WEB_URL: ${{ vars.WEB_PUBLIC_URL }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          echo "::error::railway up --service api exited non-zero three times." \
-               "The API health check passed and the web app was deployed, so this" \
-               "is most likely Railway's build-log stream rather than the build." \
-               "Confirm the API's latest deployment in the Railway dashboard."
+          if [ -z "$WEB_URL" ]; then
+            echo "::warning::Repository variable WEB_PUBLIC_URL is unset;" \
+                 "skipping the frontend deploy verification (see DEPLOY.md §8)."
+            exit 0
+          fi
+          for attempt in $(seq 1 30); do
+            served=$(curl -fsS -H 'Cache-Control: no-cache' "$WEB_URL/build.txt" 2>/dev/null | tr -d '[:space:]' || true)
+            if [ "$served" = "$SHA" ]; then
+              echo "Trip Board is serving ${SHA} after ${attempt} attempt(s)."
+              exit 0
+            fi
+            echo "attempt ${attempt}: serving ${served:0:12}… (want ${SHA:0:12}…)"
+            sleep 15
+          done
+          echo "::error::$WEB_URL/build.txt did not report ${SHA} within seven minutes."
           exit 1
