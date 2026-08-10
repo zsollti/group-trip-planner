@@ -66,8 +66,8 @@ export function Timeline() {
   const notPlaced = timeline.unscheduled.length + timeline.elsewhere.length;
 
   return (
-    <main className="board">
-      <header className="board__bar tl__bar">
+    <main className="board board--measure">
+      <header className="board__bar">
         <Link
           className="board__brand board__brand--link"
           to={id ? `/trips/${id}` : "/"}
@@ -101,10 +101,10 @@ export function Timeline() {
           Couldn't load the category lanes.
         </p>
       ) : (
-        /* A fixed measure, centred. Filling the window put a two-line card in a
-           1200px box and left the eye travelling a monitor's width between a
-           start time and the thing it belongs to. */
-        <div className="tl__page">
+        /* The measure lives on `.board--measure` above, shared with the other
+           reading surfaces — it began here as a timeline-private idea, which is
+           exactly why the page looked like an accident next to the rest. */
+        <>
           <p className="board__eyebrow">Timeline</p>
           <h1 className="board__title">{trip.data.name}</h1>
           <p className="board__muted">
@@ -144,7 +144,7 @@ export function Timeline() {
           ) : (
             <TimelineBoard timeline={timeline} tripDates={tripDates} />
           )}
-        </div>
+        </>
       )}
     </main>
   );

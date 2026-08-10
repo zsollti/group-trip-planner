@@ -125,6 +125,34 @@ body {
   padding: 1.25rem 1.5rem 2rem;
 }
 
+/**
+ * The page measure — **one** column width, shared by every page whose content
+ * is read rather than worked in: the boards overview, settings, the timeline.
+ * They all start on the same left edge, which is the entire point.
+ *
+ * Line length has an optimum and exceeding it is strictly worse. Uncapped on a
+ * wide monitor the timeline put a two-line card in a 1200px box and left the
+ * eye travelling a screen's width back to the start of the next line.
+ *
+ * **The trip board takes no measure.** Its canvas is a horizontally scrolling
+ * field of lanes, where width is the working area rather than a line to be
+ * read, and the Decided rail above it genuinely spans the window. That is the
+ * one place the seam belongs, and it reads as a choice rather than an accident
+ * because the board plainly *is* a wide canvas.
+ *
+ * A second, wider measure for the tile grid was tried and dropped: at 1440px it
+ * came out near enough to full-bleed that the overview still failed to line up
+ * with the pages either side of it, which was the whole reason for doing this.
+ * One width, or the consistency is not real.
+ *
+ * The measure includes the page's own bar, so the back link starts on the same
+ * edge as the heading under it.
+ */
+.board--measure {
+  max-width: 60rem;
+  margin-inline: auto;
+}
+
 .board--center {
   display: flex;
   align-items: center;
@@ -2520,18 +2548,6 @@ body {
  * No new colours. The theme is a committed token contract (Phase 6.3), so the
  * two classes of thing are told apart by *position* — gutter versus day column
  * — and by the accent edge the board already uses for a settled decision. */
-
-.tl__page,
-.tl__bar {
-  max-width: var(--tl-measure);
-  margin-inline: auto;
-}
-
-/* One measure for the page and the bar above it, so the back link starts on
-   the same edge as the trip's name instead of hugging the window. */
-:root {
-  --tl-measure: 60rem;
-}
 
 .tl__grid {
   display: grid;
