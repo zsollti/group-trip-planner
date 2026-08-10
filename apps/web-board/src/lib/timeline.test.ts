@@ -140,6 +140,165 @@ describe("timelineCandidates", () => {
   });
 });
 
+describe("uncovered nights", () => {
+  const range = trip("2026-07-03", "2026-07-10");
+  const hotel = (title: string, from: string, to: string) =>
+    item(stay, { title, startsAt: `${from}T15:00`, endsAt: `${to}T10:00` });
+
+  it("finds the night between two bookings", () => {
+    // The three-cities case: Split, then Hvar, and nobody booked the night in
+    // between.
+    const t = buildTimeline(
+      [
+        hotel("Split", "2026-07-03", "2026-07-06"),
+        hotel("Hvar", "2026-07-07", "2026-07-10"),
+      ],
+      range,
+    );
+    expect(t.uncoveredNights).toEqual(["2026-07-06"]);
+  });
+
+  it("counts the last day as a departure, not a night", () => {
+    const t = buildTimeline(
+      [hotel("Split", "2026-07-03", "2026-07-10")],
+      range,
+    );
+    expect(t.uncoveredNights).toEqual([]);
+  });
+
+  it("stays quiet while nothing overnight is decided at all", () => {
+    // Seven identical warnings is not information — it is an empty lane, which
+    // the board already says more clearly.
+    const t = buildTimeline(
+      [
+        item(doing, {
+          title: "Museum",
+          startsAt: "2026-07-04T10:00",
+          endsAt: "2026-07-04T12:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.uncoveredNights).toEqual([]);
+  });
+
+  it("lets an overnight journey cover the night it crosses", () => {
+    const t = buildTimeline(
+      [
+        hotel("Split", "2026-07-03", "2026-07-06"),
+        item(doing, {
+          title: "Night train",
+          startsAt: "2026-07-06T23:10",
+          endsAt: "2026-07-07T07:30",
+        }),
+        hotel("Hvar", "2026-07-07", "2026-07-10"),
+      ],
+      range,
+    );
+    expect(t.uncoveredNights).toEqual([]);
+  });
+
+  it("says nothing when the trip has no dates to be missing from", () => {
+    const t = buildTimeline([hotel("Split", "2026-07-03", "2026-07-06")], null);
+    expect(t.axis).toBe("derived");
+    expect(t.uncoveredNights).toEqual([]);
+  });
+});
+
+describe("overlapping decisions", () => {
+  const range = trip("2026-07-03", "2026-07-10");
+
+  it("flags two decisions clashing in the same category", () => {
+    const t = buildTimeline(
+      [
+        item(doing, {
+          title: "Museum",
+          startsAt: "2026-07-04T10:00",
+          endsAt: "2026-07-04T12:00",
+        }),
+        item(doing, {
+          title: "Boat trip",
+          startsAt: "2026-07-04T11:00",
+          endsAt: "2026-07-04T15:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.overlapping.size).toBe(2);
+  });
+
+  it("says nothing across categories — that is just a trip", () => {
+    // Being in a hotel while at a museum is not a clash.
+    const t = buildTimeline(
+      [
+        item(stay, {
+          title: "Hotel",
+          startsAt: "2026-07-03T15:00",
+          endsAt: "2026-07-06T10:00",
+        }),
+        item(doing, {
+          title: "Museum",
+          startsAt: "2026-07-04T10:00",
+          endsAt: "2026-07-04T12:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.overlapping.size).toBe(0);
+  });
+
+  it("treats touching endpoints as adjacent, not double-booked", () => {
+    const t = buildTimeline(
+      [
+        item(stay, {
+          title: "First",
+          startsAt: "2026-07-03T15:00",
+          endsAt: "2026-07-06T10:00",
+        }),
+        item(stay, {
+          title: "Second",
+          startsAt: "2026-07-06T10:00",
+          endsAt: "2026-07-09T10:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.overlapping.size).toBe(0);
+  });
+
+  it("catches two things pinned to the same instant", () => {
+    // Neither has a duration, so a strict overlap test would miss the clash.
+    const t = buildTimeline(
+      [
+        item(doing, { title: "One", startsAt: "2026-07-04T14:00" }),
+        item(doing, { title: "Two", startsAt: "2026-07-04T14:00" }),
+      ],
+      range,
+    );
+    expect(t.overlapping.size).toBe(2);
+  });
+
+  it("ignores a proposal overlapping a decision — that is what proposing is", () => {
+    const t = buildTimeline(
+      [
+        item(doing, {
+          title: "Settled",
+          startsAt: "2026-07-04T10:00",
+          endsAt: "2026-07-04T12:00",
+        }),
+        item(doing, {
+          title: "Candidate",
+          status: "PROPOSED",
+          startsAt: "2026-07-04T11:00",
+          endsAt: "2026-07-04T13:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.overlapping.size).toBe(0);
+  });
+});
+
 describe("the trays hold decisions, not candidates", () => {
   const range = trip("2026-07-03", "2026-07-10");
 
