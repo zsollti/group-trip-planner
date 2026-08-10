@@ -6,7 +6,6 @@ import {
 } from "@gtp/types";
 import { OptionDetail } from "./OptionDetail";
 import { costLabel, dateRangeLabel } from "./optionFormat";
-import { truncateName } from "../lib/truncate";
 import {
   dayIndex,
   type Timeline,
@@ -79,22 +78,27 @@ function EntryCard({
           ? (spanLabel(span) ?? nightsLabel(span.nights))
           : timeLabel(entry)}
       </span>
-      {/* Only the gutter truncates. The 15-character cap exists because a lane
-          is a 15rem column; the day column is the page's whole width, and this
-          is the surface whose job is to be read. */}
-      <span className="tl__card-title">
-        {span ? truncateName(entry.option.title) : entry.option.title}
-      </span>
-      <span className="tl__card-meta">
-        <span className="tl__tag">{entry.category.name}</span>
-        {span ? <span>{nightsLabel(span.nights)}</span> : null}
-        {cost ? <span>{cost}</span> : null}
-        {proposed ? <span className="tl__card-flag">Proposed</span> : null}
-        {clashes ? (
-          <span className="tl__card-clash">
-            Overlaps another {entry.category.name} decision
-          </span>
-        ) : null}
+      {/* The time is a sibling of the body rather than part of it, so a moment
+          card can give it its own grid column and line the day's start times
+          up into an edge the eye can run down. */}
+      <span className="tl__card-body">
+        {/* Never character-truncated. The 15-character cap exists because a
+            board lane is a 15rem column, and it is too blunt here: the gutter
+            fits "Hotel Luna Split" and "Hotel Luna Spli…" helps nobody. The
+            gutter clamps to two lines in CSS instead, where the real width is
+            known; the day column is the page's measure and needs neither. */}
+        <span className="tl__card-title">{entry.option.title}</span>
+        <span className="tl__card-meta">
+          <span className="tl__tag">{entry.category.name}</span>
+          {span ? <span>{nightsLabel(span.nights)}</span> : null}
+          {cost ? <span>{cost}</span> : null}
+          {proposed ? <span className="tl__card-flag">Proposed</span> : null}
+          {clashes ? (
+            <span className="tl__card-clash">
+              Overlaps another {entry.category.name} decision
+            </span>
+          ) : null}
+        </span>
       </span>
     </button>
   );
@@ -208,10 +212,19 @@ export function TimelineBoard({
                 {day.outsideTrip ? (
                   <span className="tl__day-flag">outside the trip's dates</span>
                 ) : null}
+                {/* On the heading line rather than in a paragraph of its own:
+                    given its own row, a free day stood as tall as a busy one
+                    and a week with two of them pushed the trip off screen. */}
+                {day.entries.length === 0 ? (
+                  <span className="tl__day-quiet">nothing planned</span>
+                ) : null}
               </h3>
-              {day.entries.length === 0 ? (
-                <p className="tl__day-empty">Nothing planned</p>
-              ) : (
+              {/* Above the day's plans, because it is a fact about the night
+                  rather than another thing that is happening. */}
+              {uncovered.has(day.key) ? (
+                <p className="tl__gap">Nowhere booked for this night</p>
+              ) : null}
+              {day.entries.length === 0 ? null : (
                 <div className="tl__day-items">
                   {day.entries.map((entry) => (
                     <EntryCard
@@ -229,12 +242,6 @@ export function TimelineBoard({
                   ))}
                 </div>
               )}
-              {/* Sits with the day rather than in the gutter: the night after
-                  a checkout falls on a row the departing stay still occupies,
-                  so a marker there would land under its own card. */}
-              {uncovered.has(day.key) ? (
-                <p className="tl__gap">Nowhere booked for this night</p>
-              ) : null}
             </div>
           ))}
 
@@ -250,17 +257,22 @@ export function TimelineBoard({
                 className="tl__span"
                 style={{ gridRow: `${from + 1} / ${to + 2}` }}
               >
-                <EntryCard
-                  entry={span}
-                  variant="span"
-                  clashes={overlapping.has(span.option.id)}
-                  onOpen={() =>
-                    setViewing({
-                      option: span.option,
-                      category: span.category,
-                    })
-                  }
-                />
+                {/* The band carries the extent and the label sticks to the top
+                    of it, so a long stay reads as "this covers all of these"
+                    rather than as an empty box with a caption. */}
+                <div className="tl__span-band">
+                  <EntryCard
+                    entry={span}
+                    variant="span"
+                    clashes={overlapping.has(span.option.id)}
+                    onOpen={() =>
+                      setViewing({
+                        option: span.option,
+                        category: span.category,
+                      })
+                    }
+                  />
+                </div>
               </div>
             );
           })}

@@ -163,7 +163,10 @@ test("a stay is drawn once, spanning exactly the nights it covers", async ({
   // a span that fell out of the shared grid would fail both.
   expect(Math.abs(spanBox.top - arrival.top)).toBeLessThanOrEqual(2);
   expect(Math.abs(spanBox.bottom - checkout.bottom)).toBeLessThanOrEqual(2);
-  expect(spanBox.bottom).toBeLessThan(dayAfter.top);
+  // Ends *at* the next day, never inside it. Equality is the correct result:
+  // the rows are adjacent, since the day rules do the separating and a row gap
+  // would put a dead band inside every span that crossed one.
+  expect(spanBox.bottom).toBeLessThanOrEqual(dayAfter.top);
 
   // …and it sits beside the days, not among them.
   expect(spanBox.right).toBeLessThanOrEqual(arrival.left + 1);
