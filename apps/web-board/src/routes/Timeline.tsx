@@ -12,9 +12,9 @@ import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import {
   buildTimeline,
   timelineCandidates,
-  tripDateForDisplay,
   useTimelineProposals,
 } from "../lib/timeline";
+import { tripDateForDisplay } from "../lib/tripDate";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 
 /** A trip date, rendered from the calendar day it names rather than its instant. */

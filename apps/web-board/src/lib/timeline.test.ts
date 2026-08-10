@@ -3,11 +3,10 @@ import type { CategoryView, OptionView } from "@gtp/types";
 import {
   MAX_TIMELINE_DAYS,
   buildTimeline,
-  calendarDayToLocalMs,
   localDayKey,
   timelineCandidates,
-  tripDayKey,
 } from "./timeline";
+import { calendarDayToLocalMs } from "./tripDate";
 
 /**
  * Dates are the whole subject here, so the fixtures are deliberate about which
@@ -80,25 +79,15 @@ function item(category: CategoryView, over: Partial<OptionView>) {
 }
 
 describe("day keys", () => {
-  it("reads a trip's date as the day it names, not the day it lands on", () => {
-    // Midnight UTC is the previous evening across the Americas. Local getters
-    // would call this trip's start the 2nd for most of the western hemisphere;
-    // the value is a bare calendar date and has to be read as one.
-    expect(tripDayKey("2026-07-03T00:00:00.000Z")).toBe("2026-07-03");
-    expect(tripDayKey("2026-07-03T12:00:00.000Z")).toBe("2026-07-03");
-    expect(tripDayKey("nonsense")).toBeNull();
-  });
-
-  it("bridges a calendar day to the local row that represents it", () => {
-    const ms = calendarDayToLocalMs("2026-07-03");
-    expect(ms).not.toBeNull();
-    // The round trip is the property that matters: whatever zone is running
-    // this, the trip's "Jul 3" and an option at 07:15 on Jul 3 share a row.
-    expect(localDayKey(ms as number)).toBe("2026-07-03");
+  it("puts a trip's day and an option on it in the same row", () => {
+    // The property the spine depends on, whatever zone is running the suite:
+    // the trip's "Jul 3" and a 07:15 flight on Jul 3 agree about the day.
+    // `tripDate.ts` covers the calendar-versus-instant rule itself.
+    const ms = calendarDayToLocalMs("2026-07-03") as number;
+    expect(localDayKey(ms)).toBe("2026-07-03");
     expect(localDayKey(new Date("2026-07-03T07:15").getTime())).toBe(
       "2026-07-03",
     );
-    expect(calendarDayToLocalMs("nope")).toBeNull();
   });
 });
 

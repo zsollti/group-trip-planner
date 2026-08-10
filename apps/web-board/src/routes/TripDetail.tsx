@@ -28,6 +28,7 @@ import { LiveIndicator } from "../components/LiveIndicator";
 import { NotificationBell } from "../components/NotificationBell";
 import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
+import { tripDateForDisplay } from "../lib/tripDate";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -36,9 +37,15 @@ const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   GUEST: "Guest",
 };
 
+/**
+ * A trip's own date, which is a calendar day rather than an instant — so it
+ * goes through {@link tripDateForDisplay} instead of being formatted directly.
+ * `new Date(iso).toLocaleDateString()` on a `date` column renders the day
+ * before across the Americas.
+ */
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString();
+  const d = tripDateForDisplay(iso);
+  return d ? d.toLocaleDateString() : "—";
 }
 
 /**
