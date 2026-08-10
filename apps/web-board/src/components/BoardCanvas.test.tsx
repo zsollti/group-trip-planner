@@ -577,4 +577,74 @@ describe("BoardCanvas", () => {
     expect(within(lane).getByText(/Wrong Month Inn/)).toBeInTheDocument();
     expect(screen.queryByText(/outside the trip/)).toBeNull();
   });
+
+  it("keeps a multi-select lane addable once every option is locked", async () => {
+    // The dead end: a lane holding only decisions is not *empty*, so it gets no
+    // ghost CTA, and it has no proposed cards, so it used to get no button
+    // either — leaving a lane you are expressly meant to keep adding to with
+    // nowhere to add. The single-choice lane beside it is the control: that
+    // question has its answer, and reconsidering starts by unlocking.
+    const activities: CategoryView = {
+      id: "c2",
+      name: "Activities",
+      singleChoice: false,
+      isBuiltin: true,
+      builtinKey: "ACTIVITIES",
+      position: 3,
+      version: 0,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        // Both lanes hold exactly one locked option and nothing proposed.
+        if (u.includes("/categories/c1/options")) return json([locked]);
+        if (u.includes("/categories/c2/options"))
+          return json([
+            opt({
+              id: "o3",
+              categoryId: "c2",
+              title: "Boat trip",
+              status: "LOCKED",
+              lockedByName: "Ada",
+              lockedAt: new Date().toISOString(),
+            }),
+          ]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <BoardCanvas
+          tripId="t1"
+          categories={[category, activities]}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          tripDates={null}
+          onOpenChannel={() => undefined}
+        />
+      </QueryClientProvider>,
+    );
+
+    const multi = await screen.findByRole("region", { name: "Activities" });
+    expect(
+      within(multi).getByRole("button", { name: /add card/i }),
+    ).toBeInTheDocument();
+
+    const single = await screen.findByRole("region", { name: "Stay" });
+    expect(
+      within(single).queryByRole("button", { name: /add card/i }),
+    ).toBeNull();
+  });
 });
