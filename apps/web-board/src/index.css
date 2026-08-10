@@ -2710,3 +2710,38 @@ body {
     font-size: 0.82rem;
   }
 }
+
+/* A proposal on the timeline: legible enough to spot a clash with, quiet
+   enough that it can never be mistaken for the plan. Dashed and dimmed rather
+   than merely faded — opacity alone still reads as "a real thing, slightly
+   greyed", and the distinction here is categorical, not a matter of degree. */
+.tl__card--proposed {
+  border-style: dashed;
+  background: none;
+  color: var(--board-dim);
+}
+.tl__card--proposed.tl__card--span {
+  border-left-style: dashed;
+  border-left-color: var(--lane-line);
+}
+.tl__card--proposed .tl__card-when,
+.tl__card--proposed .tl__tag {
+  color: var(--board-dim);
+}
+.tl__card--proposed .tl__tag {
+  border-color: var(--lane-line);
+}
+.tl__card--proposed .tl__card-title {
+  font-weight: 500;
+}
+.tl__card-flag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--board-dim);
+}
+.tl__controls {
+  max-width: 30rem;
+  margin-top: 0.75rem;
+}

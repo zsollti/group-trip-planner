@@ -56,11 +56,20 @@ function EntryCard({
 }) {
   const cost = costLabel(entry.option);
   const span = variant === "span" ? (entry as TimelineSpan) : null;
+  // Subordinate, never absent-looking: a proposal has to be legible enough to
+  // spot a clash with and quiet enough that it can never read as the plan.
+  const proposed = entry.option.status !== "LOCKED";
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`tl__card tl__card--${variant}`}
+      className={[
+        "tl__card",
+        `tl__card--${variant}`,
+        proposed ? "tl__card--proposed" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <span className="tl__card-when">
         {span
@@ -77,6 +86,7 @@ function EntryCard({
         <span className="tl__tag">{entry.category.name}</span>
         {span ? <span>{nightsLabel(span.nights)}</span> : null}
         {cost ? <span>{cost}</span> : null}
+        {proposed ? <span className="tl__card-flag">Proposed</span> : null}
       </span>
     </button>
   );

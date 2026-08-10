@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import {
   isOutsideTripDates,
   type CategoryView,
@@ -7,7 +8,8 @@ import {
 
 /**
  * The itinerary view's layout core — everything about *where* a decision lands
- * on the trip's calendar, with no rendering in it.
+ * on the trip's calendar, and nothing about how it is drawn. (The one exception
+ * is the view preference at the bottom, which follows `laneSort.ts`.)
  *
  * Split out for the same reason as `fitTabs.ts`: the interesting part is
  * arithmetic over dates and it is worth testing exhaustively, while the part
@@ -231,14 +233,23 @@ export function buildTimeline(
   const placed: TimelineEntry[] = [];
 
   for (const { option, category } of candidates) {
+    // The trays are about **decisions**. A locked option the page cannot place
+    // is an omission worth confessing — the trip really did decide it and the
+    // itinerary really is missing it. An undated *proposal* is neither: it is a
+    // candidate on an opt-in overlay, and listing every one of them under "not
+    // on the timeline" would bury the handful that actually need a date.
+    const decided = option.status === "LOCKED";
     const dates = resolveDates(option);
     if (!dates) {
-      unscheduled.push({ option, category, start: 0, end: 0, isPoint: true });
+      if (decided) {
+        unscheduled.push({ option, category, start: 0, end: 0, isPoint: true });
+      }
       continue;
     }
     const entry: TimelineEntry = { option, category, ...dates };
-    if (isOutsideTripDates(option, tripDates)) elsewhere.push(entry);
-    else placed.push(entry);
+    if (isOutsideTripDates(option, tripDates)) {
+      if (decided) elsewhere.push(entry);
+    } else placed.push(entry);
   }
 
   const spans: TimelineSpan[] = [];
@@ -333,4 +344,43 @@ export function tripDateForDisplay(iso: string | null): Date | null {
 /** Index of a day key in the spine, or -1 — how a span finds its grid rows. */
 export function dayIndex(days: readonly TimelineDay[], key: string): number {
   return days.findIndex((d) => d.key === key);
+}
+
+const PROPOSALS_KEY = "gtp.timeline.showProposals";
+
+/**
+ * Whether this reader wants proposals drawn under the itinerary.
+ *
+ * Persisted per browser, exactly like {@link import("./laneSort").useLaneSort}
+ * and for the same reason: it is one person's view of the trip, not something
+ * the group agrees on, so it needs no contract and no write path.
+ *
+ * **Default off, and deliberately not a two-mode switch.** A "Locked / All"
+ * toggle would imply two equal views and make you choose a mode before
+ * understanding either. Locked options *are* the timeline; proposals are an
+ * overlay you can turn on to spot a clash, drawn subordinate so they can never
+ * be mistaken for the plan. In a multi-select lane with six candidates, all six
+ * land on overlapping slots and at most one of them will happen — that is
+ * useful while deciding and actively misleading as a schedule.
+ */
+export function useTimelineProposals(): [boolean, (next: boolean) => void] {
+  const [show, setShowState] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(PROPOSALS_KEY) === "1";
+    } catch {
+      // Private mode / storage disabled — the default is a fine answer.
+      return false;
+    }
+  });
+
+  const setShow = useCallback((next: boolean) => {
+    setShowState(next);
+    try {
+      window.localStorage.setItem(PROPOSALS_KEY, next ? "1" : "0");
+    } catch {
+      // Preference just won't survive a reload; not worth surfacing.
+    }
+  }, []);
+
+  return [show, setShow];
 }

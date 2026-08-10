@@ -140,6 +140,58 @@ describe("timelineCandidates", () => {
   });
 });
 
+describe("the trays hold decisions, not candidates", () => {
+  const range = trip("2026-07-03", "2026-07-10");
+
+  it("leaves an undated proposal out rather than listing it as missing", () => {
+    // "Not on the timeline" means the trip decided something the itinerary
+    // cannot show. Every undated candidate in a busy lane would bury those.
+    const t = buildTimeline(
+      [
+        item(stay, { title: "Decided, undated" }),
+        item(stay, { title: "Candidate", status: "PROPOSED" }),
+      ],
+      range,
+    );
+    expect(t.unscheduled.map((e) => e.option.title)).toEqual([
+      "Decided, undated",
+    ]);
+  });
+
+  it("leaves a wrong-month proposal out of the elsewhere tray too", () => {
+    const t = buildTimeline(
+      [
+        item(stay, {
+          title: "Candidate",
+          status: "PROPOSED",
+          startsAt: "2026-03-03T15:00",
+          endsAt: "2026-03-06T10:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.elsewhere).toHaveLength(0);
+  });
+
+  it("still places a proposal that has dates", () => {
+    const t = buildTimeline(
+      [
+        item(doing, {
+          title: "Maybe a museum",
+          status: "PROPOSED",
+          startsAt: "2026-07-04T10:00",
+          endsAt: "2026-07-04T12:00",
+        }),
+      ],
+      range,
+    );
+    expect(t.placedCount).toBe(1);
+    expect(
+      t.days.find((d) => d.key === "2026-07-04")?.entries[0]?.option.title,
+    ).toBe("Maybe a museum");
+  });
+});
+
 describe("buildTimeline", () => {
   const range = trip("2026-07-03", "2026-07-10");
 
