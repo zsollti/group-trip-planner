@@ -538,9 +538,17 @@ export function CategoryLane({
         </p>
       ) : null}
 
-      {/* Hidden while the lane is empty: the ghost card is already the CTA
-          there, and two identical actions stacked reads as a mistake. */}
-      {canPropose && options.length > 0 ? (
+      {/* Hidden only on a genuinely untouched lane, where the ghost card is
+          already the CTA and two identical actions stacked reads as a mistake.
+
+          A multi-select lane whose options are *all* locked used to fall
+          through both: no ghost card (it holds a decision, so it is not empty)
+          and no button (it has no proposed cards), leaving a lane you are
+          expressly meant to keep adding to with nowhere to add. A single-choice
+          lane still hides it once decided — that question has its answer, and
+          reconsidering starts by unlocking. */}
+      {canPropose &&
+      (options.length > 0 || (decided.length > 0 && !category.singleChoice)) ? (
         <Button
           type="button"
           variant="secondary"
