@@ -176,7 +176,9 @@ describe("TimelineBoard", () => {
         endsAt: "2026-07-04T12:00",
       }),
     ]);
-    expect(screen.getAllByText("Nothing planned")).toHaveLength(7);
+    // On the day's own heading line, so a free day takes a short row rather
+    // than standing as tall as a day with plans in it.
+    expect(screen.getAllByText("nothing planned")).toHaveLength(7);
   });
 
   it("offers the board when nothing is decided at all", () => {
