@@ -210,7 +210,8 @@ URL semantics, so a trailing slash is a different URI. The local
 **Health check.** `GET /health` pings the database and answers `503` when it
 cannot reach it, so a green check means "up **and** connected", not "the process
 is running". Railway's own healthcheck already points at it
-(`apps/api/railway.json`), and the deploy workflow polls it after shipping.
+(`apps/api/railway.json`), and the deploy workflow polls it between the API and
+web deploys, as the gate on serving a newer frontend (§8).
 
 **Errors — Sentry.** Two projects, one per runtime: a **Node** project for the
 API (`SENTRY_DSN`) and a **Browser/React** one for the board (`VITE_SENTRY_DSN`).
@@ -309,8 +310,23 @@ Set up, once:
    - variable **`API_PUBLIC_URL`** = `https://<api domain>` — the workflow's
      post-deploy health poll uses it, and warns rather than fails if it is unset.
 
-The API deploys first and on its own, so the schema the new frontend expects is
-in place before that frontend is served.
+The API deploys first, so the schema the new frontend expects is in place before
+that frontend is served. The health poll then runs **between** the two deploys,
+where it acts as a gate: if the API is not answering, the newer frontend is not
+shipped against it.
+
+**A failed API step no longer strands the web app.** `railway up --ci` streams
+build logs and exits non-zero when *the stream* dies, which says nothing about
+whether the build succeeded — on 2026-08-10 that happened three times running,
+each with the upload accepted and a build id returned, and the only real damage
+was that the web deploy never ran and a merged change sat undeployed. Each
+`railway up` now retries three times, the API step is `continue-on-error`, and a
+final step fails the job if it errored. **So red on this workflow means "check
+the API's latest deployment in the Railway dashboard", not "nothing shipped".**
+
+The CLI is **pinned** (`@railway/cli@5.35.1`). An unpinned `npm install -g` in
+the deploy path lets a bad release break production deploys with no change of
+ours; bump it deliberately.
 
 `workflow_dispatch` is enabled too, for the case that needs it most: a variable
 change. The three `VITE_*` values are compiled into the bundle, so changing one
