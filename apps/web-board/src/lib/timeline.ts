@@ -5,6 +5,7 @@ import {
   type OptionView,
   type TripDateRange,
 } from "@gtp/types";
+import { calendarDayToLocalMs, tripDayKey } from "./tripDate";
 
 /**
  * The itinerary view's layout core — everything about *where* a decision lands
@@ -17,14 +18,10 @@ import {
  *
  * Two rules carry most of the design:
  *
- *  - **An option's dates are instants and the trip's are calendar dates**, and
- *    they are read with different getters *because they are different types*.
- *    `Trip.startDate`/`endDate` are Postgres `date` columns, so they arrive as
- *    midnight UTC and carry no zone at all — read with local getters they slide
- *    to the previous day everywhere west of Greenwich, which is most of the
- *    Americas. An option's `startsAt` is a genuine instant and *must* be read
- *    locally, or a 07:15 flight drifts by hours depending on who is looking.
- *    Both mistakes look correct in whichever zone you happen to develop in.
+ *  - **An option's dates are instants and the trip's are calendar dates**, so
+ *    they are read with different getters — see `tripDate.ts`, which owns that
+ *    rule. Option instants are read locally here; anything touching the trip's
+ *    own columns goes through that module.
  *  - **A span is anything that crosses a local midnight**, derived rather than
  *    read off the category. Hard-coding "Accommodation is a span" repeats the
  *    mistake the `singleChoice` seed made: whether a lane holds overnight things
@@ -58,33 +55,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function localDayKey(ms: number): string {
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/**
- * The calendar day a **trip** date names, as `YYYY-MM-DD`.
- *
- * UTC getters, unlike everything else here: `Trip.startDate` is a Postgres
- * `date`, so Prisma hands back midnight UTC for a value that was never an
- * instant in the first place. `toLocaleDateString` on it — which is what the
- * trip header still does — renders the day before across the Americas.
- */
-export function tripDayKey(iso: string): string | null {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
-
-/**
- * A `YYYY-MM-DD` as local midnight of that same calendar day.
- *
- * The bridge between the two conventions: it takes the day a trip date *names*
- * and returns the instant the spine's day rows are built from, so a trip's
- * "Jul 3" and an option at 07:15 on Jul 3 land on one row for every reader.
- */
-export function calendarDayToLocalMs(key: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
 }
 
 /** One option placed on the calendar, with its dates already resolved to ms. */
@@ -410,20 +380,6 @@ export function buildTimeline(
     uncoveredNights: axis === "trip" ? findUncoveredNights(days, spans) : [],
     overlapping: findOverlapping(placed),
   };
-}
-
-/**
- * A trip date as the local `Date` a formatter should render.
- *
- * Goes through the calendar day the value *names*, so `toLocaleDateString`
- * cannot slide it to the previous evening. The trip header still formats these
- * directly and shows the day before across the Americas.
- */
-export function tripDateForDisplay(iso: string | null): Date | null {
-  if (!iso) return null;
-  const key = tripDayKey(iso);
-  const ms = key === null ? null : calendarDayToLocalMs(key);
-  return ms === null ? null : new Date(ms);
 }
 
 /** Index of a day key in the spine, or -1 — how a span finds its grid rows. */
