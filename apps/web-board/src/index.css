@@ -1988,18 +1988,10 @@ body {
 .board__bar-actions {
   align-items: center;
 }
-.board__avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 50%;
-  background: var(--board-accent);
-  color: var(--board-on-accent);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
+/* The account menu's trigger draws the shared `Avatar`, so it needs no avatar
+   styling of its own — `.board__avatar` used to sit here and is gone with the
+   hand-rolled initial it dressed. The hover ring moved to `.avatar` with it;
+   left pointing at the old class it would simply have stopped appearing. */
 .board__avatar-trigger {
   padding: 2px;
   border-radius: 50%;
@@ -2007,7 +1999,7 @@ body {
 .board__avatar-trigger:hover {
   background: none;
 }
-.board__avatar-trigger:hover .board__avatar {
+.board__avatar-trigger:hover .avatar {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--board-accent) 40%, transparent);
 }
 
