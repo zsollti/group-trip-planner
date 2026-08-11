@@ -89,9 +89,9 @@ function Onboarding({
       </h2>
       <p className="board__onboard-lead">
         A trip board is one shared canvas per trip: lanes for dates, transport,
-        stay, food and whatever else you add. Everyone drops in options,
-        dot-votes on them, and an organiser locks in the winners — which land in
-        the Decided column with a running cost.
+        stay, food and whatever else you add. Everyone drops in options, votes
+        on them, and an organiser locks in the winners — which stay at the top
+        of the lane they answer, with a running cost above.
       </p>
 
       {verified ? (

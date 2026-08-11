@@ -102,12 +102,7 @@ export function MemberDialog({
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   return (
-    <Dialog
-      eyebrow="Crew"
-      title="Members & roles"
-      size="tall"
-      onClose={onClose}
-    >
+    <Dialog eyebrow="Crew" title="Members & roles" onClose={onClose}>
       <>
         {members.isPending ? (
           <p className="board__muted" role="status">

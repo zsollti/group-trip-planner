@@ -50,7 +50,12 @@ export function toEngineOption(o: DashboardOptionRow): CostEngineOption {
  * the title/category the engine doesn't carry.
  */
 export function toTripDashboardView(
-  trip: { id: string; defaultCurrency: string },
+  trip: {
+    id: string;
+    defaultCurrency: string;
+    /** Prisma `Decimal | null`; normalised to a number on the way out. */
+    budgetPerPerson: { toString(): string } | null;
+  },
   memberCount: number,
   rows: readonly DashboardOptionRow[],
   result: CostDashboard,
@@ -95,6 +100,10 @@ export function toTripDashboardView(
   return {
     tripId: trip.id,
     defaultCurrency: trip.defaultCurrency,
+    // The target the totals are read against. The engine knows nothing about
+    // it — it is carried alongside the figures, never applied to them.
+    budgetPerPerson:
+      trip.budgetPerPerson === null ? null : Number(trip.budgetPerPerson),
     memberCount,
     committed: result.committed.map((s) => ({ ...s })),
     projected: result.projected.map((s) => ({ ...s })),

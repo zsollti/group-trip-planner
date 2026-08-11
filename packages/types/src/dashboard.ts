@@ -59,6 +59,20 @@ export const TripDashboardView = z.object({
   tripId: z.string().uuid(),
   /** The trip's default currency — a stable ordering/emphasis hint for the UI. */
   defaultCurrency: z.string(),
+  /**
+   * The trip's per-person spending target, in `defaultCurrency`. Null = none.
+   *
+   * Carried on the cost payload rather than read from the trip: the target only
+   * means anything next to the totals, and the surface that draws them fetches
+   * this endpoint and not the trip. It is a target, never a constraint — the
+   * engine does not know about it and nothing is refused for exceeding it.
+   *
+   * It can only speak to the `defaultCurrency` subtotal. Totals are never
+   * converted (FR-27), so a trip with options priced in three currencies has
+   * three per-person figures and this compares to one of them; the UI says so
+   * rather than implying the others are covered.
+   */
+  budgetPerPerson: z.number().nullable(),
   /** Current member count, i.e. the divisor for dynamic-headcount options. */
   memberCount: z.number().int().nonnegative(),
   committed: z.array(DashboardSubtotal),

@@ -238,7 +238,17 @@ looked most authoritative on the board was the one double-counting.
 
 The trip's cost is already an emergent property of what the other lanes decide.
 A target to compare it against belongs on the trip, next to the total, not in a
-lane pretending to be a decision.
+lane pretending to be a decision. That target now exists: `Trip.budgetPerPerson`,
+set at creation or in the trip's edit dialog, drawn under the cost strip with
+how far the **projection** is under or over it. Per person, because a group
+total means nothing until you have divided it by a headcount that is still
+moving; and denominated in the trip's own currency, since it would otherwise be
+a second answer to a question the trip already answers. It compares against the
+projection rather than the locked total because "what will this cost us if the
+front-runners win" is the question a target is asked — reading it against what
+is already decided would say "fine" right up until the trip was fully decided.
+Totals are never converted, so the line names any currency it is not counting
+rather than implying those are covered.
 
 The enum value stays. Trips created before this still have their Budget row, and
 removing the value from the schema would make every one of those categories fail

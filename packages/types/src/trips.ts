@@ -47,6 +47,33 @@ const optionalDateTime = z.preprocess(
 );
 
 /**
+ * What the group is aiming to spend **each**, in the trip's `defaultCurrency`.
+ *
+ * A target, not a limit: nothing is refused for exceeding it and no option
+ * validates against it. The trip's cost is an emergent property of what the
+ * lanes decide, and this is the number to read it against — which is exactly
+ * why it lives on the trip rather than in a lane. A Budget *category* was tried
+ * and retired: a lane holds competing options you vote between and lock one of,
+ * and "€800 per person" is not a candidate for anything. Worse, it was
+ * double-counted, since the cost engine sums every locked option in every
+ * category (see `docs/decisions.md`).
+ *
+ * Per person rather than per group because that is the figure anyone can act
+ * on — a group total means nothing until you have divided it by a headcount
+ * that is still moving.
+ *
+ * No currency of its own: it is denominated in the trip's, or it would be a
+ * second source of truth for a question the trip already answers.
+ */
+const optionalBudget = z.preprocess(
+  (v) =>
+    v === "" || v === null || (typeof v === "number" && Number.isNaN(v))
+      ? undefined
+      : v,
+  z.number().nonnegative().max(1_000_000_000).optional(),
+);
+
+/**
  * Create a trip. `startDate`/`endDate` are **optional and all-or-nothing**: a
  * group that already knows when it is going says so here, and the trip is seeded
  * with its Dates decision already made rather than being asked a question it has
@@ -66,6 +93,7 @@ export const CreateTripInput = z
     description: optionalText(2000),
     destination: optionalText(120),
     defaultCurrency: currencySchema,
+    budgetPerPerson: optionalBudget,
     startDate: optionalDateTime,
     endDate: optionalDateTime,
   })
@@ -105,6 +133,8 @@ export const UpdateTripInput = z.object({
   description: optionalText(2000),
   destination: optionalText(120),
   defaultCurrency: currencySchema,
+  /** Omitted clears it — this is a replace, and a target you emptied is gone. */
+  budgetPerPerson: optionalBudget,
   version: z.number().int().nonnegative(),
 });
 export type UpdateTripInput = z.infer<typeof UpdateTripInput>;
@@ -135,6 +165,8 @@ export const TripDetail = z.object({
   destination: z.string().nullable(),
   coverImageUrl: z.string().nullable(),
   defaultCurrency: z.string(),
+  /** The per-person spending target, in `defaultCurrency`. Null = none set. */
+  budgetPerPerson: z.number().nullable(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   expiresAt: z.string(),

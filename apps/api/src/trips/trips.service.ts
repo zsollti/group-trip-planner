@@ -64,6 +64,7 @@ export class TripsService {
           description: input.description ?? null,
           destination: input.destination ?? null,
           defaultCurrency: input.defaultCurrency,
+          budgetPerPerson: input.budgetPerPerson ?? null,
           startDate: dates?.startDate ?? null,
           endDate: dates?.endDate ?? null,
           expiresAt: dates?.expiresAt ?? oneYearFromNow(),
@@ -153,6 +154,9 @@ export class TripsService {
         description: input.description ?? null,
         destination: input.destination ?? null,
         defaultCurrency: input.defaultCurrency,
+        // A full-object replace like the fields above it: an omitted target has
+        // been cleared, not left alone.
+        budgetPerPerson: input.budgetPerPerson ?? null,
         version: { increment: 1 },
       },
     });

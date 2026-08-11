@@ -8,6 +8,7 @@ import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { dayToIso } from "../lib/dateInput";
+import { parseAmount, regroupAmountInput } from "../lib/money";
 
 /**
  * Board-paradigm create-trip surface: a card that floats on the canvas. On
@@ -27,6 +28,11 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   // OptionForm uses for its own date fields.
   const [startDay, setStartDay] = useState("");
   const [endDay, setEndDay] = useState("");
+  // Held outside the resolver for the same reason the dates are: the field
+  // shows a grouped string and the contract wants a number, so it is shaped at
+  // submit. Registering it would also mean overriding react-hook-form's own
+  // `onBlur` to regroup, which is how you lose its touched state.
+  const [budget, setBudget] = useState("");
   const {
     register,
     handleSubmit,
@@ -41,6 +47,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
     try {
       const trip = await createTrip.mutateAsync({
         ...data,
+        budgetPerPerson: parseAmount(budget) ?? undefined,
         startDate: dayToIso(startDay),
         endDate: dayToIso(endDay),
       });
@@ -112,6 +119,20 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
           <CurrencySelect
             id="defaultCurrency"
             {...register("defaultCurrency")}
+          />
+        </Field>
+        <Field
+          htmlFor="budgetPerPerson"
+          label="Budget per person"
+          hint="Optional. A target to read the total against — nothing is blocked for going over."
+        >
+          <Input
+            id="budgetPerPerson"
+            type="text"
+            inputMode="decimal"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
           />
         </Field>
         {formError ? (

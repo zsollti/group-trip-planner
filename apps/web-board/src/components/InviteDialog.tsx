@@ -97,7 +97,6 @@ export function InviteDialog({
     <Dialog
       eyebrow="Invite"
       title="Invite people to this board"
-      size="tall"
       onClose={onClose}
     >
       <>

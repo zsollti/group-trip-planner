@@ -72,7 +72,7 @@ export function Dialog({
   onClose: () => void;
   children: ReactNode;
   /** `tall` scrolls a long list; `wide` is the two-column option form. */
-  size?: "tall" | "wide";
+  size?: "wide";
   /** Control to focus on open. Defaults to the first focusable in the dialog. */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   /** Id of an element describing the dialog, for `aria-describedby`. */
