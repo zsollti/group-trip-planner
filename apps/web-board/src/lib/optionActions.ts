@@ -5,11 +5,15 @@ import { ApiError, useUnlockOption } from "@gtp/api-client";
 /**
  * Unlocking a locked option, with the failure it can produce.
  *
- * Shared because a decision is reachable from two places — the full card (in a
- * lane, or wherever a locked card is rendered) and the compact chip in the
- * Decided rail — and "undo this decision" must behave identically in both. It
- * returns the error rather than showing it, since the two surfaces have very
- * different room to put one.
+ * It returns the error rather than showing it, so a caller can put the message
+ * where it has room for one.
+ *
+ * It was extracted when a decision was reachable from two places — its card in
+ * the lane and its chip in the Decided rail — and "undo this decision" had to
+ * behave identically in both. The rail is gone and the card's "⋯" menu is now
+ * the only way to unlock, so there is one caller again. Kept as it is: it holds
+ * the version-carrying call and its error handling away from a component that
+ * has plenty of both already.
  */
 export function useUnlockAction(
   tripId: string,

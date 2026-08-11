@@ -501,18 +501,18 @@ body {
   font-size: 0.85rem;
 }
 
-/* --- The summary band: what the trip costs, and what it has settled on -------
+/* --- The summary band: what the trip costs, and who is on it -----------------
  *
- * "Decided" used to be a lane — same width, same card shape, a dashed border its
- * only distinguishing mark — pinned first in the horizontal row. It read as a
- * category, which is precisely what it is not: the lanes are the trip's open
- * questions and this is the answers. Laid flat above them, next to the cost it
- * produces, the top of the board states the trip so far instead of asking anyone
- * to notice that one column in the row behaves differently.
+ * This band held the cost strip and the Decided rail. The rail went through two
+ * shapes — a lane in the row, then a flat strip here — and the second one was a
+ * genuine improvement on the first. Both were answering the wrong question.
  *
- * It is still the drop target for drag-to-decide, and a full-width strip is a
- * much easier one to hit than a 15rem column that scrolls out of view as soon as
- * a board has more than four lanes. */
+ * Once a decision started appearing in the lane that made it, the rail was a
+ * second copy of every decision, sitting directly above the first. Meanwhile the
+ * one fact a planning board could not tell you was **who you are planning
+ * with**: a member count in the subtitle and the names two clicks deep behind a
+ * "⋯" menu. The band is for what the lanes below cannot say by being read, and
+ * that is the cost and the crew. */
 .board__summary {
   display: grid;
   gap: 0.75rem;
@@ -530,6 +530,96 @@ body {
    grid gap does that job. */
 .board__summary .board__cost-strip {
   margin-bottom: 0;
+}
+
+/* --- Crew: who is on this trip --- */
+/* Hugs its content rather than matching the cost strip's height. The rail it
+   replaced held cards and wanted the room; a row of names in a box sized for
+   cards is mostly empty box. */
+.crew {
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  padding: 0.55rem 0.85rem 0.7rem;
+}
+.crew__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.crew__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-accent) 14%, transparent);
+  color: var(--board-accent);
+  font-size: 0.72rem;
+}
+/* Pushed to the far edge of the heading row, the same place the lane's "⋯"
+   sits — actions live on the right of a header throughout the board. */
+.crew__manage {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0.1rem 0.2rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-accent);
+  cursor: pointer;
+}
+.crew__manage:hover {
+  text-decoration: underline;
+}
+.crew__manage:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Wraps rather than scrolls: a crew is small (the member cap is 30) and a strip
+   that grows a little with the group is friendlier than one that hides people
+   behind a scrollbar in a band nobody expects to scroll. */
+.crew__row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+}
+.crew__member {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.crew__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.crew__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crew__role {
+  font-size: 0.7rem;
+  color: var(--board-dim);
 }
 
 /* --- Category colour --------------------------------------------------------
@@ -550,9 +640,9 @@ body {
  */
 .lane,
 .lane__card--option,
+.lane__tag,
 .tl__card,
-.tl__span,
-.decided__chip {
+.tl__span {
   --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
   --cat-edge: hsl(var(--cat-hue) var(--cat-sat) var(--cat-edge-l));
 }
@@ -560,154 +650,6 @@ body {
 .cat-icon {
   flex: 0 0 auto;
   color: var(--cat-ink);
-}
-
-.decided {
-  background: var(--lane-bg);
-  border: 1px solid var(--lane-line);
-  border-radius: 14px;
-  padding: 0.55rem 0.85rem 0.7rem;
-  min-height: 100%;
-}
-/* The drop affordance: the whole strip lights up, not a thin edge. */
-.decided--drop-active {
-  border-color: var(--board-accent);
-  background: color-mix(in srgb, var(--board-accent) 8%, var(--lane-bg));
-}
-.decided__head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0 0 0.5rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--board-dim);
-}
-.decided__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.3rem;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  background: var(--board-accent);
-  color: var(--board-on-accent);
-  font-size: 0.72rem;
-}
-/* Wraps rather than scrolls: the whole point of moving out of the lane row was
-   to stop hiding decisions behind a horizontal scrollbar. */
-.decided__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.decided__empty {
-  margin: 0;
-  padding: 0.35rem 0;
-  font-size: 0.85rem;
-  color: var(--board-dim);
-}
-/* A small two-row card, not a pill: one line for the question and its answer,
-   one for the price and who called it. A single line forced every value onto the
-   same baseline, so a rail of five decisions read as one long sentence; two rows
-   give the title somewhere to be the loudest thing in the chip. */
-.decided__chip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  max-width: 100%;
-  min-width: 11rem;
-  padding: 0.4rem 0.35rem 0.45rem 0.5rem;
-  border: 1px solid var(--lane-line);
-  border-radius: 10px;
-  background: var(--board-bg);
-  font-size: 0.8rem;
-}
-.decided__line {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-}
-/* The second row lines up under the title, clear of the grip in the first. */
-.decided__line--meta {
-  gap: 0.5rem;
-  white-space: nowrap;
-  padding-left: 0.1rem;
-  color: var(--board-dim);
-  font-size: 0.74rem;
-  min-height: 1.1em;
-}
-/* Pushes the "⋯" to the right edge of the first row. */
-.decided__line .menu {
-  margin-left: auto;
-}
-/* Decorative separator, so it stays out of the accessible name — and out of the
-   way entirely when the name is the only thing on the row. */
-.decided__by:not(:first-child)::before {
-  content: "· ";
-}
-.decided__chip--dragging {
-  border-color: var(--board-accent);
-}
-/* Same pill as the timeline's `.tl__tag`, for the same reason: it names the
-   category, so it wears the category's colour. Outlined rather than filled —
-   the ink's contrast is guaranteed against `--lane-bg`, and a tinted fill
-   underneath it would eat into that margin for no gain. */
-.decided__cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex: 0 0 auto;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--cat-edge);
-  color: var(--cat-ink);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.decided__title {
-  flex: 1 1 auto;
-  min-width: 0;
-  white-space: nowrap;
-  font: inherit;
-  font-weight: 600;
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-.decided__title:hover {
-  color: var(--board-accent);
-}
-.decided__title:focus-visible,
-.decided__grip:focus-visible {
-  outline: 2px solid var(--board-accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-.decided__cost {
-  font-variant-numeric: tabular-nums;
-}
-.decided__grip {
-  font: inherit;
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--board-dim);
-  cursor: grab;
-  touch-action: none;
-}
-/* The chip's menu is smaller than the card's — it sits in a 2rem-tall pill. */
-.decided__chip .menu__trigger {
-  padding: 0 0.2rem;
-  line-height: 1;
 }
 
 /* --- Canvas + lanes --- */
@@ -734,6 +676,34 @@ body {
 /* The lane's own mark, in its own colour. */
 .lane__icon {
   margin-right: 0.1rem;
+}
+
+/* Where a card is dropped to become this lane's decision — the gesture the
+   Decided rail used to own. Present only while one of this lane's own cards is
+   in hand, so it costs nothing the rest of the time and can be generous with
+   height while it is there: a drop target you have to aim at is a drop target
+   people stop using. */
+.lane__decide-drop {
+  display: grid;
+  place-items: center;
+  min-height: 3.25rem;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem;
+  border: 2px dashed var(--cat-edge);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cat-edge) var(--cat-wash), transparent);
+  color: var(--cat-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+}
+.lane__decide-drop--over {
+  border-style: solid;
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash-strong),
+    transparent
+  );
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
@@ -1246,8 +1216,7 @@ body {
    Advisory, never a rejection — so this borrows the danger hue for attention
    without the error treatment (no border, no alert role): the value is still
    the primary content and may well be deliberate. */
-.lane__dates--elsewhere,
-.decided__elsewhere {
+.lane__dates--elsewhere {
   color: var(--board-danger);
 }
 .lane__elsewhere,
@@ -1339,18 +1308,21 @@ body {
   font-weight: 600;
   color: var(--board-accent);
 }
-/* Category tag on a card in the cross-category "Decided" column (Phase 3.5) —
- * a pill badge so it's unmistakable which lane a decided pick came from. */
+/* The category badge in the option detail dialog — the same outlined pill the
+ * timeline uses for the same job, in the same colour, because it names the same
+ * thing. It was the app's teal until categories had colours of their own. */
 .lane__tag {
   margin: 0;
   align-self: flex-start;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--board-accent);
-  border: 1px solid var(--board-accent);
+  color: var(--cat-ink);
+  border: 1px solid var(--cat-edge);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }

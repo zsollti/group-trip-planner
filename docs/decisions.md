@@ -271,6 +271,41 @@ its options are locked — the flag would leave it already violating its own
 invariant, with nobody having chosen which decision survives. The error names
 the count and tells the caller to unlock down to one.
 
+**The Decided rail, twice — and then not at all.**
+
+Locked options first lived in a "Decided" column pinned at the front of the lane
+row. It was a `.lane`: same width, same cards, distinguished by a dashed border.
+It read as a sixth category and it was not one — the lanes are the trip's open
+questions and this was the answers — so it became a flat rail above them, beside
+the cost it produces.
+
+That was a real improvement to a thing that should not have existed. The tell was
+a separate fix: a decision used to _leave_ its lane for the rail, which meant a
+lane showed the options a group rejected and not the one it chose — the
+comparison the lane exists for, missing its conclusion. So a decision started
+staying in its lane as well. Both copies were defended at the time as answering
+different questions: the lane says what we picked and what we picked it over, the
+rail says what the trip looks like now.
+
+They did not. On any real board the rail was the same set of cards as the tops of
+the lanes directly beneath it, in a different shape, and the shorter version was
+directly above the longer one. Two views of identical data, one screen apart, is
+not two questions.
+
+What the band should hold was the thing the board genuinely could not tell you:
+**who you are planning with**. The member count was a number in the subtitle and
+the names were two clicks deep behind a "⋯" menu, in an app whose first word is
+"group". The crew panel is read-only — roles, kicks, blocks and ownership
+transfer stay behind a deliberate click, because a board's most consequential
+controls should not be its most ambient ones.
+
+The cost of removing it was one gesture. Drag-to-decide needed a target, so each
+lane grew its own, rendered only while one of its own cards is in hand; that is a
+shorter drag than crossing the board, and it never leaves the horizontally
+scrolling container that broke the rail version once already. Drag-_out_-to-unlock
+had nowhere to go and is gone: the settled card's "⋯" menu carries Unlock, as it
+always did.
+
 ---
 
 ## Things I deliberately did not build

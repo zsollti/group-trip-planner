@@ -103,7 +103,19 @@ export function laneNamed(page: Page, name: string): Locator {
   return page.getByRole("region", { name });
 }
 
-/** The Decided rail — locked picks across every lane, above the lanes. */
-export function decidedRail(page: Page): Locator {
-  return page.getByRole("region", { name: "Decided" });
+/** The crew panel in the summary band — who is on this trip. */
+export function crewPanel(page: Page): Locator {
+  return page.getByRole("region", { name: "Crew" });
+}
+
+/**
+ * A lane's settled answer — the card a decision becomes once it is locked.
+ *
+ * This used to be `decidedRail(page)`: a decision left its lane for a rail
+ * above the board, and that rail was where a journey looked for it. The rail is
+ * gone (it was a second copy of every decision, directly above the first), so a
+ * decision is found where it was made.
+ */
+export function settledCard(lane: Locator, title: string): Locator {
+  return lane.locator(".lane__card--settled", { hasText: title });
 }

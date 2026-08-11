@@ -76,7 +76,6 @@ export {
   useLockOption,
   useUnlockOption,
   useBoardLock,
-  useBoardUnlock,
   useBoardReorderOptions,
 } from "./options.js";
 export {

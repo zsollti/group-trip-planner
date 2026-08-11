@@ -2,9 +2,10 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { cleanupE2EData, disconnect } from "../support/db";
 import {
   createBoard,
-  decidedRail,
+  crewPanel,
   laneNamed,
   seedAndSignIn,
+  settledCard,
   signUpAndIn,
 } from "../support/actions";
 
@@ -50,7 +51,8 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
 
   // The seeded lanes are there — this is the board a new trip actually gets.
   await expect(laneNamed(ownerPage, "Transport")).toBeVisible();
-  await expect(decidedRail(ownerPage)).toBeVisible();
+  // The summary band names the crew — at this point, its creator alone.
+  await expect(crewPanel(ownerPage).getByText(/Ada/)).toBeVisible();
 
   // --- the owner mints an invite link --------------------------------------
   // Reading the copied link back is the honest test of the affordance: the token
@@ -123,22 +125,17 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
       .click();
     await ownerPage.getByRole("button", { name: "Move to Decided" }).click();
 
-    // The decision leaves its lane and lands in the Decided rail.
-    const ownerDecided = decidedRail(ownerPage);
-    await expect(ownerDecided.getByText(optionTitle)).toBeVisible();
-    // The chip names both the lane the decision answers and who called it. The
-    // separator between them is a CSS pseudo-element and deliberately absent
-    // here: a screen reader should not be read a punctuation mark.
-    await expect(ownerDecided.getByText("Transport")).toBeVisible();
-    await expect(ownerDecided.getByText("Ada")).toBeVisible();
-    // It stays in its lane too, now marked settled — the lane is where you see
-    // what the group chose *over what*, so the winner leaving was backwards.
-    await expect(
-      ownerTransport.locator(".lane__card--settled", { hasText: optionTitle }),
-    ).toBeVisible();
+    // The decision stays in its lane, now marked settled — the lane is where
+    // you see what the group chose *over what*, so a winner that left for a
+    // rail somewhere else was backwards.
+    const settled = settledCard(ownerTransport, optionTitle);
+    await expect(settled).toBeVisible();
+    await expect(settled.getByText("Ada")).toBeVisible();
 
     // …and the participant sees the decision without touching anything.
-    await expect(decidedRail(memberPage).getByText(optionTitle)).toBeVisible();
+    await expect(
+      settledCard(laneNamed(memberPage, "Transport"), optionTitle),
+    ).toBeVisible();
 
     // --- the boards overview reflects the finished decision ----------------
     await ownerPage.getByRole("link", { name: "‹ Boards" }).click();

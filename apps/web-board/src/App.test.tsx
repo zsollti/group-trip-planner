@@ -224,6 +224,8 @@ describe("web-board auth flow", () => {
         }
         if (u.includes("/notifications"))
           return json({ notifications: [], unreadCount: 0, nextCursor: null });
+        // Before the /trips/t1 branch: the crew panel's URL contains it too.
+        if (u.includes("/members")) return json({ members: [], blocked: [] });
         // Before the /trips/t1 branch: the cost strip's URL contains it too.
         if (u.includes("/dashboard"))
           return json({

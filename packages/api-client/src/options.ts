@@ -274,31 +274,14 @@ export function useBoardLock(
   });
 }
 
-/** Unlock an option by dragging it out of the Decided column (Organizers). */
-export function useBoardUnlock(
-  tripId: string,
-): UseMutationResult<
-  OptionView,
-  ApiError,
-  { categoryId: string; optionId: string; version: number }
-> {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ categoryId, optionId, version }) =>
-      apiFetch<OptionView>(
-        `${optionsPath(tripId, categoryId)}/${optionId}/unlock`,
-        { method: "POST", body: { version } },
-      ),
-    onSettled: (_d, _e, vars) => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, vars.categoryId),
-      });
-      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
-      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
-      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
-    },
-  });
-}
+/*
+ * `useBoardUnlock` lived here — a trip-scoped unlock whose category was only
+ * known at drop time, for dragging a chip out of the Decided rail. The rail is
+ * gone and with it the only caller: unlocking now happens from a settled card's
+ * "⋯" menu, inside a lane that already knows its category, which is what
+ * `useUnlockOption` is for. Removed rather than kept warm — an exported hook
+ * nothing calls reads as a supported entry point.
+ */
 
 /** Reorder a lane's options by dragging a card within it (Organizers). */
 export function useBoardReorderOptions(
