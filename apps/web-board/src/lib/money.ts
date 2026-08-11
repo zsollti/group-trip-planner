@@ -58,27 +58,36 @@ function separators(): { group: string; decimal: string } {
 /**
  * Read a number back out of whatever a person typed or the field last showed.
  *
- * Deliberately forgiving: it accepts the grouped form this module produces, the
- * plain digits someone types, and a decimal comma or point regardless of locale
- * — a number field that rejects "12,50" from someone whose keyboard has a comma
- * is not being precise, it is being obtuse. Returns `null` for anything that
- * isn't a number, which is the caller's cue to leave the field alone.
+ * It reads **one locale's conventions — the reader's own**. Strip that locale's
+ * group separator, normalise its decimal separator, and what is left is a
+ * number. So the grouped form this module produces round-trips, and plain
+ * digits always work.
+ *
+ * It deliberately does **not** also treat a comma as a decimal point "to be
+ * helpful". That looks generous and is a silent corruption: where the comma is
+ * the *group* separator, `12,50` has already been stripped to `1250` by the
+ * time such a rule could fire, so the same input means twelve-and-a-half in
+ * Budapest and one thousand two hundred and fifty in Boston. There is no
+ * reading of `12,50` that is right in both places, and the one thing worse than
+ * refusing an amount is accepting it as a different amount. Each locale's own
+ * conventions work; nobody's are quietly reinterpreted.
+ *
+ * Returns `null` for anything that isn't a number, which is the caller's cue to
+ * leave the field alone.
  */
 export function parseAmount(input: string): number | null {
   const trimmed = input.trim();
   if (trimmed === "") return null;
 
   const { group, decimal } = separators();
-  // Strip the grouping, then normalise whatever decimal mark survived to a
-  // point. `\s` covers the ordinary space and the non-breaking and narrow
-  // no-break spaces several locales group with — which is also why they are
-  // matched by class rather than written out as literal characters.
+  // `\s` covers the ordinary space and the non-breaking and narrow no-break
+  // spaces several locales group with — which is also why they are matched by
+  // class rather than written out as literal characters.
   const stripped = trimmed
     .split(group)
     .join("")
     .replace(/\s/g, "")
-    .replace(decimal, ".")
-    .replace(",", ".");
+    .replace(decimal, ".");
 
   if (!/^-?\d*\.?\d*$/.test(stripped) || stripped === ".") return null;
   const n = Number(stripped);
