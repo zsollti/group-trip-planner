@@ -23,6 +23,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { isTruncated, truncateName } from "../lib/truncate";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
@@ -307,6 +308,7 @@ export function CategoryLane({
   frozen = false,
   tripDates = null,
   dndEnabled = false,
+  decideTarget = false,
   laneDragEnabled = false,
   onOpenChannel,
 }: {
@@ -323,9 +325,10 @@ export function CategoryLane({
    * "Propose the first option", and an ended trip said "Nothing was decided
    * here" about a lane where something plainly was.
    *
-   * The rail still carries them too. The two are not duplicates: the lane answers
-   * "what did we pick, and over what?", the rail answers "what does this trip
-   * look like now?".
+   * The rail is now gone entirely and this is the only place a decision
+   * appears on the board. That was the argument for removing it: once a lane
+   * carried its own answer, the rail was a second copy of every decision,
+   * directly above the first.
    */
   decided: OptionView[];
   defaultCurrency: string;
@@ -336,6 +339,18 @@ export function CategoryLane({
   tripDates?: TripDateRange | null;
   /** Card gestures: lock/unlock and reorder within this lane. */
   dndEnabled?: boolean;
+  /**
+   * Show this lane's "drop to decide" target — true only while one of *its own*
+   * proposed cards is in hand.
+   *
+   * It exists only during that drag on purpose. A target that is always there
+   * would be a second, permanently-visible way to do what the "⋯" menu already
+   * does, in a column where vertical space is the scarce resource; and a lane
+   * whose whole body accepted a drop would turn an overshot reorder into an
+   * accidental decision, which is the one gesture here that shouldn't be
+   * cheap to trigger by mistake.
+   */
+  decideTarget?: boolean;
   /** Dragging the lane itself — off while the board sorts by "undecided first",
    *  where the displayed order is not the stored one. */
   laneDragEnabled?: boolean;
@@ -409,6 +424,20 @@ export function CategoryLane({
     }
   }
 
+  /**
+   * Where a card is dropped to become this lane's decision.
+   *
+   * The Decided rail used to be this target: one strip, at the top of the
+   * board, for every lane. Losing it did not have to mean losing the gesture,
+   * and the replacement is a shorter drag — the answer belongs at the top of
+   * the question it answers, so that is where the card goes.
+   */
+  const decideDrop = useDroppable({
+    id: `decide:${category.id}`,
+    data: { type: "decide", categoryId: category.id },
+    disabled: !decideTarget,
+  });
+
   const cardIds = options.map((o) => o.id);
   const laneGrip = laneDragEnabled ? (
     <button
@@ -478,11 +507,30 @@ export function CategoryLane({
         </div>
       ) : null}
 
+      {/* Above the settled cards, because that is where the dropped card is
+          about to appear. Rendered only mid-drag (see `decideTarget`). */}
+      {decideTarget ? (
+        <div
+          ref={decideDrop.setNodeRef}
+          className={
+            "lane__decide-drop" +
+            (decideDrop.isOver ? " lane__decide-drop--over" : "")
+          }
+          aria-hidden="true"
+        >
+          {decideDrop.isOver
+            ? "Drop to decide"
+            : category.singleChoice
+              ? "Drop here to decide"
+              : "Drop here to lock"}
+        </div>
+      ) : null}
+
       {/* Settled first, and outside the SortableContext: a decision is no longer
           a candidate, so it takes no part in the lane's ordering and carries no
-          drag grip. Unlock is still on its own "⋯", the same action the rail
-          chip offers — both go through `useUnlockAction`, so they cannot
-          diverge. */}
+          drag grip. Unlock is on its own "⋯" — with the rail gone, that menu is
+          the only way to reopen a decision, which is why every settled card
+          carries it whether or not drag is available. */}
       {decided.map((o) => (
         <OptionCard
           key={o.id}

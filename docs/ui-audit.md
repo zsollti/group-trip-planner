@@ -76,7 +76,7 @@ one for this viewer (Phase 6.4).
 | Notifications       | ✓        | ✓                  | ✓                 | list      |
 | Settings            | ✓        | n/a                | alert + Try again | panels    |
 | Activity feed       | ✓        | ✓                  | alert + Try again | feed      |
-| Decided rail        | inherits | "nothing settled"  | inherits lanes    | chips     |
+| Crew panel          | ✓        | n/a                | alert + Try again | list      |
 
 - [x] The trip-lanes error was the worst gap: a muted line with no retry, on the
       one query whose failure empties the whole screen. Now `role="alert"` with
@@ -130,17 +130,24 @@ one for this viewer (Phase 6.4).
       `aria-label`, button `aria-label`) stays unabbreviated — a screen reader is
       never read an ellipsis. The option detail dialog shows names in full.
 - [x] Drag-and-drop is progressive enhancement — every gesture has a
-      keyboard/menu equivalent (lock/unlock, reorder, move to Decided). The
-      Decided **rail** keeps this: each chip carries a "⋯" menu with Unlock,
-      so the drag-out gesture is never the only way to undo a decision.
+      keyboard/menu equivalent. Locking can be a drop onto the lane's decide
+      strip or "Move to Decided" on the card's "⋯"; **unlocking is the menu
+      only**, since the drag-out gesture belonged to the Decided rail and went
+      with it. Nothing became unreachable — that menu item was always there.
 - [x] **A surface that behaves differently looks different** (polish pass).
       Decided was a `.lane` — identical width, card shape and chrome to a
       category, distinguished only by a dashed border — pinned first in the
-      lane row. It reads as a category and it is not one: lanes are the trip's
-      open questions, Decided is the answers. It is now a rail above them,
-      beside the cost it produces. Each chip names the lane it answers, which
-      the old column got for free from a `categoryTag` prop that no longer has
-      a caller.
+      lane row. It read as a category and it was not one. It became a rail
+      above them, and then it was **removed entirely**: once a decision also
+      stayed pinned in the lane that made it, the rail was a second copy of
+      every decision directly above the first. The summary band now carries the
+      cost and the crew — the two things the lanes below cannot tell you by
+      being read.
+- [x] **Colour is never the only signal** (category colour pass). Each category
+      wears a hue and an icon across its lane, its cards and the timeline; the
+      category's name is rendered beside every one of them, and the hue only
+      tints surfaces and edges. Tinted text (the category pills) is held to
+      4.5:1 by pinning lightness per theme to the worst hue in the ring.
 - [x] Touch targets ≥44px on the primary controls at phone width.
 
 ## Known limits

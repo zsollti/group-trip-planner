@@ -22,13 +22,7 @@ import {
 } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
-
-const ROLE_LABEL: Record<TripRole, string> = {
-  OWNER: "Owner",
-  CO_ORGANIZER: "Co-organizer",
-  PARTICIPANT: "Participant",
-  GUEST: "Guest",
-};
+import { ROLE_LABEL } from "../lib/roles";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
 

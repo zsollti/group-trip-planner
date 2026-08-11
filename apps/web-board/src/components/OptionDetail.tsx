@@ -9,6 +9,8 @@ import {
 } from "@gtp/types";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { Dialog } from "./Dialog";
+import { CategoryIcon } from "./CategoryIcon";
+import { categoryHueStyle } from "../lib/categoryTheme";
 
 /**
  * A read-only "full card" view (Phase 3.5 feedback). Locked cards in the Decided
@@ -44,7 +46,13 @@ export function OptionDetail({
   return (
     <Dialog
       eyebrow={
-        <span className="lane__tag lane__tag--badge">{category.name}</span>
+        <span
+          className="lane__tag lane__tag--badge"
+          style={categoryHueStyle(category)}
+        >
+          <CategoryIcon category={category} size={13} />
+          {category.name}
+        </span>
       }
       title={option.title}
       onClose={onClose}

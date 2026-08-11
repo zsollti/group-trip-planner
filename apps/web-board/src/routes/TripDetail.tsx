@@ -250,6 +250,7 @@ export function TripDetail() {
               frozen={trip.data.status === "HISTORY"}
               tripDates={tripDateRange(trip.data)}
               onOpenChannel={setOpenChannelId}
+              onManageMembers={() => setManagingMembers(true)}
             />
           )}
 

@@ -7,10 +7,11 @@ import { BoardCanvas } from "./BoardCanvas";
 
 /**
  * Board canvas (Phase 3.5) — functional/DOM tests (no screenshot tests). Real
- * pointer-drag is progressive enhancement jsdom can't drive, so these assert the
- * two things that don't need a live drag: locked options are collected into the
- * global "Decided" column (not their lane), and the drag grips appear only for
- * organizers on an active trip.
+ * pointer-drag is progressive enhancement jsdom can't drive, so these assert
+ * what does not need a live drag: that a decision and the options it beat sit
+ * together in their lane, that every drag gesture has a menu equivalent, that
+ * the grips appear only for organizers on an active trip, and that the summary
+ * band names the crew. The drag itself is covered by `e2e/drag-to-decide`.
  */
 
 const JSON_HEADERS = { "content-type": "application/json" };
@@ -58,6 +59,27 @@ function opt(over: Partial<OptionView>): OptionView {
   };
 }
 
+/** The crew panel in the summary band reads this. */
+const MEMBERS = {
+  members: [
+    {
+      userId: "u1",
+      displayName: "Ada",
+      role: "OWNER",
+      avatarUrl: null,
+      joinedAt: new Date().toISOString(),
+    },
+    {
+      userId: "u2",
+      displayName: "Grace",
+      role: "PARTICIPANT",
+      avatarUrl: null,
+      joinedAt: new Date().toISOString(),
+    },
+  ],
+  blocked: [],
+};
+
 const proposed = opt({ id: "o1", title: "Hostel" });
 const locked = opt({
   id: "o2",
@@ -81,6 +103,7 @@ function mockFetch() {
           memberCount: 2,
         });
       }
+      if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json([proposed, locked]);
       return json({ message: "not found" }, 404);
     }),
@@ -102,11 +125,14 @@ function mockEmptyFetch() {
           memberCount: 2,
         });
       }
+      if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json([]);
       return json({ message: "not found" }, 404);
     }),
   );
 }
+
+const onManageMembers = vi.fn();
 
 function renderBoard(myRole: TripRole, frozen = false) {
   return render(
@@ -120,6 +146,7 @@ function renderBoard(myRole: TripRole, frozen = false) {
         frozen={frozen}
         tripDates={null}
         onOpenChannel={() => undefined}
+        onManageMembers={onManageMembers}
       />
     </QueryClientProvider>,
   );
@@ -128,49 +155,33 @@ function renderBoard(myRole: TripRole, frozen = false) {
 describe("BoardCanvas", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    onManageMembers.mockClear();
     // The lane-sort preference persists in localStorage; clear it so one test's
     // choice can't set the starting order for the next.
     window.localStorage.clear();
   });
 
-  it("puts locked options in the Decided rail and proposed ones in the lane", async () => {
-    mockFetch();
-    renderBoard("OWNER");
-
-    // Proposed card is present; the locked one is inside the Decided region.
-    expect(await screen.findByText("Hostel")).toBeInTheDocument();
-    const decided = screen.getByRole("region", { name: "Decided" });
-    expect(within(decided).getByText("Beach House")).toBeInTheDocument();
-    // The proposed card is not inside Decided.
-    expect(within(decided).queryByText("Hostel")).not.toBeInTheDocument();
-  });
-
-  it("keeps a decision in its own lane as well as the rail", async () => {
-    // Two copies on purpose, answering different questions: the lane says what
-    // we picked and what we picked it over, the rail says what the trip looks
-    // like now. Before this, a lane showed only the options a group rejected.
+  it("keeps a decision in its lane, beside the option it beat", async () => {
+    // The lane is the comparison: what we picked, and what we picked it over.
+    // A decision used to leave for the Decided rail, so a lane showed only the
+    // options a group rejected. There is one copy now and this is it.
     mockFetch();
     renderBoard("OWNER");
 
     const lane = await screen.findByRole("region", { name: "Stay" });
     expect(within(lane).getByText("Beach House")).toBeInTheDocument();
-    // …still alongside the option it beat, which is the point.
     expect(within(lane).getByText("Hostel")).toBeInTheDocument();
-
-    const decided = screen.getByRole("region", { name: "Decided" });
-    expect(within(decided).getByText("Beach House")).toBeInTheDocument();
   });
 
-  it("offers unlock from the lane copy too, not only from the rail", async () => {
+  it("no longer renders a Decided rail", async () => {
+    // Guards the removal, not the absence of a feature: the rail was a second
+    // copy of every decision sitting directly above the first, and a stray
+    // re-introduction would be invisible in every other test here.
     mockFetch();
     renderBoard("OWNER");
 
-    const lane = await screen.findByRole("region", { name: "Stay" });
-    fireEvent.click(
-      within(lane).getByRole("button", { name: /actions for beach house/i }),
-    );
-
-    expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
+    await screen.findByText("Hostel");
+    expect(screen.queryByRole("region", { name: "Decided" })).toBeNull();
   });
 
   it("does not call a lane holding a decision empty", async () => {
@@ -190,6 +201,7 @@ describe("BoardCanvas", () => {
             memberCount: 2,
           });
         }
+        if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([locked]);
         return json({ message: "not found" }, 404);
       }),
@@ -219,6 +231,7 @@ describe("BoardCanvas", () => {
             memberCount: 2,
           });
         }
+        if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([locked]);
         return json({ message: "not found" }, 404);
       }),
@@ -230,26 +243,16 @@ describe("BoardCanvas", () => {
     expect(within(lane).queryByText("Nothing was decided here")).toBeNull();
   });
 
-  it("names the category each decision answers, since the rail is cross-lane", async () => {
-    // The rail collects decisions from every lane, so a chip that only said
-    // "Beach House" would not say which question it settled. The lane it came
-    // from can no longer supply that context by position.
-    mockFetch();
-    renderBoard("OWNER");
-
-    const decided = await screen.findByRole("region", { name: "Decided" });
-    expect(within(decided).getByText("Stay")).toBeInTheDocument();
-  });
-
   it("keeps unlock reachable without a drag", async () => {
-    // Drag-to-unlock is progressive enhancement; the menu is the keyboard and
-    // touch path, and it is the only one jsdom can exercise.
+    // Dragging a chip out of the rail used to be the other way to reopen a
+    // decision. With the rail gone this menu is the *only* way, so it is no
+    // longer an equivalent for a gesture — it is the path.
     mockFetch();
     renderBoard("OWNER");
 
-    const decided = await screen.findByRole("region", { name: "Decided" });
+    const lane = await screen.findByRole("region", { name: "Stay" });
     fireEvent.click(
-      within(decided).getByRole("button", { name: /actions for beach house/i }),
+      within(lane).getByRole("button", { name: /actions for beach house/i }),
     );
 
     expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
@@ -259,9 +262,9 @@ describe("BoardCanvas", () => {
     mockFetch();
     renderBoard("PARTICIPANT");
 
-    const decided = await screen.findByRole("region", { name: "Decided" });
+    const lane = await screen.findByRole("region", { name: "Stay" });
     fireEvent.click(
-      within(decided).getByRole("button", { name: /actions for beach house/i }),
+      within(lane).getByRole("button", { name: /actions for beach house/i }),
     );
 
     expect(screen.queryByRole("button", { name: "Unlock" })).toBeNull();
@@ -271,14 +274,39 @@ describe("BoardCanvas", () => {
     ).toBeInTheDocument();
   });
 
-  it("says what the rail is for while it is still empty", async () => {
-    mockEmptyFetch();
+  it("names the crew and their roles in the summary band", async () => {
+    // What the band is for now: the lanes below can be read for what the trip
+    // has decided, but not for who is deciding it.
+    mockFetch();
     renderBoard("OWNER");
 
-    const decided = await screen.findByRole("region", { name: "Decided" });
-    expect(
-      within(decided).getByText(/nothing settled yet/i),
-    ).toBeInTheDocument();
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    // The panel renders straight away with its loading state, so the region
+    // being present says nothing — wait for the roster itself.
+    expect(await within(crew).findByText(/Ada/)).toBeInTheDocument();
+    expect(within(crew).getByText("Grace")).toBeInTheDocument();
+    expect(within(crew).getByText("Participant")).toBeInTheDocument();
+  });
+
+  it("sends an organizer from the crew panel to the members dialog", async () => {
+    // The panel is read-only by design — roles, kicks and blocks are
+    // consequential and stay behind a deliberate click.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    fireEvent.click(within(crew).getByRole("button", { name: "Manage" }));
+
+    expect(onManageMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a participant a way to see the crew, not to change it", async () => {
+    mockFetch();
+    renderBoard("PARTICIPANT");
+
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    expect(within(crew).getByRole("button", { name: "View" })).toBeVisible();
+    expect(within(crew).queryByRole("button", { name: "Manage" })).toBeNull();
   });
 
   it("turns an empty lane into a propose CTA that opens the form (Phase 6.4)", async () => {
@@ -319,10 +347,10 @@ describe("BoardCanvas", () => {
   it("hides drag grips from a non-organizer (participant)", async () => {
     mockFetch();
     renderBoard("PARTICIPANT");
-    // Cards still render (a decision appears in both its lane and the rail),
-    // but there is no drag affordance anywhere.
-    const decided = await screen.findByRole("region", { name: "Decided" });
-    expect(within(decided).getByText("Beach House")).toBeInTheDocument();
+    // Cards still render — everything stays readable without decision rights;
+    // there is simply no drag affordance anywhere.
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(within(lane).getByText("Beach House")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /drag/i })).toBeNull();
   });
 
@@ -398,6 +426,7 @@ describe("BoardCanvas", () => {
           frozen={false}
           tripDates={null}
           onOpenChannel={() => undefined}
+          onManageMembers={onManageMembers}
         />
       </QueryClientProvider>,
     );
@@ -522,6 +551,7 @@ describe("BoardCanvas", () => {
             endDate: "2026-09-13T12:00:00.000Z",
           }}
           onOpenChannel={() => undefined}
+          onManageMembers={onManageMembers}
         />
       </QueryClientProvider>,
     );
@@ -633,6 +663,7 @@ describe("BoardCanvas", () => {
           frozen={false}
           tripDates={null}
           onOpenChannel={() => undefined}
+          onManageMembers={onManageMembers}
         />
       </QueryClientProvider>,
     );
