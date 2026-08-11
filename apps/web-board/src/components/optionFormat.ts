@@ -1,10 +1,18 @@
 import type { OptionDateGranularity, OptionView } from "@gtp/types";
+import { formatMoney } from "../lib/money";
 
-/** Compact money label for an option card, e.g. "480 EUR total" / "120 EUR/person". */
+/**
+ * Compact money label for an option card — "€480 total", "45 000 Ft/person".
+ *
+ * This used to interpolate the raw number and the bare code: `45000 EUR/person`,
+ * six digits nobody can read without counting them, in an app whose cost strip
+ * two inches above was already saying `€45,000.00`. Both go through
+ * {@link formatMoney} now, so the board has one idea of what money looks like.
+ */
 export function costLabel(o: OptionView): string | null {
   if (o.amount == null) return null;
   const per = o.costType === "PER_PERSON" ? "/person" : " total";
-  return `${o.amount} ${o.currency}${per}`;
+  return `${formatMoney(o.amount, o.currency)}${per}`;
 }
 
 /**

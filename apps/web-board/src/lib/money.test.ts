@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import {
+  formatAmount,
+  formatMoney,
+  parseAmount,
+  regroupAmountInput,
+} from "./money";
+
+/**
+ * The test environment runs under the machine's locale (Hungarian on the
+ * author's box, en-US in CI), so **nothing here asserts a literal separator** —
+ * the same rule the timeline tests follow for dates. What is asserted is the
+ * property that matters: long numbers get grouped, and whatever this module
+ * formats, it can read back.
+ */
+
+describe("formatAmount", () => {
+  it("groups a long number", () => {
+    const formatted = formatAmount(45000);
+    expect(formatted).not.toBe("45000");
+    // Whichever separator the locale uses, the digits are unchanged.
+    expect(formatted.replace(/\D/g, "")).toBe("45000");
+  });
+
+  it("leaves a short number alone", () => {
+    expect(formatAmount(620)).toBe("620");
+  });
+
+  it("shows cents only when there are any", () => {
+    expect(formatAmount(620)).toBe("620");
+    expect(formatAmount(37.5).replace(/\D/g, "")).toBe("375");
+  });
+});
+
+describe("formatMoney", () => {
+  it("groups and marks the currency", () => {
+    const formatted = formatMoney(45000, "EUR");
+    expect(formatted).toMatch(/45\D?000/);
+    expect(formatted).not.toBe("45000 EUR");
+  });
+
+  it("falls back to the bare code for a currency Intl does not know", () => {
+    // `currencySchema` accepts any three letters (FR-27), so this has to be
+    // total or a made-up code throws inside a render.
+    const formatted = formatMoney(1200, "ZZZ");
+    expect(formatted).toContain("ZZZ");
+    expect(formatted.replace(/\D/g, "")).toBe("1200");
+  });
+});
+
+describe("parseAmount", () => {
+  it("reads back anything this module formatted", () => {
+    for (const n of [0, 7, 620, 45000, 1234567, 37.5, 0.99]) {
+      expect(parseAmount(formatAmount(n))).toBe(n);
+    }
+  });
+
+  it("accepts plain digits as typed", () => {
+    expect(parseAmount("45000")).toBe(45000);
+    expect(parseAmount("  620 ")).toBe(620);
+  });
+
+  it("accepts a decimal comma whatever the locale", () => {
+    // Someone typing on a keyboard whose decimal key is a comma is not making
+    // a mistake, and a field that rejects them is being obtuse rather than
+    // precise.
+    expect(parseAmount("12,50")).toBe(12.5);
+    expect(parseAmount("12.50")).toBe(12.5);
+  });
+
+  it("refuses what is not a number", () => {
+    expect(parseAmount("")).toBeNull();
+    expect(parseAmount("   ")).toBeNull();
+    expect(parseAmount("abc")).toBeNull();
+    expect(parseAmount("12abc")).toBeNull();
+    expect(parseAmount(".")).toBeNull();
+  });
+});
+
+describe("regroupAmountInput", () => {
+  it("groups what a person typed", () => {
+    expect(regroupAmountInput("45000").replace(/\D/g, "")).toBe("45000");
+    expect(regroupAmountInput("45000")).not.toBe("45000");
+  });
+
+  it("is idempotent, so blurring twice cannot compound separators", () => {
+    const once = regroupAmountInput("1234567");
+    expect(regroupAmountInput(once)).toBe(once);
+  });
+
+  it("hands back anything it cannot read, rather than blanking the field", () => {
+    // Losing what someone typed is worse than showing it ungrouped.
+    expect(regroupAmountInput("not a number")).toBe("not a number");
+    expect(regroupAmountInput("")).toBe("");
+  });
+});

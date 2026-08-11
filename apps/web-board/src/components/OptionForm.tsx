@@ -9,7 +9,9 @@ import {
 } from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
+import { CurrencySelect } from "./CurrencySelect";
 import { fromDateInput, toDateInput } from "../lib/dateInput";
+import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 
 /**
  * Board-paradigm propose/edit card. Covers the FR-21 fields — title, url,
@@ -54,8 +56,11 @@ export function OptionForm({
   const [title, setTitle] = useState(option?.title ?? "");
   const [url, setUrl] = useState(option?.url ?? "");
   const [description, setDescription] = useState(option?.description ?? "");
+  // Holds what the field *shows*, which is grouped once it loses focus. The
+  // number is recovered with `parseAmount` on submit rather than tracked in
+  // parallel — two states for one value is how they drift apart.
   const [amount, setAmount] = useState(
-    option?.amount != null ? String(option.amount) : "",
+    option?.amount != null ? formatAmount(option.amount) : "",
   );
   const [currency, setCurrency] = useState(option?.currency ?? tripCurrency);
   const [costType, setCostType] = useState<CostType>(
@@ -82,7 +87,7 @@ export function OptionForm({
       title: title.trim(),
       description: description.trim() || undefined,
       url: url.trim() || undefined,
-      amount: amount.trim() === "" ? undefined : Number(amount),
+      amount: parseAmount(amount) ?? undefined,
       currency,
       costType,
       headcountIsFixed,
@@ -164,21 +169,25 @@ export function OptionForm({
           {fields.cost ? (
             <>
               <Field htmlFor="opt-amount" label="Amount (optional)">
+                {/* `text` + `inputMode="decimal"`, not `type="number"`: a
+                    number input rejects the separators grouping puts in, so the
+                    field would blank itself the moment it was formatted. The
+                    phone keypad still comes up, and `parseAmount` is stricter
+                    about what it accepts than the browser was. */}
                 <Input
                   id="opt-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  onBlur={(e) => setAmount(regroupAmountInput(e.target.value))}
                 />
               </Field>
               <Field htmlFor="opt-currency" label="Currency">
-                <Input
+                <CurrencySelect
                   id="opt-currency"
                   value={currency}
-                  maxLength={3}
-                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                  onChange={(e) => setCurrency(e.target.value)}
                 />
               </Field>
 

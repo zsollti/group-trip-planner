@@ -1,19 +1,10 @@
 import { useTripDashboard } from "@gtp/api-client";
 import type { TripDashboardView } from "@gtp/types";
 import { CostBar } from "./CostBar";
-
-/** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
-function money(n: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(n);
-  } catch {
-    return `${n.toFixed(2)} ${currency}`;
-  }
-}
+// The strip's private formatter moved to `lib/money` when the option cards
+// needed the same thing. One definition, so a total and the cards it is the sum
+// of cannot disagree about how money is written.
+import { formatMoney as money } from "../lib/money";
 
 /** A one-line collapsed peek: the first currency's locked → projected total. */
 function peek(d: TripDashboardView): string {
