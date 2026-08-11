@@ -27,6 +27,8 @@ import { isTruncated, truncateName } from "../lib/truncate";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
 import { OptionCard } from "./OptionCard";
+import { CategoryIcon } from "./CategoryIcon";
+import { categoryHueStyle } from "../lib/categoryTheme";
 import { Menu, type MenuItem } from "./Menu";
 
 /**
@@ -198,6 +200,10 @@ function LaneHeader({
   return (
     <>
       <div className="lane__head">
+        {/* Outside the editing branch on purpose: a lane keeps its identity
+            while you are renaming it, and a mark that vanishes the moment you
+            click the title reads as something breaking. */}
+        <CategoryIcon category={category} className="lane__icon" />
         {editing ? (
           <form className="lane__rename" onSubmit={submit}>
             <input
@@ -363,6 +369,9 @@ export function CategoryLane({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : undefined,
+    // Inherited by everything in the lane — header, cards, the add button — so
+    // one number decides the whole column's colour.
+    ...categoryHueStyle(category),
   };
 
   async function onDelete(o: OptionView) {

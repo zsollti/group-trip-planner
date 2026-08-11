@@ -34,6 +34,22 @@
   --board-on-danger: #ffffff;
   --board-shadow: 20 40 38;
   --board-scrim: rgba(35, 40, 38, 0.5);
+  /* Category colour (see lib/categoryTheme.ts). A category contributes one
+     number — its hue — and this scale decides what the theme does with it, so
+     light and dark stay legible without either knowing which lane it is. The
+     lightness is not a taste choice: 30% here and 70% in dark are the values at
+     which the *worst* hue in the ring still clears 4.5:1 as text against
+     `--lane-bg` (gold in light, blue in dark), which is what lets a tag be
+     tinted text rather than ink with a coloured border. */
+  --cat-hue: 200;
+  --cat-sat: 58%;
+  --cat-ink-l: 30%;
+  --cat-edge-l: 62%;
+  /* Two strengths of the same tint: a candidate is washed, a decision is washed
+     harder. That difference is what carries "settled" now that hue is spoken
+     for by the category. */
+  --cat-wash: 7%;
+  --cat-wash-strong: 14%;
   font-family:
     "Inter",
     system-ui,
@@ -68,6 +84,14 @@
     --board-scrim: rgba(4, 10, 9, 0.66);
     /* The decorative motifs need a touch more presence on a dark canvas. */
     --board-decor-opacity: 0.08;
+    /* A tint that reads on paper disappears on a dark canvas, so the hue is
+       taken lighter and mixed in harder. `--cat-hue` is deliberately absent:
+       it belongs to the category, not to the theme. */
+    --cat-sat: 52%;
+    --cat-ink-l: 70%;
+    --cat-edge-l: 52%;
+    --cat-wash: 12%;
+    --cat-wash-strong: 22%;
   }
 }
 :root[data-theme="dark"] {
@@ -84,6 +108,11 @@
   --board-shadow: 0 0 0;
   --board-scrim: rgba(4, 10, 9, 0.66);
   --board-decor-opacity: 0.08;
+  --cat-sat: 52%;
+  --cat-ink-l: 70%;
+  --cat-edge-l: 52%;
+  --cat-wash: 12%;
+  --cat-wash-strong: 22%;
 }
 
 * {
@@ -503,6 +532,36 @@ body {
   margin-bottom: 0;
 }
 
+/* --- Category colour --------------------------------------------------------
+ *
+ * A category wears a hue so a lane, a card, a decided chip and a timeline row
+ * can be recognised as the same question without reading a word. The hue comes
+ * in as `--cat-hue` on the elements below (set in JS, derived — never stored);
+ * everything else is computed from it here.
+ *
+ * `--cat-ink` and `--cat-edge` are declared on the same elements that carry the
+ * hue, not on `:root`, and that placement is load-bearing: a custom property
+ * containing `var()` is resolved where it is *declared*, so a root-level
+ * `--cat-ink` would freeze at the root's fallback hue and every lane would come
+ * out the same colour.
+ *
+ * Colour never carries meaning alone — the category's name sits beside it in
+ * every one of these positions, and the icon repeats the distinction in shape.
+ */
+.lane,
+.lane__card--option,
+.tl__card,
+.tl__span,
+.decided__chip {
+  --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
+  --cat-edge: hsl(var(--cat-hue) var(--cat-sat) var(--cat-edge-l));
+}
+
+.cat-icon {
+  flex: 0 0 auto;
+  color: var(--cat-ink);
+}
+
 .decided {
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
@@ -593,12 +652,19 @@ body {
 .decided__chip--dragging {
   border-color: var(--board-accent);
 }
+/* Same pill as the timeline's `.tl__tag`, for the same reason: it names the
+   category, so it wears the category's colour. Outlined rather than filled —
+   the ink's contrast is guaranteed against `--lane-bg`, and a tinted fill
+   underneath it would eat into that margin for no gain. */
 .decided__cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   flex: 0 0 auto;
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--board-accent) 14%, transparent);
-  color: var(--board-accent);
+  border: 1px solid var(--cat-edge);
+  color: var(--cat-ink);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -656,9 +722,18 @@ body {
   flex: 0 0 15rem;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
+  /* The category's colour, as the edge you scan along. On top rather than down
+     the side because the lanes sit in a horizontal row: a top edge puts every
+     lane's colour on one line, which is what makes the row readable as a set of
+     different questions instead of a stripe repeated five times. */
+  border-top: 3px solid var(--cat-edge);
   border-radius: 14px;
   padding: 0.85rem;
   box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
+}
+/* The lane's own mark, in its own colour. */
+.lane__icon {
+  margin-right: 0.1rem;
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
@@ -1109,8 +1184,17 @@ body {
 
 /* Options as cards (Phase 2.2). */
 .lane__card--option {
-  border: 1px solid var(--lane-line);
-  background: var(--board-bg);
+  /* An option belongs to its category, so it is washed with the same hue —
+     faintly. A card is a block of text first; the tint has to be enough to
+     group it with its lane on a board full of lanes and not enough to fight the
+     words on it, which is why the mix is single digits and the border does most
+     of the work. */
+  border: 1px solid color-mix(in srgb, var(--cat-edge) 45%, var(--lane-line));
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash),
+    var(--board-bg)
+  );
   text-align: left;
   margin-bottom: 0.6rem;
   display: flex;
@@ -1294,12 +1378,23 @@ body {
 .board__detail-notes {
   white-space: pre-wrap;
 }
-/* The lane's settled answer, pinned above its remaining candidates. Reads as
-   resolved rather than merely different: the accent edge is the same one the
-   Decided rail uses, so the eye connects the two copies of one decision. */
+/* The lane's settled answer, pinned above its remaining candidates.
+ *
+ * The edge used to be the app's teal accent, matching the Decided rail. Once
+ * categories took colours that stopped working: on a board where most cards are
+ * decided, *every* card went teal and the lane's own colour survived only on the
+ * one option nobody had picked yet — the exact opposite of the intent.
+ *
+ * So settled is now said with **intensity, not hue**: same colour as the rest of
+ * its lane, a solid left edge where a candidate has none, and roughly double the
+ * wash. The ✦ Decided line and the "Also proposed" divider carry the rest. */
 .lane__card--settled {
-  border-left: 3px solid var(--board-accent);
-  background: color-mix(in srgb, var(--board-accent) 5%, var(--lane-bg));
+  border-left: 3px solid var(--cat-edge);
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash-strong),
+    var(--lane-bg)
+  );
 }
 /* Separates the decision from the options it beat. Not a heading — it labels a
    position in a list, and promoting it would put a second h-level inside a lane
@@ -2626,6 +2721,9 @@ body {
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 0 0.85rem;
   align-items: baseline;
+  /* The same edge the card wears in its lane, so a day's rows can be grouped by
+     category without reading a single tag. */
+  border-left: 3px solid var(--cat-edge);
 }
 .tl__card-when {
   font-size: 0.72rem;
@@ -2658,13 +2756,18 @@ body {
   content: "·";
   margin-right: 0.4rem;
 }
+/* The category, in the category's colour — the one thing that ties a timeline
+   row back to the lane it was decided in. */
 .tl__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--board-accent);
-  border: 1px solid var(--board-accent);
+  color: var(--cat-ink);
+  border: 1px solid var(--cat-edge);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
@@ -2683,9 +2786,18 @@ body {
   height: 100%;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--lane-line);
-  border-left: 3px solid var(--board-accent);
+  /* The band used to be teal whatever it held, which said "this is a span" —
+     something the shape already says. In its category's colour it says *which*
+     span, so a stay and an overnight train are told apart at a glance. */
+  border-left: 3px solid var(--cat-edge);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--board-accent) 6%, var(--lane-bg));
+  /* Through the token, not a fixed 6%: a tint that shows on paper is invisible
+     on the dark canvas, which is the whole reason the wash is themed. */
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash),
+    var(--lane-bg)
+  );
 }
 .tl__card--span {
   position: sticky;
@@ -2706,6 +2818,10 @@ body {
    room is vertical. */
 .tl__card--span .tl__card-when {
   white-space: normal;
+  /* Inside a band that is already the category's colour, the app's teal read as
+     a second, unrelated signal. A moment's time keeps the accent — those form a
+     uniform column down the page and the uniformity is the point. */
+  color: var(--cat-ink);
 }
 .tl__card--span .tl__card-title {
   font-size: 0.85rem;

@@ -5,6 +5,8 @@ import {
   type TripDateRange,
 } from "@gtp/types";
 import { OptionDetail } from "./OptionDetail";
+import { CategoryIcon } from "./CategoryIcon";
+import { categoryHueStyle } from "../lib/categoryTheme";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import {
   dayIndex,
@@ -65,6 +67,10 @@ function EntryCard({
     <button
       type="button"
       onClick={onOpen}
+      // The timeline has no lanes to inherit a hue from, so each card carries
+      // its own. This is what makes the two pages one app: the colour that
+      // means "Accommodation" on the board means it here too.
+      style={categoryHueStyle(entry.category)}
       className={[
         "tl__card",
         `tl__card--${variant}`,
@@ -89,7 +95,15 @@ function EntryCard({
             known; the day column is the page's measure and needs neither. */}
         <span className="tl__card-title">{entry.option.title}</span>
         <span className="tl__card-meta">
-          <span className="tl__tag">{entry.category.name}</span>
+          {/* No icon in the gutter. A span's pill sits in a ~120px column, and
+              at phone width "ACCOMMODATION" plus a glyph runs past the band's
+              own edge. Nothing is lost: the band is already drawn in the
+              category's colour, with its edge in it, so the icon would be the
+              third thing saying the same word. */}
+          <span className="tl__tag">
+            {span ? null : <CategoryIcon category={entry.category} size={13} />}
+            {entry.category.name}
+          </span>
           {span ? <span>{nightsLabel(span.nights)}</span> : null}
           {cost ? <span>{cost}</span> : null}
           {proposed ? <span className="tl__card-flag">Proposed</span> : null}
@@ -116,10 +130,18 @@ function TrayCard({
 }) {
   const cost = costLabel(entry.option);
   return (
-    <button type="button" className="tl__card tl__card--tray" onClick={onOpen}>
+    <button
+      type="button"
+      className="tl__card tl__card--tray"
+      style={categoryHueStyle(entry.category)}
+      onClick={onOpen}
+    >
       <span className="tl__card-title">{entry.option.title}</span>
       <span className="tl__card-meta">
-        <span className="tl__tag">{entry.category.name}</span>
+        <span className="tl__tag">
+          <CategoryIcon category={entry.category} size={13} />
+          {entry.category.name}
+        </span>
         {cost ? <span>{cost}</span> : null}
       </span>
       <span className="tl__card-when">{reason}</span>
@@ -255,7 +277,13 @@ export function TimelineBoard({
               <div
                 key={span.option.id}
                 className="tl__span"
-                style={{ gridRow: `${from + 1} / ${to + 2}` }}
+                // On the wrapper, not the band: the band's colour has to be
+                // computed from a hue it can see, and the card that would
+                // otherwise carry it is the band's *child*.
+                style={{
+                  gridRow: `${from + 1} / ${to + 2}`,
+                  ...categoryHueStyle(span.category),
+                }}
               >
                 {/* The band carries the extent and the label sticks to the top
                     of it, so a long stay reads as "this covers all of these"
