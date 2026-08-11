@@ -16,6 +16,7 @@ import { OptionDetail } from "./OptionDetail";
 import { VoteDots } from "./optionControls";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
+import { categoryHueStyle } from "../lib/categoryTheme";
 import { truncateName } from "../lib/truncate";
 
 /**
@@ -147,7 +148,11 @@ export function OptionCard({
   return (
     <article
       ref={cardRef}
-      style={style}
+      // Set here as well as on the lane, because a card also renders inside the
+      // drag overlay — portalled out of the lane, where there is nothing to
+      // inherit from — and a card dropping its colour mid-drag is exactly when
+      // you most want to see which lane it came from.
+      style={{ ...categoryHueStyle(category), ...style }}
       className={
         "lane__card lane__card--option" +
         (settled ? " lane__card--settled" : "") +

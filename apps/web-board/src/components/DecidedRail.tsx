@@ -10,6 +10,8 @@ import type {
 import { can, categoryOptionFields, isOutsideTripDates } from "@gtp/types";
 import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
+import { CategoryIcon } from "./CategoryIcon";
+import { categoryHueStyle } from "../lib/categoryTheme";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { isTruncated, truncateName } from "../lib/truncate";
@@ -57,6 +59,7 @@ function DecidedChip({
   const style: CSSProperties = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.4 : undefined,
+    ...categoryHueStyle(category),
   };
 
   const dates = dateRangeLabel(
@@ -104,6 +107,7 @@ function DecidedChip({
           className="decided__cat"
           title={isTruncated(category.name) ? category.name : undefined}
         >
+          <CategoryIcon category={category} size={13} />
           {truncateName(category.name)}
         </span>
         <button
