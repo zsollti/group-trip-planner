@@ -105,6 +105,17 @@ export default defineConfig({
         WEB_APP_URL: WEB_BASE_URL,
         API_PUBLIC_URL: API_URL,
         // No RESEND_API_KEY: mail is logged, never sent, from a test run.
+        //
+        // **The sign-in limiter is opted out of here, not weakened in the app.**
+        // These journeys run serially from one address and sign in a dozen
+        // accounts inside a minute, which is precisely the shape the per-IP
+        // budget exists to refuse — and it did, as soon as the suite grew past
+        // ten. The production numbers stay where they are (see
+        // `throttle-policy.ts`); the harness raises them for its own process.
+        // The limiter's own behaviour is covered by the API integration suite,
+        // which asserts a 429 rather than needing to avoid one.
+        REGISTER_THROTTLE_LIMIT: "500",
+        LOGIN_THROTTLE_LIMIT: "500",
       },
     },
     // Skipped when E2E_WEB_URL names a frontend that is already running.

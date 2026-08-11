@@ -6,6 +6,8 @@ import {
 } from "@gtp/types";
 import { OptionDetail } from "./OptionDetail";
 import { CategoryIcon } from "./CategoryIcon";
+import { TimelineCalendar } from "./TimelineCalendar";
+import { CALENDAR_MIN_WIDTH, useMediaQuery } from "../lib/media";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import {
@@ -152,19 +154,23 @@ function TrayCard({
 /**
  * The trip's decisions on a calendar.
  *
- * Days run **down**, not across. A week across a phone gives each day about
- * fifty pixels, in which "07:15 – 09:40" is unreadable — and vertical is the
- * direction an itinerary is read in anyway. The same layout serves a long trip
- * without compressing, and a wide screen just gets a roomier version of it
- * rather than a second layout to maintain.
+ * **Two layouts, one core.** Wide viewports get {@link TimelineCalendar} — days
+ * across, hours down, the shape of a day visible. Narrow ones keep the spine
+ * below, and that is not a fallback: a week across 390px gives each day about
+ * fifty pixels, in which "07:15 – 09:40" is unreadable, and vertical is the
+ * direction an itinerary is read in anyway. The argument that built the spine
+ * is still right for the size it was made at; it was only ever wrong as a claim
+ * about *every* size. Both read the same `timeline.ts` output and share the
+ * detail dialog this component owns.
  *
- * Two kinds of thing, drawn differently on purpose. Anything crossing a local
- * midnight is a **span** and lives in the left gutter, drawn once across every
- * day it covers rather than repeated into each — repetition is what turns a
- * day-by-day agenda into mush once a hotel is in it. Everything else is a
- * **moment** in its own day, where the time of day is the point. The alignment
- * is real CSS grid rows shared by both columns, so a stay genuinely lines up
- * with the nights it covers however tall those days grow.
+ * In the spine, days run **down**. Two kinds of thing, drawn differently on
+ * purpose. Anything crossing a local midnight is a **span** and lives in the
+ * left gutter, drawn once across every day it covers rather than repeated into
+ * each — repetition is what turns a day-by-day agenda into mush once a hotel is
+ * in it. Everything else is a **moment** in its own day, where the time of day
+ * is the point. The alignment is real CSS grid rows shared by both columns, so
+ * a stay genuinely lines up with the nights it covers however tall those days
+ * grow.
  */
 export function TimelineBoard({
   timeline,
@@ -182,6 +188,9 @@ export function TimelineBoard({
   const { days, spans, unscheduled, elsewhere, overlapping } = timeline;
   const hasTray = unscheduled.length > 0 || elsewhere.length > 0;
   const uncovered = new Set(timeline.uncoveredNights);
+  const wide = useMediaQuery(CALENDAR_MIN_WIDTH);
+  const open = (option: TimelineEntry["option"], category: CategoryView) =>
+    setViewing({ option, category });
 
   return (
     <>
@@ -205,6 +214,8 @@ export function TimelineBoard({
             ? "Nothing here has dates yet. Add dates to a decision and it will appear on the trip's calendar."
             : "Nothing is decided yet. Lock an option on the board and it lands here."}
         </p>
+      ) : wide ? (
+        <TimelineCalendar timeline={timeline} onOpen={open} />
       ) : (
         <div className="tl__grid">
           {days.map((day, i) => (

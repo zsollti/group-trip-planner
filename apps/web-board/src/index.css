@@ -674,7 +674,9 @@ body {
 .lane__card--option,
 .lane__tag,
 .tl__card,
-.tl__span {
+.tl__span,
+.cal__event,
+.cal__bar {
   --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
   --cat-edge: hsl(var(--cat-hue) var(--cat-sat) var(--cat-edge-l));
 }
@@ -2747,6 +2749,230 @@ body {
  * No new colours. The theme is a committed token contract (Phase 6.3), so the
  * two classes of thing are told apart by *position* — gutter versus day column
  * — and by the accent edge the board already uses for a settled decision. */
+
+/* --- The week grid (wide viewports) -----------------------------------------
+ *
+ * Days across, hours down — what a list cannot say: how long a thing runs, that
+ * a morning is free, that two things were booked for the same hour.
+ *
+ * The layout is one CSS grid — an hour gutter plus N day columns — and blocks
+ * are positioned **absolutely inside their column** as percentages of its
+ * height. Grid rows cannot express "10:15 for 95 minutes" without an hour of
+ * fake rows per day; percentages of a known height can, exactly. */
+.cal {
+  margin-top: 1.25rem;
+  --cal-hour: 3rem;
+  --cal-col-min: 7rem;
+}
+/* Scrolls sideways rather than squeezing. A fortnight of columns inside the
+   page measure would put every day below the width its times can be read at,
+   and a calendar you cannot read is worse than the list it replaced. */
+.cal__scroll {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.cal__frame {
+  display: grid;
+  grid-template-columns: 3.25rem repeat(
+      var(--cal-days),
+      minmax(var(--cal-col-min), 1fr)
+    );
+  min-width: 100%;
+  width: max-content;
+  max-width: none;
+}
+.cal__corner {
+  border-bottom: 1px solid var(--lane-line);
+}
+.cal__head {
+  padding: 0.4rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--lane-line);
+  border-left: 1px solid var(--lane-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+/* The weekday, large and first — the whole reason a calendar beats a list of
+   dates is not having to work out that the 16th is a Wednesday. */
+.cal__head-dow {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.cal__head-day {
+  font-size: 0.72rem;
+  color: var(--board-dim);
+}
+.cal__head--outside {
+  background: color-mix(in srgb, var(--board-dim) 6%, transparent);
+}
+.cal__head-gap {
+  font-size: 0.66rem;
+  color: var(--board-danger);
+}
+
+/* The all-day band. A hotel is not a thing that happens at 3pm on Tuesday, it
+   is the state you are in for four days — so it sits above the hours instead of
+   standing as a wall behind everything you actually did. */
+.cal__band-label {
+  grid-column: 1;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+  border-bottom: 1px solid var(--lane-line);
+}
+.cal__band {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(
+    var(--cal-days),
+    minmax(var(--cal-col-min), 1fr)
+  );
+  grid-template-rows: repeat(var(--cal-band-rows), auto);
+  gap: 0.2rem 0;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--lane-line);
+  border-left: 1px solid var(--lane-line);
+}
+.cal__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0 2px;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--cat-edge);
+  border-left: 3px solid var(--cat-edge);
+  border-radius: 7px;
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash),
+    var(--lane-bg)
+  );
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+.cal__bar-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Beside the title, not pushed to the far edge. A bar can span four columns,
+   and `margin-left: auto` put "3 nights · €620/person" a foot away from the
+   hotel it belongs to, reading as a label for whatever it happened to land
+   over. */
+.cal__bar-meta {
+  color: var(--board-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal__bar:hover,
+.cal__event:hover {
+  border-color: var(--board-accent);
+}
+.cal__bar:focus-visible,
+.cal__event:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+
+/* Hour gutter. The labels sit on the line they name rather than in the middle
+   of the slot below it, so an event's top edge lines up with its own hour. */
+.cal__hours {
+  grid-column: 1;
+}
+.cal__hour {
+  height: var(--cal-hour);
+  position: relative;
+}
+.cal__hour-label {
+  position: absolute;
+  top: -0.5em;
+  right: 0.4rem;
+  font-size: 0.66rem;
+  color: var(--board-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal__col {
+  position: relative;
+  border-left: 1px solid var(--lane-line);
+  min-width: 0;
+}
+.cal__col--outside {
+  background: color-mix(in srgb, var(--board-dim) 4%, transparent);
+}
+.cal__slot {
+  height: var(--cal-hour);
+  border-bottom: 1px solid color-mix(in srgb, var(--lane-line) 55%, transparent);
+}
+/* Positioned by time, sized by duration — the two things the spine could not
+   show. `left`/`width` come from the lane split, so simultaneous bookings sit
+   side by side instead of one hiding the other. */
+.cal__event {
+  position: absolute;
+  overflow: hidden;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--cat-edge);
+  border-left: 3px solid var(--cat-edge);
+  border-radius: 7px;
+  background: color-mix(
+    in srgb,
+    var(--cat-edge) var(--cat-wash-strong),
+    var(--lane-bg)
+  );
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  cursor: pointer;
+}
+.cal__event-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal__event-when {
+  color: var(--board-dim);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+/* A half-hour block has room for one line, not two. */
+.cal__event--tight {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+.cal__event--tight .cal__event-when {
+  margin-left: auto;
+}
+/* Subordinate, never absent-looking — the same treatment the spine gives a
+   proposal: legible enough to spot a clash with, quiet enough never to read as
+   the plan. */
+.cal__event--proposed,
+.cal__bar--proposed {
+  border-style: dashed;
+  background: none;
+  color: var(--board-dim);
+}
+.cal__event--clash,
+.cal__bar--clash {
+  border-color: var(--board-danger);
+}
 
 .tl__grid {
   display: grid;
