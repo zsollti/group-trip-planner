@@ -31,6 +31,32 @@ type Budget = { default: { limit: number; ttl: number } };
 const minute = 60_000;
 const hour = 60 * minute;
 
+/**
+ * A pre-auth limit, overridable by environment.
+ *
+ * **The default is the policy; the override exists for one caller.** The
+ * browser suite signs in roughly a dozen accounts inside a minute, serially,
+ * from one address — which is exactly the shape the per-IP sign-in budget is
+ * meant to refuse, and it is right to refuse it. Weakening the constant to make
+ * a test pass would trade a real brute-force control for convenience, so the
+ * number stays and the *harness* opts out (see `e2e/playwright.config.ts`).
+ *
+ * Read straight from `process.env` rather than the validated `env` module
+ * because these are consumed by decorators at class-definition time, before the
+ * Nest config module has run. Anything unparseable falls back to the policy
+ * value, so a typo cannot silently raise a limit.
+ */
+export function budget(name: string, fallback: number, ttl: number): Budget {
+  const raw = process.env[name]?.trim();
+  // Plain digits only, checked *before* converting. `Number()` is far too
+  // willing here: it reads "1e3" as 1000, so a single stray character in a
+  // deploy variable would multiply a brute-force limit by a hundred and nothing
+  // would say so. A malformed value must leave the control where the policy put
+  // it, which is the whole reason the override is safe to have.
+  const ok = raw !== undefined && /^[0-9]+$/.test(raw) && Number(raw) > 0;
+  return { default: { limit: ok ? Number(raw) : fallback, ttl } };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Pre-auth (per IP)                                                          */
 /* -------------------------------------------------------------------------- */
@@ -39,7 +65,11 @@ const hour = 60 * minute;
  * Account creation. Low, because the only legitimate reason to hit this
  * repeatedly is a typo, and each call sends mail and runs an argon2 hash.
  */
-export const REGISTER_THROTTLE: Budget = { default: { limit: 5, ttl: minute } };
+export const REGISTER_THROTTLE: Budget = budget(
+  "REGISTER_THROTTLE_LIMIT",
+  5,
+  minute,
+);
 
 /**
  * Password sign-in — the brute-force target. Kept per IP rather than per email
@@ -48,7 +78,11 @@ export const REGISTER_THROTTLE: Budget = { default: { limit: 5, ttl: minute } };
  * and the dummy-argon2 timing from Phase 0.6 only hold if the limiter stays
  * silent about identity too.
  */
-export const LOGIN_THROTTLE: Budget = { default: { limit: 10, ttl: minute } };
+export const LOGIN_THROTTLE: Budget = budget(
+  "LOGIN_THROTTLE_LIMIT",
+  10,
+  minute,
+);
 
 /**
  * Email-verification token submission. Previously governed only by the global

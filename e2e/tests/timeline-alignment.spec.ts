@@ -25,6 +25,15 @@ import { createBoard, laneNamed, signUpAndIn } from "../support/actions";
 
 test.describe.configure({ mode: "serial" });
 
+/**
+ * **Narrow on purpose.** The itinerary has two layouts sharing one core: a week
+ * grid on wide viewports and this vertical spine below 64rem. The default
+ * Desktop Chrome viewport is 1280px, which is the grid — so without this these
+ * journeys would silently start asserting about a layout that is not on screen,
+ * and the spine's own mechanic would go untested. The grid has its own spec.
+ */
+test.use({ viewport: { width: 900, height: 900 } });
+
 test.afterAll(async () => {
   await cleanupE2EData();
   await disconnect();
