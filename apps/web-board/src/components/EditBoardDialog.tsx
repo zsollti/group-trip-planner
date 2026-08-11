@@ -11,6 +11,7 @@ import {
 } from "@gtp/api-client";
 import { ImagePicker } from "./ImagePicker";
 import { Dialog } from "./Dialog";
+import { CurrencySelect } from "./CurrencySelect";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -135,12 +136,15 @@ export function EditBoardDialog({
               htmlFor="defaultCurrency"
               label="Default currency"
               error={errors.defaultCurrency?.message}
-              hint="Three-letter code, e.g. EUR."
+              hint="What prices on this board are quoted in."
             >
-              <Input
+              {/* `current` keeps a code that predates the list — or one the
+                  regex accepted from the old free-text field — as a real
+                  option. Without it the select renders blank and the next save
+                  quietly changes the trip's currency. */}
+              <CurrencySelect
                 id="defaultCurrency"
-                maxLength={3}
-                invalid={Boolean(errors.defaultCurrency)}
+                current={trip.defaultCurrency}
                 {...register("defaultCurrency")}
               />
             </Field>

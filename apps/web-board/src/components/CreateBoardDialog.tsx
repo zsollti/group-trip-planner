@@ -6,6 +6,7 @@ import { Button, Field, Input } from "@gtp/ui-primitives";
 import { CreateTripInput } from "@gtp/types";
 import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
+import { CurrencySelect } from "./CurrencySelect";
 import { dayToIso } from "../lib/dateInput";
 
 /**
@@ -106,12 +107,10 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
           htmlFor="defaultCurrency"
           label="Default currency"
           error={errors.defaultCurrency?.message}
-          hint="Three-letter code, e.g. EUR."
+          hint="What prices on this board are quoted in."
         >
-          <Input
+          <CurrencySelect
             id="defaultCurrency"
-            maxLength={3}
-            invalid={Boolean(errors.defaultCurrency)}
             {...register("defaultCurrency")}
           />
         </Field>

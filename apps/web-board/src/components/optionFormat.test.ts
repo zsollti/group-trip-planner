@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dateRangeLabel } from "./optionFormat";
+import type { OptionView } from "@gtp/types";
+import { costLabel, dateRangeLabel } from "./optionFormat";
 
 /**
  * The card's date label, at the two precisions a category can capture.
@@ -62,5 +63,44 @@ describe("dateRangeLabel", () => {
   it("labels a single date from whichever end is present", () => {
     expect(dateRangeLabel(null, noon, "day")).toBe(day(noon));
     expect(dateRangeLabel(morning, null, "day")).toBe(day(morning));
+  });
+});
+
+/**
+ * The cost label, which had no test until it started grouping its digits.
+ *
+ * Same rule as the dates above: the separator and the symbol placement are the
+ * reader's locale's business, so what is asserted is that the digits survive,
+ * that they are no longer one run, and that the cost type is named.
+ */
+describe("costLabel", () => {
+  const priced = (over: Partial<OptionView>): OptionView =>
+    ({
+      amount: 45000,
+      currency: "EUR",
+      costType: "PER_PERSON",
+      ...over,
+    }) as OptionView;
+
+  it("returns nothing for an option with no price", () => {
+    expect(costLabel(priced({ amount: null }))).toBeNull();
+  });
+
+  it("groups a long amount instead of running the digits together", () => {
+    const label = costLabel(priced({}))!;
+    expect(label).not.toContain("45000");
+    expect(label.replace(/\D/g, "")).toBe("45000");
+  });
+
+  it("names which kind of cost it is", () => {
+    expect(costLabel(priced({}))).toContain("/person");
+    expect(costLabel(priced({ costType: "TOTAL" }))).toContain("total");
+  });
+
+  it("survives a currency Intl cannot render", () => {
+    // `currencySchema` accepts any three letters, so a made-up code must not
+    // throw inside a card's render.
+    const label = costLabel(priced({ currency: "ZZZ" }))!;
+    expect(label).toContain("ZZZ");
   });
 });

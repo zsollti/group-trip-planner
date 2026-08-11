@@ -1129,6 +1129,14 @@ body {
   outline: 2px solid var(--board-accent);
   outline-offset: 1px;
 }
+/* A select standing in for a text input inside a `Field` — the currency picker.
+   `.board__select` is tuned for a toolbar sitting on the canvas; a form control
+   sits on a raised card, where the inputs beside it take `--board-bg`. Without
+   this the currency box is the one field in the dialog with a different
+   background. */
+.board__select--field {
+  background: var(--board-bg);
+}
 
 .board__invite-list {
   margin-top: 1.25rem;
