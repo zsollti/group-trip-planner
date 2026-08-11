@@ -120,6 +120,14 @@ model Trip {
   // to be retrofitted. Always null until then.
   coverImageUrl   String?
   defaultCurrency String     @default("EUR")
+  // What the group is aiming to spend each, in `defaultCurrency`. A target the
+  // totals are read against, never a constraint — nothing validates against it
+  // and no option is refused for exceeding it. It lives here, not in a lane,
+  // because a budget is not a candidate you vote between (the retired Budget
+  // category is written up in docs/decisions.md). Same precision as
+  // `Option.amount`, so a target and the figures it is compared with round the
+  // same way.
+  budgetPerPerson Decimal?   @db.Decimal(12, 2)
   // Dates are written back when a Dates-category option is locked (Phase 2);
   // until then a trip carries no dates and the created+1yr `expiresAt` fallback.
   startDate       DateTime?  @db.Date

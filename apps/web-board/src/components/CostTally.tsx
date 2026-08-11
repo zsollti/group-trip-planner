@@ -53,6 +53,10 @@ export function CostTally({ tripId }: { tripId: string }) {
         ) : (
           <TallyBody d={dash.data} />
         )}
+        {/* Outside the branch above on purpose: the tally only draws once
+            something is priced, and a target that showed nothing until then
+            would read as an edit that failed to save. */}
+        {dash.data ? <BudgetLine d={dash.data} /> : null}
       </div>
     </details>
   );
@@ -112,5 +116,50 @@ function TallyBody({ d }: { d: TripDashboardView }) {
         {d.memberCount} member{d.memberCount === 1 ? "" : "s"} · per currency
       </p>
     </>
+  );
+}
+
+/**
+ * The per-person target, and how the projection is doing against it.
+ *
+ * The whole point of the retired Budget category, put where it belongs: beside
+ * the total it is meant to bound rather than in a lane pretending to be a
+ * decision. It compares against the **projection**, not the locked total —
+ * "what will this cost us if the front-runners win" is the question a target
+ * answers, and comparing against what is already locked would only ever say
+ * "fine" until the trip was fully decided.
+ *
+ * It speaks to the trip's own currency alone. Totals are never converted
+ * (FR-27), so a trip pricing things in three currencies has three per-person
+ * figures; the line says which one it is reading rather than implying the
+ * others are covered.
+ */
+function BudgetLine({ d }: { d: TripDashboardView }) {
+  if (d.budgetPerPerson === null) return null;
+
+  const target = d.budgetPerPerson;
+  const proj = d.projected.find((p) => p.currency === d.defaultCurrency);
+  const spend = proj?.perPerson ?? 0;
+  const over = spend > target;
+  const others = d.projected.filter((p) => p.currency !== d.defaultCurrency);
+
+  return (
+    <p
+      className={"board__budget" + (over ? " board__budget--over" : "")}
+      role="status"
+    >
+      <span className="board__budget-label">Target</span>
+      <strong>{money(target, d.defaultCurrency)}</strong>
+      <span className="board__budget-per">/person</span>
+      <span className="board__budget-verdict">
+        {over
+          ? `${money(spend - target, d.defaultCurrency)} over`
+          : `${money(target - spend, d.defaultCurrency)} to spare`}
+        {/* Never silently compare across currencies. */}
+        {others.length > 0
+          ? ` · ${others.map((p) => p.currency).join(", ")} not counted`
+          : ""}
+      </span>
+    </p>
   );
 }

@@ -104,6 +104,7 @@ describe("Trips (e2e)", () => {
     assert.equal(res.body.memberCount, 1);
     assert.equal(res.body.status, "ACTIVE");
     assert.equal(res.body.defaultCurrency, "EUR");
+    assert.equal(res.body.budgetPerPerson, null, "no target unless one is set");
     assert.ok(res.body.expiresAt, "an expiry fallback is set");
 
     // It appears in the owner's trip list.
@@ -416,6 +417,51 @@ describe("Trips (e2e)", () => {
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .send({ name: "Too late", version: 0 });
     assert.equal(stale.status, 409, "optimistic-concurrency conflict");
+  });
+
+  it("carries a per-person budget through create, edit and clear", async () => {
+    const owner = await makeVerifiedUser("budgeter");
+
+    // Set at creation.
+    const created = await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Budgeted", budgetPerPerson: 850.5 })
+      .expect(201);
+    assert.equal(created.body.budgetPerPerson, 850.5);
+
+    // It reaches the cost surface, which is the only place it means anything.
+    const dash = await http()
+      .get(`/trips/${created.body.id}/dashboard`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    assert.equal(dash.body.budgetPerPerson, 850.5);
+
+    // Changed on edit.
+    const edited = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Budgeted", budgetPerPerson: 1200, version: 0 })
+      .expect(200);
+    assert.equal(edited.body.budgetPerPerson, 1200);
+
+    // Omitting it clears it — the edit endpoint is a full replace, so a target
+    // someone emptied is gone rather than quietly retained.
+    const cleared = await http()
+      .patch(`/trips/${created.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Budgeted", version: 1 })
+      .expect(200);
+    assert.equal(cleared.body.budgetPerPerson, null);
+  });
+
+  it("refuses a negative budget", async () => {
+    const owner = await makeVerifiedUser("neg-budget");
+    await http()
+      .post("/trips")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ name: "Owes money", budgetPerPerson: -10 })
+      .expect(400);
   });
 
   it("guard blocks a non-member editing/deleting (IDOR → 404)", async () => {

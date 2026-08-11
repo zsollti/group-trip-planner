@@ -532,6 +532,38 @@ body {
   margin-bottom: 0;
 }
 
+/* The per-person target under the totals it is read against. Advisory: nothing
+   is refused for exceeding it, so being over borrows the danger hue for
+   attention without the error treatment — no border, no alert role. */
+.board__budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin: 0.55rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--lane-line);
+  font-size: 0.8rem;
+}
+.board__budget-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.board__budget-per {
+  color: var(--board-dim);
+}
+.board__budget-verdict {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--board-accent);
+}
+.board__budget--over .board__budget-verdict {
+  color: var(--board-danger);
+}
+
 /* --- Crew: who is on this trip --- */
 /* Hugs its content rather than matching the cost strip's height. The rail it
    replaced held cards and wanted the room; a row of names in a box sized for
@@ -1014,11 +1046,27 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 10vh;
+  padding: 10vh 1rem 2rem;
+  /* The last resort. The card below caps itself, but a very short viewport (a
+     phone in landscape) can leave even a capped dialog taller than the space —
+     and a `position: fixed` backdrop that cannot scroll puts its buttons
+     somewhere nothing can reach. */
+  overflow-y: auto;
   z-index: 20;
 }
+/**
+ * Every dialog caps its height and scrolls inside itself.
+ *
+ * This used to be opt-in — a `--tall` modifier three dialogs asked for — which
+ * had it exactly backwards: the dialogs that break when they grow are the ones
+ * nobody thought to mark, and a form gains a field long after the decision was
+ * made. Adding one field to the create-board dialog pushed its Cancel and
+ * Create buttons off a 720px screen with no way to scroll to them.
+ */
 .board__dialog {
   width: min(26rem, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 16px;
@@ -1041,11 +1089,9 @@ body {
   margin-bottom: 0.6rem;
 }
 
-/* --- Invite dialog --- */
-.board__dialog--tall {
-  max-height: 86vh;
-  overflow-y: auto;
-}
+/* `--tall` lived here and did exactly what `.board__dialog` now does for every
+   dialog. Removed rather than left as a no-op: a modifier that changes nothing
+   still reads like a decision someone made. */
 /* Wider option form laid out in two columns so it fits without scrolling. */
 .board__dialog--wide {
   width: min(42rem, 94vw);

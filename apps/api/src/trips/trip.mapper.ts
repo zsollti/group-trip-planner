@@ -59,6 +59,10 @@ export function toTripDetail(
     destination: trip.destination,
     coverImageUrl: trip.coverImageUrl,
     defaultCurrency: trip.defaultCurrency,
+    // Prisma hands Decimal back as its own object; the wire carries a number,
+    // the same normalisation `toOptionView` does for an option's amount.
+    budgetPerPerson:
+      trip.budgetPerPerson === null ? null : Number(trip.budgetPerPerson),
     startDate: iso(trip.startDate),
     endDate: iso(trip.endDate),
     expiresAt: trip.expiresAt.toISOString(),

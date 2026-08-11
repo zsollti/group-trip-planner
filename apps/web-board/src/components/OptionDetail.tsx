@@ -14,9 +14,9 @@ import { Avatar } from "./Avatar";
 import { categoryHueStyle } from "../lib/categoryTheme";
 
 /**
- * A read-only "full card" view (Phase 3.5 feedback). Locked cards in the Decided
- * column — and any card a viewer can't edit — collapse their notes to two lines
- * on the board, so there was no way to read an option in full once it was decided.
+ * A read-only "full card" view (Phase 3.5 feedback). A card on the board clamps
+ * its notes to a single line and no longer names its proposer, so there was no
+ * way to read an option in full without being able to edit it.
  * This dialog shows every field un-clamped: which category it belongs to, the
  * decision state, dates, cost, the complete notes, the link, the proposer, and the
  * public vote tally. Purely presentational; all mutating actions still live on the

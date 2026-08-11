@@ -12,6 +12,7 @@ import {
 import { ImagePicker } from "./ImagePicker";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
+import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -31,6 +32,12 @@ export function EditBoardDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  // Outside the resolver, like the create dialog's copy: the field shows a
+  // grouped string and the contract wants a number. Seeded already grouped, so
+  // the number you set does not come back looking like a different one.
+  const [budget, setBudget] = useState(
+    trip.budgetPerPerson === null ? "" : formatAmount(trip.budgetPerPerson),
+  );
 
   async function saveCover(file: File) {
     setCoverError(null);
@@ -75,7 +82,10 @@ export function EditBoardDialog({
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
     try {
-      await updateTrip.mutateAsync(data);
+      await updateTrip.mutateAsync({
+        ...data,
+        budgetPerPerson: parseAmount(budget) ?? undefined,
+      });
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -146,6 +156,20 @@ export function EditBoardDialog({
                 id="defaultCurrency"
                 current={trip.defaultCurrency}
                 {...register("defaultCurrency")}
+              />
+            </Field>
+            <Field
+              htmlFor="budgetPerPerson"
+              label="Budget per person"
+              hint="Optional. A target to read the total against — nothing is blocked for going over. Clear it to remove the target."
+            >
+              <Input
+                id="budgetPerPerson"
+                type="text"
+                inputMode="decimal"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
               />
             </Field>
             {formError ? (
