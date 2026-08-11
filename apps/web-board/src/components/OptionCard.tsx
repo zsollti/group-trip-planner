@@ -17,6 +17,7 @@ import { VoteDots } from "./optionControls";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { categoryHueStyle } from "../lib/categoryTheme";
+import { CalendarIcon, MoneyIcon } from "./icons";
 import { truncateName } from "../lib/truncate";
 
 /**
@@ -184,7 +185,7 @@ export function OptionCard({
         ? field(
             "lane__dates" + (elsewhere ? " lane__dates--elsewhere" : ""),
             <>
-              🗓 {dates}
+              <CalendarIcon /> {dates}
               {/* Advisory, never a rejection: the dates now say *when within the
                 trip*, so an option that falls entirely outside the settled
                 range is worth pointing at — a hotel booked for the wrong month
@@ -196,7 +197,18 @@ export function OptionCard({
             </>,
           )
         : null}
-      {costLabel(option) ? field("lane__cost", costLabel(option)) : null}
+      {costLabel(option)
+        ? field(
+            "lane__cost",
+            <>
+              <MoneyIcon /> {costLabel(option)}
+            </>,
+          )
+        : null}
+      {/* One line, then an ellipsis. Notes are the one field with no length a
+          card can plan for, and two lines of them pushed the price and the
+          votes below the fold on a lane of ten. The whole text is in the detail
+          dialog, which is what this button opens for anyone who cannot edit. */}
       {option.description ? field("lane__notes", option.description) : null}
       {option.url && isHttpUrl(option.url) ? (
         <a
@@ -208,10 +220,12 @@ export function OptionCard({
           Link ↗
         </a>
       ) : null}
-      <p className="lane__by">
-        by {option.proposerName}
-        {option.materialChangedAt ? " · edited" : ""}
-      </p>
+      {/* "by Ada · edited" used to sit here. Who proposed an option is worth
+          knowing and is almost never worth *scanning*: on a lane of ten cards
+          proposed by the same three people it is a line of noise between the
+          price and the votes. It moved to the detail dialog, which already
+          named the proposer — and the edit that flags stale votes is now shown
+          where it has consequences, on the votes themselves. */}
       {locked ? (
         <p className="lane__decided">
           ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}

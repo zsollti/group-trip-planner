@@ -19,6 +19,13 @@ import { z } from "zod";
 export const OptionVoterView = z.object({
   userId: z.string().uuid(),
   displayName: z.string(),
+  /**
+   * The voter's picture, when they have set one — the same field
+   * `TripMemberView` carries, so one person looks like themselves wherever the
+   * app draws them. Null falls back to generated initials on a colour derived
+   * from `userId`, which is why the id travels with the vote.
+   */
+  avatarUrl: z.string().nullable(),
   votedAt: z.string(),
   /** True iff this vote predates the option's `materialChangedAt` (FR-23). */
   stale: z.boolean(),

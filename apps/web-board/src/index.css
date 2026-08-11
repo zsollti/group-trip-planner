@@ -662,6 +662,11 @@ body {
 
 .lane {
   flex: 0 0 15rem;
+  /* Without this the lane is 15rem *or wider*: a flex item's default
+     `min-width: auto` refuses to go below its content's min-content width, and
+     a one-line `nowrap` note has no wrap point — so a card with long notes
+     stretched its whole column and shouldered the other lanes off the board. */
+  min-width: 0;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   /* The category's colour, as the edge you scan along. On top rather than down
@@ -826,6 +831,17 @@ body {
 .lane__title {
   font-size: 0.9rem;
   margin: 0 0 0.75rem;
+}
+/* The header is icon + name + three tools in a 15rem column, and `truncateName`
+   only caps at fifteen characters — "Accommodation" is thirteen and still ran
+   under the discuss button once the category icon took its space. The name
+   gives way rather than colliding; the full value stays on `title` and on the
+   heading's `aria-label`. */
+.lane__head .lane__title,
+.lane__title-btn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lane__card {
@@ -1212,6 +1228,12 @@ body {
   font-weight: 600;
   color: var(--board-fg);
 }
+/* A glyph sits on the text baseline rather than the line box, so it reads as
+   part of the value it marks instead of floating above it. */
+.glyph {
+  flex: 0 0 auto;
+  vertical-align: -0.15em;
+}
 /* An option whose dates fall entirely outside the trip's settled range.
    Advisory, never a rejection — so this borrows the danger hue for attention
    without the error treatment (no border, no alert role): the value is still
@@ -1225,16 +1247,23 @@ body {
   font-weight: 500;
   color: var(--board-danger);
 }
+/* One line. Notes are the only field with no length a card can plan for, and at
+   two lines a lane of ten cards pushed its prices and votes below the fold. The
+   text is never lost — the whole of it is in the detail dialog, which is what
+   the card opens for anyone who cannot edit it. */
 .lane__notes {
   margin: 0;
   font-size: 0.8rem;
   color: var(--board-dim);
   line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  /* `block` is load-bearing, not tidiness: this renders as a `<span>`, and an
+     inline box ignores `overflow` and `text-overflow` outright — the note ran
+     straight across the board and over the lanes beside it. The old two-line
+     clamp got this for free from `display: -webkit-box`. */
+  display: block;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lane__lock {
   color: var(--board-accent);
@@ -1248,10 +1277,82 @@ body {
   color: var(--board-accent);
   font-size: 0.8rem;
 }
-.lane__by {
+/* --- Who voted --------------------------------------------------------------
+ *
+ * A row of identical dots could be counted and nothing else. On a board where
+ * the question is usually "has everyone weighed in yet", the useful answer is
+ * *who* — and the app already knows what each person looks like. Three faces
+ * fit a 15rem lane; the rest become a count that opens the full list, rather
+ * than a stack that shrinks until it is dots again. */
+.lane__voters {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
   margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.lane__voters:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+/* Overlapped, with a ring in the card's own background so each face reads as
+   separate from the one behind it at any tint. */
+.lane__voter {
+  display: inline-flex;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--lane-bg);
+}
+.lane__voter + .lane__voter {
+  margin-left: -0.4rem;
+}
+/* A vote cast before the option's last material change (FR-23). Faded and
+   ringed in the danger hue rather than hidden: it still counts, it just no
+   longer means what it meant. The `title` says so in words. */
+.lane__voter--stale {
+  opacity: 0.55;
+  box-shadow:
+    0 0 0 2px var(--lane-bg),
+    0 0 0 3px var(--board-danger);
+}
+.lane__voter-more {
+  margin-left: 0.35rem;
   font-size: 0.72rem;
+  font-weight: 700;
   color: var(--board-dim);
+}
+.lane__voters:hover .lane__voter-more {
+  color: var(--board-accent);
+}
+
+/* The full list, in the "+n" dialog and in the option detail. */
+.voters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.voters--inline {
+  gap: 0.35rem;
+}
+.voters__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.voters__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.voters__stale {
+  font-size: 0.72rem;
+  color: var(--board-danger);
 }
 .lane__vote {
   display: flex;
@@ -1259,24 +1360,6 @@ body {
   align-items: center;
   gap: 0.5rem;
   margin-top: 0.35rem;
-}
-.lane__dots {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.2rem;
-}
-.lane__dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background: var(--board-accent);
-  display: inline-block;
-}
-.lane__dot--stale {
-  background: transparent;
-  border: 1px solid var(--board-accent);
-  opacity: 0.6;
 }
 .lane__vote-btn {
   font: inherit;
@@ -1385,6 +1468,9 @@ body {
 .lane__field-btn {
   display: block;
   width: 100%;
+  /* Same reason as `.lane`: this is a flex child of the card, and the clamped
+     one-line note inside it must be allowed to be narrower than its text. */
+  min-width: 0;
   text-align: left;
   background: none;
   border: none;

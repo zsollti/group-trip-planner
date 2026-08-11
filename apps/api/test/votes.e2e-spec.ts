@@ -144,6 +144,12 @@ describe("Votes (e2e)", () => {
     assert.equal(afterA.body.viewerHasVoted, true);
     assert.equal(afterA.body.voters[0].displayName, "a-part");
     assert.equal(afterA.body.voters[0].stale, false);
+    // The board draws a voter as a face, so the picture travels with the vote
+    // rather than costing a lookup per voter. Null here — this account has not
+    // set one — but the field must be present, or the client falls back to
+    // generated initials for everybody who has a photo.
+    assert.equal(afterA.body.voters[0].avatarUrl, null);
+    assert.ok("avatarUrl" in afterA.body.voters[0]);
 
     await http()
       .post(`${optionsUrl(trip.id, cat)}/${optB}/votes`)

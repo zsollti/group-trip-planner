@@ -7,7 +7,9 @@ import {
   type OptionView,
 } from "@gtp/types";
 
-type VoteWithUser = Vote & { user: { displayName: string } };
+type VoteWithUser = Vote & {
+  user: { displayName: string; avatarUrl: string | null };
+};
 type OptionWithRelations = Option & {
   proposer: { displayName: string };
   lockedBy: { displayName: string } | null;
@@ -18,7 +20,12 @@ type OptionWithRelations = Option & {
 export const optionInclude = {
   proposer: { select: { displayName: true } },
   lockedBy: { select: { displayName: true } },
-  votes: { include: { user: { select: { displayName: true } } } },
+  // `avatarUrl` rides along with the name because the board draws a voter as a
+  // face rather than a dot: a second round trip per voter to fetch a picture the
+  // list is going to render anyway would be an N+1 for one nullable column.
+  votes: {
+    include: { user: { select: { displayName: true, avatarUrl: true } } },
+  },
 } as const;
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
@@ -40,6 +47,7 @@ export function toOptionView(
     return {
       userId: v.userId,
       displayName: v.user.displayName,
+      avatarUrl: v.user.avatarUrl,
       votedAt,
       stale: isVoteStale(votedAt, materialChangedAt),
     };
