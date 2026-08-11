@@ -11,12 +11,24 @@ export function Avatar({
   userId,
   url,
   size = 32,
+  title,
 }: {
   name: string;
   /** Seeds the fallback colour. Falls back to the name when absent. */
   userId?: string;
   url?: string | null;
   size?: number;
+  /**
+   * Hover text, when the caller has something more to say than the name — the
+   * vote stack appends "voted before the last change" to a stale voter.
+   *
+   * It **replaces** the tooltip rather than adding one, and it applies to the
+   * photo as well as the initials. Both matter: two nested nodes carrying the
+   * same `title` is duplicate tooltip surface, and until this existed a person
+   * who had uploaded a picture had no hover name at all — only the generated
+   * fallback did.
+   */
+  title?: string;
 }) {
   const style = { width: size, height: size, fontSize: Math.round(size / 2.4) };
 
@@ -26,6 +38,7 @@ export function Avatar({
         className="avatar avatar--image"
         style={style}
         src={url}
+        title={title ?? name}
         // The name is rendered beside the avatar everywhere it appears, so
         // announcing it again would only add noise for a screen reader.
         alt=""
@@ -44,7 +57,7 @@ export function Avatar({
         { ...style, "--avatar-hue": avatarHue(userId ?? name) } as CSSProperties
       }
       aria-hidden="true"
-      title={name}
+      title={title ?? name}
     >
       {initialsOf(name)}
     </span>

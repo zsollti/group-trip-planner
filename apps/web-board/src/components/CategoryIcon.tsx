@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { categoryIconKey, type CategoryIconKey } from "../lib/categoryTheme";
+import { Glyph } from "./icons";
 import type { CategoryBuiltinKey } from "@gtp/types";
 
 /**
@@ -73,20 +74,11 @@ export function CategoryIcon({
   className?: string;
 }) {
   return (
-    <svg
+    <Glyph
+      size={size}
       className={["cat-icon", className].filter(Boolean).join(" ")}
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
     >
       {PATHS[categoryIconKey(category)]}
-    </svg>
+    </Glyph>
   );
 }

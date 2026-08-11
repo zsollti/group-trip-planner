@@ -10,6 +10,7 @@ import {
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { Dialog } from "./Dialog";
 import { CategoryIcon } from "./CategoryIcon";
+import { Avatar } from "./Avatar";
 import { categoryHueStyle } from "../lib/categoryTheme";
 
 /**
@@ -123,10 +124,32 @@ export function OptionDetail({
           </dd>
           <dt>Votes</dt>
           <dd>
-            {option.voteCount}
-            {option.voters.length > 0
-              ? ` · ${option.voters.map((v) => v.displayName).join(", ")}`
-              : ""}
+            {option.voters.length === 0 ? (
+              option.voteCount
+            ) : (
+              /* Faces here too, and the full name beside each. This dialog is
+                 the surface that shows everything whole — it is where a
+                 truncated card sends you — so the voters are a list, not a
+                 comma-joined line that wraps into a paragraph on a long trip. */
+              <ul className="voters voters--inline">
+                {option.voters.map((v) => (
+                  <li key={v.userId} className="voters__item">
+                    <Avatar
+                      name={v.displayName}
+                      userId={v.userId}
+                      url={v.avatarUrl}
+                      size={24}
+                    />
+                    <span className="voters__name">{v.displayName}</span>
+                    {v.stale ? (
+                      <span className="voters__stale">
+                        voted before the last change
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </dd>
         </dl>
 
