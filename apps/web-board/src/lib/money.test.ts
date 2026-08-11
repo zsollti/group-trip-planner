@@ -60,12 +60,20 @@ describe("parseAmount", () => {
     expect(parseAmount("  620 ")).toBe(620);
   });
 
-  it("accepts a decimal comma whatever the locale", () => {
-    // Someone typing on a keyboard whose decimal key is a comma is not making
-    // a mistake, and a field that rejects them is being obtuse rather than
-    // precise.
-    expect(parseAmount("12,50")).toBe(12.5);
-    expect(parseAmount("12.50")).toBe(12.5);
+  it("reads a decimal written the way this locale writes one", () => {
+    // Asked of `Intl` rather than hard-coded, for the same reason the module
+    // asks: this suite runs under the machine's locale.
+    //
+    // The first version of this test claimed a decimal comma works "whatever
+    // the locale", and CI — which runs en-US — proved that impossible. There
+    // the comma is the *group* separator, so `12,50` is already `1250` before
+    // any comma-means-decimal rule could fire. Accepting an amount as a
+    // different amount is worse than refusing it.
+    const decimal =
+      new Intl.NumberFormat()
+        .formatToParts(1.5)
+        .find((p) => p.type === "decimal")?.value ?? ".";
+    expect(parseAmount(`12${decimal}50`)).toBe(12.5);
   });
 
   it("refuses what is not a number", () => {
