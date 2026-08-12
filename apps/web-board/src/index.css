@@ -1759,6 +1759,29 @@ body {
   border-radius: 999px;
   overflow: hidden;
   margin: 0.1rem 0;
+  /* Anchors the target rule. Set here rather than on a modifier so the two
+     scalings cannot drift apart geometrically. */
+  position: relative;
+}
+/* Scaled to the target: the unfilled remainder is the room still left, so it
+   carries a little more weight than the plain track behind a full bar. */
+.tally-bar--target {
+  background: color-mix(in srgb, var(--board-accent) 10%, var(--lane-line));
+}
+/* Where the target ran out, on a bar that has already passed it. Everything to
+   the right of this line is the overshoot. */
+.tally-bar__limit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  /* `left` is the target's own position; the pull-back centres the rule on it
+     instead of starting it there. */
+  margin-left: -1px;
+  background: var(--board-danger);
+  /* Keeps the rule legible where it crosses the solid accent fill, which is
+     the usual case — a trip is normally over target on money already locked. */
+  box-shadow: 0 0 0 1px var(--lane-bg);
 }
 .tally-bar__seg {
   height: 100%;

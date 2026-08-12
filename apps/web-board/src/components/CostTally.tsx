@@ -86,6 +86,21 @@ function TallyBody({ d }: { d: TripDashboardView }) {
             (c) => c.currency === proj.currency,
           );
           const committedGroup = committed?.group ?? 0;
+          // A target can only speak to the trip's own currency, because totals
+          // are never converted (FR-27) — the other bars keep scaling to
+          // themselves, and `BudgetLine` names them as not counted.
+          const target =
+            proj.currency === d.defaultCurrency ? d.budgetPerPerson : null;
+          // Drawn in the unit the target is in whenever there is one. The two
+          // are not interchangeable: an option with a fixed headcount is
+          // divided by that headcount and not by the trip's, so the per-person
+          // figures are not the group ones over `memberCount`. Scaling group
+          // money against a per-person target would put the mark somewhere the
+          // "€X over" sentence below disagrees with.
+          const [barCommitted, barProjected] =
+            target === null
+              ? [committedGroup, proj.group]
+              : [committed?.perPerson ?? 0, proj.perPerson];
           return (
             <div
               key={proj.currency}
@@ -93,7 +108,11 @@ function TallyBody({ d }: { d: TripDashboardView }) {
               aria-label={`Cost in ${proj.currency}`}
             >
               <span className="board__tally-code">{proj.currency}</span>
-              <CostBar committed={committedGroup} projected={proj.group} />
+              <CostBar
+                committed={barCommitted}
+                projected={barProjected}
+                target={target}
+              />
               <div className="board__tally-figs">
                 <span className="board__tally-fig">
                   <strong>{money(committedGroup, proj.currency)}</strong>
