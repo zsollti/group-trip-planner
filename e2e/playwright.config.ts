@@ -116,6 +116,21 @@ export default defineConfig({
         // which asserts a 429 rather than needing to avoid one.
         REGISTER_THROTTLE_LIMIT: "500",
         LOGIN_THROTTLE_LIMIT: "500",
+        // The same opt-out, for the **global floor**, which this file forgot.
+        //
+        // The floor is 100 a minute keyed on handler *and* address. Every
+        // journey here runs from one address and leans on the same few
+        // handlers — `GET …/options` most of all, since a board refetches every
+        // lane's options after each mutation. The calendar journey spends ~30 of
+        // that budget by itself, so several board journeys inside one window
+        // (more when a flaky one retries) cross it. That is what turned CI red
+        // after #104: the last reads 429'd, the page rendered "Couldn't load the
+        // trip's decisions", and a geometry assertion failed as a missing
+        // element — a rate limit wearing a layout bug's clothes.
+        //
+        // Put out of reach rather than tuned to fit today's journey count: the
+        // next spec added should not have to know this number exists.
+        THROTTLE_LIMIT: "5000",
       },
     },
     // Skipped when E2E_WEB_URL names a frontend that is already running.
