@@ -80,8 +80,24 @@ const baseEnvSchema = z.object({
   API_PUBLIC_URL: z.string().url().default("http://localhost:3000"),
 
   // --- Rate limiting (global default; auth routes tighten per-route) ---
+  //
+  // The floor is keyed on route handler *and* IP, so it is a per-endpoint
+  // backstop for everything with no budget of its own — in practice, the reads.
+  //
+  // It was 100 a minute, and the browser suite measured what one member costs:
+  // a brisk minute on a board is ~30 hits on `GET …/options` alone, because the
+  // board refetches every lane's options after each mutation. An IP key is
+  // shared by everyone behind one router, so five people planning together on
+  // the office wifi are already at the limit — a control that fires on the
+  // product working rather than on abuse. It cost us a red CI first, which is
+  // the polite version of finding out.
+  //
+  // 600 keeps a real backstop (10 a second per endpoint from one address) with
+  // room for a group to share an address. It is not what protects the expensive
+  // routes: those carry their own tighter per-user budgets, in
+  // `throttle-policy.ts`.
   THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
-  THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+  THROTTLE_LIMIT: z.coerce.number().int().positive().default(600),
 
   // --- Error reporting (Phase 7.5) ---
   // Opt-in: unset means the Sentry SDK is never initialised. These are read

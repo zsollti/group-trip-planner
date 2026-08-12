@@ -99,6 +99,38 @@ describe("loadEnv in production", () => {
   });
 });
 
+describe("the global rate-limit floor", () => {
+  /**
+   * What one member costs on the busiest endpoint in a minute of ordinary
+   * board work, measured from a browser-suite trace: ~30 hits on
+   * `GET …/options`, because the board refetches every lane's options after
+   * each mutation.
+   */
+  const BUSIEST_ENDPOINT_HITS_PER_MEMBER_MINUTE = 30;
+
+  /** A group planning together from one office or one flat, sharing an IP. */
+  const MEMBERS_BEHIND_ONE_ADDRESS = 8;
+
+  it("leaves room for a group planning from one address", () => {
+    // The floor is keyed on handler and IP, so everyone behind one router
+    // spends the same budget. At its old 100 a minute, three or four members
+    // being enthusiastic in the same window would have been refused — a limit
+    // a real group crosses by planning is a bug in the limit, not in the group.
+    // The expensive routes are held by the per-user budgets in
+    // throttle-policy.ts, so raising this floor gives no attacker a new lever.
+    const env = loadEnv({
+      DATABASE_URL: "postgresql://gtp:pw@localhost:5432/gtp_dev",
+      JWT_SECRET: "0123456789abcdef0123456789abcdef",
+    });
+    const perMinute = (env.THROTTLE_LIMIT / env.THROTTLE_TTL_SECONDS) * 60;
+    assert.ok(
+      perMinute >=
+        BUSIEST_ENDPOINT_HITS_PER_MEMBER_MINUTE * MEMBERS_BEHIND_ONE_ADDRESS,
+      `floor is ${perMinute}/min per endpoint, under ${MEMBERS_BEHIND_ONE_ADDRESS} members' worth`,
+    );
+  });
+});
+
 describe("loadEnv outside production", () => {
   it("leaves the development defaults alone", () => {
     // The same values that fail above are the documented dev defaults; the
