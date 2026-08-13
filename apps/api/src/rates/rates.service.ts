@@ -11,6 +11,12 @@ export interface StoredRates {
   readonly asOf: string;
 }
 
+/** The same snapshot plus when we last asked — internal to the refresh rules. */
+interface StoredSnapshot extends StoredRates {
+  /** Epoch ms of the last successful fetch. */
+  readonly fetchedAt: number;
+}
+
 /**
  * How long a stored snapshot is worth converting with.
  *
@@ -24,6 +30,28 @@ const MAX_AGE_DAYS = 30;
 
 /** How long the in-process copy is trusted before the table is read again. */
 const CACHE_TTL_MS = 5 * 60_000;
+
+/**
+ * The shortest gap between two calls to the feed, once we hold a usable
+ * snapshot.
+ *
+ * Without this the only brake is "we do not already have today's publication",
+ * and that is not a brake at all for most of the day: the reference rates
+ * appear around 16:00 CET on working days, so every morning — and all weekend —
+ * each hourly tick asks again for the snapshot it already has. Worse, the
+ * catch-up on boot is under the same rule, so a container restarting in a loop
+ * would hit a third party once per restart. A floor makes the frequency ours
+ * rather than a side effect of how often we happen to start.
+ *
+ * Six hours: short enough that a day's new rates are picked up the same
+ * evening, long enough that neither a quiet weekend nor a bad restart turns
+ * into traffic. Nothing depends on the delay — the figures are approximate by
+ * design and stay usable for a month.
+ *
+ * An **empty** table is exempt. A fresh deployment fetches immediately, because
+ * there is nothing to serve until it does.
+ */
+const MIN_REFETCH_MS = 6 * 60 * 60_000;
 
 /**
  * The daily exchange-rate snapshot: fetching it, storing it, and handing it out
@@ -48,7 +76,7 @@ const CACHE_TTL_MS = 5 * 60_000;
 @Injectable()
 export class RatesService implements OnModuleInit {
   private readonly logger = new Logger(RatesService.name);
-  private cache: { value: StoredRates | null; readAt: number } | null = null;
+  private cache: { value: StoredSnapshot | null; readAt: number } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -69,9 +97,9 @@ export class RatesService implements OnModuleInit {
   }
 
   /**
-   * Hourly tick, but at most one fetch a day — the schedule is frequent so a
-   * fresh deploy or a failed attempt recovers soon, while
-   * {@link refreshIfStale} is what keeps it to a daily call.
+   * Hourly tick. The tick is frequent so a fresh deploy or a failed attempt
+   * recovers soon; {@link refreshIfStale} is what decides whether the feed is
+   * actually called, and it is the thing to read for the real frequency.
    */
   @Cron(CronExpression.EVERY_HOUR)
   async handleCron(): Promise<void> {
@@ -80,12 +108,24 @@ export class RatesService implements OnModuleInit {
     });
   }
 
-  /** Fetch and store only when what we hold is not from today. */
+  /**
+   * Fetch only when it could plausibly get us something, and not too often.
+   *
+   * Two brakes, and both are needed. Already holding today's publication means
+   * nothing newer exists, so asking is pointless. Otherwise something newer
+   * *might* exist — but "might" is true from midnight until the rates appear
+   * that afternoon, and all weekend, which on an hourly tick is a lot of asking
+   * for one answer. {@link MIN_REFETCH_MS} is what turns that into a frequency
+   * we chose.
+   */
   async refreshIfStale(now: Date = new Date()): Promise<boolean> {
     if (!this.provider) return false;
     const stored = await this.read();
-    if (stored && stored.asOf === isoDay(now)) return false;
-    return this.refresh();
+    if (stored) {
+      if (stored.asOf === isoDay(now)) return false;
+      if (now.getTime() - stored.fetchedAt < MIN_REFETCH_MS) return false;
+    }
+    return this.refresh(now);
   }
 
   /**
@@ -95,7 +135,7 @@ export class RatesService implements OnModuleInit {
    * two days' rates inside a single conversion, which is a wrong number rather
    * than a stale one.
    */
-  async refresh(): Promise<boolean> {
+  async refresh(now: Date = new Date()): Promise<boolean> {
     if (!this.provider) return false;
     let snapshot;
     try {
@@ -121,12 +161,15 @@ export class RatesService implements OnModuleInit {
             code,
             perEur: snapshot.rates[code]!.toString(),
             asOf,
+            fetchedAt: now,
             source: "ecb",
           },
           update: {
             perEur: snapshot.rates[code]!.toString(),
             asOf,
-            fetchedAt: new Date(),
+            // The caller's clock, not the wall clock, so the "how long since we
+            // asked" rule can be tested without waiting six hours for it.
+            fetchedAt: now,
             source: "ecb",
           },
         }),
@@ -158,27 +201,31 @@ export class RatesService implements OnModuleInit {
   }
 
   /** Read the table, through the short-lived process cache. */
-  private async read(): Promise<StoredRates | null> {
+  private async read(): Promise<StoredSnapshot | null> {
     const now = Date.now();
     if (this.cache && now - this.cache.readAt < CACHE_TTL_MS) {
       return this.cache.value;
     }
     const rows = await this.prisma.exchangeRate.findMany();
-    const value: StoredRates | null =
+    const value: StoredSnapshot | null =
       rows.length === 0
         ? null
         : {
             rates: Object.fromEntries(
               rows.map((r) => [r.code, Number(r.perEur)]),
             ),
-            // Every row of a snapshot carries the same date; a partially
-            // applied write is impossible (one transaction), so the newest is
-            // the snapshot's.
+            // Every row of a snapshot carries the same date and time; a
+            // partially applied write is impossible (one transaction), so the
+            // newest of each is the snapshot's.
             asOf: isoDay(
               rows.reduce(
                 (max, r) => (r.asOf > max ? r.asOf : max),
                 rows[0]!.asOf,
               ),
+            ),
+            fetchedAt: rows.reduce(
+              (max, r) => Math.max(max, r.fetchedAt.getTime()),
+              0,
             ),
           };
     this.cache = { value, readAt: now };

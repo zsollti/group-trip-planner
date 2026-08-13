@@ -37,11 +37,25 @@ describe("Exchange rates (e2e)", () => {
     rates: { HUF: 400, USD: 1.1 },
   };
 
+  /**
+   * How many times the feed was actually asked.
+   *
+   * Counted rather than inferred from the return value, because they are not
+   * the same question: `refresh` reports a failed fetch as `false` on purpose,
+   * which is the identical answer to "I decided not to fetch". A test that
+   * asserted only on `false` would pass whether the call was skipped or made
+   * and rejected — and this suite shipped exactly that mistake once, caught by
+   * deleting the rule and watching every case still pass.
+   */
+  let calls = 0;
+
   const stubProvider: RatesProvider = {
-    fetchLatest: () =>
-      nextSnapshot instanceof Error
+    fetchLatest: () => {
+      calls += 1;
+      return nextSnapshot instanceof Error
         ? Promise.reject(nextSnapshot)
-        : Promise.resolve(nextSnapshot),
+        : Promise.resolve(nextSnapshot);
+    },
   };
 
   before(async () => {
@@ -63,6 +77,7 @@ describe("Exchange rates (e2e)", () => {
     // every case from a known empty table rather than from boot's leftovers.
     await prisma.exchangeRate.deleteMany();
     clearCache();
+    calls = 0;
     nextSnapshot = { asOf: "2026-08-12", rates: { HUF: 400, USD: 1.1 } };
   });
 
@@ -131,14 +146,15 @@ describe("Exchange rates (e2e)", () => {
     assert.equal(current?.asOf, "2026-08-13");
   });
 
-  it("fetches at most once a day, however often the tick fires", async () => {
+  it("does not ask again once it holds the day's publication", async () => {
     const now = new Date("2026-08-12T09:00:00Z");
     assert.equal(await rates.refreshIfStale(now), true);
 
     clearCache();
-    // Same day, already stored: the hourly tick must not spend a call on it.
-    nextSnapshot = new Error("must not be called");
+    // Nothing newer can exist today, so the hourly tick must not spend a call.
+    const before = calls;
     assert.equal(await rates.refreshIfStale(now), false);
+    assert.equal(calls, before, "the feed must not have been asked");
 
     // Next day, it should go.
     clearCache();
@@ -147,6 +163,51 @@ describe("Exchange rates (e2e)", () => {
       await rates.refreshIfStale(new Date("2026-08-13T09:00:00Z")),
       true,
     );
+  });
+
+  it("keeps a floor between calls while the day's rates are not out yet", async () => {
+    // The case the `asOf` check cannot cover, and it is most of every day: we
+    // asked at 02:00 and the feed answered with *yesterday's* date, because
+    // today's are not published until the afternoon. "Do we already have
+    // today's?" now says no on every tick until then — and says no all weekend.
+    // Without a floor the hourly tick, and every container restart, would ask
+    // again for the snapshot already in hand.
+    await rates.refresh(new Date("2026-08-13T02:00:00Z")); // answered 08-12
+    clearCache();
+    const before = calls;
+
+    for (const hour of ["03", "05", "07"]) {
+      assert.equal(
+        await rates.refreshIfStale(new Date(`2026-08-13T${hour}:00:00Z`)),
+        false,
+      );
+      clearCache();
+    }
+    assert.equal(calls, before, "the feed must not have been asked again");
+  });
+
+  it("asks again once the floor has passed", async () => {
+    await rates.refresh(new Date("2026-08-13T02:00:00Z"));
+    clearCache();
+    const before = calls;
+
+    // Seven hours on: it might be published by now, so it is worth one call.
+    nextSnapshot = { asOf: "2026-08-13", rates: { HUF: 410 } };
+    assert.equal(
+      await rates.refreshIfStale(new Date("2026-08-13T09:00:00Z")),
+      true,
+    );
+    assert.equal(calls, before + 1);
+  });
+
+  it("fetches straight away when it holds nothing at all", async () => {
+    // A fresh deployment has an empty table and nothing to serve, so the floor
+    // must not apply to it — a restart loop is throttled, a first boot is not.
+    assert.equal(
+      await rates.refreshIfStale(new Date("2026-08-12T09:00:00Z")),
+      true,
+    );
+    assert.equal(calls, 1);
   });
 
   it("stops offering a conversion once the rates are too old to mean anything", async () => {
