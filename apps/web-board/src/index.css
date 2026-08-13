@@ -532,6 +532,28 @@ body {
   margin-bottom: 0;
 }
 
+/* The rough all-in total. Sits between the exact per-currency figures and the
+   target, because it is derived from the first and read against the second.
+   Deliberately quieter than the figures above it: it is the approximate one. */
+.board__approx {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+}
+.board__approx-per,
+.board__approx-note {
+  color: var(--board-dim);
+}
+.board__approx-note {
+  /* Pushed to its own line on a narrow strip rather than crowding the figure —
+     the provenance matters, but not as much as the number does. */
+  flex-basis: 100%;
+  font-size: 0.72rem;
+}
+
 /* The per-person target under the totals it is read against. Advisory: nothing
    is refused for exceeding it, so being over borrows the danger hue for
    attention without the error treatment — no border, no alert role. */

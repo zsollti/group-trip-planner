@@ -1,5 +1,7 @@
 import type { Option } from "@prisma/client";
 import {
+  convertSubtotals,
+  type ConvertedCost,
   type CostDashboard,
   type CostEngineOption,
   type CostType,
@@ -8,6 +10,7 @@ import {
   type OptionStatus,
   type TripDashboardView,
 } from "@gtp/types";
+import type { StoredRates } from "../rates/rates.service.js";
 
 /**
  * The Prisma include that hydrates everything the dashboard needs in **one**
@@ -60,6 +63,8 @@ export function toTripDashboardView(
   rows: readonly DashboardOptionRow[],
   result: CostDashboard,
   generatedAt: Date,
+  /** The day's rates, or null when there are none worth converting with. */
+  rates: StoredRates | null = null,
 ): TripDashboardView {
   const rowById = new Map(rows.map((r) => [r.id, r]));
   const costById = new Map(result.options.map((c) => [c.optionId, c]));
@@ -109,6 +114,52 @@ export function toTripDashboardView(
     projected: result.projected.map((s) => ({ ...s })),
     lines,
     hasStaleHeadcount: result.hasStaleHeadcount,
+    converted: convertedCost(trip.defaultCurrency, result, rates),
     generatedAt: generatedAt.toISOString(),
+  };
+}
+
+/**
+ * The same money, roughly, in the trip's own currency — or null.
+ *
+ * Added beside the exact per-currency subtotals, never instead of them: FR-27's
+ * promise is that no *exact* total mixes currencies, and this is explicitly not
+ * an exact total. It is null whenever it cannot be offered honestly — no rates
+ * stored, rates too old to trust, or nothing published for the currency the
+ * trip thinks in — and the surfaces fall back to the per-currency view, which
+ * has never been wrong.
+ *
+ * A trip priced entirely in its own currency still gets one. The figures are
+ * then identical to the subtotal, and that is the point: the surface does not
+ * have to decide whether a conversion "counts", and `missing` stays empty.
+ */
+function convertedCost(
+  defaultCurrency: string,
+  result: CostDashboard,
+  rates: StoredRates | null,
+): ConvertedCost | null {
+  if (!rates) return null;
+  const committed = convertSubtotals(
+    result.committed,
+    defaultCurrency,
+    rates.rates,
+  );
+  const projected = convertSubtotals(
+    result.projected,
+    defaultCurrency,
+    rates.rates,
+  );
+  if (!committed || !projected) return null;
+
+  return {
+    currency: defaultCurrency,
+    committed: { group: committed.group, perPerson: committed.perPerson },
+    projected: { group: projected.group, perPerson: projected.perPerson },
+    asOf: rates.asOf,
+    // The projection is the superset — it is the committed options plus the
+    // front-runners — so its currency lists are the ones that describe the
+    // whole picture.
+    converted: [...projected.converted],
+    missing: [...projected.missing],
   };
 }

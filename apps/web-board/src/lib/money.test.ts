@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatAmount,
+  formatApproxMoney,
   formatMoney,
   parseAmount,
   regroupAmountInput,
@@ -29,6 +30,35 @@ describe("formatAmount", () => {
   it("shows cents only when there are any", () => {
     expect(formatAmount(620)).toBe("620");
     expect(formatAmount(37.5).replace(/\D/g, "")).toBe("375");
+  });
+});
+
+describe("formatApproxMoney", () => {
+  it("marks the figure as approximate and drops the cents", () => {
+    const formatted = formatApproxMoney(1239.87, "EUR");
+    expect(formatted.startsWith("≈")).toBe(true);
+    expect(formatted.replace(/\D/g, "")).toBe("1240");
+  });
+
+  it("is the locale's own currency formatting, not a bare number", () => {
+    // Asserted against `Intl` rather than a literal, because how a currency is
+    // written is the locale's business: en-US gives "€1,240" and hu-HU gives
+    // "1240 EUR", and both are right. A literal expectation here would pass on
+    // one machine and fail on CI — the mistake this file's header exists to
+    // prevent, and one this suite has actually shipped before.
+    const reference = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(1240);
+    expect(formatApproxMoney(1240, "EUR")).toBe(`≈ ${reference}`);
+  });
+
+  it("falls back to the bare code for a currency Intl does not know", () => {
+    const formatted = formatApproxMoney(1200, "ZZZ");
+    expect(formatted).toContain("ZZZ");
+    expect(formatted.replace(/\D/g, "")).toBe("1200");
   });
 });
 

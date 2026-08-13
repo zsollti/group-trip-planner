@@ -4,7 +4,10 @@ import { CostBar } from "./CostBar";
 // The strip's private formatter moved to `lib/money` when the option cards
 // needed the same thing. One definition, so a total and the cards it is the sum
 // of cannot disagree about how money is written.
-import { formatMoney as money } from "../lib/money";
+import {
+  formatApproxMoney as approx,
+  formatMoney as money,
+} from "../lib/money";
 
 /** A one-line collapsed peek: the first currency's locked → projected total. */
 function peek(d: TripDashboardView): string {
@@ -62,7 +65,25 @@ export function CostTally({ tripId }: { tripId: string }) {
   );
 }
 
+/**
+ * The approximate all-in total, when it says something the exact figures don't.
+ *
+ * Null for a trip priced entirely in its own currency: the conversion would
+ * restate a number already on screen. It is also the switch that decides **who
+ * speaks for the target** — see `BudgetLine`.
+ */
+function allInTotal(d: TripDashboardView): TripDashboardView["converted"] {
+  const c = d.converted;
+  if (!c) return null;
+  return d.projected.some((p) => p.currency !== c.currency) ? c : null;
+}
+
 function TallyBody({ d }: { d: TripDashboardView }) {
+  // One target, one place. Once there is an all-in figure, the target belongs
+  // to *it* — scaling a single currency's bar against a budget that now spans
+  // several would say "you have used a third of your budget on hotels" while
+  // quietly leaving the forints out of the picture.
+  const perCurrencyTarget = allInTotal(d) === null ? d.budgetPerPerson : null;
   return (
     <>
       {d.hasStaleHeadcount ? (
@@ -90,7 +111,7 @@ function TallyBody({ d }: { d: TripDashboardView }) {
           // are never converted (FR-27) — the other bars keep scaling to
           // themselves, and `BudgetLine` names them as not counted.
           const target =
-            proj.currency === d.defaultCurrency ? d.budgetPerPerson : null;
+            proj.currency === d.defaultCurrency ? perCurrencyTarget : null;
           // Drawn in the unit the target is in whenever there is one. The two
           // are not interchangeable: an option with a fixed headcount is
           // divided by that headcount and not by the trip's, so the per-person
@@ -131,11 +152,59 @@ function TallyBody({ d }: { d: TripDashboardView }) {
           );
         })}
       </div>
+      <ApproxTotal d={d} />
       <p className="board__tally-foot">
         {d.memberCount} member{d.memberCount === 1 ? "" : "s"} · per currency
       </p>
     </>
   );
+}
+
+/**
+ * The same money, roughly, in one currency (post-launch).
+ *
+ * The per-currency figures above are exact and stay the point; this answers the
+ * question they cannot — "so what does the whole thing come to?" — and is
+ * marked as an approximation everywhere it appears: the `≈`, whole units with
+ * no cents, and the date of the rates it used. A reader who wants a real number
+ * has three of them a line above.
+ *
+ * **Shown only when it says something new.** A trip priced entirely in its own
+ * currency would get an approximation of a figure already on screen, exactly
+ * equal to it, which is noise at best and faintly insulting at worst.
+ */
+function ApproxTotal({ d }: { d: TripDashboardView }) {
+  const c = allInTotal(d);
+  if (!c) return null;
+
+  return (
+    <p className="board__approx">
+      <strong>{approx(c.projected.group, c.currency)}</strong>
+      <span className="board__approx-per">
+        {approx(c.projected.perPerson, c.currency)}/person
+      </span>
+      <span className="board__approx-note">
+        rates of {rateDay(c.asOf)}
+        {c.missing.length > 0 ? ` · ${c.missing.join(", ")} not converted` : ""}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * The rates' publication date, in the reader's locale.
+ *
+ * `asOf` is a **calendar day**, not an instant — the same class of value as a
+ * trip's start date, and it has the same trap: read with local getters, "12
+ * August" is 11 August across the Americas. Formatted in UTC, which is the zone
+ * the day was named in.
+ */
+function rateDay(asOf: string): string {
+  return new Date(`${asOf}T00:00:00.000Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
 }
 
 /**
@@ -157,10 +226,32 @@ function BudgetLine({ d }: { d: TripDashboardView }) {
   if (d.budgetPerPerson === null) return null;
 
   const target = d.budgetPerPerson;
-  const proj = d.projected.find((p) => p.currency === d.defaultCurrency);
-  const spend = proj?.perPerson ?? 0;
+  const allIn = allInTotal(d);
+
+  // With an all-in figure the target finally means what a reader always took it
+  // to mean: the whole trip, not the part of it that happened to be priced in
+  // the trip's own currency. The verdict then inherits the approximation and
+  // says so — an "≈" on a judgement is worth more than on a number, because
+  // this is the line someone acts on.
+  const spend = allIn
+    ? allIn.projected.perPerson
+    : (d.projected.find((p) => p.currency === d.defaultCurrency)?.perPerson ??
+      0);
   const over = spend > target;
-  const others = d.projected.filter((p) => p.currency !== d.defaultCurrency);
+  const gap = over ? spend - target : target - spend;
+  const verdict = `${
+    allIn ? approx(gap, d.defaultCurrency) : money(gap, d.defaultCurrency)
+  } ${over ? "over" : "to spare"}`;
+
+  // What this verdict does not cover — but only when nothing else is saying it.
+  // With an all-in figure the line above already names what had no rate, and
+  // printing the same sentence twice, one line apart, reads as two different
+  // problems.
+  const uncounted = allIn
+    ? []
+    : d.projected
+        .filter((p) => p.currency !== d.defaultCurrency)
+        .map((p) => p.currency);
 
   return (
     <p
@@ -171,13 +262,9 @@ function BudgetLine({ d }: { d: TripDashboardView }) {
       <strong>{money(target, d.defaultCurrency)}</strong>
       <span className="board__budget-per">/person</span>
       <span className="board__budget-verdict">
-        {over
-          ? `${money(spend - target, d.defaultCurrency)} over`
-          : `${money(target - spend, d.defaultCurrency)} to spare`}
+        {verdict}
         {/* Never silently compare across currencies. */}
-        {others.length > 0
-          ? ` · ${others.map((p) => p.currency).join(", ")} not counted`
-          : ""}
+        {uncounted.length > 0 ? ` · ${uncounted.join(", ")} not counted` : ""}
       </span>
     </p>
   );
