@@ -660,3 +660,29 @@ model EmailVerificationToken {
   @@index([userId])
   @@map("email_verification_tokens")
 }
+
+/// Daily exchange-rate snapshot (post-launch), one row per currency.
+///
+/// Quoted as "units per one EUR" because that is how the reference source
+/// publishes them; a trip converts into its own currency by crossing two rows,
+/// so EUR is a pivot here and not a privileged destination.
+///
+/// Deliberately **not** a history table. The app offers one approximation of
+/// what a trip roughly costs today; it does not reprice the past, and stored
+/// option amounts are never touched by a refresh. Each refresh upserts in
+/// place, and a failed refresh leaves the last good row exactly where it was.
+model ExchangeRate {
+  /// ISO 4217 code, e.g. "HUF". The pivot itself is not stored — it is 1.
+  code      String   @id
+  /// How many of this currency one EUR buys. Wide scale: a rate can be ~0.0000x.
+  perEur    Decimal  @db.Decimal(20, 10)
+  /// The source's own publication date — NOT when we fetched it. Rates publish
+  /// on working days only, so a Sunday fetch carries Friday's date, and saying
+  /// otherwise would claim a freshness that does not exist.
+  asOf      DateTime @db.Date
+  fetchedAt DateTime @default(now())
+  /// Which feed it came from, so a wrong number can be traced to its origin.
+  source    String
+
+  @@map("exchange_rates")
+}

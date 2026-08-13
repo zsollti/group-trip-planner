@@ -108,6 +108,7 @@ Optional but wanted in a real deployment:
 | `GOOGLE_CLIENT_ID`     | _(OAuth client id)_                         | All **three** are needed, or `GET /auth/google` 404s and the button is off.  |
 | `GOOGLE_CLIENT_SECRET` | _(OAuth client secret)_                     |                                                                              |
 | `GOOGLE_CALLBACK_URL`  | `https://<api domain>/auth/google/callback` | Must match the Google console entry **byte for byte**.                       |
+| `EXCHANGE_RATES_URL`   | `https://api.frankfurter.app/latest?from=EUR` | Turns on the approximate all-in total. **Unset = no fetching at all**: the rate table stays empty, every dashboard reports `converted: null`, and the cost strip is the per-currency one it has always been. No API key; ECB reference rates, ~30 currencies. |
 
 ### `web-board`
 

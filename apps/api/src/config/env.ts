@@ -99,6 +99,16 @@ const baseEnvSchema = z.object({
   THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(600),
 
+  // --- Approximate currency conversion (post-launch) ---
+  // The daily reference-rate feed. **Optional, and off when unset**: with no
+  // URL nothing is fetched, the rate table stays empty and every dashboard
+  // reports `converted: null`, which is the app exactly as it was before
+  // conversion existed. That is also what keeps the whole test suite offline —
+  // no test sets this, so no test can reach a third-party feed.
+  // The deployed value is https://api.frankfurter.app/latest?from=EUR (ECB
+  // reference rates, no API key); see DEPLOY.md.
+  EXCHANGE_RATES_URL: z.string().url().optional(),
+
   // --- Error reporting (Phase 7.5) ---
   // Opt-in: unset means the Sentry SDK is never initialised. These are read
   // straight from process.env by observability/instrument.ts, which has to run
