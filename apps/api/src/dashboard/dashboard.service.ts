@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { computeCostDashboard, type TripDashboardView } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { RatesService } from "../rates/rates.service.js";
 import type { TripContext } from "../trips/trip-context.js";
 import {
   dashboardOptionInclude,
@@ -23,14 +24,23 @@ import {
  */
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rates: RatesService,
+  ) {}
 
   async getTripDashboard(ctx: TripContext): Promise<TripDashboardView> {
-    const rows = await this.prisma.option.findMany({
-      where: { deletedAt: null, category: { tripId: ctx.trip.id } },
-      include: dashboardOptionInclude,
-      orderBy: { createdAt: "asc" },
-    });
+    // Two independent reads, so they overlap rather than queue. The rates one
+    // is usually served from the service's own short-lived cache and costs
+    // nothing; when it does hit the table it is thirty unchanging rows.
+    const [rows, rates] = await Promise.all([
+      this.prisma.option.findMany({
+        where: { deletedAt: null, category: { tripId: ctx.trip.id } },
+        include: dashboardOptionInclude,
+        orderBy: { createdAt: "asc" },
+      }),
+      this.rates.current(),
+    ]);
 
     const memberCount = ctx.trip._count.memberships;
     const membershipChangedAt = ctx.trip.membershipChangedAt
@@ -43,6 +53,13 @@ export class DashboardService {
       membershipChangedAt,
     );
 
-    return toTripDashboardView(ctx.trip, memberCount, rows, result, new Date());
+    return toTripDashboardView(
+      ctx.trip,
+      memberCount,
+      rows,
+      result,
+      new Date(),
+      rates,
+    );
   }
 }

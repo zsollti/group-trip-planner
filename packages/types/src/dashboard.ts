@@ -49,6 +49,38 @@ export const DashboardLine = z.object({
 export type DashboardLine = z.infer<typeof DashboardLine>;
 
 /**
+ * One approximate total, in the trip's own currency (post-launch).
+ *
+ * **Strictly additional.** The per-currency subtotals above it are unchanged and
+ * remain the exact figures; this is the "roughly, altogether" answer that a
+ * multi-currency trip could not previously be given at all, and it is offered
+ * beside them, never in place of them. FR-27's guarantee — that no *exact* total
+ * silently mixes currencies — is intact.
+ *
+ * Every field here exists so a UI can be honest about it:
+ *
+ * - `asOf` is the **reference source's own publication date**, not when we
+ *   fetched it. Rates publish on working days, so a Sunday refresh returns
+ *   Friday's; showing the fetch time would claim a freshness that is not there.
+ * - `missing` names the currencies with no published rate, which were therefore
+ *   left out of the total. A trip priced in Serbian dinar must be told that,
+ *   not handed a total that merely looks complete.
+ */
+export const ConvertedCost = z.object({
+  /** The currency the figures below are in — the trip's default. */
+  currency: z.string(),
+  committed: DashboardSubtotal.omit({ currency: true }),
+  projected: DashboardSubtotal.omit({ currency: true }),
+  /** Publication date of the rates used (ISO date, not a fetch timestamp). */
+  asOf: z.string(),
+  /** Currencies folded into the totals. */
+  converted: z.array(z.string()),
+  /** Currencies with no known rate, left out of the totals. */
+  missing: z.array(z.string()),
+});
+export type ConvertedCost = z.infer<typeof ConvertedCost>;
+
+/**
  * The whole per-trip cost picture. `committed` is exact (locked decisions);
  * `projected` adds each open category's front-runner. `lines` breaks both down
  * per option so a UI can show what makes up each currency subtotal.
@@ -79,6 +111,13 @@ export const TripDashboardView = z.object({
   projected: z.array(DashboardSubtotal),
   lines: z.array(DashboardLine),
   hasStaleHeadcount: z.boolean(),
+  /**
+   * The same money, roughly, in one currency — or `null` when it cannot be
+   * offered: no rates stored yet, or nothing published for this trip's own
+   * currency. Null is the designed failure mode, and it degrades to exactly the
+   * per-currency app that existed before conversion did.
+   */
+  converted: ConvertedCost.nullable(),
   /** When the server computed this snapshot (ISO). */
   generatedAt: z.string(),
 });

@@ -26,8 +26,26 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     projected: [],
     lines: [],
     hasStaleHeadcount: false,
+    converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
+  };
+}
+
+/** An approximate all-in total, as the server would send it. */
+function convertedTo(
+  currency: string,
+  group: number,
+  perPerson: number,
+  missing: string[] = [],
+): TripDashboardView["converted"] {
+  return {
+    currency,
+    committed: { group: 0, perPerson: 0 },
+    projected: { group, perPerson },
+    asOf: "2026-08-12",
+    converted: [currency],
+    missing,
   };
 }
 
@@ -50,6 +68,58 @@ const priced = (perPerson: number, currency = "EUR") => ({
   currency,
   group: perPerson * 4,
   perPerson,
+});
+
+describe("CostTally approximate total", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("answers what the whole thing comes to across currencies", async () => {
+    renderTally(
+      dashboard({
+        projected: [priced(500), priced(90000, "HUF")],
+        converted: convertedTo("EUR", 2725, 725),
+      }),
+    );
+    // Two figures — the group total and the per-person one — each marked as an
+    // approximation, plus the provenance of the rates that produced them.
+    const figures = await screen.findAllByText(/≈/);
+    expect(figures).toHaveLength(2);
+    expect(screen.getByText(/rates of/)).toBeInTheDocument();
+    // Rounded to whole units: cents would claim a precision a daily rate has
+    // not got. (How the currency itself is written is the locale's business,
+    // so that is asserted in the formatter's own suite, not here.)
+    expect(figures[0]!.textContent).not.toMatch(/\d[.,]\d{2}\b/);
+  });
+
+  it("says nothing when every price is already in the trip's currency", async () => {
+    // The approximation would equal a figure one line above it, exactly.
+    renderTally(
+      dashboard({
+        projected: [priced(500)],
+        converted: convertedTo("EUR", 2000, 500),
+      }),
+    );
+    await screen.findByText(/per currency/);
+    expect(screen.queryByText(/≈/)).toBeNull();
+  });
+
+  it("names what it could not convert rather than looking complete", async () => {
+    renderTally(
+      dashboard({
+        projected: [priced(500), priced(60000, "RSD")],
+        converted: convertedTo("EUR", 2000, 500, ["RSD"]),
+      }),
+    );
+    expect(await screen.findByText(/RSD not converted/)).toBeInTheDocument();
+  });
+
+  it("shows nothing at all when the server sent no conversion", async () => {
+    // No rates stored, or none for this trip's currency: the app is exactly
+    // the per-currency one it was before conversion existed.
+    renderTally(dashboard({ projected: [priced(500), priced(90000, "HUF")] }));
+    await screen.findByText(/per currency/);
+    expect(screen.queryByText(/≈/)).toBeNull();
+  });
 });
 
 describe("CostTally budget line", () => {
@@ -86,6 +156,70 @@ describe("CostTally budget line", () => {
       }),
     );
     expect(await screen.findByText(/over/)).toBeInTheDocument();
+  });
+
+  it("reads the whole trip once there is an all-in figure", async () => {
+    // The target's whole point is "what will this trip cost me", and before
+    // conversion it could only answer for one currency's worth of that. The
+    // verdict is approximate now, and marked so — it is the line someone acts
+    // on, which is exactly why it must not overstate what it knows.
+    renderTally(
+      dashboard({
+        budgetPerPerson: 800,
+        projected: [priced(300), priced(60000, "HUF")],
+        converted: convertedTo("EUR", 1860, 465),
+      }),
+    );
+    const verdict = await screen.findByText(/to spare/);
+    expect(verdict.textContent).toContain("≈");
+    // 800 − 465, not 800 − 300: the forints are in the picture now.
+    expect(verdict.textContent?.replace(/\D/g, "")).toContain("335");
+    expect(screen.queryByText(/HUF not counted/)).toBeNull();
+  });
+
+  it("says what no rate could reach exactly once", async () => {
+    // The caveat belongs to the conversion, which the line above describes.
+    // Repeating it in the verdict one line down reads as two problems.
+    renderTally(
+      dashboard({
+        budgetPerPerson: 800,
+        projected: [priced(300), priced(60000, "RSD")],
+        converted: convertedTo("EUR", 1200, 300, ["RSD"]),
+      }),
+    );
+    const notes = await screen.findAllByText(/RSD not converted/);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toHaveClass("board__approx-note");
+  });
+
+  it("hands the target to the all-in figure, not to one currency's bar", async () => {
+    // Scaling the EUR bar against a budget that now spans three currencies
+    // would report "a third of the budget spent" while the forints sat
+    // invisibly outside the bar. One target, one place.
+    const { container } = renderTally(
+      dashboard({
+        budgetPerPerson: 800,
+        projected: [priced(300), priced(60000, "HUF")],
+        converted: convertedTo("EUR", 1860, 465),
+      }),
+    );
+    await screen.findByText(/to spare/);
+    expect(container.querySelector(".tally-bar--target")).toBeNull();
+    expect(container.querySelector(".tally-bar__limit")).toBeNull();
+  });
+
+  it("keeps the target on the bar for a single-currency trip", async () => {
+    // Nothing changes for the ordinary trip: no conversion is shown, so the
+    // bar goes on answering for the target exactly as it did.
+    const { container } = renderTally(
+      dashboard({
+        budgetPerPerson: 800,
+        projected: [priced(500)],
+        converted: convertedTo("EUR", 2000, 500),
+      }),
+    );
+    await screen.findByText(/to spare/);
+    expect(container.querySelector(".tally-bar--target")).not.toBeNull();
   });
 
   it("names the currencies it is not counting", async () => {

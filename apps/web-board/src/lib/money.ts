@@ -34,6 +34,38 @@ export function formatMoney(amount: number, currency: string): string {
   }
 }
 
+/**
+ * An **approximate** amount — "≈ €1,240", never "≈ €1,239.87".
+ *
+ * Rounded to whole units on purpose. Cents on a converted figure claim a
+ * precision the rate does not have: it comes from one daily snapshot and is
+ * offered as roughly-what-this-costs, so writing it to the penny would dress a
+ * guess as a measurement. The exact per-currency figures are on the same screen
+ * for anyone who needs one.
+ *
+ * The `≈` is not decoration either — it is the only thing distinguishing this
+ * from the exact totals beside it.
+ */
+export function formatApproxMoney(amount: number, currency: string): string {
+  try {
+    return `≈ ${new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      // Both bounds stated, like `formatMoney` above. A currency carries its
+      // own default minimum — two for the euro — and giving only a maximum
+      // leaves `Intl` to clamp that default down to meet it. It does, but
+      // silently relying on that is how someone later adds a minimum and gets
+      // a `RangeError` instead of a rounded figure.
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)}`;
+  } catch {
+    return `≈ ${new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 0,
+    }).format(amount)} ${currency}`;
+  }
+}
+
 /** A bare grouped number, for a field that names its currency separately. */
 export function formatAmount(amount: number): string {
   return new Intl.NumberFormat(undefined, {
