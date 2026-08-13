@@ -5,6 +5,7 @@ import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { GlobalThrottlerGuard } from "./common/per-user-throttle.js";
 import { sentryEnabled } from "./observability/instrument.js";
 import { ScheduleModule } from "@nestjs/schedule";
+import { RatesModule } from "./rates/rates.module.js";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { ConfigModule, ENV } from "./config/config.module.js";
@@ -71,6 +72,7 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     AccountModule,
     CategoriesModule,
     OptionsModule,
+    RatesModule,
     DashboardModule,
     LifecycleModule,
     ChatModule,
