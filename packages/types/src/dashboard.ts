@@ -31,6 +31,30 @@ export type DashboardSubtotal = z.infer<typeof DashboardSubtotal>;
 export const DashboardLineKind = z.enum(["LOCKED", "FRONT_RUNNER"]);
 export type DashboardLineKind = z.infer<typeof DashboardLineKind>;
 
+/**
+ * One line's money restated in the trip's own currency (post-launch).
+ *
+ * The aggregate {@link ConvertedCost} can only answer "what is the whole thing,
+ * roughly?". A surface that breaks the total down — a composition chart, say —
+ * needs each *part* in one shared unit, and it cannot get there from the
+ * aggregate: the payload carries no rate table, and putting one on the wire
+ * would move the conversion arithmetic into every client that reads it, where
+ * the rounding could drift from the server's.
+ *
+ * So the server converts each line once, here. `null` means this particular
+ * line could not be converted — no rates stored at all, or none published for
+ * its currency — and a caller must then leave it out and say so, exactly as
+ * {@link ConvertedCost.missing} requires of the totals.
+ *
+ * Approximate by construction, like every converted figure: the exact money is
+ * `group`/`perPerson` in `currency` above, and those never change.
+ */
+export const ConvertedLine = z.object({
+  group: z.number(),
+  perPerson: z.number(),
+});
+export type ConvertedLine = z.infer<typeof ConvertedLine>;
+
 /** One option's contribution to the totals, with the figures that explain it. */
 export const DashboardLine = z.object({
   optionId: z.string().uuid(),
@@ -45,6 +69,13 @@ export const DashboardLine = z.object({
   effectiveHeadcount: z.number().int().nonnegative(),
   /** True iff a fixed headcount predates the trip's last membership change. */
   headcountStale: z.boolean(),
+  /**
+   * This line's money in the trip's `defaultCurrency`, or null when no rate
+   * could reach it. Always present for a line already in that currency, where
+   * it is the same figures — a caller should not have to special-case the
+   * currency the trip thinks in.
+   */
+  converted: ConvertedLine.nullable(),
 });
 export type DashboardLine = z.infer<typeof DashboardLine>;
 
