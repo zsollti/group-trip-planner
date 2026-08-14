@@ -12,6 +12,24 @@
  */
 
 /**
+ * Group from **four digits up**, everywhere, in whatever way the reader's
+ * locale groups.
+ *
+ * `Intl`'s default is `"auto"`, which defers to the locale's
+ * `minimumGroupingDigits` — and a good half of Europe, Hungarian included, sets
+ * that to two, meaning `5000` is written bare and only `45 000` gets a
+ * separator. That is correct for prose and wrong for a column of prices, where
+ * the whole reason to group is that the eye should not have to count digits;
+ * `5000` beside `45 000` is exactly the comparison that gets misread.
+ *
+ * Stated once and shared, because the moment the field that *takes* an amount
+ * disagrees with the card that *shows* it, one of them looks broken — and the
+ * field is the one people would blame, since it appears to ungroup a number as
+ * they leave it.
+ */
+const GROUPING = { useGrouping: "always" } as const;
+
+/**
  * A currency amount with its symbol, grouped — "€620", "45 000 Ft", "$1,299.50".
  *
  * Cents appear only when the amount has them. A trip's prices are mostly round
@@ -24,6 +42,7 @@
 export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, {
+      ...GROUPING,
       style: "currency",
       currency,
       minimumFractionDigits: 0,
@@ -49,6 +68,7 @@ export function formatMoney(amount: number, currency: string): string {
 export function formatApproxMoney(amount: number, currency: string): string {
   try {
     return `≈ ${new Intl.NumberFormat(undefined, {
+      ...GROUPING,
       style: "currency",
       currency,
       // Both bounds stated, like `formatMoney` above. A currency carries its
@@ -61,6 +81,7 @@ export function formatApproxMoney(amount: number, currency: string): string {
     }).format(amount)}`;
   } catch {
     return `≈ ${new Intl.NumberFormat(undefined, {
+      ...GROUPING,
       maximumFractionDigits: 0,
     }).format(amount)} ${currency}`;
   }
@@ -69,6 +90,7 @@ export function formatApproxMoney(amount: number, currency: string): string {
 /** A bare grouped number, for a field that names its currency separately. */
 export function formatAmount(amount: number): string {
   return new Intl.NumberFormat(undefined, {
+    ...GROUPING,
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -127,15 +149,108 @@ export function parseAmount(input: string): number | null {
 }
 
 /**
- * Regroup what is in an amount field — for `onBlur`, never on keystroke.
+ * Regroup what is in an amount field, on blur.
  *
- * Grouping as you type fights the caret: inserting a separator to the left of
- * the cursor moves it, and every fix for that is a bigger source of bugs than
- * the problem. On blur the person is done with the field, so there is no caret
- * to fight. Anything unparseable is handed back untouched rather than blanked —
- * losing what someone typed is worse than showing it ungrouped.
+ * Anything unparseable is handed back untouched rather than blanked — losing
+ * what someone typed is worse than showing it ungrouped. Still worth keeping
+ * alongside {@link regroupWhileTyping}: that one preserves the fraction exactly
+ * as typed, so `12.50` stays `12.50` mid-edit, and blur is where a finished
+ * value gets its canonical form.
  */
 export function regroupAmountInput(input: string): string {
   const n = parseAmount(input);
   return n === null ? input : formatAmount(n);
+}
+
+/** An amount field's contents and where the caret sits in them. */
+export interface AmountFieldState {
+  readonly value: string;
+  readonly caret: number;
+}
+
+/**
+ * Regroup an amount **on every keystroke** — `500` becomes `5 000` as the
+ * fourth digit lands, not later.
+ *
+ * This used to be a blur-only job, on the reasoning that grouping while typing
+ * fights the caret: a separator inserted to the left of the cursor pushes the
+ * cursor, and the field reads as if it were typing back at you. That reasoning
+ * was right about the failure and wrong about the fix. **The caret's position
+ * is not a character offset, it is a digit offset** — someone typing the fourth
+ * digit of `5000` is after their fourth digit, and stays after their fourth
+ * digit whether or not the field has since put a space at position one. Count
+ * the digits to the left, reformat, then find that many digits into the result,
+ * and the separators can appear and disappear underneath a caret that never
+ * moves.
+ *
+ * Two things are deliberately preserved rather than normalised:
+ *
+ * - **The fraction, exactly as typed.** Grouping only ever touches the integer
+ *   part, so a half-typed `12.` keeps its point and `12.50` keeps its trailing
+ *   zero — both of which a parse-and-reformat round trip eats, which is what
+ *   makes decimals impossible to type into a field that reformats itself.
+ * - **Anything it cannot read.** Same rule as blur: hand it back untouched. A
+ *   field that erases a typo is worse than one that shows it.
+ */
+export function regroupWhileTyping(
+  input: string,
+  caret: number,
+): AmountFieldState {
+  const { group, decimal } = separators();
+
+  // The digits, the point and the sign — the characters that *mean* something.
+  // Everything else in the field is presentation this function owns and is
+  // free to move, which is exactly why the caret is counted against these.
+  const meaningful = (s: string) =>
+    [...s].filter((c) => /\d/.test(c) || c === decimal || c === "-").length;
+  const unchanged = { value: input, caret };
+
+  // Looser than `parseAmount` on purpose: this runs on a half-typed value, so
+  // it has to accept "12." and "-" as work in progress while still refusing
+  // anything that is not on its way to being a number.
+  const bare = input.split(group).join("").replace(/\s/g, "");
+  const parts = bare.split(decimal);
+  if (parts.length > 2) return unchanged;
+  const [whole = "", fraction] = parts;
+  if (fraction !== undefined && !/^\d*$/.test(fraction)) return unchanged;
+  const negative = whole.startsWith("-");
+  const digits = negative ? whole.slice(1) : whole;
+  if (!/^\d*$/.test(digits)) return unchanged;
+
+  // `Intl` does the grouping, because *where* the separators fall is as local
+  // as which character they are — not every locale groups in threes. BigInt so
+  // a pasted twenty-digit number gets regrouped instead of rounded off into
+  // scientific notation.
+  let grouped = digits;
+  if (digits !== "") {
+    try {
+      grouped = new Intl.NumberFormat(undefined, {
+        ...GROUPING,
+        maximumFractionDigits: 0,
+      }).format(BigInt(digits));
+    } catch {
+      return unchanged;
+    }
+  }
+
+  const value =
+    (negative ? "-" : "") +
+    grouped +
+    (fraction === undefined ? "" : decimal + fraction);
+  if (value === input) return unchanged;
+
+  // Walk the new text until as many meaningful characters have gone by as sat
+  // to the left of the caret in the old.
+  const target = meaningful(input.slice(0, caret));
+  let seen = 0;
+  let next = value.length;
+  for (let i = 0; i < value.length; i += 1) {
+    if (seen === target) {
+      next = i;
+      break;
+    }
+    const c = value[i] as string;
+    if (/\d/.test(c) || c === decimal || c === "-") seen += 1;
+  }
+  return { value, caret: next };
 }

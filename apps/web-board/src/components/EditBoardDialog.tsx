@@ -13,6 +13,7 @@ import { ImagePicker } from "./ImagePicker";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
+import { onAmountInput } from "../lib/amountField";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -168,7 +169,7 @@ export function EditBoardDialog({
                 type="text"
                 inputMode="decimal"
                 value={budget}
-                onChange={(e) => setBudget(e.target.value)}
+                onChange={(e) => onAmountInput(e, setBudget)}
                 onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
               />
             </Field>
