@@ -4,7 +4,7 @@ import {
   canManageOption,
   categoryOptionFields,
   isHttpUrl,
-  isOutsideTripDates,
+  showsOutsideDatesHint,
   type CategoryView,
   type OptionView,
   type TripDateRange,
@@ -87,7 +87,7 @@ export function OptionCard({
     option.endsAt,
     categoryOptionFields(category).dateGranularity,
   );
-  const elsewhere = isOutsideTripDates(option, tripDates);
+  const elsewhere = showsOutsideDatesHint(option, tripDates, category);
 
   async function doLock() {
     setActionError(null);

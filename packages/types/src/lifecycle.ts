@@ -1,3 +1,4 @@
+import type { CategoryBuiltinKey } from "./categories.js";
 import type { TripStatus } from "./trips.js";
 
 /**
@@ -159,6 +160,47 @@ const OUTSIDE_SLACK_MS = DAY_MS;
  * direction to be wrong in, per the paragraph above.
  */
 export function isOutsideTripDates(
+  option: {
+    readonly startsAt: string | null;
+    readonly endsAt: string | null;
+  },
+  range: TripDateRange | null,
+): boolean {
+  return outsideRange(option, range);
+}
+
+/**
+ * Should a surface *tell the reader* this option falls outside the trip?
+ *
+ * Everywhere but the Dates lane this is just {@link isOutsideTripDates}. Inside
+ * it the question is circular and the answer is worthless: a Dates option **is
+ * a proposed range**, and locking one writes it to `Trip.startDate`/`endDate`
+ * (FR-8). So from the moment a group settles its dates, every rival proposal is
+ * measured against the winner and told it belongs to a different trip — which
+ * is not news, is true by construction, and is loudest at exactly the moment
+ * the lane still matters (someone reconsidering the dates has to read past a
+ * warning on every alternative).
+ *
+ * The geometry is unchanged and still correct; it is the sentence that has no
+ * meaning here. Kept as its own rule rather than folded into the predicate
+ * above, because the timeline's "elsewhere" tray genuinely wants the raw
+ * question — it never sees a Dates option anyway, since that category *is* its
+ * axis.
+ */
+export function showsOutsideDatesHint(
+  option: {
+    readonly startsAt: string | null;
+    readonly endsAt: string | null;
+  },
+  range: TripDateRange | null,
+  category: { readonly builtinKey: CategoryBuiltinKey | null },
+): boolean {
+  if (category.builtinKey === "DATES") return false;
+  return outsideRange(option, range);
+}
+
+/** The shared geometry behind both readings above. */
+function outsideRange(
   option: {
     readonly startsAt: string | null;
     readonly endsAt: string | null;
