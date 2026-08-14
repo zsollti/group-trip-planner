@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { TripDashboardView } from "@gtp/types";
+import type {
+  CategoryView,
+  DashboardLine,
+  TripDashboardView,
+} from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { CostTally } from "./CostTally";
 
@@ -53,19 +57,67 @@ function convertedTo(
   };
 }
 
-function renderTally(d: TripDashboardView) {
+/**
+ * A lane, as the board knows it. The charts need each category's palette, which
+ * the cost lines — being about money — do not carry.
+ */
+function category(over: Partial<CategoryView> = {}): CategoryView {
+  return {
+    id: "cat-stay",
+    name: "Stay",
+    singleChoice: true,
+    isBuiltin: true,
+    builtinKey: "ACCOMMODATION",
+    paletteKey: null,
+    position: 0,
+    version: 1,
+    ...over,
+  };
+}
+
+function renderTally(
+  d: TripDashboardView,
+  categories: readonly CategoryView[] = [],
+) {
+  // Routed by URL rather than answering everything with the dashboard: the
+  // strip fetches its lanes too now, and handing those the cost payload would
+  // fail in a way that says nothing about the test.
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify(d), { status: 200, headers: JSON_HEADERS }),
-    ),
+    vi.fn(async (url: string | URL) => {
+      const body = String(url).includes("/categories") ? categories : d;
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: JSON_HEADERS,
+      });
+    }),
   );
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <CostTally tripId="t1" />
     </QueryClientProvider>,
   );
+}
+
+let lineSeq = 0;
+/** One locked, priced option, as the cost payload reports it. */
+function locked(over: Partial<DashboardLine> = {}): DashboardLine {
+  lineSeq += 1;
+  const perPerson = over.perPerson ?? 100;
+  return {
+    optionId: `opt-${lineSeq}`,
+    categoryId: "cat-stay",
+    categoryName: "Stay",
+    title: `Option ${lineSeq}`,
+    kind: "LOCKED",
+    currency: "EUR",
+    group: perPerson * 4,
+    perPerson,
+    effectiveHeadcount: 4,
+    headcountStale: false,
+    converted: null,
+    ...over,
+  };
 }
 
 const priced = (perPerson: number, currency = "EUR") => ({
@@ -254,5 +306,178 @@ describe("CostTally", () => {
     expect(
       await screen.findByText(/headcount out of date/),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * Where the money went — the question the strip could not previously answer at
+ * all, in either of its two drawings.
+ *
+ * The chart itself is `aria-hidden` decoration; what these assert is the part
+ * that must survive without it. Both forms are drawn from one model, so the
+ * tests that matter are about the model reaching the screen intact and about
+ * the surface refusing to draw what it cannot stand behind.
+ */
+describe("the cost composition", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    // The chart choice is persisted per browser, so it outlives a render and
+    // would otherwise leak from whichever test last switched to the bar.
+    window.localStorage.clear();
+  });
+
+  const LANES = [
+    category({ id: "cat-stay", name: "Stay", builtinKey: "ACCOMMODATION" }),
+    category({ id: "cat-go", name: "Transport", builtinKey: "TRANSPORT" }),
+    category({ id: "cat-do", name: "Activities", builtinKey: "ACTIVITIES" }),
+  ];
+
+  /** The owner's worked example: 100 all in, split 50 / 25 / 15, 10 spare. */
+  const worked = () =>
+    dashboard({
+      committed: [priced(90)],
+      lines: [
+        locked({ categoryId: "cat-stay", categoryName: "Stay", perPerson: 50 }),
+        locked({
+          categoryId: "cat-go",
+          categoryName: "Transport",
+          perPerson: 25,
+        }),
+        locked({
+          categoryId: "cat-do",
+          categoryName: "Activities",
+          perPerson: 5,
+        }),
+        locked({
+          categoryId: "cat-do",
+          categoryName: "Activities",
+          perPerson: 10,
+        }),
+      ],
+      budgetPerPerson: 100,
+    });
+
+  it("gives every lane a share, summing a lane's options into one", async () => {
+    renderTally(worked(), LANES);
+    // Activities is two locked options, 5 + 10, and reads as one 15% wedge.
+    const activities = await screen.findByText("Activities");
+    const row = activities.closest(".cost-comp__row");
+    expect(row?.querySelector(".cost-comp__share")?.textContent).toBe("15%");
+    expect(
+      row?.querySelector(".cost-comp__amount")?.textContent,
+    ).toContain("15");
+  });
+
+  it("names every lane in text, so the colours are never the only channel", async () => {
+    // Two of the board's eight palettes are hard to separate as adjacent
+    // wedges. This list is what keeps that cosmetic.
+    renderTally(worked(), LANES);
+    for (const name of ["Stay", "Transport", "Activities"]) {
+      expect(await screen.findByText(name)).toBeInTheDocument();
+    }
+  });
+
+  it("paints each wedge in its own lane's hue, not in its rank's", async () => {
+    const { container } = renderTally(worked(), LANES);
+    await screen.findByText("Stay");
+    const hues = [...container.querySelectorAll(".cost-donut__wedge")].map((w) =>
+      (w as SVGElement).style.getPropertyValue("--cat-hue"),
+    );
+    // Accommodation is amber (25) and leads on size; transport is sky (200).
+    expect(hues[0]).toBe("25");
+    expect(hues).toContain("200");
+  });
+
+  it("swaps the drawing without touching the figures", async () => {
+    const { container } = renderTally(worked(), LANES);
+    await screen.findByText("Stay");
+    expect(container.querySelector(".cost-donut")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Bar" }));
+    expect(container.querySelector(".cost-donut")).toBeNull();
+    expect(container.querySelectorAll(".tally-bar__seg--cat")).toHaveLength(3);
+    // The legend is the same list either way — it is the model, not the chart.
+    expect(screen.getByText("Activities")).toBeInTheDocument();
+  });
+
+  it("marks where the budget ran out and says how far past it", async () => {
+    const { container } = renderTally(
+      dashboard({
+        committed: [priced(150)],
+        lines: [locked({ perPerson: 150 })],
+        budgetPerPerson: 100,
+      }),
+      LANES,
+    );
+    // Without the mark, fifty over and five thousand over are the same full
+    // circle — the failure that retired the previous chart.
+    expect(await screen.findByText(/over target/)).toBeInTheDocument();
+    expect(screen.getByText(/50% above it/)).toBeInTheDocument();
+    expect(container.querySelector(".cost-donut__limit")).not.toBeNull();
+  });
+
+  it("draws no notch while the target still has headroom", async () => {
+    const { container } = renderTally(worked(), LANES);
+    await screen.findByText("Stay");
+    expect(container.querySelector(".cost-donut__limit")).toBeNull();
+    expect(container.querySelector(".cost-donut__headroom")).not.toBeNull();
+  });
+
+  it("names an option priced for part of the group instead of drawing it", async () => {
+    renderTally(
+      dashboard({
+        memberCount: 5,
+        committed: [priced(60)],
+        lines: [
+          locked({ perPerson: 50, effectiveHeadcount: 5 }),
+          locked({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            title: "Airport taxi",
+            perPerson: 10,
+            effectiveHeadcount: 3,
+          }),
+        ],
+      }),
+      LANES,
+    );
+    // Ten euros three of five owe cannot join a per-person total everyone is
+    // measured by — so it is stated rather than folded in.
+    expect(await screen.findByText("Airport taxi")).toBeInTheDocument();
+    expect(screen.getByText(/for 3 members/)).toBeInTheDocument();
+    expect(screen.queryByText("Transport")).toBeNull();
+  });
+
+  it("says nothing at all when no locked money is shared by the group", async () => {
+    const { container } = renderTally(
+      dashboard({
+        memberCount: 5,
+        committed: [priced(10)],
+        lines: [locked({ perPerson: 10, effectiveHeadcount: 2 })],
+      }),
+      LANES,
+    );
+    await screen.findByText(/per person/);
+    expect(container.querySelector(".cost-comp")).toBeNull();
+  });
+
+  it("names a currency it could not convert rather than dropping it", async () => {
+    renderTally(
+      dashboard({
+        committed: [priced(50), priced(3000, "RSD")],
+        lines: [
+          locked({ perPerson: 50 }),
+          locked({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            currency: "RSD",
+            perPerson: 3000,
+            converted: null,
+          }),
+        ],
+      }),
+      LANES,
+    );
+    expect(await screen.findByText(/RSD not counted/)).toBeInTheDocument();
   });
 });

@@ -231,8 +231,9 @@ describe("web-board auth flow", () => {
           return json({
             committed: [],
             projected: [],
-            headcount: 1,
-            staleHeadcount: false,
+            lines: [],
+            memberCount: 1,
+            hasStaleHeadcount: false,
           });
         if (u.includes("/trips/t1")) {
           return json({
