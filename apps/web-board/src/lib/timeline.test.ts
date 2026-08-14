@@ -29,6 +29,7 @@ function cat(id: string, over: Partial<CategoryView> = {}): CategoryView {
     singleChoice: false,
     isBuiltin: false,
     builtinKey: null,
+    paletteKey: null,
     position: 0,
     version: 0,
     ...over,

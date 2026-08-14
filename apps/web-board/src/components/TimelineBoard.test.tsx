@@ -19,6 +19,7 @@ const stay: CategoryView = {
   singleChoice: false,
   isBuiltin: true,
   builtinKey: "ACCOMMODATION",
+  paletteKey: null,
   position: 1,
   version: 0,
 };
@@ -27,6 +28,7 @@ const doing: CategoryView = {
   id: "c-do",
   name: "Activities",
   builtinKey: "ACTIVITIES",
+  paletteKey: null,
 };
 
 function option(over: Partial<OptionView>): OptionView {

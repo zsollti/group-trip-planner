@@ -103,6 +103,24 @@ enum CategoryBuiltinKey {
   BUDGET
 }
 
+/// Which of the board's colour palettes a category wears (post-launch).
+///
+/// A key, never a colour: the hues and the light/dark treatment of each are the
+/// front-end's business, so retuning a palette is a stylesheet edit rather than
+/// a data migration. Null means "the default this category has always had",
+/// which the board derives from `builtinKey` or the id - so the column is empty
+/// for every category nobody has repainted, and that is the normal state.
+enum CategoryPalette {
+  AMBER
+  GOLD
+  LIME
+  JADE
+  SKY
+  INDIGO
+  VIOLET
+  ROSE
+}
+
 /// A trip's chat channel kind (Phase 4.1, FR-29). `GENERAL` is auto-created with
 /// the trip; `CATEGORY` channels are created on demand (Phase 4.5) and cascade
 /// when their category is deleted.
@@ -179,6 +197,10 @@ model Category {
   // key below preserves their identity for date write-back (Phase 2.5).
   isBuiltin    Boolean             @default(false)
   builtinKey   CategoryBuiltinKey?
+  // The palette an organizer chose for this lane, or null for the derived
+  // default. Shared state on purpose: a colour picked by one member is what the
+  // whole trip sees, because the lane's colour is how everyone recognises it.
+  paletteKey   CategoryPalette?
   position     Int
   // Optimistic-concurrency token. Rename uses it for the "changed since you
   // opened it — reload" path; the Phase-2.4 single-choice lock guards on it to

@@ -16,6 +16,7 @@ const category: CategoryView = {
   singleChoice: true,
   isBuiltin: true,
   builtinKey: "ACCOMMODATION",
+  paletteKey: null,
   position: 0,
   version: 0,
 };

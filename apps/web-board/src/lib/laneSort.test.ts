@@ -15,6 +15,7 @@ function cat(id: string, position: number): CategoryView {
     singleChoice: false,
     isBuiltin: false,
     builtinKey: null,
+    paletteKey: null,
     position,
     version: 0,
   };

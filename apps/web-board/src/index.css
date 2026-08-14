@@ -725,7 +725,8 @@ body {
 .tl__card,
 .tl__span,
 .cal__event,
-.cal__bar {
+.cal__bar,
+.palette__swatch {
   --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
   --cat-main: hsl(var(--cat-hue) var(--cat-sat) var(--cat-main-l));
   --cat-locked: hsl(var(--cat-hue) var(--cat-locked-sat) var(--cat-locked-l));
@@ -1133,6 +1134,105 @@ body {
   justify-content: flex-end;
   gap: 0.6rem;
   margin-top: 0.5rem;
+}
+/* A line of plain explanation under a dialog's heading, before its controls. */
+.board__dialog-note {
+  margin: 0 0 0.9rem;
+  font-size: 0.82rem;
+  color: var(--board-dim);
+}
+
+/* --- Palette picker ---------------------------------------------------------
+ *
+ * Eight swatches, each showing all three of its palette's colours in the order
+ * and rough proportion the lane uses them: the edge, then a decision's fill,
+ * then a candidate's. One blob per palette would have answered "which hue",
+ * which is the part already visible on the board — what cannot be seen before
+ * choosing is how the three tiers read together, and that is what a palette is.
+ */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.55rem;
+}
+.palette__swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 2px solid var(--lane-line);
+  border-radius: 12px;
+  background: var(--lane-bg);
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.palette__swatch:hover {
+  border-color: var(--cat-main);
+}
+.palette__swatch:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+/* The chosen one is marked by the app's accent and a tick, not by the palette's
+   own colour — a border in the category's hue on a swatch made of that hue says
+   nothing, and colour alone would be the only carrier of the state. */
+.palette__swatch--on {
+  border-color: var(--board-accent);
+}
+.palette__swatch--on .palette__name::after {
+  content: " ✓";
+  color: var(--board-accent);
+}
+.palette__swatch:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+/* Framed, and with no gaps between the bands. The candidate tier is a very
+   pale colour on a very pale card — correct, and exactly how it looks on the
+   board — but at preview scale it disappeared into the swatch entirely, so the
+   third of the three tiers was missing from the thing whose whole job is to
+   show all three. A hairline gives each band its extent back. */
+.palette__bars {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lane-line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.palette__bar {
+  display: block;
+  height: 0.6rem;
+}
+.palette__bar--main {
+  height: 0.85rem;
+  background: var(--cat-main);
+}
+.palette__bar--locked {
+  background: var(--cat-locked);
+}
+.palette__bar--proposed {
+  background: var(--cat-proposed);
+}
+.palette__name {
+  text-align: left;
+}
+.palette__reset {
+  margin-top: 0.9rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--board-accent);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.palette__reset:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 /* A confirmation step: the question stacks above its buttons rather than
    sitting in the row with them. (Used by the crew dialog; the rule was missing

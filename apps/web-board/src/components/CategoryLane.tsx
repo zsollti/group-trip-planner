@@ -6,6 +6,7 @@ import {
   canBeMultiSelect,
   canDeleteCategory,
   CATEGORY_NAME_MAX_LENGTH,
+  type CategoryPaletteKey,
   type CategoryView,
   type OptionView,
   type TripDateRange,
@@ -31,6 +32,7 @@ import { OptionCard } from "./OptionCard";
 import { CategoryIcon } from "./CategoryIcon";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { Menu, type MenuItem } from "./Menu";
+import { PalettePicker } from "./PalettePicker";
 
 /**
  * One proposed option card, made sortable within its lane (Phase 3.5). The drag
@@ -133,15 +135,20 @@ function LaneHeader({
 }) {
   const update = useUpdateCategory(tripId);
   const [editing, setEditing] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(category.name);
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Write the category, keeping whichever field this edit isn't changing.
+   * Write the category, keeping whichever fields this edit isn't changing.
    *
    * The endpoint is a full replace, so a rename has to carry the current
-   * selection mode and vice versa — otherwise renaming a lane would quietly
-   * reset how it decides.
+   * selection mode and colour and vice versa — otherwise renaming a lane would
+   * quietly reset how it decides, or repaint it.
+   *
+   * `paletteKey` is why the shape is `{ ... } | undefined` per field rather than
+   * a partial spread of the category: null is a *value* here (put this lane back
+   * to its own colour), so "absent" and "null" cannot be the same thing.
    *
    * The 409 is two different things and they need different words: a version
    * clash is "someone else got there first", while a refused selection-mode
@@ -149,13 +156,21 @@ function LaneHeader({
    * options). Only the first is fixed by reloading, so the server's own message
    * is shown whenever it has one to give.
    */
-  async function save(next: { name?: string; singleChoice?: boolean }) {
+  async function save(next: {
+    name?: string;
+    singleChoice?: boolean;
+    paletteKey?: CategoryPaletteKey | null;
+  }) {
     setError(null);
     try {
       await update.mutateAsync({
         categoryId: category.id,
         name: next.name ?? category.name,
         singleChoice: next.singleChoice ?? category.singleChoice,
+        paletteKey:
+          "paletteKey" in next
+            ? (next.paletteKey ?? null)
+            : category.paletteKey,
         version: category.version,
       });
       return true;
@@ -180,7 +195,11 @@ function LaneHeader({
   }
 
   // Built once so the "⋯" can be dropped entirely when it would be empty.
-  const laneMenuItems: MenuItem[] = [];
+  // Colour leads: it is the only item here that every lane has, Dates included
+  // — which is also what gives that lane a "⋯" for the first time.
+  const laneMenuItems: MenuItem[] = [
+    { label: "Change colour", onSelect: () => setPicking(true) },
+  ];
   if (canBeMultiSelect(category)) {
     laneMenuItems.push({
       label: category.singleChoice
@@ -267,11 +286,13 @@ function LaneHeader({
             💬
           </button>
           {grip}
-          {/* Dates gets neither item: it is the trip's only date-setting path
-              and cannot be recreated once gone (canDeleteCategory), and it holds
-              one date range so it cannot go multi-select (canBeMultiSelect).
-              With nothing to offer, the whole "⋯" goes rather than showing a
-              menu of things that would be refused. */}
+          {/* Dates still gets neither of the other two items: it is the trip's
+              only date-setting path and cannot be recreated once gone
+              (canDeleteCategory), and it holds one date range so it cannot go
+              multi-select (canBeMultiSelect). It used to have no "⋯" at all for
+              that reason — a menu of things that would be refused is worse than
+              no menu — and has one now only because its colour is as changeable
+              as any other lane's. */}
           {isOrganizer && laneMenuItems.length > 0 ? (
             <Menu
               label={`${category.name} lane actions`}
@@ -284,6 +305,21 @@ function LaneHeader({
         <p className="board__form-error" role="alert">
           {error}
         </p>
+      ) : null}
+      {picking ? (
+        <PalettePicker
+          category={category}
+          busy={update.isPending}
+          error={error}
+          onPick={async (paletteKey) => {
+            // Closed only on success: a refused write (a stale version, most
+            // likely) keeps the dialog open and shows the reason inside it,
+            // rather than dismissing itself as though it had worked and
+            // leaving the explanation behind the backdrop.
+            if (await save({ paletteKey })) setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
       ) : null}
     </>
   );

@@ -45,6 +45,7 @@ function category(n: number, name: string): CategoryView {
     singleChoice: false,
     isBuiltin: false,
     builtinKey: null,
+    paletteKey: null,
     position: n,
     version: 0,
   };
