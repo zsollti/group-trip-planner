@@ -5,6 +5,8 @@ import {
   formatMoney,
   parseAmount,
   regroupAmountInput,
+  regroupWhileTyping,
+  type AmountFieldState,
 } from "./money";
 
 /**
@@ -27,6 +29,18 @@ describe("formatAmount", () => {
     expect(formatAmount(620)).toBe("620");
   });
 
+  it("groups from four digits, whatever the locale would rather do", () => {
+    // `Intl`'s default defers to the locale's `minimumGroupingDigits`, and much
+    // of Europe — Hungarian included, which is this box's locale — sets it to
+    // two, so a bare `5000` comes back. In a column of prices that is the
+    // number most likely to be misread, and it would leave the amount field
+    // appearing to ungroup a figure the moment you left it.
+    expect(formatAmount(5000)).not.toBe("5000");
+    expect(formatAmount(5000).replace(/\D/g, "")).toBe("5000");
+    expect(formatMoney(5000, "EUR").replace(/\D/g, "")).toBe("5000");
+    expect(formatMoney(5000, "EUR")).not.toContain("5000");
+  });
+
   it("shows cents only when there are any", () => {
     expect(formatAmount(620)).toBe("620");
     expect(formatAmount(37.5).replace(/\D/g, "")).toBe("375");
@@ -45,8 +59,13 @@ describe("formatApproxMoney", () => {
     // written is the locale's business: en-US gives "€1,240" and hu-HU gives
     // "1240 EUR", and both are right. A literal expectation here would pass on
     // one machine and fail on CI — the mistake this file's header exists to
-    // prevent, and one this suite has actually shipped before.
+    // prevent, and one this suite has actually shipped before. The one thing
+    // the reference does *not* borrow from the locale is when to start
+    // grouping — this module overrides that deliberately (see `GROUPING`), so
+    // the reference has to state the same override or it is testing `Intl`'s
+    // preference rather than this module's.
     const reference = new Intl.NumberFormat(undefined, {
+      useGrouping: "always",
       style: "currency",
       currency: "EUR",
       minimumFractionDigits: 0,
@@ -130,5 +149,107 @@ describe("regroupAmountInput", () => {
     // Losing what someone typed is worse than showing it ungrouped.
     expect(regroupAmountInput("not a number")).toBe("not a number");
     expect(regroupAmountInput("")).toBe("");
+  });
+});
+
+describe("regroupWhileTyping", () => {
+  /** The reader's decimal point, asked of `Intl` — never assumed to be ".". */
+  const decimal =
+    new Intl.NumberFormat(undefined)
+      .formatToParts(1.5)
+      .find((p) => p.type === "decimal")?.value ?? ".";
+
+  const EMPTY: AmountFieldState = { value: "", caret: 0 };
+
+  /** One keystroke: insert at the caret, then let the field regroup itself. */
+  function press(state: AmountFieldState, char: string): AmountFieldState {
+    const raw =
+      state.value.slice(0, state.caret) + char + state.value.slice(state.caret);
+    return regroupWhileTyping(raw, state.caret + char.length);
+  }
+
+  /** Backspace: drop the character before the caret, then regroup. */
+  function backspace(state: AmountFieldState): AmountFieldState {
+    const raw =
+      state.value.slice(0, state.caret - 1) + state.value.slice(state.caret);
+    return regroupWhileTyping(raw, state.caret - 1);
+  }
+
+  const type = (keys: string) => [...keys].reduce(press, EMPTY);
+  const digits = (s: string) => s.replace(/\D/g, "");
+  /** Where the caret really is: how many digits sit to its left. */
+  const digitsBeforeCaret = (s: AmountFieldState) =>
+    digits(s.value.slice(0, s.caret)).length;
+
+  it("groups on the keystroke that makes the number long enough", () => {
+    // The ask: 500 stays 500, and the fourth digit turns it into 5 000 there
+    // and then — not on blur.
+    expect(type("500").value).toBe("500");
+    const fourth = type("5000");
+    expect(fourth.value).not.toBe("5000");
+    expect(digits(fourth.value)).toBe("5000");
+  });
+
+  it("leaves the caret after the digit that was just typed", () => {
+    // The reason this was blur-only before. A separator appearing to the left
+    // of the cursor must not carry the cursor with it: the caret's home is a
+    // digit offset, not a character offset.
+    let state = EMPTY;
+    for (const [i, key] of [..."1234567"].entries()) {
+      state = press(state, key);
+      expect(digitsBeforeCaret(state)).toBe(i + 1);
+    }
+    expect(digits(state.value)).toBe("1234567");
+  });
+
+  it("holds the caret still when typing into the middle of a number", () => {
+    // Insert a digit at the front of an already-grouped number: the grouping
+    // shifts by one place under a caret that must stay put.
+    const grouped = type("5000");
+    const edited = press({ value: grouped.value, caret: 1 }, "1");
+    expect(digits(edited.value)).toBe("51000");
+    expect(digitsBeforeCaret(edited)).toBe(2);
+  });
+
+  it("survives a backspace over a separator", () => {
+    // The separator is not the typist's character to delete — stepping back
+    // over it has to take a digit with it, or the key appears to do nothing.
+    let state = type("12345");
+    const before = digits(state.value).length;
+    state = backspace(state);
+    expect(digits(state.value)).toBe("1234");
+    expect(digits(state.value).length).toBe(before - 1);
+  });
+
+  it("lets a decimal be typed through, trailing zero and all", () => {
+    // A parse-and-reformat round trip eats both the lone point and the
+    // trailing zero, which is what makes such a field impossible to type a
+    // price into.
+    expect(type(`12${decimal}`).value).toBe(`12${decimal}`);
+    expect(type(`12${decimal}50`).value).toBe(`12${decimal}50`);
+    // And the integer side still groups while the fraction is being typed.
+    const long = type(`12345${decimal}5`);
+    expect(digits(long.value)).toBe("123455");
+    expect(long.value.endsWith(`${decimal}5`)).toBe(true);
+  });
+
+  it("hands back anything it cannot read", () => {
+    // Same promise as blur: a field that erases a typo is worse than one that
+    // shows it.
+    expect(regroupWhileTyping("not a number", 3)).toEqual({
+      value: "not a number",
+      caret: 3,
+    });
+    expect(regroupWhileTyping(`1${decimal}2${decimal}3`, 5).value).toBe(
+      `1${decimal}2${decimal}3`,
+    );
+    expect(regroupWhileTyping("", 0)).toEqual({ value: "", caret: 0 });
+  });
+
+  it("produces something the submit path can read back", () => {
+    // The field's contents are the only copy of the value, so whatever this
+    // leaves on screen has to survive `parseAmount` on submit.
+    expect(parseAmount(type("45000").value)).toBe(45000);
+    expect(parseAmount(type(`1234${decimal}5`).value)).toBe(1234.5);
   });
 });

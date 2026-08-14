@@ -3,7 +3,11 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // ES2023.Intl only for `useGrouping: "always"` (see `lib/money`), whose
+    // type definition landed after ES2022 while the runtime support is
+    // everywhere this app runs. Nothing else here needs the newer lib, and
+    // widening `target` to match would let genuinely newer syntax through.
+    "lib": ["ES2022", "ES2023.Intl", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals"],
     "noEmit": true

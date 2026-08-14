@@ -9,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { dayToIso } from "../lib/dateInput";
 import { parseAmount, regroupAmountInput } from "../lib/money";
+import { onAmountInput } from "../lib/amountField";
 
 /**
  * Board-paradigm create-trip surface: a card that floats on the canvas. On
@@ -131,7 +132,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             type="text"
             inputMode="decimal"
             value={budget}
-            onChange={(e) => setBudget(e.target.value)}
+            onChange={(e) => onAmountInput(e, setBudget)}
             onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
           />
         </Field>
