@@ -1,75 +1,107 @@
-import type { CategoryBuiltinKey, CategoryView } from "@gtp/types";
+import {
+  CATEGORY_PALETTE_KEYS,
+  type CategoryBuiltinKey,
+  type CategoryPaletteKey,
+} from "@gtp/types";
 
 /**
- * A category's visual identity: the hue it wears and the icon that marks it.
+ * A category's visual identity: the palette it wears and the icon that marks it.
  *
- * **Derived, never stored.** A colour column plus a picker would be a migration,
- * a contract change and a decision to make on every category anyone creates —
- * for a property nobody needs to choose. The four built-ins get a pinned hue
- * keyed on `builtinKey`, which survives a rename (the whole reason that key
- * exists); a custom category hashes its id, so its colour is stable across
- * sessions, devices and readers without anything being persisted. Same technique
- * as the generated avatar in `lib/avatar` — a mark exists to tell things apart at
- * a glance, and a deterministic one does that for free.
+ * A palette is **three colours, one hue**, and each has a job:
+ *
+ * - **main** — the lane's top edge and a decision's left edge. The full-strength
+ *   colour, used as a line, never as a field behind text.
+ * - **locked** — the fill behind a settled option. The same colour, pale.
+ * - **proposed** — the fill behind a candidate. Paler still *and* greyer, so a
+ *   lane of candidates reads as quieter than the one card that was chosen.
+ *
+ * The greying is what makes the two fills tell a story rather than just differ.
+ * Weakening a tint alone says "less of the same"; draining the colour out of it
+ * says "not settled" — the board's own reading of the difference, since a
+ * decision is the thing that earns full colour.
+ *
+ * **Which palette is a choice; what a palette *is* is not.** The key travels on
+ * the category ({@link CategoryPaletteKey}); every value below is the board's,
+ * and light and dark answer differently — see the `--cat-*` scale in
+ * `index.css`. A category with no key falls back to the derived default, so an
+ * untouched board looks exactly as it always did.
  *
  * Colour is **reinforcement, never the message**. The category's name sits
- * beside it in full-contrast ink everywhere the hue appears, so nothing is
+ * beside it in full-contrast ink everywhere the palette appears, so nothing is
  * conveyed by colour alone (WCAG 1.4.1) and a reader who cannot separate two
- * hues has lost nothing. That is also why the hue only ever tints a surface or
+ * hues has lost nothing. That is also why a palette only ever tints a surface or
  * an edge and never becomes text on a coloured field: the token contract in
  * `index.css` guarantees every foreground pair clears AA in both themes, and a
  * per-category text colour would quietly make that claim false.
  */
 
 /**
- * Every hue the board will hand out, as HSL degrees.
+ * Every hue the board will hand out, as HSL degrees, keyed by palette name.
  *
  * Two bands are deliberately empty. **0–15** belongs to `--board-danger`, and a
  * lane that reads as an error is worse than a lane with no colour at all;
  * **160–190** belongs to `--board-accent`, the teal that means "this is the app
  * talking" (focus rings, primary buttons, a settled card's edge) — a category
- * wearing it would blur that line. What is left is spaced so no two entries sit
- * closer than 35°, which is about where two tints at this saturation stop being
- * separable at the size a lane header renders them.
+ * wearing it would blur that line. What is left is walked in even 40° steps,
+ * which is comfortably past the ~35° at which two tints at this saturation stop
+ * being separable at the size a lane header renders them.
+ *
+ * These are the same eight hues the board already handed out before any of it
+ * was choosable — four pinned to built-ins, four to custom lanes — so naming
+ * them changed nothing on any existing board. That was the point: a palette
+ * picker whose defaults recoloured every trip on the day it shipped would have
+ * been a redesign wearing a feature's clothes.
  */
-/*
- * Which built-in gets which hue is decided by **where they sit next to each
- * other**, not by what the words evoke. The seed order is Dates, Transport,
- * Accommodation, Activities, so those are the pairs a reader compares. An
- * earlier assignment gave Dates 240 and Transport 200 — 40° apart, the smallest
- * gap in the ring, and it put the two blues side by side in the first two lanes,
- * which is exactly where the row is least readable. Rendering it settled that:
- * they were separable, but only just, and only if you looked.
- */
-const DATES_HUE = 320;
-const TRANSPORT_HUE = 200;
-const ACCOMMODATION_HUE = 25;
-const ACTIVITIES_HUE = 240;
-const BUDGET_HUE = 60;
-
-/** Pinned hues for the built-ins, keyed on the identity that survives a rename. */
-const BUILTIN_HUES: Record<CategoryBuiltinKey, number> = {
-  DATES: DATES_HUE,
-  TRANSPORT: TRANSPORT_HUE,
-  ACCOMMODATION: ACCOMMODATION_HUE,
-  ACTIVITIES: ACTIVITIES_HUE,
-  // Retired from the seed, not removed: trips created before it was retired
-  // still carry a Budget row, and this map has to be total over the enum or
-  // those lanes render with no hue at all.
-  BUDGET: BUDGET_HUE,
+const PALETTE_HUES: Record<CategoryPaletteKey, number> = {
+  AMBER: 25,
+  GOLD: 60,
+  LIME: 100,
+  JADE: 140,
+  SKY: 200,
+  INDIGO: 240,
+  VIOLET: 280,
+  ROSE: 320,
 };
 
 /**
- * The hues a custom category can draw, disjoint from the four seeded ones so a
- * lane someone made can never be mistaken for a built-in. Four of them because
- * `maxTripCategories` allows eight categories and four of those are seeded —
- * so a trip at the cap can still give every custom lane its own colour.
+ * The palette each built-in wears unless someone picks another, keyed on the
+ * identity that survives a rename (the whole reason `builtinKey` exists).
+ *
+ * Which built-in gets which is decided by **where they sit next to each other**,
+ * not by what the words evoke. The seed order is Dates, Transport,
+ * Accommodation, Activities, so those are the pairs a reader compares. An
+ * earlier assignment gave Dates indigo and Transport sky — 40° apart, the
+ * smallest gap in the ring, and it put the two blues side by side in the first
+ * two lanes, which is exactly where the row is least readable. Rendering it
+ * settled the question: they were separable, but only just, and only if you
+ * looked.
+ */
+const BUILTIN_PALETTES: Record<CategoryBuiltinKey, CategoryPaletteKey> = {
+  DATES: "ROSE",
+  TRANSPORT: "SKY",
+  ACCOMMODATION: "AMBER",
+  ACTIVITIES: "INDIGO",
+  // Retired from the seed, not removed: trips created before it was retired
+  // still carry a Budget row, and this map has to be total over the enum or
+  // those lanes render with no colour at all.
+  BUDGET: "GOLD",
+};
+
+/**
+ * What a custom category draws from, disjoint from the four seeded palettes so a
+ * lane someone made can never be mistaken for a built-in.
  *
  * Gold is shared with retired Budget, which is the one collision worth
  * accepting: nothing creates a Budget category any more, and a legacy lane
- * matching a custom one is a cosmetic tie, not a mixed signal.
+ * matching a custom one is a cosmetic tie, not a mixed signal. The picker
+ * offers all eight regardless — this is only the starting point.
  */
-const CUSTOM_HUES = [100, 140, 280, BUDGET_HUE] as const;
+const CUSTOM_PALETTES: readonly CategoryPaletteKey[] = [
+  "LIME",
+  "JADE",
+  "VIOLET",
+  "GOLD",
+];
 
 /**
  * A stable index from a seed. Same rolling hash as `avatarHue` — kept as its own
@@ -85,13 +117,38 @@ function hashIndex(seed: string, buckets: number): number {
   return hash % buckets;
 }
 
-/** The hue, in HSL degrees, this category wears. Total and deterministic. */
-export function categoryHue(category: {
+/** The fields these functions actually read off a category. */
+export interface CategoryIdentity {
   readonly id: string;
   readonly builtinKey: CategoryBuiltinKey | null;
-}): number {
-  if (category.builtinKey !== null) return BUILTIN_HUES[category.builtinKey];
-  return CUSTOM_HUES[hashIndex(category.id, CUSTOM_HUES.length)] as number;
+  /** The chosen palette, or null for the derived default. */
+  readonly paletteKey?: CategoryPaletteKey | null;
+}
+
+/**
+ * The palette this category wears: the chosen one, or the default it has always
+ * had. Total and deterministic — a board renders the same colours on every
+ * device, signed in or not, with nothing stored until somebody actually picks.
+ */
+export function categoryPalette(
+  category: CategoryIdentity,
+): CategoryPaletteKey {
+  if (category.paletteKey) return category.paletteKey;
+  if (category.builtinKey !== null)
+    return BUILTIN_PALETTES[category.builtinKey];
+  return CUSTOM_PALETTES[
+    hashIndex(category.id, CUSTOM_PALETTES.length)
+  ] as CategoryPaletteKey;
+}
+
+/** The hue, in HSL degrees, a palette is built from. */
+export function paletteHue(key: CategoryPaletteKey): number {
+  return PALETTE_HUES[key];
+}
+
+/** The hue this category renders in. */
+export function categoryHue(category: CategoryIdentity): number {
+  return paletteHue(categoryPalette(category));
 }
 
 /**
@@ -112,21 +169,32 @@ export function categoryIconKey(category: {
 }
 
 /**
- * The inline style that carries a category's hue to everything inside it.
+ * The inline style that carries a palette to everything inside it.
  *
- * A custom property, not a colour: the *value* is one number and every surface
- * decides what to do with it, so light and dark can pick their own lightness
- * from one source. Set it on the lane and the cards inherit it — but the cards
- * set it themselves too, because a card also renders inside a drag overlay
- * (portalled out of the lane) and on the timeline (which has no lanes at all),
- * where inheritance has nothing to inherit from.
+ * A hue number, not three colours: the *value* is one number and every surface
+ * decides what to do with it, so light and dark can pick their own lightness and
+ * saturation from one source. Set it on the lane and the cards inherit it — but
+ * the cards set it themselves too, because a card also renders inside a drag
+ * overlay (portalled out of the lane) and on the timeline (which has no lanes at
+ * all), where inheritance has nothing to inherit from.
  */
-export function categoryHueStyle(category: {
-  readonly id: string;
-  readonly builtinKey: CategoryBuiltinKey | null;
-}): Record<string, string> {
+export function categoryHueStyle(
+  category: CategoryIdentity,
+): Record<string, string> {
   return { "--cat-hue": String(categoryHue(category)) };
 }
 
-/** Narrowing helper: the fields these functions actually read off a category. */
-export type CategoryIdentity = Pick<CategoryView, "id" | "builtinKey">;
+/** The same, from a bare palette key — for the picker's own swatches. */
+export function paletteHueStyle(
+  key: CategoryPaletteKey,
+): Record<string, string> {
+  return { "--cat-hue": String(paletteHue(key)) };
+}
+
+/** Every palette, in picker order. Re-exported so callers need one import. */
+export const PALETTE_KEYS = CATEGORY_PALETTE_KEYS;
+
+/** Title-case name for a palette, for the picker's labels and its a11y names. */
+export function paletteLabel(key: CategoryPaletteKey): string {
+  return key.charAt(0) + key.slice(1).toLowerCase();
+}
