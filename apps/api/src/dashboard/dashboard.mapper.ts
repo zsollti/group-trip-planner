@@ -1,7 +1,9 @@
 import type { Option } from "@prisma/client";
 import {
   convertSubtotals,
+  crossRate,
   type ConvertedCost,
+  type ConvertedLine,
   type CostDashboard,
   type CostEngineOption,
   type CostType,
@@ -87,6 +89,7 @@ export function toTripDashboardView(
       perPerson: cost.perPerson,
       effectiveHeadcount: cost.effectiveHeadcount,
       headcountStale: cost.headcountStale,
+      converted: convertedLine(cost, trip.defaultCurrency, rates),
     };
   };
 
@@ -117,6 +120,38 @@ export function toTripDashboardView(
     converted: convertedCost(trip.defaultCurrency, result, rates),
     generatedAt: generatedAt.toISOString(),
   };
+}
+
+/**
+ * One line's money in the trip's own currency, or null when no rate reaches it.
+ *
+ * {@link convertSubtotals} deliberately converts *subtotals* rather than
+ * options — one multiplication per currency rounds better than one per line —
+ * and that stays the rule for every **total** on this payload. This is a
+ * different job: a surface that draws the total broken into parts needs each
+ * part in one unit, and the parts have to be converted individually for that to
+ * exist at all.
+ *
+ * The consequence is that a set of converted lines can sum to a hair off the
+ * converted total beside it. The totals remain the figures of record; a caller
+ * drawing parts should draw them *proportionally* and take its headline from
+ * the totals, never from re-adding these.
+ *
+ * A line already in the trip's currency crosses at 1 and comes back unchanged,
+ * so a caller never has to special-case it. When the trip's own currency has no
+ * published rate the aggregate {@link ConvertedCost} is null while those
+ * identity lines survive — the same shape as the target verdict, which falls
+ * back to the trip-currency figures alone and names what it left out.
+ */
+function convertedLine(
+  cost: { group: number; perPerson: number; currency: string },
+  defaultCurrency: string,
+  rates: StoredRates | null,
+): ConvertedLine | null {
+  if (!rates) return null;
+  const rate = crossRate(cost.currency, defaultCurrency, rates.rates);
+  if (rate === null) return null;
+  return { group: cost.group * rate, perPerson: cost.perPerson * rate };
 }
 
 /**
