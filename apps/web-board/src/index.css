@@ -44,12 +44,16 @@
   --cat-hue: 200;
   --cat-sat: 58%;
   --cat-ink-l: 30%;
-  --cat-edge-l: 62%;
-  /* Two strengths of the same tint: a candidate is washed, a decision is washed
-     harder. That difference is what carries "settled" now that hue is spoken
-     for by the category. */
-  --cat-wash: 7%;
-  --cat-wash-strong: 14%;
+  --cat-main-l: 62%;
+  /* The two fills, and the difference between them is the whole point: a
+     decision keeps the category's colour, a candidate has most of it drained
+     out. Weakening a tint alone would only say "less of the same"; taking the
+     saturation down says "not settled yet", which is what the board actually
+     means — full colour is what being chosen earns. */
+  --cat-locked-sat: 56%;
+  --cat-locked-l: 91%;
+  --cat-proposed-sat: 32%;
+  --cat-proposed-l: 95.5%;
   font-family:
     "Inter",
     system-ui,
@@ -89,9 +93,14 @@
        it belongs to the category, not to the theme. */
     --cat-sat: 52%;
     --cat-ink-l: 70%;
-    --cat-edge-l: 52%;
-    --cat-wash: 12%;
-    --cat-wash-strong: 22%;
+    --cat-main-l: 52%;
+    /* The fills invert: on a dark canvas a tint is *lighter* than the surface
+       under it, not paler. The gap between them is kept wider than in light,
+       because two dark tints a few percent apart are indistinguishable. */
+    --cat-locked-sat: 42%;
+    --cat-locked-l: 23%;
+    --cat-proposed-sat: 24%;
+    --cat-proposed-l: 18%;
   }
 }
 :root[data-theme="dark"] {
@@ -110,9 +119,11 @@
   --board-decor-opacity: 0.08;
   --cat-sat: 52%;
   --cat-ink-l: 70%;
-  --cat-edge-l: 52%;
-  --cat-wash: 12%;
-  --cat-wash-strong: 22%;
+  --cat-main-l: 52%;
+  --cat-locked-sat: 42%;
+  --cat-locked-l: 23%;
+  --cat-proposed-sat: 24%;
+  --cat-proposed-l: 18%;
 }
 
 * {
@@ -676,18 +687,34 @@ body {
   color: var(--board-dim);
 }
 
-/* --- Category colour --------------------------------------------------------
+/* --- Category palettes ------------------------------------------------------
  *
- * A category wears a hue so a lane, a card, a decided chip and a timeline row
- * can be recognised as the same question without reading a word. The hue comes
- * in as `--cat-hue` on the elements below (set in JS, derived — never stored);
- * everything else is computed from it here.
+ * A category wears a palette so a lane, a card, a decided chip and a timeline
+ * row can be recognised as the same question without reading a word. The
+ * palette arrives as one number — `--cat-hue`, set in JS from the category's
+ * chosen or default palette (see `lib/categoryTheme`) — and the four colours
+ * below are computed from it here, so light and dark each answer in their own
+ * terms without either knowing which lane it is looking at.
  *
- * `--cat-ink` and `--cat-edge` are declared on the same elements that carry the
- * hue, not on `:root`, and that placement is load-bearing: a custom property
- * containing `var()` is resolved where it is *declared*, so a root-level
- * `--cat-ink` would freeze at the root's fallback hue and every lane would come
- * out the same colour.
+ * The three roles a palette has:
+ *
+ *   --cat-main      the lane's top edge, a decision's left edge. A line, never
+ *                   a field behind text.
+ *   --cat-locked    the fill behind a settled option: the colour, pale.
+ *   --cat-proposed  the fill behind a candidate: paler, and mostly drained.
+ *
+ * plus `--cat-ink`, the tinted text and icon that goes with them.
+ *
+ * All four are declared on the same elements that carry the hue, not on
+ * `:root`, and that placement is load-bearing: a custom property containing
+ * `var()` is resolved where it is *declared*, so a root-level `--cat-main`
+ * would freeze at the root's fallback hue and every lane would come out the
+ * same colour.
+ *
+ * The fills are whole colours rather than a wash mixed into whatever sits
+ * behind them, so a card looks the same in a lane, in a drag overlay and on the
+ * timeline — three surfaces with three different backgrounds and one tier of
+ * meaning between them.
  *
  * Colour never carries meaning alone — the category's name sits beside it in
  * every one of these positions, and the icon repeats the distinction in shape.
@@ -700,7 +727,11 @@ body {
 .cal__event,
 .cal__bar {
   --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
-  --cat-edge: hsl(var(--cat-hue) var(--cat-sat) var(--cat-edge-l));
+  --cat-main: hsl(var(--cat-hue) var(--cat-sat) var(--cat-main-l));
+  --cat-locked: hsl(var(--cat-hue) var(--cat-locked-sat) var(--cat-locked-l));
+  --cat-proposed: hsl(
+    var(--cat-hue) var(--cat-proposed-sat) var(--cat-proposed-l)
+  );
 }
 
 .cat-icon {
@@ -729,7 +760,7 @@ body {
      the side because the lanes sit in a horizontal row: a top edge puts every
      lane's colour on one line, which is what makes the row readable as a set of
      different questions instead of a stripe repeated five times. */
-  border-top: 3px solid var(--cat-edge);
+  border-top: 3px solid var(--cat-main);
   border-radius: 14px;
   padding: 0.85rem;
   box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
@@ -750,9 +781,11 @@ body {
   min-height: 3.25rem;
   margin-bottom: 0.6rem;
   padding: 0.5rem;
-  border: 2px dashed var(--cat-edge);
+  border: 2px dashed var(--cat-main);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--cat-edge) var(--cat-wash), transparent);
+  /* Dressed as what the card is about to become, so the target reads as the
+     outcome rather than as a hole in the lane. */
+  background: var(--cat-locked);
   color: var(--cat-ink);
   font-size: 0.78rem;
   font-weight: 600;
@@ -760,11 +793,9 @@ body {
 }
 .lane__decide-drop--over {
   border-style: solid;
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash-strong),
-    transparent
-  );
+  /* A step further towards the palette's main colour — the only "more of the
+     same" this scale has, now that the two fills are whole colours. */
+  background: color-mix(in srgb, var(--cat-main) 22%, var(--cat-locked));
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
@@ -1249,16 +1280,13 @@ body {
 /* Options as cards (Phase 2.2). */
 .lane__card--option {
   /* An option belongs to its category, so it is washed with the same hue —
-     faintly. A card is a block of text first; the tint has to be enough to
-     group it with its lane on a board full of lanes and not enough to fight the
-     words on it, which is why the mix is single digits and the border does most
-     of the work. */
-  border: 1px solid color-mix(in srgb, var(--cat-edge) 45%, var(--lane-line));
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash),
-    var(--board-bg)
-  );
+     faintly, and mostly drained. A card is a block of text first; the tint has
+     to be enough to group it with its lane on a board full of lanes and not
+     enough to fight the words on it, which is why the border does most of the
+     work — and why what is left of the colour here is the quiet third of the
+     palette, the full one being reserved for the card that was chosen. */
+  border: 1px solid color-mix(in srgb, var(--cat-main) 45%, var(--lane-line));
+  background: var(--cat-proposed);
   text-align: left;
   margin-bottom: 0.6rem;
   display: flex;
@@ -1483,7 +1511,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--cat-ink);
-  border: 1px solid var(--cat-edge);
+  border: 1px solid var(--cat-main);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
@@ -1522,12 +1550,8 @@ body {
  * its lane, a solid left edge where a candidate has none, and roughly double the
  * wash. The ✦ Decided line and the "Also proposed" divider carry the rest. */
 .lane__card--settled {
-  border-left: 3px solid var(--cat-edge);
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash-strong),
-    var(--lane-bg)
-  );
+  border-left: 3px solid var(--cat-main);
+  background: var(--cat-locked);
 }
 /* Separates the decision from the options it beat. Not a heading — it labels a
    position in a list, and promoting it would put a second h-level inside a lane
@@ -2890,14 +2914,14 @@ body {
   min-width: 0;
   margin: 0 2px;
   padding: 0.25rem 0.45rem;
-  border: 1px solid var(--cat-edge);
-  border-left: 3px solid var(--cat-edge);
+  border: 1px solid var(--cat-main);
+  border-left: 3px solid var(--cat-main);
   border-radius: 7px;
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash),
-    var(--lane-bg)
-  );
+  /* The quieter of the two fills, though what it holds is a decision: this bar
+     is a wide band that other things are read against, and the full fill at
+     that width dominates the grid. The two fills double here as two weights —
+     background band, foreground event. */
+  background: var(--cat-proposed);
   color: var(--board-fg);
   font: inherit;
   font-size: 0.72rem;
@@ -2967,14 +2991,12 @@ body {
   position: absolute;
   overflow: hidden;
   padding: 0.2rem 0.35rem;
-  border: 1px solid var(--cat-edge);
-  border-left: 3px solid var(--cat-edge);
+  border: 1px solid var(--cat-main);
+  border-left: 3px solid var(--cat-main);
   border-radius: 7px;
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash-strong),
-    var(--lane-bg)
-  );
+  /* A single booking, drawn on top of the bands above — the full fill, so it
+     sits in front of them rather than among them. */
+  background: var(--cat-locked);
   color: var(--board-fg);
   font: inherit;
   font-size: 0.72rem;
@@ -3106,7 +3128,7 @@ body {
   align-items: baseline;
   /* The same edge the card wears in its lane, so a day's rows can be grouped by
      category without reading a single tag. */
-  border-left: 3px solid var(--cat-edge);
+  border-left: 3px solid var(--cat-main);
 }
 .tl__card-when {
   font-size: 0.72rem;
@@ -3150,7 +3172,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--cat-ink);
-  border: 1px solid var(--cat-edge);
+  border: 1px solid var(--cat-main);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
@@ -3172,15 +3194,13 @@ body {
   /* The band used to be teal whatever it held, which said "this is a span" —
      something the shape already says. In its category's colour it says *which*
      span, so a stay and an overnight train are told apart at a glance. */
-  border-left: 3px solid var(--cat-edge);
+  border-left: 3px solid var(--cat-main);
   border-radius: 12px;
-  /* Through the token, not a fixed 6%: a tint that shows on paper is invisible
-     on the dark canvas, which is the whole reason the wash is themed. */
-  background: color-mix(
-    in srgb,
-    var(--cat-edge) var(--cat-wash),
-    var(--lane-bg)
-  );
+  /* Through the token, not a fixed tint: a colour that shows on paper is
+     invisible on the dark canvas, which is the whole reason the palette's fills
+     are themed. The quieter one, for the reason `.cal__bar` gives — this is a
+     tall band with a day's worth of rows read against it. */
+  background: var(--cat-proposed);
 }
 .tl__card--span {
   position: sticky;

@@ -34,6 +34,39 @@ export const CategoryBuiltinKey = z.enum([
 export type CategoryBuiltinKey = z.infer<typeof CategoryBuiltinKey>;
 
 /**
+ * Which of the board's colour palettes a category wears.
+ *
+ * **A key, not a colour.** What crosses the wire is a name from a closed set;
+ * every actual value — the hue, how pale its locked fill is, how grey its
+ * proposed one — is the front-end's, and differs between light and dark. Storing
+ * a hex triple instead would freeze one theme's answer into the database, and
+ * make the day the palette is retuned a data migration.
+ *
+ * Eight, because `maxTripCategories` allows eight categories: a trip at the cap
+ * can give every lane its own without anyone having to compromise. The names are
+ * plain colour words on purpose — they are what a picker shows.
+ *
+ * A category with no key falls back to a **derived** default (built-ins by their
+ * `builtinKey`, custom ones by a hash of their id), which is what every category
+ * had before this was choosable. So "unset" is not a missing value to repair; it
+ * means "whatever this lane was always going to be".
+ */
+export const CategoryPaletteKey = z.enum([
+  "AMBER",
+  "GOLD",
+  "LIME",
+  "JADE",
+  "SKY",
+  "INDIGO",
+  "VIOLET",
+  "ROSE",
+]);
+export type CategoryPaletteKey = z.infer<typeof CategoryPaletteKey>;
+
+/** Every palette, in picker order — the ring walked once, warm to cool. */
+export const CATEGORY_PALETTE_KEYS = CategoryPaletteKey.options;
+
+/**
  * Longest a category name may be (characters). A name is a lane header on a
  * board that shows several lanes side by side, so it is deliberately short; the
  * board truncates it further for display (`DISPLAY_NAME_LENGTH`).

@@ -4,6 +4,10 @@ import {
   categoryHue,
   categoryHueStyle,
   categoryIconKey,
+  categoryPalette,
+  paletteHue,
+  paletteLabel,
+  PALETTE_KEYS,
 } from "./categoryTheme";
 
 const custom = (id: string) => ({ id, builtinKey: null });
@@ -90,6 +94,62 @@ describe("categoryHue", () => {
       Array.from({ length: 200 }, (_, i) => categoryHue(custom(`c-${i}`))),
     );
     expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe("categoryPalette", () => {
+  it("wears the chosen palette over the one it would have had", () => {
+    // The whole feature: the default is a starting point, not a rule.
+    const lane = { id: "x", builtinKey: "DATES" as const };
+    expect(categoryPalette(lane)).toBe("ROSE");
+    expect(categoryPalette({ ...lane, paletteKey: "JADE" })).toBe("JADE");
+  });
+
+  it("falls back to the derived default when nothing is chosen", () => {
+    // Null and absent are the same thing — "whatever this lane was always going
+    // to be" — because that is what every category carried before it could be
+    // picked, and an unset column must not read as a value to repair.
+    const lane = { id: "x", builtinKey: "TRANSPORT" as const };
+    expect(categoryPalette({ ...lane, paletteKey: null })).toBe(
+      categoryPalette(lane),
+    );
+  });
+
+  it("leaves every existing board exactly the colour it was", () => {
+    // The hues below are the ones the board handed out before any of this was
+    // named or choosable. A palette picker whose defaults recoloured every trip
+    // on the day it shipped would be a redesign wearing a feature's clothes, so
+    // this pins the four seeded lanes to the numbers they had.
+    expect(categoryHue({ id: "x", builtinKey: "DATES" })).toBe(320);
+    expect(categoryHue({ id: "x", builtinKey: "TRANSPORT" })).toBe(200);
+    expect(categoryHue({ id: "x", builtinKey: "ACCOMMODATION" })).toBe(25);
+    expect(categoryHue({ id: "x", builtinKey: "ACTIVITIES" })).toBe(240);
+    expect(categoryHue({ id: "x", builtinKey: "BUDGET" })).toBe(60);
+  });
+
+  it("offers eight separable palettes, all clear of the reserved bands", () => {
+    // Eight because a trip may hold eight categories, so a board at the cap can
+    // still give every lane its own. 0–15 is `--board-danger` and 160–190 is
+    // `--board-accent`; a lane in either reads as something the app is saying
+    // rather than as a category.
+    expect(PALETTE_KEYS.length).toBe(8);
+    const hues = PALETTE_KEYS.map(paletteHue);
+    expect(new Set(hues).size).toBe(8);
+    for (const hue of hues) {
+      expect(hue).toBeGreaterThan(15);
+      expect(hue < 160 || hue > 190).toBe(true);
+    }
+    // No two closer than the ~35° at which two tints at this saturation stop
+    // being separable at the size a lane header draws them.
+    const sorted = [...hues].sort((a, b) => a - b);
+    for (let i = 1; i < sorted.length; i += 1) {
+      expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(35);
+    }
+  });
+
+  it("names a palette in words a picker can show", () => {
+    expect(paletteLabel("JADE")).toBe("Jade");
+    for (const key of PALETTE_KEYS) expect(paletteLabel(key)).not.toBe("");
   });
 });
 
