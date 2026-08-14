@@ -6,6 +6,7 @@ import {
   isOutsideTripDates,
   isTripFrozen,
   planLockedDates,
+  showsOutsideDatesHint,
   tripDateRange,
 } from "@gtp/types";
 
@@ -285,6 +286,54 @@ describe("isOutsideTripDates", () => {
         startDate: "nonsense",
         endDate: "2026-09-13T12:00:00.000Z",
       }),
+      false,
+    );
+  });
+});
+
+describe("showsOutsideDatesHint", () => {
+  // The range a locked Dates option would have written back: the trip now runs
+  // the week of the 6th because somebody chose that week.
+  const range = {
+    startDate: "2026-09-06T00:00:00.000Z",
+    endDate: "2026-09-13T00:00:00.000Z",
+  };
+  // The rival proposal nobody picked — a fortnight later, still on the board.
+  const rival = {
+    startsAt: "2026-09-20T00:00:00.000Z",
+    endsAt: "2026-09-27T00:00:00.000Z",
+  };
+
+  it("never tells a Dates option it is outside the dates it proposes", () => {
+    // The circularity this rule exists for. Locking one date option writes the
+    // trip's range, so from that moment every alternative in the lane fails the
+    // geometric test — and saying so is noise on the one lane where changing
+    // your mind means reading the alternatives.
+    assert.equal(isOutsideTripDates(rival, range), true);
+    assert.equal(
+      showsOutsideDatesHint(rival, range, { builtinKey: "DATES" }),
+      false,
+    );
+  });
+
+  it("still flags the hotel booked for the wrong fortnight", () => {
+    // Same dates, a different lane: here the option means "when *within* the
+    // trip", so falling entirely outside it is real news.
+    for (const builtinKey of ["ACCOMMODATION", "TRANSPORT", null] as const) {
+      assert.equal(showsOutsideDatesHint(rival, range, { builtinKey }), true);
+    }
+  });
+
+  it("agrees with the geometry everywhere it is asked", () => {
+    // Only the Dates lane is special-cased; nothing else about the predicate
+    // changes, including the day of slack and the unsettled-trip case.
+    const during = { startsAt: "2026-09-08T09:00:00.000Z", endsAt: null };
+    assert.equal(
+      showsOutsideDatesHint(during, range, { builtinKey: "ACTIVITIES" }),
+      false,
+    );
+    assert.equal(
+      showsOutsideDatesHint(rival, null, { builtinKey: null }),
       false,
     );
   });

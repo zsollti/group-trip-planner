@@ -575,6 +575,88 @@ describe("BoardCanvas", () => {
     ).toBeNull();
   });
 
+  /**
+   * The same hint, on the one lane where it is circular.
+   *
+   * Locking a Dates option writes the trip's range, so every rival proposal in
+   * that lane then fails the geometric test — by construction, and loudest at
+   * the moment someone is reconsidering the dates and has to read past a
+   * warning on each alternative.
+   */
+  it("never tells a date option it is outside the dates it proposes", async () => {
+    const dates: CategoryView = {
+      id: "cD",
+      name: "Dates",
+      singleChoice: true,
+      isBuiltin: true,
+      builtinKey: "DATES",
+      position: 0,
+      version: 0,
+    };
+    // The winner, written back to the trip's range below, and the fortnight
+    // nobody chose — still on the board, and none of the app's business.
+    const chosen = opt({
+      id: "d1",
+      categoryId: "cD",
+      title: "Week of 6th",
+      status: "LOCKED",
+      lockedByName: "Ada",
+      lockedAt: new Date().toISOString(),
+      startsAt: "2026-09-06T00:00:00.000Z",
+      endsAt: "2026-09-13T00:00:00.000Z",
+    });
+    const rival = opt({
+      id: "d2",
+      categoryId: "cD",
+      // Both titles stay under the card's 15-character display cap, so they can
+      // be located by their visible text rather than an accessible name.
+      title: "Week of 20th",
+      startsAt: "2026-09-20T00:00:00.000Z",
+      endsAt: "2026-09-27T00:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/members")) return json(MEMBERS);
+        if (u.includes("/options")) return json([chosen, rival]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <BoardCanvas
+          tripId="t1"
+          categories={[dates]}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          tripDates={{
+            startDate: "2026-09-06T00:00:00.000Z",
+            endDate: "2026-09-13T00:00:00.000Z",
+          }}
+          onOpenChannel={() => undefined}
+          onManageMembers={() => undefined}
+        />
+      </QueryClientProvider>,
+    );
+
+    const lane = await screen.findByRole("region", { name: "Dates" });
+    // Both proposals are there and readable; neither is accused of anything.
+    expect(within(lane).getByText(/Week of 20th/)).toBeInTheDocument();
+    expect(within(lane).queryByText(/outside the trip/)).toBeNull();
+  });
+
   it("says nothing about any option while the trip has no dates", async () => {
     // With no trip range there is nothing to be outside of, so the same card
     // that was flagged above must render clean.

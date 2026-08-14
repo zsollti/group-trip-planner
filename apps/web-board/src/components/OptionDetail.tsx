@@ -2,7 +2,7 @@ import { Button } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
   isHttpUrl,
-  isOutsideTripDates,
+  showsOutsideDatesHint,
   type CategoryView,
   type OptionView,
   type TripDateRange,
@@ -41,7 +41,7 @@ export function OptionDetail({
     categoryOptionFields(category).dateGranularity,
   );
   const cost = costLabel(option);
-  const elsewhere = isOutsideTripDates(option, tripDates);
+  const elsewhere = showsOutsideDatesHint(option, tripDates, category);
   const locked = option.status === "LOCKED";
 
   return (
