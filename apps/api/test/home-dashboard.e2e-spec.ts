@@ -74,7 +74,7 @@ describe("Home dashboard (e2e)", () => {
       const updated = await http()
         .patch(`/trips/${tripId}/categories/${c.id}`)
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ name: c.name, singleChoice: false, version: c.version })
+        .send({ name: c.name, singleChoice: false, paletteKey: null, version: c.version })
         .expect(200);
       out.push(updated.body as CategoryView);
     }

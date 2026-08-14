@@ -11,12 +11,15 @@ import {
   canBeMultiSelect,
   canDeleteCategory,
   maxTripCategories,
+  OPTIONS_CHANGED_EVENT,
   type CreateCategoryInput,
   type CategoryView,
+  type OptionsChanged,
   type UpdateCategoryInput,
   type ReorderCategoriesInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import type { TripContext } from "../trips/trip-context.js";
 import { toCategoryView } from "./category.mapper.js";
 
@@ -32,7 +35,10 @@ const UUID_RE =
  */
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Seed a new trip's built-in categories (SRS §6). Called **inside the
@@ -163,6 +169,9 @@ export class CategoriesService {
       data: {
         name: input.name,
         singleChoice: input.singleChoice,
+        // A full-object replace like the fields beside it: an omitted palette
+        // has been cleared back to the derived default, not left alone.
+        paletteKey: input.paletteKey,
         version: { increment: 1 },
       },
     });
@@ -175,6 +184,17 @@ export class CategoriesService {
     const updated = await this.prisma.category.findUniqueOrThrow({
       where: { id: existing.id },
     });
+    // Everyone on the board, not just whoever made the change. A lane's colour
+    // and its name are how the rest of the trip recognises it, so a repaint
+    // that only the person holding the picker could see would be a private
+    // edit to shared state — and the whole point of storing it is that it is
+    // not private. The event's own name is about options, but its payload is
+    // "something about this lane changed" and its handler already refreshes the
+    // category list, which is exactly what this needs.
+    this.realtime.emitToTrip(ctx.trip.id, OPTIONS_CHANGED_EVENT, {
+      tripId: ctx.trip.id,
+      categoryId: existing.id,
+    } satisfies OptionsChanged);
     return toCategoryView(updated);
   }
 

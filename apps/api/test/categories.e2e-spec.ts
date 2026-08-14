@@ -73,6 +73,7 @@ describe("Categories (e2e)", () => {
     singleChoice: boolean;
     isBuiltin: boolean;
     builtinKey: string | null;
+    paletteKey: string | null;
     position: number;
     version: number;
   };
@@ -228,7 +229,7 @@ describe("Categories (e2e)", () => {
     const renamed = await http()
       .patch(`/trips/${trip.id}/categories/${dates.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ name: "When", singleChoice: true, version: 0 })
+      .send({ name: "When", singleChoice: true, paletteKey: null, version: 0 })
       .expect(200);
     assert.equal(renamed.body.name, "When");
     assert.equal(renamed.body.version, 1, "version bumped");
@@ -238,8 +239,185 @@ describe("Categories (e2e)", () => {
     await http()
       .patch(`/trips/${trip.id}/categories/${dates.id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ name: "Whenever", singleChoice: true, version: 0 })
+      .send({
+        name: "Whenever",
+        singleChoice: true,
+        paletteKey: null,
+        version: 0,
+      })
       .expect(409);
+  });
+
+  /**
+   * A lane's colour (post-launch). The interesting property is not that the
+   * value round-trips — it is that it is **shared**: the colour is how everyone
+   * on the trip recognises the lane, so a repaint that only its author could
+   * see would be a per-user setting wearing a per-trip setting's clothes.
+   */
+  describe("palette", () => {
+    it("seeds every lane with no palette, meaning the derived default", async () => {
+      // Null is not a value to repair. It is what every category carried before
+      // this was choosable, and what the front-end reads as "the colour this
+      // lane was always going to have".
+      const owner = await makeUser("palette-seed");
+      const trip = await createTrip(owner.accessToken, "Fresh Paint");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      assert.ok(cats.length > 0);
+      for (const c of cats) assert.equal(c.paletteKey, null);
+    });
+
+    it("shows a chosen palette to the rest of the trip, not just its author", async () => {
+      const owner = await makeUser("palette-owner");
+      const other = await makeUser("palette-member");
+      const trip = await createTrip(owner.accessToken, "Repaint");
+      await join(
+        other.accessToken,
+        await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+      ).expect(201);
+
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const stay = cats.find((c) => c.builtinKey === "ACCOMMODATION")!;
+
+      const painted = await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: stay.name,
+          singleChoice: stay.singleChoice,
+          paletteKey: "JADE",
+          version: stay.version,
+        })
+        .expect(200);
+      assert.equal(painted.body.paletteKey, "JADE");
+      assert.equal(painted.body.version, stay.version + 1);
+
+      // The point of the whole slice: another member's board is repainted too.
+      const theirs = (
+        await listCategories(other.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      assert.equal(
+        theirs.find((c) => c.id === stay.id)!.paletteKey,
+        "JADE",
+        "a colour picked by one member is what the trip sees",
+      );
+    });
+
+    it("takes null as the way back to the lane's own colour", async () => {
+      // Not "leave this field alone" — the endpoint is a full replace, and this
+      // is the one field where null is a deliberate answer rather than a gap.
+      const owner = await makeUser("palette-reset");
+      const trip = await createTrip(owner.accessToken, "Undo Paint");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const acts = cats.find((c) => c.builtinKey === "ACTIVITIES")!;
+
+      const painted = await http()
+        .patch(`/trips/${trip.id}/categories/${acts.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: acts.name,
+          singleChoice: acts.singleChoice,
+          paletteKey: "VIOLET",
+          version: acts.version,
+        })
+        .expect(200);
+
+      const cleared = await http()
+        .patch(`/trips/${trip.id}/categories/${acts.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: acts.name,
+          singleChoice: acts.singleChoice,
+          paletteKey: null,
+          version: painted.body.version,
+        })
+        .expect(200);
+      assert.equal(cleared.body.paletteKey, null);
+    });
+
+    it("keeps the colour when the lane is renamed", async () => {
+      // The full-replace shape earns its keep here: were the client to drop the
+      // field on a rename, the lane would silently lose its colour.
+      const owner = await makeUser("palette-rename");
+      const trip = await createTrip(owner.accessToken, "Rename Painted");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const stay = cats.find((c) => c.builtinKey === "ACCOMMODATION")!;
+
+      const painted = await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: stay.name,
+          singleChoice: stay.singleChoice,
+          paletteKey: "ROSE",
+          version: stay.version,
+        })
+        .expect(200);
+
+      const renamed = await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: "Where we sleep",
+          singleChoice: stay.singleChoice,
+          paletteKey: painted.body.paletteKey,
+          version: painted.body.version,
+        })
+        .expect(200);
+      assert.equal(renamed.body.name, "Where we sleep");
+      assert.equal(renamed.body.paletteKey, "ROSE");
+    });
+
+    it("refuses a palette that is not one of the eight", async () => {
+      const owner = await makeUser("palette-bogus");
+      const trip = await createTrip(owner.accessToken, "Bad Paint");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const stay = cats.find((c) => c.builtinKey === "ACCOMMODATION")!;
+
+      await http()
+        .patch(`/trips/${trip.id}/categories/${stay.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: stay.name,
+          singleChoice: stay.singleChoice,
+          paletteKey: "CHARTREUSE",
+          version: stay.version,
+        })
+        .expect(400);
+    });
+
+    it("lets even Dates be repainted", async () => {
+      // The one lane that can be neither deleted nor made multi-select. Its
+      // colour is as changeable as any other's, which is why it now has a
+      // "⋯" menu at all.
+      const owner = await makeUser("palette-dates");
+      const trip = await createTrip(owner.accessToken, "Paint Dates");
+      const cats = (
+        await listCategories(owner.accessToken, trip.id).expect(200)
+      ).body as Cat[];
+      const dates = cats.find((c) => c.builtinKey === "DATES")!;
+
+      const painted = await http()
+        .patch(`/trips/${trip.id}/categories/${dates.id}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: dates.name,
+          singleChoice: true,
+          paletteKey: "SKY",
+          version: dates.version,
+        })
+        .expect(200);
+      assert.equal(painted.body.paletteKey, "SKY");
+    });
   });
 
   /**
@@ -262,7 +440,12 @@ describe("Categories (e2e)", () => {
       const wide = await http()
         .patch(`/trips/${trip.id}/categories/${stay.id}`)
         .set("Authorization", `Bearer ${owner.accessToken}`)
-        .send({ name: stay.name, singleChoice: false, version: stay.version })
+        .send({
+          name: stay.name,
+          singleChoice: false,
+          paletteKey: null,
+          version: stay.version,
+        })
         .expect(200);
       assert.equal(wide.body.singleChoice, false);
 
@@ -271,6 +454,7 @@ describe("Categories (e2e)", () => {
         .set("Authorization", `Bearer ${owner.accessToken}`)
         .send({
           name: stay.name,
+          paletteKey: null,
           singleChoice: true,
           version: wide.body.version,
         })
@@ -289,7 +473,12 @@ describe("Categories (e2e)", () => {
       const res = await http()
         .patch(`/trips/${trip.id}/categories/${dates.id}`)
         .set("Authorization", `Bearer ${owner.accessToken}`)
-        .send({ name: dates.name, singleChoice: false, version: dates.version })
+        .send({
+          name: dates.name,
+          singleChoice: false,
+          paletteKey: null,
+          version: dates.version,
+        })
         .expect(409);
       assert.match(res.body.message, /one date range/i);
     });
@@ -306,7 +495,12 @@ describe("Categories (e2e)", () => {
       const wide = await http()
         .patch(`/trips/${trip.id}/categories/${acts.id}`)
         .set("Authorization", `Bearer ${owner.accessToken}`)
-        .send({ name: acts.name, singleChoice: false, version: acts.version })
+        .send({
+          name: acts.name,
+          singleChoice: false,
+          paletteKey: null,
+          version: acts.version,
+        })
         .expect(200);
 
       const optionsUrl = `/trips/${trip.id}/categories/${acts.id}/options`;
@@ -332,6 +526,7 @@ describe("Categories (e2e)", () => {
         .set("Authorization", `Bearer ${owner.accessToken}`)
         .send({
           name: acts.name,
+          paletteKey: null,
           singleChoice: true,
           version: wide.body.version,
         })
@@ -350,6 +545,7 @@ describe("Categories (e2e)", () => {
         .set("Authorization", `Bearer ${owner.accessToken}`)
         .send({
           name: acts.name,
+          paletteKey: null,
           singleChoice: true,
           version: wide.body.version,
         })

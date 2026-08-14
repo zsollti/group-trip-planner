@@ -47,11 +47,18 @@ export function useCreateCategory(
 }
 
 /**
- * Update a category's name and selection mode (Organizers). A full replace: the
- * caller sends both fields plus the `version` they last saw. A 409
- * {@link ApiError} means either that it changed underneath them, or that the
- * selection-mode change was refused (Dates, or too many locked options) — the
- * message says which, and is written to be shown as-is.
+ * Update a category's name, selection mode and colour (Organizers). A full
+ * replace: the caller sends every editable field plus the `version` they last
+ * saw. A 409 {@link ApiError} means either that it changed underneath them, or
+ * that the selection-mode change was refused (Dates, or too many locked
+ * options) — the message says which, and is written to be shown as-is.
+ *
+ * The body is the input minus the id, taken by **rest** rather than field by
+ * field. Naming each field looked tidier and was a trap: adding `paletteKey` to
+ * the contract typechecked everywhere and the value was still dropped on the
+ * floor here, because destructuring a subset of a wider type is perfectly
+ * legal. The one thing this function must not do is send less than it was
+ * given.
  */
 export function useUpdateCategory(
   tripId: string,
@@ -62,10 +69,10 @@ export function useUpdateCategory(
 > {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ categoryId, name, singleChoice, version }) =>
+    mutationFn: ({ categoryId, ...body }) =>
       apiFetch<CategoryView>(`/trips/${tripId}/categories/${categoryId}`, {
         method: "PATCH",
-        body: { name, singleChoice, version },
+        body,
       }),
     onSuccess: () =>
       void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) }),

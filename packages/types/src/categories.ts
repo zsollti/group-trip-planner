@@ -92,6 +92,8 @@ export const CategoryView = z.object({
   singleChoice: z.boolean(),
   isBuiltin: z.boolean(),
   builtinKey: CategoryBuiltinKey.nullable(),
+  /** The palette chosen for this lane; null = the front-end's derived default. */
+  paletteKey: CategoryPaletteKey.nullable(),
   position: z.number().int().nonnegative(),
   version: z.number().int().nonnegative(),
 });
@@ -116,15 +118,19 @@ export type CreateCategoryInput = z.infer<typeof CreateCategoryInput>;
  * changed since (SRS §6 optimistic concurrency — the "changed since you opened
  * it — reload" path).
  *
- * A full-object replace, not a patch: `singleChoice` is sent on every write, so
- * a rename cannot silently reset it and the two edits share one concurrency
- * token. Two rules the backend enforces and the board mirrors —
- * {@link canBeMultiSelect} pins Dates, and a switch to single-choice is refused
- * while more than one option is locked.
+ * A full-object replace, not a patch: every editable field is sent on every
+ * write, so a rename cannot silently reset the selection mode or the colour,
+ * and all three edits share one concurrency token. Two rules the backend
+ * enforces and the board mirrors — {@link canBeMultiSelect} pins Dates, and a
+ * switch to single-choice is refused while more than one option is locked.
+ *
+ * `paletteKey` is nullable and means it: sending null is how a lane is put back
+ * to the colour it would have had, not a way of leaving the field alone.
  */
 export const UpdateCategoryInput = z.object({
   name: categoryNameSchema,
   singleChoice: z.boolean(),
+  paletteKey: CategoryPaletteKey.nullable(),
   version: z.number().int().nonnegative(),
 });
 export type UpdateCategoryInput = z.infer<typeof UpdateCategoryInput>;

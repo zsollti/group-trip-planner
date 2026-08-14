@@ -97,7 +97,7 @@ describe("Trip dashboard (e2e)", () => {
       const res = await http()
         .patch(`/trips/${tripId}/categories/${cat.id}`)
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ name: cat.name, singleChoice: false, version: cat.version })
+        .send({ name: cat.name, singleChoice: false, paletteKey: null, version: cat.version })
         .expect(200);
       return res.body as CategoryView;
     }

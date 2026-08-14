@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { CategoryView, OptionView, TripRole } from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
@@ -25,6 +31,7 @@ const category: CategoryView = {
   singleChoice: true,
   isBuiltin: true,
   builtinKey: "ACCOMMODATION",
+  paletteKey: null,
   position: 2,
   version: 0,
 };
@@ -171,6 +178,62 @@ describe("BoardCanvas", () => {
     const lane = await screen.findByRole("region", { name: "Stay" });
     expect(within(lane).getByText("Beach House")).toBeInTheDocument();
     expect(within(lane).getByText("Hostel")).toBeInTheDocument();
+  });
+
+  /**
+   * Repainting a lane (post-launch). What matters is the **request**: the
+   * endpoint is a full replace, so a colour change has to carry the name and
+   * the selection mode with it or picking a colour would quietly rename the
+   * lane to nothing and reset how it decides.
+   */
+  it("sends the lane's other fields along with a new colour", async () => {
+    const sent: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (init?.method === "PATCH" && u.includes("/categories/")) {
+          sent.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+          return json({ ...category, paletteKey: "JADE", version: 1 });
+        }
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            lines: [],
+            hasStaleHeadcount: false,
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/members")) return json(MEMBERS);
+        if (u.includes("/options")) return json([proposed, locked]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    fireEvent.click(
+      within(lane).getByRole("button", { name: "Stay lane actions" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Change colour" }));
+
+    const dialog = await screen.findByRole("dialog", { name: /Colour for Stay/i });
+    // The board's own colour is marked before anything is picked, so the dialog
+    // opens showing where the lane already stands rather than blank.
+    expect(
+      within(dialog).getByRole("button", { name: /Amber/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /Jade/ }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual({
+      name: "Stay",
+      singleChoice: true,
+      paletteKey: "JADE",
+      version: 0,
+    });
   });
 
   it("no longer renders a Decided rail", async () => {
@@ -393,6 +456,7 @@ describe("BoardCanvas", () => {
       singleChoice: false,
       isBuiltin: true,
       builtinKey: null,
+      paletteKey: null,
       position: 3,
       version: 0,
     };
@@ -590,6 +654,7 @@ describe("BoardCanvas", () => {
       singleChoice: true,
       isBuiltin: true,
       builtinKey: "DATES",
+      paletteKey: null,
       position: 0,
       version: 0,
     };
@@ -702,6 +767,7 @@ describe("BoardCanvas", () => {
       singleChoice: false,
       isBuiltin: true,
       builtinKey: "ACTIVITIES",
+      paletteKey: null,
       position: 3,
       version: 0,
     };
