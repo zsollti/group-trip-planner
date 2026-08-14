@@ -543,28 +543,6 @@ body {
   margin-bottom: 0;
 }
 
-/* The rough all-in total. Sits between the exact per-currency figures and the
-   target, because it is derived from the first and read against the second.
-   Deliberately quieter than the figures above it: it is the approximate one. */
-.board__approx {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem;
-  margin: 0.5rem 0 0;
-  font-size: 0.82rem;
-}
-.board__approx-per,
-.board__approx-note {
-  color: var(--board-dim);
-}
-.board__approx-note {
-  /* Pushed to its own line on a narrow strip rather than crowding the figure —
-     the provenance matters, but not as much as the number does. */
-  flex-basis: 100%;
-  font-size: 0.72rem;
-}
-
 /* The per-person target under the totals it is read against. Advisory: nothing
    is refused for exceeding it, so being over borrows the danger hue for
    attention without the error treatment — no border, no alert role. */
@@ -1822,41 +1800,6 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
 }
-.board__tally-cur {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  border-top: 1px solid var(--lane-line);
-  padding-top: 0.5rem;
-}
-.board__tally-code {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  color: var(--board-dim);
-}
-.board__tally-chip {
-  display: flex;
-  flex-direction: column;
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--lane-line);
-  border-radius: 10px;
-}
-.board__tally-chip strong {
-  font-variant-numeric: tabular-nums;
-  color: var(--board-fg);
-}
-.board__tally-chip--proj {
-  border-color: var(--board-accent);
-}
-.board__tally-chip--proj strong {
-  color: var(--board-accent);
-}
-.board__tally-tag {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--board-dim);
-}
 .board__tally-per {
   font-size: 0.72rem;
   color: var(--board-dim);
@@ -1867,34 +1810,50 @@ body {
   color: var(--board-dim);
 }
 
-/* Charted cost breakdown (Phase 3.5, dataviz): a one-hue committed-vs-projected
- * bar per currency + a legend; the exact figures stay visible beside it. */
-.board__tally-legend {
+/* The locked total, and the one chart under it (dataviz).
+ *
+ * The strip used to be a row of per-currency bars, each split between locked
+ * money and what the front-runners would add. Every figure was defensible and
+ * the whole was unreadable — the largest thing on it was hypothetical. What is
+ * left is one number, big, and a bar only where there is a target for it to be
+ * a fraction of. */
+.board__tally-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  font-size: 0.66rem;
-  color: var(--board-dim);
-}
-.board__tally-key {
-  display: inline-flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.3rem;
+  max-width: 26rem;
 }
-.board__swatch {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 3px;
-  display: inline-block;
-  background: var(--board-accent);
+.board__tally-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
 }
-.board__swatch--extra {
-  background-color: color-mix(in srgb, var(--board-accent) 14%, transparent);
-  background-image: repeating-linear-gradient(
-    45deg,
-    var(--board-accent) 0 2px,
-    transparent 2px 5px
-  );
+.board__tally-total strong {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--board-fg);
+}
+/* Between two totals no rate could combine — a plus sign, not a bullet, because
+   what is missing is the answer to an addition and the reader should see the
+   addition standing unfinished. */
+.board__tally-plus {
+  margin-right: 0.45rem;
+  color: var(--board-dim);
+  font-weight: 400;
+}
+/* Provenance, in the recessive ink every caveat on this surface wears. */
+.board__tally-rates,
+.board__tally-sum {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--board-dim);
+  font-variant-numeric: tabular-nums;
+}
+.board__tally-sum {
+  margin-top: 0.15rem;
 }
 .tally-bar {
   display: flex;
@@ -1935,33 +1894,6 @@ body {
 .tally-bar__seg--committed {
   background: var(--board-accent);
 }
-.tally-bar__seg--extra {
-  background-color: color-mix(in srgb, var(--board-accent) 14%, transparent);
-  background-image: repeating-linear-gradient(
-    45deg,
-    var(--board-accent) 0 2px,
-    transparent 2px 5px
-  );
-}
-.board__tally-figs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-.board__tally-fig {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-}
-.board__tally-fig strong {
-  font-variant-numeric: tabular-nums;
-  color: var(--board-fg);
-}
-.board__tally-fig--proj strong {
-  color: var(--board-accent);
-}
 
 /* Cost summary strip under the header (Phase 3.5) — replaces the pinned widget
  * so the canvas is pure lanes and mobile swipes cleanly. */
@@ -1997,19 +1929,18 @@ body {
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
+/* The peek exists so a collapsed strip still says something. Open, it is the
+   same figure the headline shows a line below it — and a number printed twice,
+   thirty pixels apart, is how a surface starts to look like it is answering a
+   question two different ways. */
+.board__cost-strip[open] .board__cost-peek {
+  display: none;
+}
 .board__cost-body {
-  margin-top: 0.6rem;
-}
-.board__cost-currencies {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-}
-.board__cost-currencies .board__tally-cur {
-  flex: 1 1 12rem;
-  max-width: 22rem;
-  border-top: none;
-  padding-top: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
 }
 
 /* Home overview — trip-tile cost/pending + History section (Phase 3.4). */
