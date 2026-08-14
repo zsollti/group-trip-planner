@@ -704,7 +704,13 @@ body {
 .tl__span,
 .cal__event,
 .cal__bar,
-.palette__swatch {
+.palette__swatch,
+/* The cost charts carry a hue per mark, so they belong on this list for the
+   same reason the swatches do — a wedge that sets `--cat-hue` without these
+   declarations in scope resolves `--cat-main` to nothing and paints nothing. */
+.cost-donut__wedge,
+.cost-comp__swatch,
+.tally-bar__seg--cat {
   --cat-ink: hsl(var(--cat-hue) var(--cat-sat) var(--cat-ink-l));
   --cat-main: hsl(var(--cat-hue) var(--cat-sat) var(--cat-main-l));
   --cat-locked: hsl(var(--cat-hue) var(--cat-locked-sat) var(--cat-locked-l));
@@ -1941,6 +1947,265 @@ body {
   flex-direction: column;
   gap: 0.45rem;
   margin-top: 0.6rem;
+}
+
+/* --- Cost composition: where the locked money went -------------------------
+ *
+ * One model, two drawings, and a list that is the real accessible version of
+ * both. The charts are `aria-hidden`; `.cost-comp__legend` carries every lane's
+ * name, share and amount as text.
+ *
+ * That list is not belt-and-braces. This board's rule is that colour reinforces
+ * and never carries the message, and a ring is the one place that rule is under
+ * real pressure: the eight palettes were chosen to be told apart as lane
+ * headers, far from each other, and two of them (lime and jade) are close
+ * enough that adjacent wedges are genuinely hard to separate. Re-stepping the
+ * ring would repaint every existing board, so the names beside the colours are
+ * what make that a cosmetic annoyance rather than lost information. */
+.cost-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.15rem 0 0.1rem;
+}
+.cost-comp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.cost-comp__title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+/* Segmented control. Two words, not two mystery glyphs — the choice is between
+   two pictures and the labels are the only honest preview of it. */
+.cost-comp__forms {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--lane-line);
+  border-radius: 999px;
+}
+.cost-comp__form {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--board-dim);
+  background: transparent;
+  cursor: pointer;
+}
+.cost-comp__form:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+.cost-comp__form--on {
+  background: var(--lane-bg);
+  color: var(--board-fg);
+}
+
+.cost-comp__chart {
+  display: flex;
+  justify-content: center;
+  padding: 0.2rem 0;
+}
+
+/* The ring, with the figure inside it. The hole is the natural home for the
+   headline: a donut with an empty middle spends its best space on nothing. */
+.cost-donut {
+  position: relative;
+  width: 148px;
+  height: 148px;
+}
+.cost-donut__ring {
+  width: 100%;
+  height: 100%;
+}
+.cost-donut__wedge {
+  fill: none;
+  /* Full-strength lane colour. A wedge is a field, but never a field behind
+     text — the labels live in the list, in ink. */
+  stroke: var(--cat-main);
+}
+/* The folded tail, and the headroom, share one neutral: both mean "not a lane
+   you need to look at". */
+.cost-donut__wedge--tail {
+  stroke: var(--board-dim);
+}
+/* What is left of the target. Grey, and deliberately mid-grey rather than the
+   lane rule: the remainder is a real part of the reading ("this much still
+   unspoken for"), so it has to be visible as a band on cream paper, not just
+   inferable from where the colour stops. Quieter than the tail wedge, which is
+   money and takes the full dim ink. */
+.cost-donut__headroom {
+  fill: none;
+  stroke: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
+}
+/* Where the target ran out, on a ring that has already passed it. Two strokes:
+   a wide one in the surface colour, then the rule over it, which is the SVG
+   spelling of the halo the flat bar gets from a box-shadow — and it exists for
+   the same reason, since the mark's usual home is the middle of a saturated
+   wedge. */
+.cost-donut__limit-halo {
+  stroke: var(--lane-bg);
+  stroke-width: 6;
+}
+.cost-donut__limit {
+  stroke: var(--board-danger);
+  stroke-width: 2.5;
+}
+.cost-donut__centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+.cost-donut__figure {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--board-fg);
+}
+.cost-donut__caption {
+  font-size: 0.7rem;
+  color: var(--board-dim);
+}
+
+/* The stacked-bar drawing of the same model. It reuses `.tally-bar` wholesale —
+   same track, same 2px gaps, same red target rule — so only the fill differs.
+   The figure above it is the one the donut writes in its hole; a bar has no
+   middle to put it in, and the surface states it exactly once either way. */
+.cost-comp__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.cost-comp__stack-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+}
+.cost-comp__stack-figure strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--board-fg);
+}
+.cost-comp__stack-caption {
+  font-size: 0.7rem;
+  color: var(--board-dim);
+}
+.tally-bar__seg--cat {
+  background: var(--cat-main);
+}
+.tally-bar__seg--tail {
+  background: var(--board-dim);
+}
+
+/* Legend, direct labels and table view at once. Shares are quoted against the
+   whole circle, the same denominator the wedges use. */
+.cost-comp__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.cost-comp__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.cost-comp__swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--cat-main);
+  /* A hairline frame so a pale wedge on pale paper still reads as a swatch
+     rather than as a gap in the row. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+}
+.cost-comp__swatch--tail {
+  background: var(--board-dim);
+}
+.cost-comp__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--board-fg);
+}
+.cost-comp__share,
+.cost-comp__amount {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.cost-comp__share {
+  color: var(--board-dim);
+  min-width: 2.6rem;
+  text-align: right;
+}
+.cost-comp__amount {
+  color: var(--board-fg);
+  font-weight: 600;
+}
+
+/* Advisory, like the target line it elaborates: over is worth seeing, but
+   nothing was refused, so it borrows the danger hue without the error dress. */
+.cost-comp__over {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--board-danger);
+}
+.cost-comp__over-pct {
+  color: var(--board-dim);
+}
+
+/* Money the ring cannot hold, named so it is not simply missing. */
+.cost-comp__aside {
+  border-top: 1px dashed var(--lane-line);
+  padding-top: 0.4rem;
+}
+.cost-comp__aside-head {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.cost-comp__aside-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--board-dim);
+}
+.cost-comp__aside-name {
+  color: var(--board-fg);
+}
+.cost-comp__uncounted {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--board-dim);
 }
 
 /* Home overview — trip-tile cost/pending + History section (Phase 3.4). */

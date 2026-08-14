@@ -1,6 +1,8 @@
-import { useTripDashboard } from "@gtp/api-client";
-import type { TripDashboardView } from "@gtp/types";
+import { useTripCategories, useTripDashboard } from "@gtp/api-client";
+import type { CategoryView, TripDashboardView } from "@gtp/types";
 import { CostBar } from "./CostBar";
+import { CostComposition } from "./CostComposition";
+import { costComposition } from "../lib/costComposition";
 // The strip's private formatter moved to `lib/money` when the option cards
 // needed the same thing. One definition, so a total and the cards it is the sum
 // of cannot disagree about how money is written.
@@ -53,6 +55,10 @@ function peek(d: TripDashboardView): string {
  */
 export function CostTally({ tripId }: { tripId: string }) {
   const dash = useTripDashboard(tripId);
+  // The board has already fetched these, so this costs a cache read rather
+  // than a request. The charts need each lane's palette, which the cost lines
+  // (being about money) do not carry.
+  const categories = useTripCategories(tripId);
 
   return (
     <details className="board__cost-strip" open>
@@ -70,16 +76,23 @@ export function CostTally({ tripId }: { tripId: string }) {
             Couldn't load the cost.
           </p>
         ) : (
-          <TallyBody d={dash.data} />
+          <TallyBody d={dash.data} categories={categories.data ?? []} />
         )}
       </div>
     </details>
   );
 }
 
-function TallyBody({ d }: { d: TripDashboardView }) {
+function TallyBody({
+  d,
+  categories,
+}: {
+  d: TripDashboardView;
+  categories: readonly CategoryView[];
+}) {
   const locked = lockedCost(d);
   const verdict = targetVerdict(d, locked);
+  const composition = costComposition(d);
 
   // Nothing decided and priced yet. The target still shows if there is one:
   // hiding it until the first price would read as an edit that failed to save.
@@ -102,10 +115,37 @@ function TallyBody({ d }: { d: TripDashboardView }) {
         </p>
       ) : null}
       {locked.allIn ? (
-        <Headline all={locked.allIn} verdict={verdict} />
+        // The composition draws the target itself, in both of its forms, so the
+        // plain bar would be the second chart of the same comparison. It stays
+        // for the case the composition cannot cover: a target, but nothing
+        // shared by the whole group to draw against it.
+        <Headline
+          all={locked.allIn}
+          verdict={composition ? null : verdict}
+          perPerson={composition === null}
+        />
       ) : (
         <SplitTotals locked={locked} />
       )}
+      {composition ? (
+        <CostComposition
+          composition={composition}
+          categories={categories}
+          headline={{
+            headline: figure(
+              composition.charted,
+              composition.currency,
+              composition.approximate,
+            ),
+            // Named "shared" only when something was held back, so the word
+            // earns its place by answering the question the aside raises.
+            caption:
+              composition.excluded.length > 0
+                ? "per person, shared"
+                : "per person",
+          }}
+        />
+      ) : null}
       {/* What the figure was made of, then where it came from — in that order,
           because "made of what?" is the question an approximate total provokes
           first, and the rates only matter once you accept the sum. */}
@@ -136,17 +176,30 @@ function TallyBody({ d }: { d: TripDashboardView }) {
 function Headline({
   all,
   verdict,
+  perPerson = true,
 }: {
   all: AllInTotal;
   verdict: ReturnType<typeof targetVerdict>;
+  /**
+   * False once the composition below is stating per-person money itself — in
+   * the donut's hole, or as the caption over the bar. Printing it here as well
+   * puts the same figure on the surface twice, a few pixels apart, which is how
+   * a panel starts to look like it is answering one question two ways. It also
+   * stops being merely redundant the moment an option is priced for part of the
+   * group: the two figures then legitimately differ, and a reader has no way to
+   * tell which of them they owe.
+   */
+  perPerson?: boolean;
 }) {
   return (
     <div className="board__tally-head">
       <p className="board__tally-total">
         <strong>{figure(all.group, all.currency, all.approximate)}</strong>
-        <span className="board__tally-per">
-          {figure(all.perPerson, all.currency, all.approximate)} per person
-        </span>
+        {perPerson ? (
+          <span className="board__tally-per">
+            {figure(all.perPerson, all.currency, all.approximate)} per person
+          </span>
+        ) : null}
       </p>
       {verdict ? (
         <CostBar spend={verdict.spend} target={verdict.target} />

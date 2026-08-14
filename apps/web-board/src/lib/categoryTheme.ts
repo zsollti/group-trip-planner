@@ -191,6 +191,23 @@ export function paletteHueStyle(
   return { "--cat-hue": String(paletteHue(key)) };
 }
 
+/**
+ * The same again, for a surface that knows a category only by id — the cost
+ * charts, which are drawn from cost lines rather than from the lanes.
+ *
+ * Undefined for a null id or a category that is not in the list, which is the
+ * useful answer: the caller sets no hue and CSS supplies its own neutral, which
+ * is exactly what the folded tail wants.
+ */
+export function categoryHueStyleById(
+  categoryId: string | null,
+  categories: readonly CategoryIdentity[],
+): Record<string, string> | undefined {
+  if (categoryId === null) return undefined;
+  const category = categories.find((c) => c.id === categoryId);
+  return category ? categoryHueStyle(category) : undefined;
+}
+
 /** Every palette, in picker order. Re-exported so callers need one import. */
 export const PALETTE_KEYS = CATEGORY_PALETTE_KEYS;
 
