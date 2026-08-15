@@ -247,6 +247,28 @@ If a migration fails, the process exits non-zero, Railway restarts it, and the
 old deployment keeps serving. `migrate deploy` never generates or resets a
 schema; it applies committed migration files in order and nothing else.
 
+### ⚠️ Dropping or renaming a column needs two deploys
+
+Railway replaces containers by rolling, so for a moment after the migration runs
+the **old** API is still serving against the new schema. That is harmless for an
+additive migration — the old code simply does not use the new column — and it is
+an outage for a destructive one: every query selecting a dropped column answers
+500 until the new container takes over.
+
+**The health check does not catch it.** `/health` only pings Postgres, which
+stays perfectly healthy throughout, so the deploy gate reports green through the
+window.
+
+So use expand/contract for any drop or rename:
+
+1. **Expand** — deploy code that no longer reads the column. The column stays.
+2. **Contract** — a second deploy whose migration drops it.
+
+Every migration up to 2026-08-15 was additive. The participants change
+(`20260815160000_option_participants` and its companion) dropped four columns and
+accepted the window knowingly, on an app with no live traffic. Do not treat that
+as the precedent.
+
 ### Seeding (and resetting) the public demo trip
 
 The README publishes credentials for a demo account so a visitor can see a

@@ -79,9 +79,22 @@ jobs:
 
       # The API first: its container runs `prisma migrate deploy` at start, so
       # the schema the new frontend expects is in place before that frontend is
-      # served. Migrations in this project are additive (every one to date adds
-      # a column, table or index), so the brief window where the old API meets
-      # the new schema is safe.
+      # served.
+      #
+      # ⚠️ An ADDITIVE migration makes that window safe — the old API simply does
+      # not use the new column. A migration that DROPS or renames one does not:
+      # Railway replaces containers by rolling, so the old API keeps serving for
+      # a moment against a schema its Prisma client no longer matches, and every
+      # query touching the dropped column answers 500. The health check below
+      # cannot catch it either — `/health` only pings Postgres, which stays
+      # perfectly healthy throughout, so the deploy reports green through the
+      # outage.
+      #
+      # This was true of every migration up to 2026-08-15, when the participants
+      # change dropped four columns and took the window knowingly on an app with
+      # no live traffic. For any future drop or rename, use expand/contract
+      # instead: deploy code that no longer reads the column, then drop it in a
+      # SECOND deploy. Two deploys, no window.
       - name: Deploy the API
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
