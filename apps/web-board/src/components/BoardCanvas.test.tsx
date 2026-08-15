@@ -219,7 +219,9 @@ describe("BoardCanvas", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Change colour" }));
 
-    const dialog = await screen.findByRole("dialog", { name: /Colour for Stay/i });
+    const dialog = await screen.findByRole("dialog", {
+      name: /Colour for Stay/i,
+    });
     // The board's own colour is marked before anything is picked, so the dialog
     // opens showing where the lane already stands rather than blank.
     expect(
