@@ -107,6 +107,7 @@ function mockFetch() {
         return json({
           committed: [],
           projected: [],
+          viewerCommitted: [],
           lines: [],
           memberCount: 2,
         });
@@ -128,6 +129,7 @@ function mockEmptyFetch() {
         return json({
           committed: [],
           projected: [],
+          viewerCommitted: [],
           lines: [],
           memberCount: 2,
         });
@@ -201,6 +203,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -261,6 +264,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -290,6 +294,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -428,6 +433,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -471,6 +477,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -531,6 +538,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -582,6 +590,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -676,6 +685,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -727,6 +737,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });
@@ -766,6 +777,7 @@ describe("BoardCanvas", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 2,
           });

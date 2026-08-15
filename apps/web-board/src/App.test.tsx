@@ -231,6 +231,7 @@ describe("web-board auth flow", () => {
           return json({
             committed: [],
             projected: [],
+            viewerCommitted: [],
             lines: [],
             memberCount: 1,
           });

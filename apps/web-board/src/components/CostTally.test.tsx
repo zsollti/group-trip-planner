@@ -25,7 +25,7 @@ import { CostTally } from "./CostTally";
 const JSON_HEADERS = { "content-type": "application/json" };
 
 function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
-  return {
+  const base = {
     tripId: "t1",
     defaultCurrency: "EUR",
     budgetPerPerson: null,
@@ -36,6 +36,13 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
+  };
+  return {
+    ...base,
+    // Everyone shares everything unless a case says otherwise — the reader's
+    // own share is then the trip's, which is what it was before opt-in options
+    // existed and what almost every trip still looks like.
+    viewerCommitted: over.viewerCommitted ?? base.committed,
   };
 }
 
@@ -50,6 +57,8 @@ function convertedTo(
     currency,
     committed: { group, perPerson },
     projected: { group, perPerson },
+    // The reader is in for all of it by default, as above.
+    viewer: { group, perPerson, converted: [currency], missing },
     asOf: "2026-08-12",
     converted: [currency],
     missing,
@@ -113,6 +122,7 @@ function locked(over: Partial<DashboardLine> = {}): DashboardLine {
     group: perPerson * 4,
     perPerson,
     effectiveHeadcount: 4,
+    viewerOwes: true,
     converted: null,
     ...over,
   };
@@ -278,6 +288,51 @@ describe("CostTally", () => {
     );
     const notes = await screen.findAllByText(/HUF not counted/);
     expect(notes).toHaveLength(1);
+  });
+
+  /**
+   * The target against **your** money, not the trip's.
+   *
+   * The bug this fixes, in the reporter's own numbers: a €100 target, €98 of
+   * shared options, and a €4 thing two of five people joined. The trip's
+   * per-person total adds every option's per-head cost, so it read €102 and
+   * warned all five — including the three who declined to spend the €4.
+   */
+  it("reads the target against the viewer's own share, not the trip's", async () => {
+    renderTally(
+      dashboard({
+        budgetPerPerson: 100,
+        committed: [priced(102)],
+        // What this reader is actually in for: the shared 98, not the extra 4.
+        viewerCommitted: [priced(98)],
+      }),
+    );
+    const verdict = await screen.findByText(/to spare/);
+    // Under, by the two the shared options leave them.
+    expect(digits(verdict.textContent)).toContain("2");
+    expect(screen.queryByText(/over/)).toBeNull();
+    // And it says whose figure it is, since the two genuinely differ here.
+    expect(verdict.textContent).toMatch(/yours/i);
+  });
+
+  it("still warns the members who really are over", async () => {
+    renderTally(
+      dashboard({
+        budgetPerPerson: 100,
+        committed: [priced(102)],
+        // This reader joined the opt-in option, so it is their money.
+        viewerCommitted: [priced(102)],
+      }),
+    );
+    expect(await screen.findByText(/over/)).toBeInTheDocument();
+  });
+
+  it("does not say 'yours' when everything is shared", async () => {
+    // On a trip with no opt-in options the two figures are the same, and the
+    // word would imply a distinction that does not exist.
+    renderTally(dashboard({ budgetPerPerson: 100, committed: [priced(98)] }));
+    const verdict = await screen.findByText(/to spare/);
+    expect(verdict.textContent).not.toMatch(/yours/i);
   });
 
   it("shows the target before anything has been locked", async () => {

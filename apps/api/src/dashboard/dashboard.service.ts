@@ -16,11 +16,12 @@ import {
  * arithmetic — headcount resolution, per-currency aggregation, committed vs.
  * projected, stale flags — lives in `@gtp/types/cost`, not here.
  *
- * **No N+1 (NFR-1):** exactly one query. The live member count and the trip's
- * `membershipChangedAt` are already on the request's {@link TripContext} (the
- * TripContextGuard eager-loads the trip + membership count), so the engine's two
- * scalar inputs cost nothing extra; the single `findMany` pulls every option with
- * its vote tally via a relation `_count` in the same statement.
+ * **No N+1 (NFR-1):** exactly one query. The live member count is already on the
+ * request's {@link TripContext} (the TripContextGuard eager-loads the trip +
+ * membership count), so the engine's scalar input costs nothing extra; the
+ * single `findMany` pulls every option with its vote tally via a relation
+ * `_count`, and the caller's own participation row via a filtered include, in
+ * the same statement.
  */
 @Injectable()
 export class DashboardService {
@@ -29,14 +30,17 @@ export class DashboardService {
     private readonly rates: RatesService,
   ) {}
 
-  async getTripDashboard(ctx: TripContext): Promise<TripDashboardView> {
+  async getTripDashboard(
+    ctx: TripContext,
+    viewerId: string,
+  ): Promise<TripDashboardView> {
     // Two independent reads, so they overlap rather than queue. The rates one
     // is usually served from the service's own short-lived cache and costs
     // nothing; when it does hit the table it is thirty unchanging rows.
     const [rows, rates] = await Promise.all([
       this.prisma.option.findMany({
         where: { deletedAt: null, category: { tripId: ctx.trip.id } },
-        include: dashboardOptionInclude,
+        include: dashboardOptionInclude(viewerId),
         orderBy: { createdAt: "asc" },
       }),
       this.rates.current(),

@@ -19,6 +19,7 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     memberCount: 4,
     committed: [],
     projected: [],
+    viewerCommitted: [],
     lines: [],
     converted: null,
     generatedAt: new Date().toISOString(),
@@ -40,6 +41,7 @@ function line(over: Partial<DashboardLine> = {}): DashboardLine {
     group: perPerson * 4,
     perPerson,
     effectiveHeadcount: 4,
+    viewerOwes: true,
     converted: null,
     ...over,
   };
@@ -139,8 +141,29 @@ describe("money everyone owes, and money only some do", () => {
         perPerson: 10,
         currency: "EUR",
         headcount: 3,
+        // Carried through so the aside can mark the reader's own, which is the
+        // arithmetic between what the ring charts and what the target says.
+        viewerOwes: true,
       },
     ]);
+  });
+
+  it("carries whether the reader is one of the few who owe it", () => {
+    const c = costComposition(
+      dashboard({
+        memberCount: 5,
+        lines: [
+          line({ perPerson: 50, effectiveHeadcount: 5 }),
+          line({
+            title: "Not mine",
+            perPerson: 10,
+            effectiveHeadcount: 3,
+            viewerOwes: false,
+          }),
+        ],
+      }),
+    );
+    expect(c?.excluded[0]?.viewerOwes).toBe(false);
   });
 
   it("charts a fixed headcount that still matches the group", () => {

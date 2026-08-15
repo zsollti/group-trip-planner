@@ -18,6 +18,7 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     memberCount: 4,
     committed: [],
     projected: [],
+    viewerCommitted: [],
     lines: [],
     converted: null,
     generatedAt: new Date().toISOString(),
@@ -41,6 +42,8 @@ function converted(
     currency,
     committed,
     projected: committed,
+    // The reader is in for all of it unless a case says otherwise.
+    viewer: { ...committed, converted: [currency], missing },
     asOf: "2026-08-12",
     converted: [currency],
     missing,

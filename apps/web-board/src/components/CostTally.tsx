@@ -13,6 +13,7 @@ import {
 import {
   lockedCost,
   targetVerdict,
+  viewerCost,
   type AllInTotal,
   type LockedCost,
 } from "../lib/costSummary";
@@ -92,8 +93,14 @@ function TallyBody({
   categories: readonly CategoryView[];
 }) {
   const locked = lockedCost(d);
-  const verdict = targetVerdict(d, locked);
+  // The target is per person, so it is read against **this reader's** money —
+  // the trip's total includes options they may have declined.
+  const mine = viewerCost(d);
+  const verdict = targetVerdict(d, mine);
   const composition = costComposition(d);
+  // True only when the two genuinely differ, i.e. some locked option is priced
+  // for part of the group and the split matters to this reader.
+  const personal = mine.allIn?.perPerson !== locked.allIn?.perPerson;
 
   // Nothing decided and priced yet. The target still shows if there is one:
   // hiding it until the first price would read as an edit that failed to save.
@@ -103,7 +110,7 @@ function TallyBody({
         <p className="board__tally-muted">
           Lock a priced option to start the tally.
         </p>
-        {verdict ? <TargetLine v={verdict} /> : null}
+        {verdict ? <TargetLine v={verdict} personal={false} /> : null}
       </>
     );
   }
@@ -145,7 +152,7 @@ function TallyBody({
       ) : (
         <SplitTotals locked={locked} />
       )}
-      {verdict ? <TargetLine v={verdict} /> : null}
+      {verdict ? <TargetLine v={verdict} personal={personal} /> : null}
       <p className="board__tally-foot">
         {d.memberCount} member{d.memberCount === 1 ? "" : "s"}
       </p>
@@ -240,8 +247,18 @@ function SplitTotals({ locked }: { locked: LockedCost }) {
  */
 function TargetLine({
   v,
+  personal,
 }: {
   v: NonNullable<ReturnType<typeof targetVerdict>>;
+  /**
+   * True when this reader's share differs from the trip's per-person total —
+   * i.e. some locked option is priced for part of the group.
+   *
+   * The verdict is always about the reader; this only decides whether to *say*
+   * so. On a trip where everything is shared, "yours" would imply a distinction
+   * that does not exist and invite the question of whose figure it isn't.
+   */
+  personal: boolean;
 }) {
   const gap = figure(v.gap, v.currency, v.approximate);
   return (
@@ -253,6 +270,7 @@ function TargetLine({
       <strong>{money(v.target, v.currency)}</strong>
       <span className="board__budget-per">/person</span>
       <span className="board__budget-verdict">
+        {personal ? "yours: " : ""}
         {gap} {v.over ? "over" : "to spare"}
         {/* Never silently compare across currencies. */}
         {v.uncounted.length > 0

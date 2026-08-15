@@ -217,6 +217,11 @@ function Overshoot({ composition }: { composition: Composition }) {
  * making one nobody pays. It is named here instead, in its own currency and
  * with the headcount it was priced for, so the money is visible even though it
  * is not drawable.
+ *
+ * **The reader's own are marked.** The chart states what everyone shares while
+ * the target beneath it states what *you* owe, and those legitimately differ the
+ * moment you join one of these. Without a mark the two figures look like a
+ * contradiction; with one, this aside is the arithmetic between them.
  */
 function Excluded({ composition }: { composition: Composition }) {
   const { excluded } = composition;
@@ -230,6 +235,9 @@ function Excluded({ composition }: { composition: Composition }) {
             <span className="cost-comp__aside-name">{e.title}</span>{" "}
             <strong>{money(e.perPerson, e.currency)}</strong> per person for{" "}
             {e.headcount} {e.headcount === 1 ? "member" : "members"}
+            {e.viewerOwes ? (
+              <span className="cost-comp__aside-mine"> · yours</span>
+            ) : null}
           </li>
         ))}
       </ul>
