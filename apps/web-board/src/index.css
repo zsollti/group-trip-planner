@@ -484,34 +484,61 @@ body {
   margin-top: 0.6rem;
 }
 
-/* --- The summary band: what the trip costs, and who is on it -----------------
+/* --- The board layout: a reference rail, and the lanes ----------------------
  *
- * This band held the cost strip and the Decided rail. The rail went through two
- * shapes — a lane in the row, then a flat strip here — and the second one was a
- * genuine improvement on the first. Both were answering the wrong question.
- *
- * Once a decision started appearing in the lane that made it, the rail was a
- * second copy of every decision, sitting directly above the first. Meanwhile the
+ * The rail holds the cost strip and the crew. It held the Decided rail once,
+ * which went through two shapes — a lane in the row, then a flat strip — and
+ * the second was a genuine improvement on the first. Both answered the wrong
+ * question: once a decision appeared in the lane that made it, the rail was a
+ * second copy of every decision sitting directly above the first. Meanwhile the
  * one fact a planning board could not tell you was **who you are planning
- * with**: a member count in the subtitle and the names two clicks deep behind a
- * "⋯" menu. The band is for what the lanes below cannot say by being read, and
- * that is the cost and the crew. */
-.board__summary {
+ * with** — a member count in the subtitle, the names two clicks deep behind a
+ * "⋯" menu. The rail is for what the lanes cannot say by being read: the cost
+ * and the crew.
+ *
+ * It used to be a band *across the top*, and the lanes are what the page is
+ * for. A band deep enough to hold a donut chart pushed them under the fold on a
+ * laptop, so the two things you consult while working now sit beside the work
+ * instead of on top of it. */
+.board__layout {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
-/* Side by side once there is room for both to be readable; the cost strip is
-   the narrower of the two, and the rail takes the slack. */
-@media (min-width: 60rem) {
-  .board__summary {
-    grid-template-columns: minmax(16rem, 22rem) 1fr;
+
+/* One column below the breakpoint, in source order: cost, crew, then lanes. */
+.board__rail {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+/* Side by side once the rail can be readable without starving the lanes.
+ *
+ * `minmax(0, 1fr)` for the lane track, not `1fr`: the lanes are a flex row of
+ * fixed-width columns, and a `1fr` track takes its minimum from that content —
+ * so the track would grow to the width of every lane laid end to end and push
+ * the row off the page instead of scrolling inside it. */
+@media (min-width: 64rem) {
+  .board__layout {
+    grid-template-columns: minmax(17rem, 21rem) minmax(0, 1fr);
     align-items: start;
   }
+  /* Reference material, so it stays put while the lanes are worked. Capped and
+     scrollable in its own right: a rail taller than the viewport would
+     otherwise strand its lower half — sticky pins the top, and the bottom
+     would never come into view. */
+  .board__rail {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+  }
 }
-/* The cost strip owns its own margin when it stands alone; inside the band the
+
+/* The cost strip owns its own margin when it stands alone; inside the rail the
    grid gap does that job. */
-.board__summary .board__cost-strip {
+.board__rail .board__cost-strip {
   margin-bottom: 0;
 }
 
