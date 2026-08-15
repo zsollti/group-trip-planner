@@ -101,10 +101,7 @@ export function CostDonut({
         ) : null}
       </svg>
       <div className="cost-donut__centre">
-        <strong
-          className="cost-donut__figure"
-          title={label.exact ?? undefined}
-        >
+        <strong className="cost-donut__figure" title={label.exact ?? undefined}>
           {label.headline}
         </strong>
         {label.exact ? (

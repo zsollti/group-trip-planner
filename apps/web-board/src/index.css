@@ -1832,13 +1832,18 @@ body {
   color: var(--board-dim);
   font-size: 0.85rem;
 }
+/* Advisory, like the target line: nothing is refused and no figure is wrong,
+   a number just predates a membership change. It was a solid danger fill,
+   which read as an error the width of the panel now that the panel is a
+   column — louder than the chart it sits above and louder than what it says. */
 .board__tally-stale {
   margin: 0;
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 8px;
-  background: var(--board-danger);
-  color: var(--board-on-danger);
-  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--board-danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--board-danger) 35%, transparent);
+  color: var(--board-danger);
+  font-size: 0.72rem;
   font-weight: 600;
 }
 .board__tally-per {

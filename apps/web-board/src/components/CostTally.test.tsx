@@ -377,9 +377,9 @@ describe("the cost composition", () => {
     const activities = await screen.findByText("Activities");
     const row = activities.closest(".cost-comp__row");
     expect(row?.querySelector(".cost-comp__share")?.textContent).toBe("15%");
-    expect(
-      row?.querySelector(".cost-comp__amount")?.textContent,
-    ).toContain("15");
+    expect(row?.querySelector(".cost-comp__amount")?.textContent).toContain(
+      "15",
+    );
   });
 
   it("names every lane in text, so the colours are never the only channel", async () => {
@@ -394,8 +394,8 @@ describe("the cost composition", () => {
   it("paints each wedge in its own lane's hue, not in its rank's", async () => {
     const { container } = renderTally(worked(), LANES);
     await screen.findByText("Stay");
-    const hues = [...container.querySelectorAll(".cost-donut__wedge")].map((w) =>
-      (w as SVGElement).style.getPropertyValue("--cat-hue"),
+    const hues = [...container.querySelectorAll(".cost-donut__wedge")].map(
+      (w) => (w as SVGElement).style.getPropertyValue("--cat-hue"),
     );
     // Accommodation is amber (25) and leads on size; transport is sky (200).
     expect(hues[0]).toBe("25");

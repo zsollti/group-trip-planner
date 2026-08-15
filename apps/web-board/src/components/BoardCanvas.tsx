@@ -69,7 +69,8 @@ const pointerFirst: CollisionDetection = (args) => {
 /**
  * The board canvas (Phase 3.5). Lifts every category's options to one place so it
  * can split them into **proposed** and **locked** cards, then lays them out as a
- * horizontal, scroll-snapping row of lanes under a summary band.
+ * horizontal, scroll-snapping row of lanes beside the reference rail (what the
+ * trip costs, and who is on it).
  *
  * It owns the single `DndContext` for the whole board (organizers, active trip
  * only). Three gestures, all reusing existing endpoints — no new server action:
@@ -282,8 +283,8 @@ export function BoardCanvas({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDragging(null)}
       >
-      <div className="board__layout">
-        {/* What this trip costs, and who is on it — the two things the lanes
+        <div className="board__layout">
+          {/* What this trip costs, and who is on it — the two things the lanes
             beside them cannot tell you by being read. The Decided rail used to
             sit here and it was the third copy of every decision; the lane that
             answered the question already pins its answer at the top.
@@ -291,50 +292,50 @@ export function BoardCanvas({
             A column rather than a band across the top: both are reference
             material you consult *while* working the lanes, and a band pushed
             the lanes themselves below the fold on a laptop. */}
-        <aside className="board__rail">
-          <CostTally tripId={tripId} />
-          <CrewPanel
-            tripId={tripId}
-            myRole={myRole}
-            myUserId={myUserId}
-            onManage={onManageMembers}
-          />
-        </aside>
-        <div className="board__canvas" aria-label="Category lanes">
-          <SortableContext
-            items={laneIds}
-            strategy={horizontalListSortingStrategy}
-          >
-            {categories.map((category) => (
-              <CategoryLane
-                key={category.id}
-                tripId={tripId}
-                category={category}
-                options={proposedByCategory[category.id] ?? []}
-                decided={decidedByCategory[category.id] ?? []}
-                defaultCurrency={defaultCurrency}
-                myRole={myRole}
-                myUserId={myUserId}
-                frozen={frozen}
-                tripDates={tripDates}
-                dndEnabled={dndEnabled}
-                // Only the lane the card came from offers to decide it: the
-                // lock endpoint is category-scoped and a card cannot change
-                // lanes, so any other lane's target would be a promise the
-                // board could not keep.
-                decideTarget={dragging?.categoryId === category.id}
-                onOpenChannel={onOpenChannel}
-              />
-            ))}
-          </SortableContext>
-          {can(myRole, "category.manage") && !frozen ? (
-            <AddCategoryLane
+          <aside className="board__rail">
+            <CostTally tripId={tripId} />
+            <CrewPanel
               tripId={tripId}
-              categoryCount={categories.length}
+              myRole={myRole}
+              myUserId={myUserId}
+              onManage={onManageMembers}
             />
-          ) : null}
+          </aside>
+          <div className="board__canvas" aria-label="Category lanes">
+            <SortableContext
+              items={laneIds}
+              strategy={horizontalListSortingStrategy}
+            >
+              {categories.map((category) => (
+                <CategoryLane
+                  key={category.id}
+                  tripId={tripId}
+                  category={category}
+                  options={proposedByCategory[category.id] ?? []}
+                  decided={decidedByCategory[category.id] ?? []}
+                  defaultCurrency={defaultCurrency}
+                  myRole={myRole}
+                  myUserId={myUserId}
+                  frozen={frozen}
+                  tripDates={tripDates}
+                  dndEnabled={dndEnabled}
+                  // Only the lane the card came from offers to decide it: the
+                  // lock endpoint is category-scoped and a card cannot change
+                  // lanes, so any other lane's target would be a promise the
+                  // board could not keep.
+                  decideTarget={dragging?.categoryId === category.id}
+                  onOpenChannel={onOpenChannel}
+                />
+              ))}
+            </SortableContext>
+            {can(myRole, "category.manage") && !frozen ? (
+              <AddCategoryLane
+                tripId={tripId}
+                categoryCount={categories.length}
+              />
+            ) : null}
+          </div>
         </div>
-      </div>
         {/* Deliberately a plain preview and not an `OptionCard`: the card in
             hand is not interactive, and mounting a second copy of one would
             duplicate its mutations and its dialog. */}

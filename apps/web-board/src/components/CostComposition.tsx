@@ -59,7 +59,10 @@ export function CostComposition({
               {headline.headline}
             </strong>
             {headline.exact ? (
-              <span className="board__sr-only"> — exactly {headline.exact}</span>
+              <span className="board__sr-only">
+                {" "}
+                — exactly {headline.exact}
+              </span>
             ) : null}
             <span className="cost-comp__stack-caption">{headline.caption}</span>
           </p>
@@ -90,8 +93,7 @@ function FormToggle({
           key={option}
           type="button"
           className={
-            "cost-comp__form" +
-            (form === option ? " cost-comp__form--on" : "")
+            "cost-comp__form" + (form === option ? " cost-comp__form--on" : "")
           }
           aria-pressed={form === option}
           onClick={() => onChange(option)}
@@ -245,4 +247,3 @@ function Uncounted({ composition }: { composition: Composition }) {
     </p>
   );
 }
-
