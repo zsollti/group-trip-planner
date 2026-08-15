@@ -36,7 +36,6 @@ import { CategoryLane } from "./CategoryLane";
 import { CostTally } from "./CostTally";
 import { CrewPanel } from "./CrewPanel";
 import { costLabel } from "./optionFormat";
-import { sortLanes, useLaneSort, type LaneSort } from "../lib/laneSort";
 import { truncateName } from "../lib/truncate";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
@@ -83,6 +82,15 @@ const pointerFirst: CollisionDetection = (args) => {
  * the same menu it always offered, so nothing became unreachable — the board
  * simply stopped having two ways to do it.
  *
+ * **The lanes are in one order: the stored one.** A per-browser "sort by
+ * undecided first" view used to sit above the row, and it cost more than it
+ * paid for. It could not touch `position` (one reader's view is not the trip's
+ * order), so while it was on the displayed order and the stored order
+ * disagreed, and lane drag had to be switched off to stop a drag writing the
+ * wrong indices — a board that quietly refused a gesture, with a line of prose
+ * explaining why. Dragging a lane where you want it is the better answer to
+ * "these are in the wrong order", and it is the one that persists for everyone.
+ *
  * The target category is only known at drop time, so the mutations are the
  * trip-scoped `useBoard*` hooks that take the category in their variables. Every
  * gesture has a button equivalent (lock/unlock on the card menu; reorder is
@@ -122,7 +130,6 @@ export function BoardCanvas({
 }) {
   const catIds = categories.map((c) => c.id);
   const opts = useCategoriesOptions(tripId, catIds);
-  const [laneSort, setLaneSort] = useLaneSort();
   const reorderCats = useReorderCategories(tripId);
   const boardLock = useBoardLock(tripId);
   const boardReorder = useBoardReorderOptions(tripId);
@@ -178,17 +185,6 @@ export function BoardCanvas({
 
   const dndEnabled = can(myRole, "decision.lock") && !frozen;
 
-  // Display order. Sorting by "still undecided" is a per-user view, so it must
-  // not touch the stored positions — and lane drag has to stand down while it is
-  // on, since a drag reorders by index and the displayed indices would no longer
-  // be the stored ones. Card gestures (lock/unlock, within-lane reorder) are
-  // unaffected: they are scoped to a single lane either way.
-  const displayCategories = useMemo(
-    () => sortLanes(categories, opts.byCategory, laneSort),
-    [categories, opts.byCategory, laneSort],
-  );
-  const laneDragEnabled = dndEnabled && laneSort === "manual";
-
   /**
    * The card currently in hand, so {@link DragOverlay} can show it.
    *
@@ -222,9 +218,12 @@ export function BoardCanvas({
 
     if (a.type === "lane") {
       if (!over || o?.type !== "lane" || over.id === active.id) return;
-      // Only reachable in manual sort (laneDragEnabled), where the displayed
-      // order is the stored order — so these indices are the server's.
-      const ids = displayCategories.map((c) => c.id);
+      // The displayed order is the stored order, so these indices are the
+      // server's. That used not to hold: a "sort by undecided" view reordered
+      // the row without touching `position`, so a drag in that view would have
+      // written the indices the reader saw rather than the ones the server
+      // keeps. The view is gone and with it the discrepancy.
+      const ids = categories.map((c) => c.id);
       const from = ids.indexOf(a.categoryId ?? "");
       const to = ids.indexOf(o.categoryId ?? "");
       if (from < 0 || to < 0 || from === to) return;
@@ -272,7 +271,7 @@ export function BoardCanvas({
     );
   }
 
-  const laneIds = displayCategories.map((c) => `lane:${c.id}`);
+  const laneIds = categories.map((c) => `lane:${c.id}`);
 
   return (
     <>
@@ -296,32 +295,12 @@ export function BoardCanvas({
             onManage={onManageMembers}
           />
         </div>
-        <div className="board__lanetools">
-          <label className="board__lanesort" htmlFor="lane-sort">
-            <span>Sort lanes</span>
-            <select
-              id="lane-sort"
-              className="board__select"
-              value={laneSort}
-              onChange={(e) => setLaneSort(e.target.value as LaneSort)}
-            >
-              <option value="manual">Manual order</option>
-              <option value="undecided">Undecided first</option>
-            </select>
-          </label>
-          {laneSort === "undecided" && dndEnabled ? (
-            <p className="board__muted" role="status">
-              Drag to reorder lanes is off while sorting — switch to manual
-              order to rearrange them.
-            </p>
-          ) : null}
-        </div>
         <div className="board__canvas" aria-label="Category lanes">
           <SortableContext
             items={laneIds}
             strategy={horizontalListSortingStrategy}
           >
-            {displayCategories.map((category) => (
+            {categories.map((category) => (
               <CategoryLane
                 key={category.id}
                 tripId={tripId}
@@ -339,7 +318,6 @@ export function BoardCanvas({
                 // lanes, so any other lane's target would be a promise the
                 // board could not keep.
                 decideTarget={dragging?.categoryId === category.id}
-                laneDragEnabled={laneDragEnabled}
                 onOpenChannel={onOpenChannel}
               />
             ))}

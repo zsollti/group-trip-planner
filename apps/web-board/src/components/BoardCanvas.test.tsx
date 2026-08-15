@@ -163,8 +163,9 @@ describe("BoardCanvas", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     onManageMembers.mockClear();
-    // The lane-sort preference persists in localStorage; clear it so one test's
-    // choice can't set the starting order for the next.
+    // Per-browser view preferences (the cost strip's chart form) persist in
+    // localStorage; clear it so one test's choice can't decide what the next
+    // one renders.
     window.localStorage.clear();
   });
 
@@ -448,8 +449,12 @@ describe("BoardCanvas", () => {
     ).toBeTruthy();
   });
 
-  it("sorting by undecided reorders the lanes and stands lane drag down", async () => {
-    // Two lanes: Stay is settled (a locked card), Food is still open.
+  it("draws the lanes in their stored order, all of them draggable", async () => {
+    // Two lanes: Stay is settled (a locked card), Food is still open. A "sort
+    // by undecided" view used to float Food in front of Stay and remove every
+    // lane grip while it did, because the shown order was then not the stored
+    // one. Both halves of that are gone: position decides, and a drag is always
+    // available to change it.
     const food: CategoryView = {
       id: "c2",
       name: "Food",
@@ -496,31 +501,20 @@ describe("BoardCanvas", () => {
     );
 
     await screen.findByText("Ramen");
-    const laneGrip = /drag to reorder the .* lane/i;
-    // Manual order: the stored positions, and lanes are draggable.
-    expect(screen.getAllByRole("button", { name: laneGrip }).length).toBe(2);
-    const stay = screen.getByRole("heading", { name: "Stay" });
-    expect(
-      stay.compareDocumentPosition(
-        screen.getByRole("heading", { name: "Food" }),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText(/sort lanes/i), {
-      target: { value: "undecided" },
-    });
-
-    // Food (open) now precedes Stay (decided) — and because the shown order is
-    // no longer the stored one, the lane grips are gone so a drag can't reorder
-    // against indices the server doesn't share.
+    // Stored order: Stay (position 2) before Food (position 3), settled or not.
     expect(
       screen
-        .getByRole("heading", { name: "Food" })
+        .getByRole("heading", { name: "Stay" })
         .compareDocumentPosition(
-          screen.getByRole("heading", { name: "Stay" }),
+          screen.getByRole("heading", { name: "Food" }),
         ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: laneGrip })).toBeNull();
+    // And no view can take the grips away, so a drag is never silently refused.
+    expect(
+      screen.getAllByRole("button", { name: /drag to reorder the .* lane/i })
+        .length,
+    ).toBe(2);
+    expect(screen.queryByLabelText(/sort lanes/i)).toBeNull();
   });
 
   it("opens a read-only detail view for a locked card with its category and full notes", async () => {

@@ -10,7 +10,7 @@ import { calendarDayToLocalMs, tripDayKey } from "./tripDate";
 /**
  * The itinerary view's layout core — everything about *where* a decision lands
  * on the trip's calendar, and nothing about how it is drawn. (The one exception
- * is the view preference at the bottom, which follows `laneSort.ts`.)
+ * is the view preference at the bottom.)
  *
  * Split out for the same reason as `fitTabs.ts`: the interesting part is
  * arithmetic over dates and it is worth testing exhaustively, while the part
@@ -392,9 +392,10 @@ const PROPOSALS_KEY = "gtp.timeline.showProposals";
 /**
  * Whether this reader wants proposals drawn under the itinerary.
  *
- * Persisted per browser, exactly like {@link import("./laneSort").useLaneSort}
- * and for the same reason: it is one person's view of the trip, not something
- * the group agrees on, so it needs no contract and no write path.
+ * Persisted per browser, exactly like the cost strip's chart choice
+ * (`costChartForm.ts`) and for the same reason: it is one person's view of the
+ * trip, not something the group agrees on, so it needs no contract and no write
+ * path.
  *
  * **Default off, and deliberately not a two-mode switch.** A "Locked / All"
  * toggle would imply two equal views and make you choose a mode before
