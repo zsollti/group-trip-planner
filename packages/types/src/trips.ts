@@ -20,8 +20,20 @@ export type TripRole = z.infer<typeof TripRole>;
 export const TripStatus = z.enum(["ACTIVE", "HISTORY"]);
 export type TripStatus = z.infer<typeof TripStatus>;
 
-/** Trip name: required, human-facing, bounded. */
-export const tripNameSchema = z.string().trim().min(1).max(120);
+/**
+ * Trip name: required, human-facing, bounded.
+ *
+ * The messages are written out because they are **shown to people**. Zod's
+ * defaults read "String must contain at least 1 character(s)", which is a
+ * sentence about a type rather than about the trip someone is naming — and the
+ * create form now validates this on the first Next, so it is the first thing a
+ * new user can be told.
+ */
+export const tripNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Give the trip a name.")
+  .max(120, "That name is too long — 120 characters at most.");
 
 /** Optional free-text fields, trimmed; empty string normalises to undefined. */
 const optionalText = (max: number) =>

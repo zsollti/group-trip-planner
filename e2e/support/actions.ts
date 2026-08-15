@@ -78,12 +78,21 @@ export async function createBoard(
   dates?: { start: string; end: string },
 ): Promise<string> {
   await page.getByRole("button", { name: "＋ New board" }).click();
+
+  // The create form is a stepper now: one question per panel, so this walks it.
+  // The primary button says Skip until a question is answered and Next after,
+  // which is why it is matched by role rather than by a fixed label.
+  const onward = page.getByRole("button", { name: /^(Next|Skip)$/ });
   await page.getByLabel("Trip name").fill(name);
+  await onward.click();
+
   await page.getByLabel("Destination").fill("Lisbon, Portugal");
+  await onward.click();
+
   if (dates) {
-    // Clicked, not typed: the create form's two date inputs are gone and the
-    // calendar is the control. It opens on the current month and draws two, so
-    // a near-future range is usually on screen; page forward when it is not.
+    // Clicked, not typed: the date inputs are gone and the calendar is the
+    // control. It opens on the current month and draws two, so a near-future
+    // range is usually on screen; page forward when it is not.
     for (const iso of [dates.start, dates.end]) {
       const cell = page.locator(`.drange__day[data-day="${iso}"]`);
       for (let i = 0; i < 6 && (await cell.count()) === 0; i += 1) {
@@ -92,6 +101,9 @@ export async function createBoard(
       await cell.first().click();
     }
   }
+  await onward.click();
+  // Currency keeps its default; budget is left unset.
+  await onward.click();
   await page.getByRole("button", { name: "Create board" }).click();
 
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
