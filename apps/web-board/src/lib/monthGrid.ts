@@ -1,0 +1,175 @@
+/**
+ * Month-grid arithmetic for the range picker — everything about *which days a
+ * month draws* and nothing about how they are drawn.
+ *
+ * Split out for the same reason as `timeline.ts` and `fitTabs.ts`: the
+ * interesting part is arithmetic over dates, it is worth testing exhaustively,
+ * and it is the part that is easy to get quietly wrong.
+ *
+ * **Everything here speaks `YYYY-MM-DD` and computes in UTC.** A calendar day
+ * is not an instant, and the moment you build one with `new Date(y, m, d)` and
+ * read it back with local getters you have a value that is one day earlier for
+ * half the planet — the same `@db.Date` trap the itinerary hit. Days are
+ * compared as strings, which for zero-padded ISO dates is exactly calendar
+ * order, and the only `Date` objects are UTC ones used to step the calendar.
+ */
+
+/** One cell of a month grid. */
+export interface GridDay {
+  /** The day it stands for, `YYYY-MM-DD`. */
+  readonly iso: string;
+  /** Day of the month, for the label. */
+  readonly dayOfMonth: number;
+  /** False for the leading/trailing days borrowed from the neighbouring month. */
+  readonly inMonth: boolean;
+}
+
+/** A year and a zero-based month — the cursor the picker scrolls. */
+export interface MonthCursor {
+  readonly year: number;
+  /** Zero-based, as `Date` counts them. */
+  readonly month: number;
+}
+
+/** Weeks drawn per month. Six always, so the grid never changes height as you
+ *  page through it — a control that grows and shrinks under the pointer moves
+ *  the day you were about to click. */
+const WEEKS = 6;
+const DAYS_PER_WEEK = 7;
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** A UTC date as `YYYY-MM-DD`. */
+export function isoDay(d: Date): string {
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+/** `YYYY-MM-DD` as a UTC midnight `Date`, or null when it is not a day. */
+export function parseDay(iso: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  // Rejects the impossible dates `Date` silently rolls over ("2026-02-31").
+  return isoDay(d) === iso ? d : null;
+}
+
+/** The cursor a day belongs to, or today's when it is not a day. */
+export function cursorFor(iso: string | null): MonthCursor {
+  const d = (iso && parseDay(iso)) || new Date();
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
+}
+
+/** Step a cursor by whole months, rolling the year over in both directions. */
+export function addMonths(cursor: MonthCursor, delta: number): MonthCursor {
+  const total = cursor.year * 12 + cursor.month + delta;
+  return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
+}
+
+/**
+ * The six-week grid for a month, Monday first.
+ *
+ * Monday rather than Sunday because the app's audience is European and the
+ * trip's own dates are written in that order everywhere else in the UI. The
+ * leading and trailing cells are real neighbouring days, not blanks: a range
+ * that starts on the 30th and ends on the 2nd has to be selectable and
+ * shadeable across the seam.
+ */
+export function monthGrid(cursor: MonthCursor): GridDay[] {
+  const first = new Date(Date.UTC(cursor.year, cursor.month, 1));
+  // getUTCDay is 0=Sunday; shift so Monday is 0.
+  const lead = (first.getUTCDay() + 6) % 7;
+  const start = new Date(first.getTime());
+  start.setUTCDate(start.getUTCDate() - lead);
+
+  const days: GridDay[] = [];
+  for (let i = 0; i < WEEKS * DAYS_PER_WEEK; i += 1) {
+    const d = new Date(start.getTime());
+    d.setUTCDate(d.getUTCDate() + i);
+    days.push({
+      iso: isoDay(d),
+      dayOfMonth: d.getUTCDate(),
+      inMonth: d.getUTCMonth() === cursor.month,
+    });
+  }
+  return days;
+}
+
+/** The month's name and year in the reader's locale, for the grid's caption. */
+export function monthLabel(cursor: MonthCursor): string {
+  return new Date(Date.UTC(cursor.year, cursor.month, 1)).toLocaleDateString(
+    undefined,
+    { month: "long", year: "numeric", timeZone: "UTC" },
+  );
+}
+
+/** Weekday initials, Monday first, in the reader's locale. */
+export function weekdayLabels(): { short: string; long: string }[] {
+  // Any Monday will do; 2026-01-05 is one.
+  const monday = Date.UTC(2026, 0, 5);
+  return Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
+    const d = new Date(monday + i * 86_400_000);
+    return {
+      short: d.toLocaleDateString(undefined, {
+        weekday: "narrow",
+        timeZone: "UTC",
+      }),
+      long: d.toLocaleDateString(undefined, {
+        weekday: "long",
+        timeZone: "UTC",
+      }),
+    };
+  });
+}
+
+/** Inclusive containment, on zero-padded ISO days where string order is date order. */
+export function within(iso: string, from: string, to: string): boolean {
+  return iso >= from && iso <= to;
+}
+
+/** How a day sits in the selection — what the cell paints. */
+export type DayRole = "none" | "start" | "end" | "between" | "single";
+
+/**
+ * A day's place in the range being built, including the **hovered** end.
+ *
+ * The preview is the whole point of a two-tap range: after the first tap the
+ * grid has to show what the range *would* be, or the second tap is a guess.
+ * A hover earlier than the start previews nothing rather than an inverted
+ * range — clicking there restarts the selection, and shading backwards would
+ * promise a range that will not be made.
+ */
+export function dayRole(
+  iso: string,
+  start: string | null,
+  end: string | null,
+  hovered: string | null,
+): DayRole {
+  if (!start) return "none";
+  const finish = end ?? (hovered && hovered > start ? hovered : null);
+  if (!finish) return iso === start ? "single" : "none";
+  if (iso === start && iso === finish) return "single";
+  if (iso === start) return "start";
+  if (iso === finish) return "end";
+  return within(iso, start, finish) ? "between" : "none";
+}
+
+/**
+ * The next selection after tapping a day — the whole interaction, as a
+ * function.
+ *
+ * Three cases, and the third is the one that makes the control forgiving: with
+ * a complete range already chosen, a tap starts a new one rather than editing
+ * an end you did not say you meant. A tap *before* the pending start also
+ * restarts, because the alternative is refusing the click or silently swapping
+ * the ends — and someone clicking an earlier day has plainly changed their mind
+ * about where the range begins.
+ */
+export function nextSelection(
+  iso: string,
+  start: string | null,
+  end: string | null,
+): { start: string; end: string | null } {
+  if (!start || end) return { start: iso, end: null };
+  if (iso < start) return { start: iso, end: null };
+  return { start, end: iso };
+}
