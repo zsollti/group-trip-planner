@@ -26,32 +26,41 @@ function figure(
   return approximate ? approx(amount, currency) : money(amount, currency);
 }
 
-/** A one-line collapsed peek: what the group has committed to, altogether. */
-function peek(d: TripDashboardView): string {
-  const { parts, allIn } = lockedCost(d);
-  if (parts.length === 0) return "No cost yet";
-  // The peek used to read "€300 → €300 +", pairing the locked total with the
-  // projection and appending a bare "+" for every other currency — three ideas
-  // in eight characters, none of them the one being asked for. It is the one
-  // number now: what we are committed to.
-  if (allIn) return figure(allIn.group, allIn.currency, allIn.approximate);
-  // No single figure to be had. The exact subtotals, joined — long, but every
-  // character of it is true.
-  return parts.map((p) => money(p.group, p.currency)).join(" · ");
+/**
+ * The exact per-currency sums, joined — or null when there is only one, since a
+ * sum of one term is the term.
+ *
+ * These are the figures FR-27 guarantees: never combined, never approximated.
+ * They used to be a line of their own under the total, and on a single-currency
+ * trip that line said nothing while on a mixed one it repeated in longhand what
+ * the ≈ figure had just said. It is the ≈ figure's tooltip now, and its
+ * screen-reader text, so the guarantee is still reachable by anyone who asks
+ * for it and is not in the way of anyone who doesn't.
+ */
+function exactParts(locked: LockedCost): string | null {
+  if (locked.parts.length < 2) return null;
+  return locked.parts.map((p) => money(p.group, p.currency)).join("  +  ");
 }
 
 /**
- * Trip-Board cost surface — a **full-width collapsible strip** under the trip
- * header. Collapsed it shows what the trip is committed to in one line;
- * expanded, that figure large, the target it is read against, and the exact
- * per-currency sums it was made from.
+ * Trip-Board cost surface — the top of the board's reference rail: where the
+ * locked money went, the target it is read against, and who it is divided by.
  *
  * **Locked money only.** The projection used to share every bar as a hatched
  * second segment, so the larger part of the picture was hypothetical and the
  * part that had actually been decided was the harder of the two to read. The
  * engine still computes it; this stopped drawing it. See `lib/costSummary`.
  *
- * Native `<details>` gives free keyboard and a11y. Functional four states.
+ * **No label, no total, no disclosure.** It was a `<details>` headed "💶 Locked
+ * in" with the group total large beneath it. Every part of that was answering a
+ * question the chart below already answers better: the composition states the
+ * per-person figure in the donut's hole, which is the unit the target is in and
+ * the one a reader is deciding against. A group total sitting above it was a
+ * second figure in a different unit, and the label was a caption for a panel
+ * whose contents say what they are. The strip keeps an `aria-label`, since a
+ * region still needs a name even when it does not need a heading.
+ *
+ * Functional four states: loading, error, nothing-yet, and the tally.
  */
 export function CostTally({ tripId }: { tripId: string }) {
   const dash = useTripDashboard(tripId);
@@ -61,25 +70,17 @@ export function CostTally({ tripId }: { tripId: string }) {
   const categories = useTripCategories(tripId);
 
   return (
-    <details className="board__cost-strip" open>
-      <summary className="board__cost-summary">
-        <span className="board__cost-label">💶 Locked in</span>
-        {dash.data && dash.data.committed.length > 0 ? (
-          <span className="board__cost-peek">{peek(dash.data)}</span>
-        ) : null}
-      </summary>
-      <div className="board__cost-body">
-        {dash.isPending ? (
-          <p className="board__tally-muted">Counting…</p>
-        ) : dash.isError ? (
-          <p className="board__tally-muted" role="alert">
-            Couldn't load the cost.
-          </p>
-        ) : (
-          <TallyBody d={dash.data} categories={categories.data ?? []} />
-        )}
-      </div>
-    </details>
+    <section className="board__cost-strip" aria-label="Cost">
+      {dash.isPending ? (
+        <p className="board__tally-muted">Counting…</p>
+      ) : dash.isError ? (
+        <p className="board__tally-muted" role="alert">
+          Couldn't load the cost.
+        </p>
+      ) : (
+        <TallyBody d={dash.data} categories={categories.data ?? []} />
+      )}
+    </section>
   );
 }
 
@@ -107,6 +108,8 @@ function TallyBody({
     );
   }
 
+  const exact = exactParts(locked);
+
   return (
     <>
       {d.hasStaleHeadcount ? (
@@ -114,19 +117,12 @@ function TallyBody({
           ⚠ Fixed headcount out of date
         </p>
       ) : null}
-      {locked.allIn ? (
-        // The composition draws the target itself, in both of its forms, so the
-        // plain bar would be the second chart of the same comparison. It stays
-        // for the case the composition cannot cover: a target, but nothing
-        // shared by the whole group to draw against it.
-        <Headline
-          all={locked.allIn}
-          verdict={composition ? null : verdict}
-          perPerson={composition === null}
-        />
-      ) : (
-        <SplitTotals locked={locked} />
-      )}
+      {/* One figure on this surface, and the composition states it when it can
+          — in the donut's hole, or as the caption over the bar. The fallbacks
+          below exist for the two cases it cannot cover: nothing drawable
+          (everything priced for part of the group), and several currencies with
+          no rate to cross them. Without them a trip in that state would get a
+          cost panel with no money on it at all. */}
       {composition ? (
         <CostComposition
           composition={composition}
@@ -143,16 +139,17 @@ function TallyBody({
               composition.excluded.length > 0
                 ? "per person, shared"
                 : "per person",
+            exact,
           }}
         />
-      ) : null}
-      {/* What the figure was made of, then where it came from — in that order,
-          because "made of what?" is the question an approximate total provokes
-          first, and the rates only matter once you accept the sum. */}
-      <Breakdown locked={locked} />
-      {locked.allIn?.approximate ? (
-        <Provenance all={locked.allIn} asOf={d.converted?.asOf ?? ""} />
-      ) : null}
+      ) : locked.allIn ? (
+        <>
+          <Headline all={locked.allIn} verdict={verdict} exact={exact} />
+          <Uncrossed all={locked.allIn} />
+        </>
+      ) : (
+        <SplitTotals locked={locked} />
+      )}
       {verdict ? <TargetLine v={verdict} /> : null}
       <p className="board__tally-foot">
         {d.memberCount} member{d.memberCount === 1 ? "" : "s"}
@@ -176,30 +173,25 @@ function TallyBody({
 function Headline({
   all,
   verdict,
-  perPerson = true,
+  exact,
 }: {
   all: AllInTotal;
   verdict: ReturnType<typeof targetVerdict>;
-  /**
-   * False once the composition below is stating per-person money itself — in
-   * the donut's hole, or as the caption over the bar. Printing it here as well
-   * puts the same figure on the surface twice, a few pixels apart, which is how
-   * a panel starts to look like it is answering one question two ways. It also
-   * stops being merely redundant the moment an option is priced for part of the
-   * group: the two figures then legitimately differ, and a reader has no way to
-   * tell which of them they owe.
-   */
-  perPerson?: boolean;
+  /** The exact per-currency sums behind an approximate figure; see {@link exactParts}. */
+  exact: string | null;
 }) {
   return (
     <div className="board__tally-head">
       <p className="board__tally-total">
-        <strong>{figure(all.group, all.currency, all.approximate)}</strong>
-        {perPerson ? (
-          <span className="board__tally-per">
-            {figure(all.perPerson, all.currency, all.approximate)} per person
-          </span>
+        <strong title={exact ?? undefined}>
+          {figure(all.group, all.currency, all.approximate)}
+        </strong>
+        {exact ? (
+          <span className="board__sr-only"> — exactly {exact}</span>
         ) : null}
+        <span className="board__tally-per">
+          {figure(all.perPerson, all.currency, all.approximate)} per person
+        </span>
       </p>
       {verdict ? (
         <CostBar spend={verdict.spend} target={verdict.target} />
@@ -208,15 +200,18 @@ function Headline({
   );
 }
 
-/** Which day's rates produced the figure, and what they could not reach. */
-function Provenance({ all, asOf }: { all: AllInTotal; asOf: string }) {
+/**
+ * Currencies no rate reached, so the figure above does not account for them.
+ *
+ * This used to lead with the rates' publication date — "converted at 14 Aug" —
+ * provenance for a figure nobody had asked the provenance of, printed under
+ * every approximate total whether or not anything was actually missing. The
+ * part worth saying is where the total is *incomplete*, and only then.
+ */
+function Uncrossed({ all }: { all: AllInTotal }) {
+  if (all.missing.length === 0) return null;
   return (
-    <p className="board__tally-rates">
-      converted at {rateDay(asOf)}
-      {all.missing.length > 0
-        ? ` · ${all.missing.join(", ")} not converted`
-        : ""}
-    </p>
+    <p className="board__tally-rates">{all.missing.join(", ")} not converted</p>
   );
 }
 
@@ -237,28 +232,6 @@ function SplitTotals({ locked }: { locked: LockedCost }) {
       </p>
       <p className="board__tally-rates">no rate to add these up with</p>
     </div>
-  );
-}
-
-/**
- * What the figure above was made of: the exact per-currency sums, added up.
- *
- * These are the numbers FR-27 guarantees — never combined, never approximated —
- * and this line is where they live now that the per-currency bars are gone. It
- * answers the one question an approximate total provokes: *made of what?*
- *
- * It stops at the parts and does **not** restate the total with an `=`. The
- * total is the line directly above; printing it twice, a few pixels apart, is
- * how a surface ends up looking like it is giving two answers to one question.
- *
- * Nothing to show for a single currency: a sum of one term is the term.
- */
-function Breakdown({ locked }: { locked: LockedCost }) {
-  if (locked.parts.length < 2) return null;
-  return (
-    <p className="board__tally-sum">
-      {locked.parts.map((p) => money(p.group, p.currency)).join("  +  ")}
-    </p>
   );
 }
 
@@ -293,21 +266,4 @@ function TargetLine({
       </span>
     </p>
   );
-}
-
-/**
- * The rates' publication date, in the reader's locale.
- *
- * `asOf` is a **calendar day**, not an instant — the same class of value as a
- * trip's start date, and it has the same trap: read with local getters, "12
- * August" is 11 August across the Americas. Formatted in UTC, which is the zone
- * the day was named in.
- */
-function rateDay(asOf: string): string {
-  if (!asOf) return "an unknown date";
-  return new Date(`${asOf}T00:00:00.000Z`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
 }

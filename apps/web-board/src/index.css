@@ -1031,6 +1031,22 @@ body {
   text-decoration: none;
 }
 
+/* Available to a screen reader and to find-in-page, absent from the layout.
+   Not `display: none`, which hides it from both. Used where a figure carries a
+   longhand a sighted reader gets from a tooltip — the exact per-currency sums
+   behind an approximate total. */
+.board__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* An irreversible action, drawn as one. Outlined rather than filled: a solid
    red block reads as the page's primary action, and deleting your account is
    the last thing this page is for. */
@@ -1869,16 +1885,12 @@ body {
   color: var(--board-dim);
   font-weight: 400;
 }
-/* Provenance, in the recessive ink every caveat on this surface wears. */
-.board__tally-rates,
-.board__tally-sum {
+/* Caveats wear the recessive ink on this surface. */
+.board__tally-rates {
   margin: 0;
   font-size: 0.74rem;
   color: var(--board-dim);
   font-variant-numeric: tabular-nums;
-}
-.board__tally-sum {
-  margin-top: 0.15rem;
 }
 .tally-bar {
   display: flex;
@@ -1920,52 +1932,22 @@ body {
   background: var(--board-accent);
 }
 
-/* Cost summary strip under the header (Phase 3.5) — replaces the pinned widget
- * so the canvas is pure lanes and mobile swipes cleanly. */
+/* The cost panel at the top of the board's rail.
+ *
+ * It was a `<details>` headed "💶 Locked in", with a collapsed peek figure and
+ * the group total large beneath it. All three went: the composition inside
+ * states the per-person figure once, in the unit the target is in, and a label
+ * plus two more figures around it were captions for a panel whose contents say
+ * what they are. */
 .board__cost-strip {
-  background: var(--lane-bg);
-  border: 1px solid var(--lane-line);
-  border-radius: 14px;
-  padding: 0.55rem 0.85rem;
-  margin-bottom: 1rem;
-}
-.board__cost-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  list-style: none;
-  font-weight: 700;
-}
-.board__cost-summary::-webkit-details-marker {
-  display: none;
-}
-.board__cost-summary:focus-visible {
-  outline: 2px solid var(--board-accent);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-.board__cost-label {
-  color: var(--board-accent);
-}
-.board__cost-peek {
-  color: var(--board-dim);
-  font-weight: 500;
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-}
-/* The peek exists so a collapsed strip still says something. Open, it is the
-   same figure the headline shows a line below it — and a number printed twice,
-   thirty pixels apart, is how a surface starts to look like it is answering a
-   question two different ways. */
-.board__cost-strip[open] .board__cost-peek {
-  display: none;
-}
-.board__cost-body {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  margin-top: 0.6rem;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 1rem;
 }
 
 /* --- Cost composition: where the locked money went -------------------------
