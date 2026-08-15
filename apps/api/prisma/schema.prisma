@@ -45,6 +45,7 @@ model User {
   proposedOptions         Option[]                 @relation("OptionProposer")
   lockedOptions           Option[]                 @relation("OptionLocker")
   votes                   Vote[]
+  optionParticipations    OptionParticipant[]
   auditEvents             AuditEvent[]             @relation("AuditActor")
   messages                Message[]                @relation("MessageAuthor")
   deletedMessages         Message[]                @relation("MessageDeleter")
@@ -158,12 +159,6 @@ model Trip {
   // Optimistic-concurrency token for the "changed since you opened it — reload"
   // edit path (SRS §6). Bumped on every trip-detail edit.
   version         Int        @default(0)
-  // Bumped to now() whenever the member *count* changes (join/leave/kick/block),
-  // never on a role change or transfer (SRS Phase-3 decision 2). Drives the
-  // fixed-headcount stale flag: a fixed headcount confirmed before this instant
-  // no longer reflects the roster. Null = the count has never changed since
-  // creation, so nothing is stale (the cost engine treats null as "no change").
-  membershipChangedAt DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -454,15 +449,12 @@ model Option {
   amount           Decimal?     @db.Decimal(12, 2)
   currency         String
   costType         CostType     @default(PER_PERSON)
-  // Only meaningful when `headcountIsFixed`; otherwise the trip's live member
-  // count is used (resolved by the Phase-3 engine, never stored here).
-  headcount        Int?
-  headcountIsFixed Boolean      @default(false)
-  // Stamped when a *fixed* headcount is entered/re-entered (SRS Phase-3 decision
-  // 2), cleared when the option reverts to dynamic. A fixed headcount is stale
-  // iff this predates the trip's `membershipChangedAt`. Null for dynamic options
-  // (which always track the live count and are never stale).
-  headcountConfirmedAt DateTime?
+  // Who this option is priced for. WHOLE_GROUP resolves to the trip's live
+  // member count (the old dynamic headcount); OPT_IN counts the `participants`
+  // rows instead. This replaces the stored `headcount`/`headcountIsFixed`
+  // pair — a typed number could not notice a member leaving, which is the
+  // entire reason `headcountConfirmedAt` and the staleness rule existed.
+  participationMode ParticipationMode @default(WHOLE_GROUP)
   startsAt         DateTime?
   endsAt           DateTime?
   externalRef      String?
@@ -487,11 +479,44 @@ model Option {
   proposer User     @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
   lockedBy User?    @relation("OptionLocker", fields: [lockedById], references: [id], onDelete: SetNull)
   votes    Vote[]
+  participants OptionParticipant[]
 
   @@index([categoryId])
   @@index([proposerId])
   @@index([lockedById])
   @@map("options")
+}
+
+/// Who an option is priced for (post-launch, replacing the fixed headcount).
+enum ParticipationMode {
+  /// Everyone on the trip; the headcount is the live member count.
+  WHOLE_GROUP
+  /// Only the members who said they are in — the `option_participants` rows.
+  OPT_IN
+}
+
+/// One member opting in to an OPT_IN option — "I am in for this".
+///
+/// Deliberately the same shape as {@link Vote}, because it is the same kind of
+/// fact: one row per member per option, written and withdrawn by that member
+/// alone. It replaces a number somebody typed, and the difference is that this
+/// one can be verified — four faces are four people, where "4" was a claim
+/// nobody could check and nothing could keep current.
+model OptionParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  optionId  String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One row per member per option; joining is idempotent (upsert). The index
+  // serves the per-option participant read, exactly as votes' does.
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@index([userId])
+  @@map("option_participants")
 }
 
 /// The audited actions recorded on the trip's activity log (FR-33). Phase 2.4

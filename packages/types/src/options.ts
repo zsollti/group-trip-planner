@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OptionVoterView } from "./votes.js";
+import { OptionParticipantView, OptionVoterView } from "./votes.js";
 
 /**
  * Options contract (Phase 2.2, SRS §6 / FR-21–23) — the shared source of truth
@@ -18,6 +18,22 @@ import { OptionVoterView } from "./votes.js";
 /** How `amount` is read against headcount (SRS FR-26). */
 export const CostType = z.enum(["PER_PERSON", "TOTAL"]);
 export type CostType = z.infer<typeof CostType>;
+
+/**
+ * Who an option is priced for (post-launch, replacing the fixed headcount).
+ *
+ * `WHOLE_GROUP` is the default and the overwhelmingly common case — it resolves
+ * to the trip's live member count, exactly as a dynamic headcount did.
+ * `OPT_IN` prices the option for the members who said they are in, and is for
+ * the thing three of five people want.
+ *
+ * The pair it replaced was a number plus a flag: "priced for 4", where nobody
+ * could say *which* 4 and nothing noticed when one of them left the trip. That
+ * is why the old model needed a staleness rule at all. A list of members needs
+ * none — someone who leaves takes their row with them.
+ */
+export const ParticipationMode = z.enum(["WHOLE_GROUP", "OPT_IN"]);
+export type ParticipationMode = z.infer<typeof ParticipationMode>;
 
 /** Option lifecycle: proposed, or the locked decision state (Phase 2.4). */
 export const OptionStatus = z.enum(["PROPOSED", "LOCKED"]);
@@ -88,15 +104,6 @@ const optionalAmount = z.preprocess(
   z.number().nonnegative().max(1_000_000_000).optional(),
 );
 
-/** Optional positive integer headcount; blank/NaN normalises to undefined. */
-const optionalHeadcount = z.preprocess(
-  (v) =>
-    v === "" || v === null || (typeof v === "number" && Number.isNaN(v))
-      ? undefined
-      : v,
-  z.number().int().positive().max(100_000).optional(),
-);
-
 /** Optional ISO date-time; empty normalises to undefined. */
 const optionalDateTime = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
@@ -110,10 +117,13 @@ const currencySchema = z
   .regex(/^[A-Z]{3}$/, "must be a 3-letter currency code");
 
 /**
- * The editable body of an option, shared by create and update. Two cross-field
- * rules: a **fixed headcount requires a number** (dynamic headcount uses the live
- * member count instead), and if both dates are given **end must not precede
- * start**.
+ * The editable body of an option, shared by create and update. One cross-field
+ * rule left: if both dates are given, **end must not precede start**.
+ *
+ * The other rule was "a fixed headcount needs a number", which went with the
+ * number. Participation is not something the proposer types — it is a mode plus
+ * whatever the group says, so there is nothing here that can disagree with
+ * itself.
  */
 const optionBody = z.object({
   title: optionTitleSchema,
@@ -122,8 +132,7 @@ const optionBody = z.object({
   amount: optionalAmount,
   currency: currencySchema,
   costType: CostType.default("PER_PERSON"),
-  headcount: optionalHeadcount,
-  headcountIsFixed: z.boolean().default(false),
+  participationMode: ParticipationMode.default("WHOLE_GROUP"),
   startsAt: optionalDateTime,
   endsAt: optionalDateTime,
   externalRef: optionalText(200),
@@ -131,13 +140,6 @@ const optionBody = z.object({
 
 const withCrossFieldRules = <T extends z.ZodTypeAny>(schema: T) =>
   schema.superRefine((val: z.infer<typeof optionBody>, ctx) => {
-    if (val.headcountIsFixed && val.headcount === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["headcount"],
-        message: "A fixed headcount needs a number.",
-      });
-    }
     if (
       val.startsAt !== undefined &&
       val.endsAt !== undefined &&
@@ -199,8 +201,7 @@ export const OptionView = z.object({
   amount: z.number().nullable(),
   currency: z.string(),
   costType: CostType,
-  headcount: z.number().int().nullable(),
-  headcountIsFixed: z.boolean(),
+  participationMode: ParticipationMode,
   startsAt: z.string().nullable(),
   endsAt: z.string().nullable(),
   externalRef: z.string().nullable(),
@@ -215,6 +216,24 @@ export const OptionView = z.object({
   voteCount: z.number().int().nonnegative(),
   voters: z.array(OptionVoterView),
   viewerHasVoted: z.boolean(),
+  /**
+   * Who is in, when `participationMode` is `OPT_IN` — public, like the vote
+   * tally, because the whole point is that a headcount is now something anyone
+   * can check. Always empty for a `WHOLE_GROUP` option: everyone is in, and
+   * listing the entire trip against every card would say nothing.
+   */
+  participants: z.array(OptionParticipantView),
+  /** The caller's own toggle state, mirroring `viewerHasVoted`. */
+  viewerIsParticipant: z.boolean(),
+  /**
+   * How many people this option is actually priced for — the participant count
+   * under `OPT_IN`, the trip's live member count under `WHOLE_GROUP`.
+   *
+   * Resolved by the server rather than left to each front-end, because the same
+   * arithmetic decides the cost totals and two answers to "how many" is exactly
+   * the drift the fixed headcount used to cause.
+   */
+  effectiveHeadcount: z.number().int().nonnegative(),
 });
 export type OptionView = z.infer<typeof OptionView>;
 
@@ -228,8 +247,17 @@ export interface OptionMaterialSnapshot {
   readonly amount: number | null;
   readonly currency: string;
   readonly costType: CostType;
-  readonly headcount: number | null;
-  readonly headcountIsFixed: boolean;
+  /**
+   * The **mode**, and deliberately not the participant list.
+   *
+   * Switching an option between "everyone" and "who's in?" is an edit by the
+   * proposer that changes what every prior vote was cast about, so it is
+   * material. Somebody joining or leaving is not an edit at all — it is the
+   * group using the feature, and flagging every vote stale each time a person
+   * clicked would make the stale marker meaningless inside a day. The faces on
+   * the card are how a change in who is in gets disclosed.
+   */
+  readonly participationMode: ParticipationMode;
   readonly startsAt: string | null;
   readonly endsAt: string | null;
 }
@@ -247,8 +275,7 @@ export function hasMaterialChange(
     before.amount !== after.amount ||
     before.currency !== after.currency ||
     before.costType !== after.costType ||
-    before.headcount !== after.headcount ||
-    before.headcountIsFixed !== after.headcountIsFixed ||
+    before.participationMode !== after.participationMode ||
     before.startsAt !== after.startsAt ||
     before.endsAt !== after.endsAt
   );

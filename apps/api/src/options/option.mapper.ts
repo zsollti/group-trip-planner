@@ -1,19 +1,22 @@
-import type { Option, Vote } from "@prisma/client";
+import type { Option, OptionParticipant, Vote } from "@prisma/client";
 import {
   isVoteStale,
+  resolveHeadcount,
   type CostType,
   type OptionMaterialSnapshot,
   type OptionStatus,
   type OptionView,
+  type ParticipationMode,
 } from "@gtp/types";
 
-type VoteWithUser = Vote & {
+type WithUser<T> = T & {
   user: { displayName: string; avatarUrl: string | null };
 };
 type OptionWithRelations = Option & {
   proposer: { displayName: string };
   lockedBy: { displayName: string } | null;
-  votes: VoteWithUser[];
+  votes: WithUser<Vote>[];
+  participants: WithUser<OptionParticipant>[];
 };
 
 /** The Prisma include that hydrates everything {@link toOptionView} needs. */
@@ -25,6 +28,12 @@ export const optionInclude = {
   // list is going to render anyway would be an N+1 for one nullable column.
   votes: {
     include: { user: { select: { displayName: true, avatarUrl: true } } },
+  },
+  // Same reasoning, and the same face: a participant is drawn as a person, so
+  // the picture rides along with the name rather than costing a query each.
+  participants: {
+    include: { user: { select: { displayName: true, avatarUrl: true } } },
+    orderBy: { createdAt: "asc" },
   },
 } as const;
 
@@ -40,6 +49,7 @@ const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 export function toOptionView(
   o: OptionWithRelations,
   viewerId: string,
+  memberCount: number,
 ): OptionView {
   const materialChangedAt = iso(o.materialChangedAt);
   const voters = o.votes.map((v) => {
@@ -61,8 +71,7 @@ export function toOptionView(
     amount: o.amount === null ? null : Number(o.amount),
     currency: o.currency,
     costType: o.costType as CostType,
-    headcount: o.headcount,
-    headcountIsFixed: o.headcountIsFixed,
+    participationMode: o.participationMode as ParticipationMode,
     startsAt: iso(o.startsAt),
     endsAt: iso(o.endsAt),
     externalRef: o.externalRef,
@@ -77,6 +86,29 @@ export function toOptionView(
     voteCount: voters.length,
     voters,
     viewerHasVoted: voters.some((v) => v.userId === viewerId),
+    // Empty for a whole-group option: everyone is in, and repeating the trip's
+    // whole membership against every card would say nothing.
+    participants:
+      o.participationMode === "OPT_IN"
+        ? o.participants.map((p) => ({
+            userId: p.userId,
+            displayName: p.user.displayName,
+            avatarUrl: p.user.avatarUrl,
+            joinedAt: p.createdAt.toISOString(),
+          }))
+        : [],
+    viewerIsParticipant:
+      o.participationMode === "OPT_IN" &&
+      o.participants.some((p) => p.userId === viewerId),
+    // Read from the shared engine rule rather than recomputed here, so a card
+    // and the cost totals can never disagree about how many people are paying.
+    effectiveHeadcount: resolveHeadcount(
+      {
+        participationMode: o.participationMode as ParticipationMode,
+        participantCount: o.participants.length,
+      },
+      memberCount,
+    ),
   };
 }
 
@@ -86,8 +118,7 @@ export function toMaterialSnapshot(o: Option): OptionMaterialSnapshot {
     amount: o.amount === null ? null : Number(o.amount),
     currency: o.currency,
     costType: o.costType as CostType,
-    headcount: o.headcount,
-    headcountIsFixed: o.headcountIsFixed,
+    participationMode: o.participationMode as ParticipationMode,
     startsAt: iso(o.startsAt),
     endsAt: iso(o.endsAt),
   };

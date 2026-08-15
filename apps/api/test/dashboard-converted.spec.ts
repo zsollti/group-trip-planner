@@ -31,10 +31,9 @@ function option(over: Partial<CostEngineOption> = {}): CostEngineOption {
     amount: 100,
     currency: "EUR",
     costType: "TOTAL",
-    headcount: null,
-    headcountIsFixed: false,
+    participationMode: "WHOLE_GROUP",
+    participantCount: 0,
     voteCount: 0,
-    headcountConfirmedAt: null,
     createdAt: "2026-08-01T00:00:00.000Z",
     ...over,
   };
@@ -62,7 +61,7 @@ function view(
   defaultCurrency: string,
   rates: StoredRates | null,
 ) {
-  const result = computeCostDashboard(options, 4, null);
+  const result = computeCostDashboard(options, 4);
   return toTripDashboardView(
     { id: "t1", defaultCurrency, budgetPerPerson: null },
     4,

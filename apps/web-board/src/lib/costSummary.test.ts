@@ -19,7 +19,6 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     lines: [],
-    hasStaleHeadcount: false,
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,

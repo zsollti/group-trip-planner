@@ -335,3 +335,38 @@ export function useToggleVote(
     },
   });
 }
+
+/**
+ * Toggle whether the caller is in for an `OPT_IN` option (post-launch).
+ *
+ * Deliberately the same shape as {@link useToggleVote}: POST to join, DELETE to
+ * leave, both idempotent, both answering with the refreshed option. It takes the
+ * card's current `viewerIsParticipant` so one hook drives the toggle.
+ *
+ * It invalidates the cost dashboard as well as the lane, because joining is not
+ * an opinion — it changes what the option costs and how its total divides, so
+ * the strip beside the lanes is stale the moment it lands.
+ */
+export function useToggleParticipation(
+  tripId: string,
+  categoryId: string,
+): UseMutationResult<
+  OptionView,
+  ApiError,
+  { optionId: string; isParticipant: boolean }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ optionId, isParticipant }) =>
+      apiFetch<OptionView>(
+        `${optionsPath(tripId, categoryId)}/${optionId}/participation`,
+        { method: isParticipant ? "DELETE" : "POST" },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, categoryId),
+      });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
+  });
+}

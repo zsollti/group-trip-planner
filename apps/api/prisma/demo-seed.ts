@@ -34,9 +34,24 @@ const TRIP_NAME = "Lisbon — long weekend";
  */
 const CAST = [
   { key: "demo", email: DEMO_EMAIL, name: "Demo User", role: "OWNER" },
-  { key: "mira", email: "mira@example.com", name: "Mira Kovács", role: "CO_ORGANIZER" },
-  { key: "tomas", email: "tomas@example.com", name: "Tomáš Novák", role: "PARTICIPANT" },
-  { key: "anna", email: "anna@example.com", name: "Anna Weber", role: "PARTICIPANT" },
+  {
+    key: "mira",
+    email: "mira@example.com",
+    name: "Mira Kovács",
+    role: "CO_ORGANIZER",
+  },
+  {
+    key: "tomas",
+    email: "tomas@example.com",
+    name: "Tomáš Novák",
+    role: "PARTICIPANT",
+  },
+  {
+    key: "anna",
+    email: "anna@example.com",
+    name: "Anna Weber",
+    role: "PARTICIPANT",
+  },
   { key: "sam", email: "sam@example.com", name: "Sam Ellis", role: "GUEST" },
 ] as const;
 
@@ -57,7 +72,9 @@ function minsAgo(minutes: number): Date {
 
 async function main() {
   // ---------------------------------------------------------------- users ---
-  const passwordHash = await argon2.hash(DEMO_PASSWORD, { type: argon2.argon2id });
+  const passwordHash = await argon2.hash(DEMO_PASSWORD, {
+    type: argon2.argon2id,
+  });
 
   const users = {} as Record<CastKey, { id: string }>;
   for (const person of CAST) {
@@ -113,7 +130,8 @@ async function main() {
   });
   const cat = (key: string) => {
     const found = categories.find((c) => c.builtinKey === key);
-    if (!found) throw new Error(`Built-in category ${key} missing from the seed`);
+    if (!found)
+      throw new Error(`Built-in category ${key} missing from the seed`);
     return found.id;
   };
 
@@ -121,7 +139,10 @@ async function main() {
   // Prices are plausible for Lisbon. One activity is priced in GBP on purpose:
   // it makes the cost dashboard show two currencies side by side, which is the
   // whole point of never summing across them.
-  type Seed = Omit<Prisma.OptionUncheckedCreateInput, "categoryId" | "proposerId"> & {
+  type Seed = Omit<
+    Prisma.OptionUncheckedCreateInput,
+    "categoryId" | "proposerId"
+  > & {
     by: CastKey;
   };
 
@@ -131,7 +152,8 @@ async function main() {
       options: [
         {
           title: "Fri 15 – Mon 18",
-          description: "Cheapest flights of the three, but Mira is away until the 16th.",
+          description:
+            "Cheapest flights of the three, but Mira is away until the 16th.",
           currency: "EUR",
           position: 0,
           by: "tomas",
@@ -172,7 +194,8 @@ async function main() {
         },
         {
           title: "Ryanair via Madrid",
-          description: "€70 cheaper, but a 3h layover on the way out and a 06:15 departure.",
+          description:
+            "€70 cheaper, but a 3h layover on the way out and a 06:15 departure.",
           amount: "141.00",
           currency: "EUR",
           costType: "PER_PERSON",
@@ -195,7 +218,8 @@ async function main() {
       options: [
         {
           title: "Alfama apartment — whole flat",
-          description: "Three bedrooms, terrace, 6 min walk to the tram. Three nights, whole place.",
+          description:
+            "Three bedrooms, terrace, 6 min walk to the tram. Three nights, whole place.",
           amount: "1080.00",
           currency: "EUR",
           costType: "TOTAL",
@@ -213,7 +237,8 @@ async function main() {
         },
         {
           title: "Hostel Bairro Alto — private dorm",
-          description: "Cheapest by a distance. Loud until 2am, per every review.",
+          description:
+            "Cheapest by a distance. Loud until 2am, per every review.",
           amount: "62.00",
           currency: "EUR",
           costType: "PER_PERSON",
@@ -236,19 +261,18 @@ async function main() {
         },
         {
           title: "Surf lesson — Costa da Caparica",
-          description: "Booked through a UK operator, so it prices in sterling. Held for four boards.",
+          description:
+            "Booked through a UK operator, so it prices in sterling. Held for four boards.",
           amount: "48.00",
           currency: "GBP",
           costType: "PER_PERSON",
           position: 1,
           by: "tomas",
-          // Fixed at four, confirmed before Sam joined. Because the roster has
-          // changed since, the dashboard flags this headcount as stale rather
-          // than quietly recalculating it — and this option is the Activities
-          // front-runner, so the flag is actually on screen.
-          headcount: 4,
-          headcountIsFixed: true,
-          headcountConfirmedAt: minsAgo(60 * 40),
+          // Priced for whoever is in rather than for the trip: four of the
+          // five want it, which is the case this mode exists for, and it is
+          // what puts an option in the cost chart's "priced for part of the
+          // group" aside.
+          participationMode: "OPT_IN" as const,
         },
         {
           title: "Fado dinner in Alfama",
@@ -261,7 +285,8 @@ async function main() {
         },
         {
           title: "Time Out Market food crawl",
-          description: "No booking, just turn up hungry. Rough per-head estimate.",
+          description:
+            "No booking, just turn up hungry. Rough per-head estimate.",
           amount: "30.00",
           currency: "EUR",
           costType: "PER_PERSON",
@@ -276,7 +301,11 @@ async function main() {
   for (const group of optionSeeds) {
     for (const { by, ...data } of group.options) {
       const created = await prisma.option.create({
-        data: { ...data, categoryId: cat(group.categoryKey), proposerId: users[by].id },
+        data: {
+          ...data,
+          categoryId: cat(group.categoryKey),
+          proposerId: users[by].id,
+        },
         select: { id: true, title: true },
       });
       optionIds.set(created.title, created.id);
@@ -331,8 +360,16 @@ async function main() {
   const decisions: Array<{ title: string; by: CastKey; at: Date }> = [
     { title: "Fri 22 – Mon 25", by: "demo", at: minsAgo(60 * 26) },
     { title: "TAP direct — BUD → LIS", by: "demo", at: minsAgo(60 * 22) },
-    { title: "Airport transfer — pre-booked van", by: "mira", at: minsAgo(60 * 21) },
-    { title: "Alfama apartment — whole flat", by: "mira", at: minsAgo(60 * 20) },
+    {
+      title: "Airport transfer — pre-booked van",
+      by: "mira",
+      at: minsAgo(60 * 21),
+    },
+    {
+      title: "Alfama apartment — whole flat",
+      by: "mira",
+      at: minsAgo(60 * 20),
+    },
   ];
   for (const d of decisions) {
     await prisma.option.update({
@@ -369,16 +406,22 @@ async function main() {
     where: { id: opt("Sintra day trip") },
     data: {
       amount: "52.00",
-      description: "Train from Rossio, Pena Palace tickets booked ahead. Price went up in April.",
+      description:
+        "Train from Rossio, Pena Palace tickets booked ahead. Price went up in April.",
       materialChangedAt: minsAgo(60 * 2),
       version: { increment: 1 },
     },
   });
 
-  // The roster changed after that fixed headcount was confirmed → stale flag.
-  await prisma.trip.update({
-    where: { id: trip.id },
-    data: { membershipChangedAt: minsAgo(60 * 20) },
+  // -------------------------------------------------------- participation ---
+  // Who is in for the opt-in option. Four of the five, so the board shows three
+  // faces and a "+1", and the £48 divides by four rather than by the trip.
+  await prisma.optionParticipant.createMany({
+    data: (["demo", "tomas", "sam", "anna"] as CastKey[]).map((k) => ({
+      optionId: opt("Surf lesson — Costa da Caparica"),
+      userId: users[k].id,
+      createdAt: minsAgo(60 * 24),
+    })),
   });
 
   // ---------------------------------------------------------------- chat ---
@@ -387,24 +430,93 @@ async function main() {
     select: { id: true },
   });
   const accommodation = await prisma.channel.create({
-    data: { tripId: trip.id, type: "CATEGORY", categoryId: cat("ACCOMMODATION") },
+    data: {
+      tripId: trip.id,
+      type: "CATEGORY",
+      categoryId: cat("ACCOMMODATION"),
+    },
     select: { id: true },
   });
 
   const chat: Array<{ ch: string; by: CastKey; body: string; ago: number }> = [
-    { ch: general.id, by: "mira", body: "Right — Lisbon. Everyone put your dates in before Friday please.", ago: 60 * 34 },
-    { ch: general.id, by: "sam", body: "The 15th is much cheaper for flights, worth a look", ago: 60 * 33 },
-    { ch: general.id, by: "mira", body: "I land back on the 16th though, so that one doesn't work for me", ago: 60 * 32 },
-    { ch: general.id, by: "tomas", body: "22nd it is then. Voted.", ago: 60 * 31 },
-    { ch: general.id, by: "demo", body: "Dates locked — 22nd to the 25th. Flights next.", ago: 60 * 26 },
-    { ch: general.id, by: "anna", body: "Direct flight please. The Madrid layover is three hours each way.", ago: 60 * 24 },
-    { ch: general.id, by: "demo", body: "TAP locked, and the van for the airport runs. Activities still open.", ago: 60 * 21 },
-    { ch: general.id, by: "tomas", body: "Surf lesson is winning the activities vote — it's booked in sterling, so it shows as its own total.", ago: 60 * 4 },
-    { ch: general.id, by: "anna", body: "Heads up, Sintra went up to €52. Re-vote if that changes your mind.", ago: 60 * 2 },
-    { ch: accommodation.id, by: "mira", body: "The Alfama flat has a terrace and it's cheaper per head than the hotel.", ago: 60 * 23 },
-    { ch: accommodation.id, by: "sam", body: "Hostel is a third of the price…", ago: 60 * 22 },
-    { ch: accommodation.id, by: "anna", body: "…and every review mentions the noise. I'd rather sleep.", ago: 60 * 21 },
-    { ch: accommodation.id, by: "mira", body: "Flat locked. Three bedrooms, we'll sort who's where later.", ago: 60 * 20 },
+    {
+      ch: general.id,
+      by: "mira",
+      body: "Right — Lisbon. Everyone put your dates in before Friday please.",
+      ago: 60 * 34,
+    },
+    {
+      ch: general.id,
+      by: "sam",
+      body: "The 15th is much cheaper for flights, worth a look",
+      ago: 60 * 33,
+    },
+    {
+      ch: general.id,
+      by: "mira",
+      body: "I land back on the 16th though, so that one doesn't work for me",
+      ago: 60 * 32,
+    },
+    {
+      ch: general.id,
+      by: "tomas",
+      body: "22nd it is then. Voted.",
+      ago: 60 * 31,
+    },
+    {
+      ch: general.id,
+      by: "demo",
+      body: "Dates locked — 22nd to the 25th. Flights next.",
+      ago: 60 * 26,
+    },
+    {
+      ch: general.id,
+      by: "anna",
+      body: "Direct flight please. The Madrid layover is three hours each way.",
+      ago: 60 * 24,
+    },
+    {
+      ch: general.id,
+      by: "demo",
+      body: "TAP locked, and the van for the airport runs. Activities still open.",
+      ago: 60 * 21,
+    },
+    {
+      ch: general.id,
+      by: "tomas",
+      body: "Surf lesson is winning the activities vote — it's booked in sterling, so it shows as its own total.",
+      ago: 60 * 4,
+    },
+    {
+      ch: general.id,
+      by: "anna",
+      body: "Heads up, Sintra went up to €52. Re-vote if that changes your mind.",
+      ago: 60 * 2,
+    },
+    {
+      ch: accommodation.id,
+      by: "mira",
+      body: "The Alfama flat has a terrace and it's cheaper per head than the hotel.",
+      ago: 60 * 23,
+    },
+    {
+      ch: accommodation.id,
+      by: "sam",
+      body: "Hostel is a third of the price…",
+      ago: 60 * 22,
+    },
+    {
+      ch: accommodation.id,
+      by: "anna",
+      body: "…and every review mentions the noise. I'd rather sleep.",
+      ago: 60 * 21,
+    },
+    {
+      ch: accommodation.id,
+      by: "mira",
+      body: "Flat locked. Three bedrooms, we'll sort who's where later.",
+      ago: 60 * 20,
+    },
   ];
 
   const messageIds: string[] = [];
@@ -435,8 +547,16 @@ async function main() {
   // genuine unread badges rather than a cleared-out chat.
   await prisma.channelRead.createMany({
     data: CAST.filter((p) => p.key !== "demo").flatMap((p) => [
-      { channelId: general.id, userId: users[p.key].id, lastReadAt: new Date() },
-      { channelId: accommodation.id, userId: users[p.key].id, lastReadAt: new Date() },
+      {
+        channelId: general.id,
+        userId: users[p.key].id,
+        lastReadAt: new Date(),
+      },
+      {
+        channelId: accommodation.id,
+        userId: users[p.key].id,
+        lastReadAt: new Date(),
+      },
     ]),
   });
 

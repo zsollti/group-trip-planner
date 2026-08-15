@@ -20,7 +20,6 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     lines: [],
-    hasStaleHeadcount: false,
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
@@ -41,7 +40,6 @@ function line(over: Partial<DashboardLine> = {}): DashboardLine {
     group: perPerson * 4,
     perPerson,
     effectiveHeadcount: 4,
-    headcountStale: false,
     converted: null,
     ...over,
   };
@@ -56,10 +54,22 @@ describe("what goes into the ring", () => {
     const c = costComposition(
       dashboard({
         lines: [
-          line({ categoryId: "cat-do", categoryName: "Activities", perPerson: 5 }),
-          line({ categoryId: "cat-do", categoryName: "Activities", perPerson: 10 }),
+          line({
+            categoryId: "cat-do",
+            categoryName: "Activities",
+            perPerson: 5,
+          }),
+          line({
+            categoryId: "cat-do",
+            categoryName: "Activities",
+            perPerson: 10,
+          }),
           line({ categoryId: "cat-stay", categoryName: "Stay", perPerson: 50 }),
-          line({ categoryId: "cat-go", categoryName: "Transport", perPerson: 25 }),
+          line({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            perPerson: 25,
+          }),
         ],
       }),
     );
@@ -183,7 +193,9 @@ describe("one unit, or an honest gap", () => {
     // reading that instead would stamp an approximation on a trip that has none.
     const c = costComposition(
       dashboard({
-        lines: [line({ perPerson: 50, converted: { group: 200, perPerson: 50 } })],
+        lines: [
+          line({ perPerson: 50, converted: { group: 200, perPerson: 50 } }),
+        ],
       }),
     );
     expect(c?.approximate).toBe(false);
@@ -250,7 +262,11 @@ describe("what a full circle means", () => {
 
 describe("the tail", () => {
   const small = (n: number, amount: number) =>
-    line({ categoryId: `cat-${n}`, categoryName: `Lane ${n}`, perPerson: amount });
+    line({
+      categoryId: `cat-${n}`,
+      categoryName: `Lane ${n}`,
+      perPerson: amount,
+    });
 
   it("folds the rounding-error lanes together once there are two of them", () => {
     const c = costComposition(

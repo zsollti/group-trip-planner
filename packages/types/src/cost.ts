@@ -1,4 +1,4 @@
-import type { CostType, OptionStatus } from "./options.js";
+import type { CostType, OptionStatus, ParticipationMode } from "./options.js";
 
 /**
  * Cost engine (Phase 3.1, SRS §13 / FR-26–27) — the pure, framework-free core
@@ -12,9 +12,9 @@ import type { CostType, OptionStatus } from "./options.js";
  *  - **Option cost** ({@link optionCost}) — `PER_PERSON`: group = `amount ×
  *    headcount`, per-head = `amount`; `TOTAL`: group = `amount`, per-head =
  *    `amount ÷ headcount` (FR-26).
- *  - **Headcount resolution** — a **dynamic** option uses the trip's current
- *    member count; a **fixed** option uses its stored `headcount`, never
- *    recalculated (FR-26).
+ *  - **Headcount resolution** — a `WHOLE_GROUP` option uses the trip's current
+ *    member count; an `OPT_IN` option uses however many members have said they
+ *    are in (FR-26).
  *  - **Aggregation** — group and per-person subtotals **per currency, never
  *    summed across currencies** (no conversion, FR-27). Per-person is the sum of
  *    each option's own per-head cost, so trips that mix fixed and dynamic
@@ -24,9 +24,13 @@ import type { CostType, OptionStatus } from "./options.js";
  *    proposed option) of each still-open category ("if the current front-runners
  *    win").
  *
- * The stale-headcount predicate ({@link isHeadcountStale}, decision 2) mirrors
- * the Phase-2 vote-staleness rule: a fixed-headcount option is stale once trip
- * membership has changed since the headcount was confirmed.
+ * **There is no stale-headcount rule any more**, and that is the point of the
+ * participants model rather than an omission. Decision 2 existed because a
+ * headcount was a number somebody typed: it could not notice a member leaving,
+ * so it had to be dated against the trip's `membershipChangedAt` and flagged
+ * when it fell behind. A participant list cannot fall behind — a member who
+ * leaves takes their row with them — so the predicate, the confirmation
+ * timestamp and the trip-level warning all went with it.
  *
  * Money is kept as raw `number`s here — rounding and currency formatting are the
  * front-end's job, so no minor-unit assumptions leak into the shared contract.
@@ -44,13 +48,13 @@ export interface CostEngineOption {
   /** 3-letter currency code — the aggregation key (never converted). */
   readonly currency: string;
   readonly costType: CostType;
-  /** Stored headcount; used only when `headcountIsFixed` (else the live count wins). */
-  readonly headcount: number | null;
-  readonly headcountIsFixed: boolean;
+  /** Who the option is priced for; `OPT_IN` counts `participantCount` instead
+   *  of the trip's members. */
+  readonly participationMode: ParticipationMode;
+  /** How many members have opted in. Ignored under `WHOLE_GROUP`. */
+  readonly participantCount: number;
   /** Approval tally — decides the per-category front-runner for the projection. */
   readonly voteCount: number;
-  /** When the fixed headcount was confirmed; drives {@link isHeadcountStale}. */
-  readonly headcountConfirmedAt: string | null;
   /** Proposal time — the deterministic front-runner tiebreaker (earliest wins). */
   readonly createdAt: string;
 }
@@ -68,10 +72,8 @@ export interface OptionCost {
   readonly currency: string;
   readonly group: number;
   readonly perPerson: number;
-  /** The headcount actually used (fixed value, or the live member count). */
+  /** The headcount actually used (the participants, or the live member count). */
   readonly effectiveHeadcount: number;
-  /** True iff a fixed headcount predates a later membership change (decision 2). */
-  readonly headcountStale: boolean;
 }
 
 /** The full per-trip cost picture returned by {@link computeCostDashboard}. */
@@ -84,47 +86,25 @@ export interface CostDashboard {
   readonly options: readonly OptionCost[];
   /** The proposed options selected into the projection (one per open category). */
   readonly frontRunnerOptionIds: readonly string[];
-  /** True iff any option that feeds the totals has a stale fixed headcount. */
-  readonly hasStaleHeadcount: boolean;
 }
 
 /**
- * Is a fixed headcount out of date? Pure and total, mirroring `isVoteStale`
- * (Phase 2.3): a **dynamic** option is never stale (it always reflects the live
- * count); a **fixed** option is stale once membership changed after the count was
- * confirmed — i.e. `headcountConfirmedAt` is strictly before `membershipChangedAt`
- * (decision 2). A fixed option whose confirmation time is unknown is treated as
- * stale once any membership change is recorded, so the warning surfaces rather
- * than hides.
- */
-export function isHeadcountStale(
-  headcountIsFixed: boolean,
-  headcountConfirmedAt: string | null,
-  membershipChangedAt: string | null,
-): boolean {
-  if (!headcountIsFixed) return false;
-  if (membershipChangedAt === null) return false;
-  if (headcountConfirmedAt === null) return true;
-  return (
-    new Date(headcountConfirmedAt).getTime() <
-    new Date(membershipChangedAt).getTime()
-  );
-}
-
-/**
- * Resolve the headcount an option is priced against: the stored value for a fixed
- * option, otherwise the trip's current member count. A fixed option missing its
- * number falls back to the live count (the create schema forbids this, but the
- * engine stays total).
+ * Resolve the headcount an option is priced against: how many members have
+ * opted in, or the trip's current member count.
+ *
+ * An `OPT_IN` option nobody has joined resolves to **zero**, which is honest
+ * rather than a hole — nobody is in, so it costs the group nothing yet, and
+ * {@link optionCost} already divides by zero safely. Reading it as "everyone"
+ * instead would price an option for people who have not said they are coming,
+ * which is the exact claim the old typed number kept making.
  */
 export function resolveHeadcount(
-  option: Pick<CostEngineOption, "headcountIsFixed" | "headcount">,
+  option: Pick<CostEngineOption, "participationMode" | "participantCount">,
   currentMemberCount: number,
 ): number {
-  if (option.headcountIsFixed && option.headcount !== null) {
-    return option.headcount;
-  }
-  return currentMemberCount;
+  return option.participationMode === "OPT_IN"
+    ? option.participantCount
+    : currentMemberCount;
 }
 
 /**
@@ -151,9 +131,7 @@ export function optionCost(
 }
 
 /** Sum a set of option costs into per-currency subtotals, sorted by currency. */
-function aggregateByCurrency(
-  costs: readonly OptionCost[],
-): CurrencySubtotal[] {
+function aggregateByCurrency(costs: readonly OptionCost[]): CurrencySubtotal[] {
   const byCurrency = new Map<string, { group: number; perPerson: number }>();
   for (const c of costs) {
     const acc = byCurrency.get(c.currency) ?? { group: 0, perPerson: 0 };
@@ -185,9 +163,9 @@ function pickFrontRunner(
 }
 
 /**
- * Compute the whole per-trip cost picture (FR-26/27, decisions 1–2). Pure — the
- * live member count and the trip's `membershipChangedAt` are injected, so every
- * branch is unit-testable without a DB or a clock.
+ * Compute the whole per-trip cost picture (FR-26/27, decision 1). Pure — the
+ * live member count is injected, so every branch is unit-testable without a DB
+ * or a clock.
  *
  * The **committed** total sums every `LOCKED` option (a multi-select category can
  * contribute several). The **projection** adds, for each category with no locked
@@ -197,7 +175,6 @@ function pickFrontRunner(
 export function computeCostDashboard(
   options: readonly CostEngineOption[],
   currentMemberCount: number,
-  membershipChangedAt: string | null,
 ): CostDashboard {
   // Per-option cost for every input option (the UI can look up any card).
   const costs: OptionCost[] = options.map((o) => {
@@ -213,11 +190,6 @@ export function computeCostDashboard(
       group,
       perPerson,
       effectiveHeadcount,
-      headcountStale: isHeadcountStale(
-        o.headcountIsFixed,
-        o.headcountConfirmedAt,
-        membershipChangedAt,
-      ),
     };
   });
   const costById = new Map(costs.map((c) => [c.optionId, c] as const));
@@ -250,16 +222,10 @@ export function computeCostDashboard(
   const committed = aggregateByCurrency(lockedCosts);
   const projected = aggregateByCurrency([...lockedCosts, ...frontRunnerCosts]);
 
-  // Only options that actually feed the totals can raise the trip-level warning.
-  const hasStaleHeadcount = [...lockedCosts, ...frontRunnerCosts].some(
-    (c) => c.headcountStale,
-  );
-
   return {
     committed,
     projected,
     options: costs,
     frontRunnerOptionIds: frontRunners.map((o) => o.id),
-    hasStaleHeadcount,
   };
 }

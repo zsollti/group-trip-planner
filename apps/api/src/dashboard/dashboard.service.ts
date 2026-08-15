@@ -43,15 +43,8 @@ export class DashboardService {
     ]);
 
     const memberCount = ctx.trip._count.memberships;
-    const membershipChangedAt = ctx.trip.membershipChangedAt
-      ? ctx.trip.membershipChangedAt.toISOString()
-      : null;
 
-    const result = computeCostDashboard(
-      rows.map(toEngineOption),
-      memberCount,
-      membershipChangedAt,
-    );
+    const result = computeCostDashboard(rows.map(toEngineOption), memberCount);
 
     return toTripDashboardView(
       ctx.trip,

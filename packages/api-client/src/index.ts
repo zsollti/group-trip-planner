@@ -72,6 +72,7 @@ export {
   useEditOption,
   useDeleteOption,
   useReorderOptions,
+  useToggleParticipation,
   useToggleVote,
   useLockOption,
   useUnlockOption,

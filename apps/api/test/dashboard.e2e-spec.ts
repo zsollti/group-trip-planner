@@ -15,8 +15,8 @@ import { TokenService } from "../src/auth/token.service.js";
  *  - the endpoint's figures match the pure cost engine (committed vs. projected,
  *    per-currency group + per-person, never summed across currencies);
  *  - the front-runner of an open category shows up in the projection only;
- *  - a fixed-headcount option's stale flag flips after a member joins, while a
- *    dynamic-headcount option never goes stale;
+ *  - an opt-in option is priced for the members who joined it, and a member who
+ *    leaves the trip stops counting toward it;
  *  - authorization: a non-member gets 404, and a Guest may read the dashboard.
  */
 describe("Trip dashboard (e2e)", () => {
@@ -97,7 +97,12 @@ describe("Trip dashboard (e2e)", () => {
       const res = await http()
         .patch(`/trips/${tripId}/categories/${cat.id}`)
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ name: cat.name, singleChoice: false, paletteKey: null, version: cat.version })
+        .send({
+          name: cat.name,
+          singleChoice: false,
+          paletteKey: null,
+          version: cat.version,
+        })
         .expect(200);
       return res.body as CategoryView;
     }
@@ -132,6 +137,18 @@ describe("Trip dashboard (e2e)", () => {
       .post(`${optionsUrl(tripId, categoryId)}/${optionId}/votes`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(201);
+  }
+
+  /** Say you are in for an option — the replacement for a typed headcount. */
+  function joinOption(
+    accessToken: string,
+    tripId: string,
+    categoryId: string,
+    optionId: string,
+  ) {
+    return http()
+      .post(`${optionsUrl(tripId, categoryId)}/${optionId}/participation`)
+      .set("Authorization", `Bearer ${accessToken}`);
   }
 
   async function lock(
@@ -343,23 +360,27 @@ describe("Trip dashboard (e2e)", () => {
     assert.equal(d.committed.length, 2); // two separate subtotals, not one sum
   });
 
-  it("a fixed headcount goes stale after a member joins; dynamic never does", async () => {
-    const owner = await makeUser("st-owner");
-    const joiner = await makeUser("st-joiner");
-    const trip = await createTrip(owner.accessToken, "Stale headcount");
+  it("prices an opt-in option for the members who said they are in", async () => {
+    const owner = await makeUser("oi-owner");
+    const joiner = await makeUser("oi-joiner");
+    const trip = await createTrip(owner.accessToken, "Opt in");
     const c1 = await multiSelectCategory(owner.accessToken, trip.id);
     const c2 = await multiSelectCategory(owner.accessToken, trip.id, [c1.id]);
 
-    // A FIXED-headcount TOTAL option (confirmed now, at 2 heads) + a DYNAMIC one.
-    const fixed = await propose(owner.accessToken, trip.id, c1.id, {
-      title: "Villa",
+    await join(
+      joiner.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+
+    // A €400 total only some of the trip wants, plus a whole-group taxi.
+    const surf = await propose(owner.accessToken, trip.id, c1.id, {
+      title: "Surf lesson",
       amount: 400,
       currency: "EUR",
       costType: "TOTAL",
-      headcount: 2,
-      headcountIsFixed: true,
+      participationMode: "OPT_IN",
     });
-    const dynamic = await propose(owner.accessToken, trip.id, c2.id, {
+    const taxi = await propose(owner.accessToken, trip.id, c2.id, {
       title: "Group taxi",
       amount: 60,
       currency: "EUR",
@@ -369,90 +390,120 @@ describe("Trip dashboard (e2e)", () => {
       owner.accessToken,
       trip.id,
       c1.id,
-      fixed.id,
-      fixed.version,
+      surf.id,
+      surf.version,
       c1.version,
     );
     await lock(
       owner.accessToken,
       trip.id,
       c2.id,
-      dynamic.id,
-      dynamic.version,
+      taxi.id,
+      taxi.version,
       c2.version,
     );
 
-    // Before any membership change, nothing is stale.
+    // Nobody has joined it yet, so it is not the group's money.
     const before = await dashboard(owner.accessToken, trip.id);
-    assert.equal(before.hasStaleHeadcount, false);
-    assert.equal(before.memberCount, 1);
+    assert.equal(before.memberCount, 2);
+    const surfBefore = before.lines.find((l) => l.optionId === surf.id)!;
+    assert.equal(surfBefore.effectiveHeadcount, 0);
+    assert.equal(surfBefore.perPerson, 0);
 
-    // A new member joins → the fixed headcount (2, confirmed earlier) is now stale;
-    // the dynamic option simply re-prices against the new live count (still fresh).
+    // One member is in → priced for one, not for the trip.
+    await joinOption(owner.accessToken, trip.id, c1.id, surf.id).expect(201);
+    const one = await dashboard(owner.accessToken, trip.id);
+    const surfOne = one.lines.find((l) => l.optionId === surf.id)!;
+    assert.equal(surfOne.effectiveHeadcount, 1);
+    assert.equal(surfOne.perPerson, 400);
+
+    // The other joins → the same €400 now splits two ways, and the whole-group
+    // taxi is unaffected by any of it.
+    await joinOption(joiner.accessToken, trip.id, c1.id, surf.id).expect(201);
+    const two = await dashboard(owner.accessToken, trip.id);
+    const surfTwo = two.lines.find((l) => l.optionId === surf.id)!;
+    assert.equal(surfTwo.effectiveHeadcount, 2);
+    assert.equal(surfTwo.perPerson, 200);
+    assert.equal(
+      two.lines.find((l) => l.optionId === taxi.id)!.effectiveHeadcount,
+      2,
+    );
+  });
+
+  it("a member who leaves takes their participation with them", async () => {
+    // This is the claim the whole model rests on: a headcount cannot fall
+    // behind the roster, because it *is* the roster. The FK cascades from the
+    // user, not from the membership, so leaving has to clear these rows
+    // explicitly — without that a departed person keeps inflating the option
+    // they joined, which is exactly the drift the typed number had.
+    const owner = await makeUser("lv-owner");
+    const leaver = await makeUser("lv-leaver");
+    const trip = await createTrip(owner.accessToken, "Leaving");
+    const cat = await multiSelectCategory(owner.accessToken, trip.id);
+
     await join(
-      joiner.accessToken,
+      leaver.accessToken,
       await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
     ).expect(201);
 
-    const after = await dashboard(owner.accessToken, trip.id);
-    assert.equal(after.memberCount, 2);
-    assert.equal(after.hasStaleHeadcount, true);
-    const fixedLine = after.lines.find((l) => l.optionId === fixed.id)!;
-    const dynLine = after.lines.find((l) => l.optionId === dynamic.id)!;
-    assert.equal(fixedLine.headcountStale, true);
-    assert.equal(fixedLine.effectiveHeadcount, 2); // fixed, not recalculated
-    assert.equal(dynLine.headcountStale, false);
-    assert.equal(dynLine.effectiveHeadcount, 2); // dynamic follows the live count
-  });
-
-  it("re-entering a fixed headcount clears the stale flag", async () => {
-    const owner = await makeUser("rc-owner");
-    const joiner = await makeUser("rc-joiner");
-    const trip = await createTrip(owner.accessToken, "Re-confirm");
-    const cat = await multiSelectCategory(owner.accessToken, trip.id);
-
-    // A fixed-headcount proposal that becomes its category's front-runner (voted),
-    // so it feeds the projection and can flip the trip-level stale warning.
     const opt = await propose(owner.accessToken, trip.id, cat.id, {
-      title: "Cabin",
+      title: "Boat trip",
       amount: 300,
       currency: "EUR",
       costType: "TOTAL",
-      headcount: 2,
-      headcountIsFixed: true,
+      participationMode: "OPT_IN",
     });
-    await vote(owner.accessToken, trip.id, cat.id, opt.id);
+    await lock(
+      owner.accessToken,
+      trip.id,
+      cat.id,
+      opt.id,
+      opt.version,
+      cat.version,
+    );
+    await joinOption(owner.accessToken, trip.id, cat.id, opt.id).expect(201);
+    await joinOption(leaver.accessToken, trip.id, cat.id, opt.id).expect(201);
 
-    await join(
-      joiner.accessToken,
-      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
-    ).expect(201);
-
+    const both = await dashboard(owner.accessToken, trip.id);
     assert.equal(
-      (await dashboard(owner.accessToken, trip.id)).hasStaleHeadcount,
-      true,
+      both.lines.find((l) => l.optionId === opt.id)!.effectiveHeadcount,
+      2,
     );
 
-    // Editing the fixed headcount re-confirms it against the current roster.
     await http()
-      .patch(`${optionsUrl(trip.id, cat.id)}/${opt.id}`)
-      .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({
-        title: "Cabin",
-        amount: 300,
-        currency: "EUR",
-        costType: "TOTAL",
-        headcount: 3,
-        headcountIsFixed: true,
-        version: 0,
-      })
-      .expect(200);
+      .post(`/trips/${trip.id}/members/leave`)
+      .set("Authorization", `Bearer ${leaver.accessToken}`)
+      .expect(204);
 
     const after = await dashboard(owner.accessToken, trip.id);
-    assert.equal(after.hasStaleHeadcount, false);
+    assert.equal(after.memberCount, 1);
     const line = after.lines.find((l) => l.optionId === opt.id)!;
-    assert.equal(line.headcountStale, false);
-    assert.equal(line.effectiveHeadcount, 3);
+    // One person left, so one person is in — and the €300 is theirs alone.
+    assert.equal(line.effectiveHeadcount, 1);
+    assert.equal(line.perPerson, 300);
+  });
+
+  it("refuses to record a joiner on a whole-group option", async () => {
+    // Everyone is already in, so a row would be a claim the engine ignores —
+    // and a control that appears to work while changing nothing is worse than
+    // one that is not offered.
+    const owner = await makeUser("wg-owner");
+    const trip = await createTrip(owner.accessToken, "Whole group");
+    const cat = await multiSelectCategory(owner.accessToken, trip.id);
+    const opt = await propose(owner.accessToken, trip.id, cat.id, {
+      title: "Group taxi",
+      amount: 60,
+      currency: "EUR",
+      costType: "TOTAL",
+    });
+
+    await joinOption(owner.accessToken, trip.id, cat.id, opt.id).expect(400);
+    // Leaving one is a no-op rather than an error: withdrawing from something
+    // you were never individually signed up for should not fail.
+    await http()
+      .delete(`${optionsUrl(trip.id, cat.id)}/${opt.id}/participation`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
   });
 
   it("a non-member gets 404; a Guest may read the dashboard", async () => {

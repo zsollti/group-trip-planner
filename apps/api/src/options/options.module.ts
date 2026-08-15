@@ -8,6 +8,7 @@ import { OptionsController } from "./options.controller.js";
 import { OptionsService } from "./options.service.js";
 import { VotesController } from "./votes.controller.js";
 import { LockingController } from "./locking.controller.js";
+import { ParticipationController } from "./participation.controller.js";
 import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
 
 /**
@@ -16,11 +17,18 @@ import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
  * capability — and layers the proposer-or-Organizer, Active-trip, locked, and
  * optimistic-concurrency rules in the service. Phase 2.3 adds the VotesController
  * (approval voting) and Phase 2.4 the LockingController (atomic locking), both on
- * the same service + guard spine.
+ * the same service + guard spine. Post-launch, ParticipationController joins
+ * them on that same spine — who is in for an option, replacing the headcount
+ * somebody used to type.
  */
 @Module({
   imports: [AuthModule, RealtimeModule, NotificationsModule],
-  controllers: [OptionsController, VotesController, LockingController],
+  controllers: [
+    OptionsController,
+    VotesController,
+    ParticipationController,
+    LockingController,
+  ],
   providers: [
     OptionsService,
     TripContextGuard,

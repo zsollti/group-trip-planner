@@ -15,6 +15,25 @@ import { z } from "zod";
  * `stale` column.
  */
 
+/**
+ * One member who is in for an `OPT_IN` option.
+ *
+ * The same shape as a voter minus the staleness flag, and it lives beside it
+ * because the two are the same kind of public fact — one row per member per
+ * option, written and withdrawn by that member alone. There is no `stale` here
+ * on purpose: joining is a statement about now, and a person is either in or
+ * they are not.
+ */
+export const OptionParticipantView = z.object({
+  userId: z.string().uuid(),
+  displayName: z.string(),
+  /** Same picture the crew list and the voter faces draw; null falls back to
+   *  initials on a colour derived from `userId`. */
+  avatarUrl: z.string().nullable(),
+  joinedAt: z.string(),
+});
+export type OptionParticipantView = z.infer<typeof OptionParticipantView>;
+
 /** One member's public vote on an option, with its per-vote staleness flag. */
 export const OptionVoterView = z.object({
   userId: z.string().uuid(),

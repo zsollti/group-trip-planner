@@ -233,7 +233,6 @@ describe("web-board auth flow", () => {
             projected: [],
             lines: [],
             memberCount: 1,
-            hasStaleHeadcount: false,
           });
         if (u.includes("/trips/t1")) {
           return json({

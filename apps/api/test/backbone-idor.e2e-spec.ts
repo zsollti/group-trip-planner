@@ -168,6 +168,20 @@ const PROBES: Probe[] = [
       `/trips/${i.trip}/categories/${i.category}/options/${i.option}/votes`,
   },
 
+  // --- participation -------------------------------------------------------
+  {
+    route: "/trips/:id/categories/:categoryId/options/:optionId/participation",
+    method: "post",
+    url: (i) =>
+      `/trips/${i.trip}/categories/${i.category}/options/${i.option}/participation`,
+  },
+  {
+    route: "/trips/:id/categories/:categoryId/options/:optionId/participation",
+    method: "delete",
+    url: (i) =>
+      `/trips/${i.trip}/categories/${i.category}/options/${i.option}/participation`,
+  },
+
   // --- locking -------------------------------------------------------------
   {
     route: "/trips/:id/categories/:categoryId/options/:optionId/lock",
