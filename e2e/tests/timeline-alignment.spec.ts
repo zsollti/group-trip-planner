@@ -48,7 +48,7 @@ function day(offset: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** A local wall-clock value for a `datetime-local` control. */
+/** A local wall-clock value; `decide` splits it into the day and time fields. */
 function at(offset: number, hour: number, minute = 0): string {
   return `${day(offset)}T${pad(hour)}:${pad(minute)}`;
 }
@@ -79,8 +79,13 @@ async function decide(
   else await add.click();
 
   await page.getByLabel("Title").fill(title);
-  await page.getByLabel("Starts (optional)").fill(starts);
-  await page.getByLabel("Ends (optional)").fill(ends);
+  // The form asks for the two days on one calendar and the times beside it, so
+  // a wall-clock value is filled in two halves. The `at()` helper still writes
+  // one string, because that is what the assertions are about.
+  await page.getByLabel("Starts (optional)").fill(starts.slice(0, 10));
+  await page.getByLabel("Ends (optional)").fill(ends.slice(0, 10));
+  await page.getByLabel("Start time (optional)").fill(starts.slice(11, 16));
+  await page.getByLabel("End time (optional)").fill(ends.slice(11, 16));
   await page.getByRole("button", { name: "Propose option" }).click();
 
   await lane

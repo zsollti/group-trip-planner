@@ -8,6 +8,7 @@ import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { dayToIso } from "../lib/dateInput";
+import { DateRangeField } from "./DateRangeField";
 import { parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
 
@@ -84,25 +85,17 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             {...register("destination")}
           />
         </Field>
-        <div className="board__form-grid">
-          <Field htmlFor="startDate" label="Start date" hint="Optional.">
-            <Input
-              id="startDate"
-              type="date"
-              value={startDay}
-              onChange={(e) => setStartDay(e.target.value)}
-            />
-          </Field>
-          <Field htmlFor="endDate" label="End date" hint="Optional.">
-            <Input
-              id="endDate"
-              type="date"
-              value={endDay}
-              min={startDay || undefined}
-              onChange={(e) => setEndDay(e.target.value)}
-            />
-          </Field>
-        </div>
+        <DateRangeField
+          idPrefix="trip"
+          startLabel="Start date"
+          endLabel="End date"
+          hint="Optional."
+          value={{ start: startDay, end: endDay }}
+          onChange={(next) => {
+            setStartDay(next.start);
+            setEndDay(next.end);
+          }}
+        />
         {/* Say what filling these in actually does, since it changes the board
             you land on rather than just recording two fields. */}
         <p className="board__field-note">

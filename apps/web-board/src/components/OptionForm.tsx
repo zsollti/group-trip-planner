@@ -6,11 +6,19 @@ import {
   type CategoryBuiltinKey,
   type CostType,
   type OptionView,
+  type TripDateRange,
 } from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
-import { fromDateInput, toDateInput } from "../lib/dateInput";
+import {
+  fromDateInput,
+  isoToDayInput,
+  joinDay,
+  splitDay,
+  toDateInput,
+} from "../lib/dateInput";
+import { DateRangeField } from "./DateRangeField";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
 
@@ -27,10 +35,12 @@ import { onAmountInput } from "../lib/amountField";
  * date range cost per person" never made sense. `currency` is still sent — the
  * contract requires it — but it is the trip's own and never shown.
  *
- * The same call picks the **date control**. A Dates option proposes calendar
- * days, so it gets a day picker and a stored midday-UTC instant; everywhere
- * else the dates say when *within* the trip something happens, where 07:15 is
- * the whole point, so those get a datetime picker.
+ * The same call picks the **date control**. Both granularities pick their days
+ * on one {@link DateRangeField} — a start and an end are a span, and asking for
+ * them as two unrelated fields never showed them as one. A Dates option is days
+ * alone, stored as a midday-UTC instant; everywhere else the dates say when
+ * *within* the trip something happens, where 07:15 is the whole point, so those
+ * add a time beside the grid.
  */
 export function OptionForm({
   tripId,
@@ -38,6 +48,7 @@ export function OptionForm({
   categoryBuiltinKey,
   currency: tripCurrency,
   option,
+  tripDates = null,
   onClose,
 }: {
   tripId: string;
@@ -45,11 +56,12 @@ export function OptionForm({
   categoryBuiltinKey: CategoryBuiltinKey | null;
   currency: string;
   option?: OptionView;
+  /** The trip's settled span, shaded behind the calendar so "outside the trip's
+   *  dates" is visible while choosing rather than only after saving. */
+  tripDates?: TripDateRange | null;
   onClose: () => void;
 }) {
   const fields = categoryOptionFields({ builtinKey: categoryBuiltinKey });
-  const dateInputType =
-    fields.dateGranularity === "day" ? "date" : "datetime-local";
   const propose = useProposeOption(tripId, categoryId);
   const edit = useEditOption(tripId, categoryId);
   const isEdit = Boolean(option);
@@ -73,13 +85,40 @@ export function OptionForm({
   const [headcount, setHeadcount] = useState(
     option?.headcount != null ? String(option.headcount) : "",
   );
-  const [startsAt, setStartsAt] = useState(
+  // The day and the time are held apart, because the calendar picks days for
+  // both granularities and only a `minute` option has a time at all. They are
+  // rejoined on submit; `joinDay` is the single definition of how.
+  const initialStart = splitDay(
     toDateInput(option?.startsAt ?? null, fields.dateGranularity),
   );
-  const [endsAt, setEndsAt] = useState(
+  const initialEnd = splitDay(
     toDateInput(option?.endsAt ?? null, fields.dateGranularity),
   );
+  const [startDay, setStartDay] = useState(initialStart.day);
+  const [startTime, setStartTime] = useState(initialStart.time);
+  const [endDay, setEndDay] = useState(initialEnd.day);
+  const [endTime, setEndTime] = useState(initialEnd.time);
   const [error, setError] = useState<string | null>(null);
+
+  function setDays(next: { start: string; end: string }) {
+    setStartDay(next.start);
+    setEndDay(next.end);
+  }
+
+  /**
+   * The trip's own span as plain days, to shade behind the selection.
+   *
+   * The trip's dates are calendar days stored as instants, so they go through
+   * {@link isoToDayInput} rather than being sliced — read with UTC getters a
+   * midday-UTC day is right, but one stored by the old form at local midnight
+   * would come back as the day before.
+   */
+  const tripRange = tripDates
+    ? {
+        start: isoToDayInput(tripDates.startDate),
+        end: isoToDayInput(tripDates.endDate),
+      }
+    : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,8 +135,14 @@ export function OptionForm({
         headcountIsFixed && headcount.trim() !== ""
           ? Number(headcount)
           : undefined,
-      startsAt: fromDateInput(startsAt, fields.dateGranularity),
-      endsAt: fromDateInput(endsAt, fields.dateGranularity),
+      startsAt: fromDateInput(
+        joinDay(startDay, startTime, fields.dateGranularity),
+        fields.dateGranularity,
+      ),
+      endsAt: fromDateInput(
+        joinDay(endDay, endTime, fields.dateGranularity),
+        fields.dateGranularity,
+      ),
     };
     try {
       if (option) {
@@ -234,22 +279,45 @@ export function OptionForm({
             </>
           ) : null}
 
-          <Field htmlFor="opt-starts" label="Starts (optional)">
-            <Input
-              id="opt-starts"
-              type={dateInputType}
-              value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
+          <div className="board__form-wide">
+            <DateRangeField
+              idPrefix="opt"
+              startLabel="Starts (optional)"
+              endLabel="Ends (optional)"
+              value={{ start: startDay, end: endDay }}
+              onChange={setDays}
+              highlight={tripRange}
+              highlightLabel="The trip's own dates"
+              // A grid of squares has nowhere to put 07:15, so the days come
+              // from the calendar and the time sits with them. Only where the
+              // time is the point: a Dates option proposes calendar days.
+              extra={
+                fields.dateGranularity === "minute" ? (
+                  <div className="board__form-grid">
+                    <Field
+                      htmlFor="opt-start-time"
+                      label="Start time (optional)"
+                    >
+                      <Input
+                        id="opt-start-time"
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                      />
+                    </Field>
+                    <Field htmlFor="opt-end-time" label="End time (optional)">
+                      <Input
+                        id="opt-end-time"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                ) : null
+              }
             />
-          </Field>
-          <Field htmlFor="opt-ends" label="Ends (optional)">
-            <Input
-              id="opt-ends"
-              type={dateInputType}
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-            />
-          </Field>
+          </div>
         </div>
 
         {error ? (
