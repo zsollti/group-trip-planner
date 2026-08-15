@@ -345,7 +345,6 @@ export function CategoryLane({
   tripDates = null,
   dndEnabled = false,
   decideTarget = false,
-  laneDragEnabled = false,
   onOpenChannel,
 }: {
   tripId: string;
@@ -373,7 +372,16 @@ export function CategoryLane({
   frozen?: boolean;
   /** The trip's settled range, for the "outside the trip's dates" hint. */
   tripDates?: TripDateRange | null;
-  /** Card gestures: lock/unlock and reorder within this lane. */
+  /**
+   * Drag gestures: lock/unlock and reorder within this lane, and dragging the
+   * lane itself among its neighbours.
+   *
+   * One flag, because there is one answer. Lane drag used to have its own, held
+   * off while the board offered a "sort by undecided" view whose displayed order
+   * was not the stored one — a drag there would have written the indices the
+   * reader saw instead of the ones the server keeps. That view is gone, so the
+   * two flags could only ever agree.
+   */
   dndEnabled?: boolean;
   /**
    * Show this lane's "drop to decide" target — true only while one of *its own*
@@ -387,9 +395,6 @@ export function CategoryLane({
    * cheap to trigger by mistake.
    */
   decideTarget?: boolean;
-  /** Dragging the lane itself — off while the board sorts by "undecided first",
-   *  where the displayed order is not the stored one. */
-  laneDragEnabled?: boolean;
   /** Open the chat panel on this category's discussion channel (Phase 4.5). */
   onOpenChannel: (channelId: string) => void;
 }) {
@@ -414,7 +419,7 @@ export function CategoryLane({
   } = useSortable({
     id: `lane:${category.id}`,
     data: { type: "lane", categoryId: category.id },
-    disabled: !laneDragEnabled,
+    disabled: !dndEnabled,
   });
   const laneStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -475,7 +480,7 @@ export function CategoryLane({
   });
 
   const cardIds = options.map((o) => o.id);
-  const laneGrip = laneDragEnabled ? (
+  const laneGrip = dndEnabled ? (
     <button
       type="button"
       className="lane__grip lane__grip--lane"
