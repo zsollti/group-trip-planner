@@ -25,7 +25,12 @@ export function CostComposition({
 }: {
   composition: Composition;
   categories: readonly CategoryView[];
-  headline: { headline: string; caption: string };
+  /**
+   * The per-person figure this surface states once, plus `exact`: the exact
+   * per-currency sums behind it when it is approximate. `exact` is a tooltip
+   * and screen-reader text rather than a line of its own — see `CostTally`.
+   */
+  headline: { headline: string; caption: string; exact?: string | null };
 }) {
   const [form, setForm] = useCostChartForm();
 
@@ -50,7 +55,12 @@ export function CostComposition({
         // exactly once on this surface.
         <div className="cost-comp__stack">
           <p className="cost-comp__stack-figure">
-            <strong>{headline.headline}</strong>
+            <strong title={headline.exact ?? undefined}>
+              {headline.headline}
+            </strong>
+            {headline.exact ? (
+              <span className="board__sr-only"> — exactly {headline.exact}</span>
+            ) : null}
             <span className="cost-comp__stack-caption">{headline.caption}</span>
           </p>
           <CostStack composition={composition} categories={categories} />

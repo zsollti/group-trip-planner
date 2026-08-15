@@ -191,7 +191,7 @@ describe("CostTally", () => {
     );
   });
 
-  it("adds several currencies into one figure and shows the sum it made", async () => {
+  it("keeps the exact parts of an approximate figure reachable, not printed", async () => {
     renderTally(
       dashboard({
         committed: [priced(100), priced(8750, "HUF")],
@@ -201,27 +201,37 @@ describe("CostTally", () => {
     // The total, marked as the approximation it is...
     const figures = await screen.findAllByText(/≈/);
     expect(figures.length).toBeGreaterThan(0);
-    // ...and, under it, the exact parts it was made of — which is what FR-27
-    // guarantees and what a reader asks for the moment they see an ≈.
-    const sum = document.querySelector(".board__tally-sum");
-    expect(digits(sum?.textContent)).toContain("400");
-    expect(digits(sum?.textContent)).toContain("35000");
-    expect(screen.getByText(/converted at/)).toBeInTheDocument();
+
+    // ...and the exact per-currency sums FR-27 guarantees, still reachable —
+    // as the figure's tooltip and its screen-reader text. They used to be a
+    // line of their own, which said nothing on a single-currency trip and
+    // repeated the total in longhand on a mixed one.
+    const total = document.querySelector(".board__tally-total");
+    const exact = total?.querySelector("strong")?.getAttribute("title");
+    expect(digits(exact)).toContain("400");
+    expect(digits(exact)).toContain("35000");
+    expect(digits(total?.querySelector(".board__sr-only")?.textContent)).toBe(
+      digits(exact),
+    );
+
+    // And the rates' publication date is gone: provenance for a figure nobody
+    // asked the provenance of, printed under every approximate total.
+    expect(screen.queryByText(/converted at/)).toBeNull();
   });
 
-  it("does not restate the total in the line that breaks it down", async () => {
+  it("states the money once, with no line restating it", async () => {
     // Two answers to one question, a few pixels apart, is how this surface got
-    // hard to read in the first place.
+    // hard to read in the first place. The breakdown line is gone entirely, so
+    // this is now structural rather than a rule the line had to keep.
     renderTally(
       dashboard({
         committed: [priced(100), priced(8750, "HUF")],
         converted: convertedTo("EUR", 500, 125),
       }),
     );
-    await screen.findByText(/converted at/);
-    const sum = document.querySelector(".board__tally-sum");
-    expect(sum?.textContent).not.toContain("=");
-    expect(sum?.textContent).not.toContain("≈");
+    await screen.findAllByText(/≈/);
+    expect(document.querySelector(".board__tally-sum")).toBeNull();
+    expect(document.querySelectorAll(".board__tally-total")).toHaveLength(1);
   });
 
   it("keeps a single-currency trip exact, with no ≈ and no breakdown", async () => {
@@ -282,21 +292,25 @@ describe("CostTally", () => {
     ).toBeInTheDocument();
   });
 
-  it("peeks the one committed figure, not an arrow to a projection", async () => {
-    // The collapsed line used to read "€300 → €300 +": the locked total, the
-    // projection, and a bare "+" for every other currency — three ideas, none
-    // of them the one being asked for.
-    renderTally(
+  it("is a plain panel — no disclosure, no label, no group total", async () => {
+    // It was a <details> headed "💶 Locked in" with a peek figure beside it and
+    // the group total large beneath. The composition inside states the
+    // per-person figure once, in the unit the target is in; the label and the
+    // two extra figures were captions for a panel that says what it is.
+    const { container } = renderTally(
       dashboard({
         committed: [priced(100)],
         projected: [priced(1000)],
+        lines: [locked({ perPerson: 100 })],
       }),
+      [category()],
     );
-    const peek = await screen.findByText((_, el) =>
-      el?.className === "board__cost-peek" ? true : false,
-    );
-    expect(peek.textContent).not.toContain("→");
-    expect(digits(peek.textContent)).toBe("400");
+    await screen.findByText(/per person/);
+    expect(container.querySelector("details")).toBeNull();
+    expect(screen.queryByText(/Locked in/)).toBeNull();
+    expect(container.querySelector(".board__cost-peek")).toBeNull();
+    // The chart carries the figure now, so the headline block is not rendered.
+    expect(container.querySelector(".board__tally-total")).toBeNull();
   });
 
   it("still warns about a stale fixed headcount", async () => {

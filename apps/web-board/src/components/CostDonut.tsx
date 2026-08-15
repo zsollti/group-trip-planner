@@ -44,7 +44,7 @@ export function CostDonut({
   composition: CostComposition;
   categories: readonly CategoryView[];
   /** The figure for the middle — the strip's own words, not re-derived here. */
-  label: { headline: string; caption: string };
+  label: { headline: string; caption: string; exact?: string | null };
 }) {
   const { slices, targetMark, overspend } = composition;
   const arcs = donutArcs(
@@ -101,7 +101,15 @@ export function CostDonut({
         ) : null}
       </svg>
       <div className="cost-donut__centre">
-        <strong className="cost-donut__figure">{label.headline}</strong>
+        <strong
+          className="cost-donut__figure"
+          title={label.exact ?? undefined}
+        >
+          {label.headline}
+        </strong>
+        {label.exact ? (
+          <span className="board__sr-only"> — exactly {label.exact}</span>
+        ) : null}
         <span className="cost-donut__caption">{label.caption}</span>
       </div>
     </div>
