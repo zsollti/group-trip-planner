@@ -6,9 +6,16 @@ import { useTheme } from "../lib/theme";
 
 /**
  * The account (avatar) menu (Phase 3.5) shown top-right on every page: the
- * light/dark toggle, notification settings (5.3), Log out, and Delete account.
- * Separated from the trip-context actions so account controls stay consistent
- * across the dashboard and the board.
+ * light/dark toggle, Settings, and Log out. Separated from the trip-context
+ * actions so account controls stay consistent across the dashboard and the
+ * board.
+ *
+ * **Delete account is not here.** It used to be, which meant every page that
+ * drew this menu also had to mount {@link DeleteAccountDialog} and carry the
+ * state to open it — four routes paying for a control that is used at most once
+ * in an account's life, sitting one slip of the pointer away from "Log out". It
+ * lives on the settings page now, under its own heading, where the rest of the
+ * account lives.
  *
  * The trigger draws the caller's own {@link Avatar} — the same component the
  * chat and the crew list use. It used to hand-roll a single initial on the
@@ -18,7 +25,7 @@ import { useTheme } from "../lib/theme";
  * value away. So a picture appeared everywhere in the app *except* the header
  * of the page you set it from.
  */
-export function UserMenu({ onDeleteAccount }: { onDeleteAccount: () => void }) {
+export function UserMenu() {
   const { user, logout } = useAuth();
   const { resolved, toggle } = useTheme();
   const navigate = useNavigate();
@@ -42,11 +49,10 @@ export function UserMenu({ onDeleteAccount }: { onDeleteAccount: () => void }) {
           onSelect: toggle,
         },
         {
-          label: "Notification settings",
+          label: "Settings",
           onSelect: () => navigate("/settings"),
         },
         { label: "Log out", onSelect: () => void logout() },
-        { label: "Delete account", onSelect: onDeleteAccount, danger: true },
       ]}
     />
   );

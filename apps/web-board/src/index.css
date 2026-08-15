@@ -1032,6 +1032,26 @@ body {
   text-decoration: none;
 }
 
+/* An irreversible action, drawn as one. Outlined rather than filled: a solid
+   red block reads as the page's primary action, and deleting your account is
+   the last thing this page is for. */
+.board__cta--danger {
+  background: transparent;
+  color: var(--board-danger);
+  border: 1px solid color-mix(in srgb, var(--board-danger) 55%, transparent);
+}
+.board__cta--danger:hover {
+  background: color-mix(in srgb, var(--board-danger) 10%, transparent);
+}
+.board__cta--danger:focus-visible {
+  outline: 2px solid var(--board-danger);
+  outline-offset: 2px;
+}
+
+.board__panel--danger {
+  border-color: color-mix(in srgb, var(--board-danger) 30%, var(--lane-line));
+}
+
 /* --- Trip-board tiles (overview) --- */
 .board__tiles {
   display: grid;

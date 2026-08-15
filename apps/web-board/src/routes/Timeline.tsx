@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   useCategoriesOptions,
@@ -8,7 +8,6 @@ import {
 import { tripDateRange } from "@gtp/types";
 import { TimelineBoard } from "../components/TimelineBoard";
 import { UserMenu } from "../components/UserMenu";
-import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import {
   buildTimeline,
   timelineCandidates,
@@ -41,7 +40,6 @@ function fmtTripDate(iso: string | null): string {
  */
 export function Timeline() {
   const { id } = useParams<{ id: string }>();
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const trip = useTrip(id);
   const categories = useTripCategories(id);
   const catIds = useMemo(
@@ -75,13 +73,9 @@ export function Timeline() {
           ‹ Board
         </Link>
         <div className="board__bar-actions">
-          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
+          <UserMenu />
         </div>
       </header>
-
-      {deleteAccountOpen ? (
-        <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
-      ) : null}
 
       {trip.isPending || categories.isPending ? (
         <p className="board__muted">Loading timeline…</p>
