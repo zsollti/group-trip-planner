@@ -22,6 +22,11 @@ import { CreateBoardDialog } from "./CreateBoardDialog";
  * gone. Which days are on screen depends on today, so the cases below read the
  * days out of the grid and assert the *transformation* rather than a literal
  * date, and stay true whenever they are run.
+ *
+ * The form is also a **stepper**: one question per panel, so every case here
+ * walks to the question it is about. `advance()` is that walk, and the fact
+ * that the button says Skip or Next is itself asserted below — it is how a
+ * reader learns which answers are compulsory.
  */
 
 function renderDialog() {
@@ -66,6 +71,40 @@ function fill(name: string, value: string) {
   fireEvent.change(screen.getByLabelText(name), { target: { value } });
 }
 
+/** The panel's own primary action, whatever it currently says. */
+function nextButton(): HTMLButtonElement {
+  return screen.getByRole("button", {
+    name: /^(Next|Skip|Create board)$/,
+  }) as HTMLButtonElement;
+}
+
+/** Which panel is showing, read from the "n of 5" the dialog states out loud. */
+function currentStep(): number {
+  const m = /(\d+) of \d+/.exec(document.body.textContent ?? "");
+  return m ? Number(m[1]) : 0;
+}
+
+/**
+ * Walk forward `n` panels, leaving each as it is.
+ *
+ * Awaited, and asserting that it actually moved: advancing runs the step's
+ * validation, which is async, so a synchronous run of clicks lands them all on
+ * the first panel and every later assertion fails somewhere confusing.
+ */
+async function advance(n = 1) {
+  for (let i = 0; i < n; i += 1) {
+    const before = currentStep();
+    fireEvent.click(nextButton());
+    await waitFor(() => expect(currentStep()).toBe(before + 1));
+  }
+}
+
+/** Walk to the panel that asks a given question. */
+const STEP = { name: 0, destination: 1, dates: 2, currency: 3, budget: 4 };
+async function goTo(step: keyof typeof STEP) {
+  await advance(STEP[step]);
+}
+
 /**
  * Two days a week apart from the rendered calendar, and the days they are.
  *
@@ -96,6 +135,8 @@ describe("CreateBoardDialog dates", () => {
     renderDialog();
 
     fill("Trip name", "Someday");
+    // Straight through every optional question without answering one.
+    await advance(4);
     fireEvent.click(screen.getByRole("button", { name: "Create board" }));
 
     await waitFor(() => {
@@ -109,7 +150,9 @@ describe("CreateBoardDialog dates", () => {
     renderDialog();
 
     fill("Trip name", "Lisbon 2026");
+    await goTo("dates");
     const { start, end } = pickAWeek();
+    await advance(2);
     fireEvent.click(screen.getByRole("button", { name: "Create board" }));
 
     await waitFor(() => {
@@ -128,10 +171,14 @@ describe("CreateBoardDialog dates", () => {
    * tests in `lib/money` cover the arithmetic; what is asserted here is that the
    * component does not throw the caret to the end of the field on the way.
    */
-  it("groups the target as it is typed, without moving the caret", () => {
+  it("groups the target as it is typed, without moving the caret", async () => {
     renderDialog();
-    const field = screen.getByLabelText(
-      /budget per person/i,
+    fill("Trip name", "Lisbon 2026");
+    await goTo("budget");
+    // By id, not by label: the panel's heading now *is* "A budget per person?",
+    // so a loose label query matches the dialog itself as well as the field.
+    const field = document.getElementById(
+      "budgetPerPerson",
     ) as HTMLInputElement;
 
     /** One keystroke, inserted wherever the caret currently is. */
@@ -170,8 +217,10 @@ describe("CreateBoardDialog dates", () => {
     expect(left.replace(/\D/g, "")).toBe("91");
   });
 
-  it("says what filling the dates in will do to the board", () => {
+  it("says what filling the dates in will do to the board", async () => {
     renderDialog();
+    fill("Trip name", "Lisbon 2026");
+    await goTo("dates");
 
     expect(screen.getByText(/the group vote on it/i)).toBeInTheDocument();
 
@@ -181,5 +230,71 @@ describe("CreateBoardDialog dates", () => {
     fireEvent.click(first);
 
     expect(screen.getByText(/unlock it any time/i)).toBeInTheDocument();
+  });
+
+  /**
+   * The stepper itself. The rules worth pinning are the ones that make five
+   * short questions safer than one long form rather than merely prettier: the
+   * required one gates, an answer survives going back, and Enter cannot create
+   * a trip out of the first panel.
+   */
+  it("asks one question at a time, and says which of five", () => {
+    renderDialog();
+    expect(screen.getByText(/1 of 5/)).toBeInTheDocument();
+    // Only the current question is mounted, so nothing else is tabbable.
+    expect(screen.getByLabelText("Trip name")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Destination")).toBeNull();
+    expect(document.getElementById("budgetPerPerson")).toBeNull();
+  });
+
+  it("will not move past the one answer it needs", async () => {
+    renderDialog();
+    fireEvent.click(nextButton());
+    await waitFor(() => expect(screen.getByText(/1 of 5/)).toBeInTheDocument());
+    expect(screen.getByLabelText("Trip name")).toBeInTheDocument();
+
+    fill("Trip name", "Lisbon 2026");
+    await advance();
+    expect(screen.getByText(/2 of 5/)).toBeInTheDocument();
+  });
+
+  it("offers to Skip an empty optional question, and to Next a filled one", async () => {
+    renderDialog();
+    // The required one never says Skip — not even while it is empty, which is
+    // where it would be a promise the next click breaks.
+    expect(nextButton().textContent).toBe("Next");
+    fill("Trip name", "Lisbon 2026");
+    expect(nextButton().textContent).toBe("Next");
+
+    await advance();
+    expect(nextButton().textContent).toBe("Skip");
+    fill("Destination", "Lisbon, Portugal");
+    expect(nextButton().textContent).toBe("Next");
+  });
+
+  it("keeps an answer when you go back for it", async () => {
+    renderDialog();
+    fill("Trip name", "Lisbon 2026");
+    await advance();
+    fill("Destination", "Lisbon, Portugal");
+    await advance();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(screen.getByText(/2 of 5/)).toBeInTheDocument());
+    expect(screen.getByLabelText("Destination")).toHaveValue(
+      "Lisbon, Portugal",
+    );
+  });
+
+  it("does not create a board when Enter is pressed on the first question", async () => {
+    // The form submits the *step*. Without that, one Enter in the name box
+    // would make a trip with nothing else answered.
+    const body = captureCreate();
+    renderDialog();
+    fill("Trip name", "Lisbon 2026");
+    fireEvent.submit(screen.getByLabelText("Trip name").closest("form")!);
+
+    await waitFor(() => expect(screen.getByText(/2 of 5/)).toBeInTheDocument());
+    expect(body).toThrow(/has not fired yet/);
   });
 });

@@ -3951,4 +3951,29 @@ body {
 .cost-comp__aside-mine {
   font-weight: 700;
   color: var(--board-accent);
+
+/* --- The create-trip stepper's progress ------------------------------------
+ *
+ * Five dots, because five is countable at a glance and a percentage bar is not.
+ * The eyebrow already says "3 of 5" in words; this is the same fact where the
+ * eye lands, and it is `aria-hidden` in effect — each dot carries its question
+ * as screen-reader text, and the current one is `aria-current="step"`. */
+.steps {
+  display: flex;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.steps__dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--lane-line);
+}
+.steps__dot--done {
+  background: color-mix(in srgb, var(--board-accent) 45%, transparent);
+}
+.steps__dot--now {
+  background: var(--board-accent);
 }
