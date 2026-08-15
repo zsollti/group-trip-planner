@@ -159,7 +159,7 @@ export class MembersService {
     }
     await this.prisma.$transaction([
       this.prisma.tripMembership.delete({ where: { id: target.id } }),
-      this.touchMembership(ctx.trip.id),
+      this.dropParticipation(ctx.trip.id, target.userId),
       this.prisma.auditEvent.create({
         data: memberAudit(
           ctx.trip.id,
@@ -202,9 +202,14 @@ export class MembersService {
         },
         update: {}, // already blocked → idempotent
       });
-      await tx.trip.update({
-        where: { id: ctx.trip.id },
-        data: { membershipChangedAt: new Date() },
+      // Ejected is ejected: their opt-ins go with the membership, exactly as on
+      // a kick or a voluntary leave. Missing this would leave a blocked person
+      // still counted in — and paying for — options on a trip they cannot open.
+      await tx.optionParticipant.deleteMany({
+        where: {
+          userId: targetUserId,
+          option: { category: { tripId: ctx.trip.id } },
+        },
       });
       await tx.auditEvent.create({
         data: memberAudit(
@@ -271,7 +276,7 @@ export class MembersService {
           tripId_userId: { tripId: ctx.trip.id, userId: actor.id },
         },
       }),
-      this.touchMembership(ctx.trip.id),
+      this.dropParticipation(ctx.trip.id, actor.id),
       // A departure is audited for the same reason a kick is: without it the
       // feed shows removals but not exits, and the trip is left wondering where
       // someone went. Actor and target are the same person here.
@@ -284,15 +289,25 @@ export class MembersService {
   }
 
   /**
-   * Stamp `Trip.membershipChangedAt` = now so any fixed-headcount option
-   * confirmed earlier is flagged stale on the cost dashboard (Phase-3 decision
-   * 2). Called wherever the member *count* changes (join/leave/kick/block) — not
-   * on a role change or transfer, which keep the same head count.
+   * Drop everything someone leaving the trip had opted in to.
+   *
+   * This is what lets the participants model claim it cannot go stale, and it
+   * has to be an actual write — the `option_participants` foreign key cascades
+   * from the **user**, not from the membership, so deleting a membership row
+   * alone would leave a departed person counted in every option they had joined
+   * and quietly inflating its cost.
+   *
+   * It replaces `touchMembership`, which stamped `Trip.membershipChangedAt` so
+   * that a fixed headcount confirmed earlier could be flagged stale. There is no
+   * fixed headcount and no staleness now, so the stamp had nothing left to date
+   * and the column went with it.
+   *
+   * Scoped through the option's category to this trip: the same person may be
+   * on other trips, and leaving one says nothing about those.
    */
-  private touchMembership(tripId: string) {
-    return this.prisma.trip.update({
-      where: { id: tripId },
-      data: { membershipChangedAt: new Date() },
+  private dropParticipation(tripId: string, userId: string) {
+    return this.prisma.optionParticipant.deleteMany({
+      where: { userId, option: { category: { tripId } } },
     });
   }
 

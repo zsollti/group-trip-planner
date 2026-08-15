@@ -127,8 +127,8 @@ export interface TargetVerdict {
  *
  * The target is per person and denominated in the trip's own currency, so the
  * comparison has to be made in that unit — **and per-person money is not the
- * group total over the member count**, because an option with a fixed headcount
- * is divided by its own. The engine already did that division; this only picks
+ * group total over the member count**, because an opt-in option is divided by
+ * the people who joined it rather than by the trip. The engine already did that division; this only picks
  * which of its answers applies.
  *
  * When the all-in figure is in the trip's currency it wins, and the verdict

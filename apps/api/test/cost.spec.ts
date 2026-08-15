@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   computeCostDashboard,
-  isHeadcountStale,
   optionCost,
   resolveHeadcount,
   type CostEngineOption,
@@ -11,9 +10,12 @@ import {
 /**
  * The headline cost-engine suite (Phase 3.1, SRS §13 / FR-26–27) — pure, no DB,
  * no clock. Exhausts option cost (`PER_PERSON`/`TOTAL`), headcount resolution
- * (fixed/dynamic), per-currency aggregation (never summed across currencies),
- * the committed-vs-projected front-runner split (decision 1), and the
- * stale-headcount predicate (decision 2).
+ * (whole-group/opt-in), per-currency aggregation (never summed across
+ * currencies), and the committed-vs-projected front-runner split (decision 1).
+ *
+ * The stale-headcount predicate used to be exhausted here too. It is gone with
+ * the typed headcount it dated: a participant list cannot fall behind the
+ * roster, so there is nothing left to be stale.
  */
 
 /** Build a proposed EUR option, overriding just the fields a case cares about. */
@@ -25,10 +27,9 @@ function option(over: Partial<CostEngineOption> = {}): CostEngineOption {
     amount: 100,
     currency: "EUR",
     costType: "PER_PERSON",
-    headcount: null,
-    headcountIsFixed: false,
+    participationMode: "WHOLE_GROUP",
+    participantCount: 0,
     voteCount: 0,
-    headcountConfirmedAt: null,
     createdAt: "2026-07-01T00:00:00.000Z",
     ...over,
   };
@@ -67,55 +68,46 @@ describe("optionCost", () => {
 });
 
 describe("resolveHeadcount", () => {
-  it("fixed uses the stored number", () => {
+  it("whole-group uses the current member count", () => {
     assert.equal(
-      resolveHeadcount({ headcountIsFixed: true, headcount: 3 }, 10),
+      resolveHeadcount(
+        { participationMode: "WHOLE_GROUP", participantCount: 3 },
+        10,
+      ),
+      10,
+    );
+  });
+
+  it("opt-in counts the members who said they are in", () => {
+    assert.equal(
+      resolveHeadcount(
+        { participationMode: "OPT_IN", participantCount: 3 },
+        10,
+      ),
       3,
     );
   });
 
-  it("dynamic uses the current member count", () => {
+  it("opt-in with nobody in is zero, not everyone", () => {
+    // Honest rather than a hole: nobody has said they are coming, so the option
+    // costs the group nothing yet. Reading it as "everyone" would price it for
+    // people who never agreed — the exact claim the typed number kept making.
     assert.equal(
-      resolveHeadcount({ headcountIsFixed: false, headcount: 3 }, 10),
-      10,
+      resolveHeadcount(
+        { participationMode: "OPT_IN", participantCount: 0 },
+        10,
+      ),
+      0,
     );
   });
 
-  it("fixed but missing a number falls back to the live count", () => {
+  it("opt-in can exceed nothing it should not — it is bounded by who joined", () => {
+    // The old fixed headcount could say 40 on a trip of 4. This cannot: every
+    // unit of headcount is a row somebody wrote for themselves.
     assert.equal(
-      resolveHeadcount({ headcountIsFixed: true, headcount: null }, 10),
-      10,
+      resolveHeadcount({ participationMode: "OPT_IN", participantCount: 4 }, 4),
+      4,
     );
-  });
-});
-
-describe("isHeadcountStale", () => {
-  const changed = "2026-07-10T00:00:00.000Z";
-
-  it("a dynamic headcount is never stale", () => {
-    assert.equal(isHeadcountStale(false, "2026-07-01T00:00:00.000Z", changed), false);
-    assert.equal(isHeadcountStale(false, null, changed), false);
-  });
-
-  it("no membership change means nothing is stale", () => {
-    assert.equal(isHeadcountStale(true, "2026-07-01T00:00:00.000Z", null), false);
-    assert.equal(isHeadcountStale(true, null, null), false);
-  });
-
-  it("fixed and confirmed before the change is stale", () => {
-    assert.equal(isHeadcountStale(true, "2026-07-01T00:00:00.000Z", changed), true);
-  });
-
-  it("fixed and confirmed after the change is fresh", () => {
-    assert.equal(isHeadcountStale(true, "2026-07-20T00:00:00.000Z", changed), false);
-  });
-
-  it("confirmed exactly at the change is fresh (strictly before)", () => {
-    assert.equal(isHeadcountStale(true, changed, changed), false);
-  });
-
-  it("fixed with an unknown confirmation time is stale once membership changed", () => {
-    assert.equal(isHeadcountStale(true, null, changed), true);
   });
 });
 
@@ -123,7 +115,12 @@ describe("computeCostDashboard — committed", () => {
   it("sums only locked options, per currency", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "a", status: "LOCKED", amount: 89, costType: "PER_PERSON" }),
+        option({
+          id: "a",
+          status: "LOCKED",
+          amount: 89,
+          costType: "PER_PERSON",
+        }),
         option({ id: "b", status: "PROPOSED", amount: 999 }), // ignored: proposed, and lands in projection
         option({
           id: "c",
@@ -134,7 +131,6 @@ describe("computeCostDashboard — committed", () => {
         }),
       ],
       4,
-      null,
     );
     // a: PER_PERSON 89 × 4 = 356 group / 89 pp; c: TOTAL 500 group / 125 pp
     assert.deepEqual(d.committed, [
@@ -145,7 +141,13 @@ describe("computeCostDashboard — committed", () => {
   it("keeps currencies separate — never summed across (FR-27)", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "a", status: "LOCKED", amount: 100, currency: "EUR", costType: "TOTAL" }),
+        option({
+          id: "a",
+          status: "LOCKED",
+          amount: 100,
+          currency: "EUR",
+          costType: "TOTAL",
+        }),
         option({
           id: "b",
           categoryId: "cat-2",
@@ -156,7 +158,6 @@ describe("computeCostDashboard — committed", () => {
         }),
       ],
       5,
-      null,
     );
     assert.deepEqual(d.committed, [
       { currency: "EUR", group: 100, perPerson: 20 },
@@ -172,11 +173,22 @@ describe("computeCostDashboard — committed", () => {
     const d = computeCostDashboard(
       [
         option({ id: "a", status: "LOCKED", amount: 10, currency: "USD" }),
-        option({ id: "b", categoryId: "cat-2", status: "LOCKED", amount: 10, currency: "CHF" }),
-        option({ id: "c", categoryId: "cat-3", status: "LOCKED", amount: 10, currency: "HUF" }),
+        option({
+          id: "b",
+          categoryId: "cat-2",
+          status: "LOCKED",
+          amount: 10,
+          currency: "CHF",
+        }),
+        option({
+          id: "c",
+          categoryId: "cat-3",
+          status: "LOCKED",
+          amount: 10,
+          currency: "HUF",
+        }),
       ],
       1,
-      null,
     );
     assert.deepEqual(
       d.committed.map((s) => s.currency),
@@ -195,7 +207,6 @@ describe("computeCostDashboard — committed", () => {
         option({ id: "b", status: "LOCKED", amount: 60, costType: "TOTAL" }),
       ],
       2,
-      null,
     );
     assert.deepEqual(d.committed, [
       { currency: "EUR", group: 100, perPerson: 50 },
@@ -203,7 +214,7 @@ describe("computeCostDashboard — committed", () => {
   });
 
   it("is empty when nothing is locked", () => {
-    const d = computeCostDashboard([option({ status: "PROPOSED" })], 4, null);
+    const d = computeCostDashboard([option({ status: "PROPOSED" })], 4);
     assert.deepEqual(d.committed, []);
   });
 });
@@ -212,13 +223,29 @@ describe("computeCostDashboard — projection (front-runners)", () => {
   it("adds the top-voted proposed option of each open category", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "locked", status: "LOCKED", amount: 100, costType: "TOTAL" }),
+        option({
+          id: "locked",
+          status: "LOCKED",
+          amount: 100,
+          costType: "TOTAL",
+        }),
         // open category cat-2: two proposals, higher votes wins
-        option({ id: "lo", categoryId: "cat-2", amount: 200, costType: "TOTAL", voteCount: 1 }),
-        option({ id: "hi", categoryId: "cat-2", amount: 500, costType: "TOTAL", voteCount: 3 }),
+        option({
+          id: "lo",
+          categoryId: "cat-2",
+          amount: 200,
+          costType: "TOTAL",
+          voteCount: 1,
+        }),
+        option({
+          id: "hi",
+          categoryId: "cat-2",
+          amount: 500,
+          costType: "TOTAL",
+          voteCount: 3,
+        }),
       ],
       4,
-      null,
     );
     assert.deepEqual(d.committed, [
       { currency: "EUR", group: 100, perPerson: 25 },
@@ -233,11 +260,21 @@ describe("computeCostDashboard — projection (front-runners)", () => {
   it("does not add a front-runner to a category that already has a locked option", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "locked", status: "LOCKED", amount: 100, costType: "TOTAL" }),
-        option({ id: "proposed", status: "PROPOSED", amount: 999, costType: "TOTAL", voteCount: 9 }),
+        option({
+          id: "locked",
+          status: "LOCKED",
+          amount: 100,
+          costType: "TOTAL",
+        }),
+        option({
+          id: "proposed",
+          status: "PROPOSED",
+          amount: 999,
+          costType: "TOTAL",
+          voteCount: 9,
+        }),
       ],
       4,
-      null,
     );
     assert.deepEqual(d.projected, d.committed);
     assert.deepEqual(d.frontRunnerOptionIds, []);
@@ -246,26 +283,56 @@ describe("computeCostDashboard — projection (front-runners)", () => {
   it("breaks a vote tie by earliest createdAt, then id", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "z", amount: 10, costType: "TOTAL", voteCount: 2, createdAt: "2026-07-05T00:00:00.000Z" }),
-        option({ id: "a", amount: 20, costType: "TOTAL", voteCount: 2, createdAt: "2026-07-02T00:00:00.000Z" }),
-        option({ id: "m", amount: 30, costType: "TOTAL", voteCount: 2, createdAt: "2026-07-02T00:00:00.000Z" }),
+        option({
+          id: "z",
+          amount: 10,
+          costType: "TOTAL",
+          voteCount: 2,
+          createdAt: "2026-07-05T00:00:00.000Z",
+        }),
+        option({
+          id: "a",
+          amount: 20,
+          costType: "TOTAL",
+          voteCount: 2,
+          createdAt: "2026-07-02T00:00:00.000Z",
+        }),
+        option({
+          id: "m",
+          amount: 30,
+          costType: "TOTAL",
+          voteCount: 2,
+          createdAt: "2026-07-02T00:00:00.000Z",
+        }),
       ],
       1,
-      null,
     );
     // "a" and "m" tie on votes and time; "a" wins on id. amount 20.
     assert.deepEqual(d.frontRunnerOptionIds, ["a"]);
-    assert.deepEqual(d.projected, [{ currency: "EUR", group: 20, perPerson: 20 }]);
+    assert.deepEqual(d.projected, [
+      { currency: "EUR", group: 20, perPerson: 20 },
+    ]);
   });
 
   it("with nothing locked, projection is just the front-runners", () => {
     const d = computeCostDashboard(
       [
-        option({ id: "a", categoryId: "cat-1", amount: 100, costType: "TOTAL", voteCount: 1 }),
-        option({ id: "b", categoryId: "cat-2", amount: 200, costType: "TOTAL", voteCount: 1 }),
+        option({
+          id: "a",
+          categoryId: "cat-1",
+          amount: 100,
+          costType: "TOTAL",
+          voteCount: 1,
+        }),
+        option({
+          id: "b",
+          categoryId: "cat-2",
+          amount: 200,
+          costType: "TOTAL",
+          voteCount: 1,
+        }),
       ],
       2,
-      null,
     );
     assert.deepEqual(d.committed, []);
     assert.deepEqual(d.projected, [
@@ -277,23 +344,26 @@ describe("computeCostDashboard — projection (front-runners)", () => {
 
 describe("computeCostDashboard — per-person across mixed headcounts", () => {
   it("sums each option's own per-head cost, not group ÷ one headcount", () => {
-    // flight €89 per-person (dynamic, 5 members) + hotel €500 total fixed for 5
+    // flight €89 per-person (whole group of 5) + hotel €500 total, also whole
+    // group — the arithmetic that mattered here was never about *why* the two
+    // headcounts differ, only that each option divides by its own.
     const d = computeCostDashboard(
       [
-        option({ id: "flight", status: "LOCKED", amount: 89, costType: "PER_PERSON" }),
+        option({
+          id: "flight",
+          status: "LOCKED",
+          amount: 89,
+          costType: "PER_PERSON",
+        }),
         option({
           id: "hotel",
           categoryId: "cat-2",
           status: "LOCKED",
           amount: 500,
           costType: "TOTAL",
-          headcount: 5,
-          headcountIsFixed: true,
-          headcountConfirmedAt: "2026-07-01T00:00:00.000Z",
         }),
       ],
       5,
-      null,
     );
     // group = 89×5 + 500 = 945 ; per-person = 89 + 100 = 189
     assert.deepEqual(d.committed, [
@@ -301,75 +371,73 @@ describe("computeCostDashboard — per-person across mixed headcounts", () => {
     ]);
   });
 
-  it("a fixed headcount is not recalculated when the live count differs", () => {
+  it("an opt-in option is priced for its joiners while the rest is not", () => {
+    // The case the whole model exists for: a €300 thing three of five want.
     const d = computeCostDashboard(
       [
         option({
-          id: "hotel",
+          id: "flight",
+          status: "LOCKED",
+          amount: 89,
+          costType: "PER_PERSON",
+        }),
+        option({
+          id: "surf",
+          categoryId: "cat-2",
+          status: "LOCKED",
+          amount: 300,
+          costType: "TOTAL",
+          participationMode: "OPT_IN",
+          participantCount: 3,
+        }),
+      ],
+      5,
+    );
+    const surf = d.options.find((o) => o.optionId === "surf");
+    assert.equal(surf?.effectiveHeadcount, 3);
+    // group = 89×5 + 300 = 745 ; per-person = 89 + 100 = 189, where the 100 is
+    // divided by the three who joined rather than by the five on the trip.
+    assert.deepEqual(d.committed, [
+      { currency: "EUR", group: 745, perPerson: 189 },
+    ]);
+  });
+
+  it("an opt-in option nobody joined costs nothing yet", () => {
+    const d = computeCostDashboard(
+      [
+        option({
           status: "LOCKED",
           amount: 400,
           costType: "TOTAL",
-          headcount: 4,
-          headcountIsFixed: true,
+          participationMode: "OPT_IN",
+          participantCount: 0,
         }),
       ],
-      10, // live count grew, but fixed stays 4
-      null,
+      10,
     );
-    assert.equal(d.options[0]?.effectiveHeadcount, 4);
+    assert.equal(d.options[0]?.effectiveHeadcount, 0);
+    // A total nobody has signed up for is not the group's money, and the
+    // per-head share of it is not a division by zero either.
     assert.deepEqual(d.committed, [
-      { currency: "EUR", group: 400, perPerson: 100 },
+      { currency: "EUR", group: 400, perPerson: 0 },
     ]);
   });
-});
 
-describe("computeCostDashboard — stale-headcount flag", () => {
-  const changed = "2026-07-10T00:00:00.000Z";
-  const staleFixed = (over: Partial<CostEngineOption>) =>
-    option({
-      amount: 300,
-      costType: "TOTAL",
-      headcount: 3,
-      headcountIsFixed: true,
-      headcountConfirmedAt: "2026-07-01T00:00:00.000Z",
-      ...over,
-    });
-
-  it("flags the trip when a locked option's fixed headcount is stale", () => {
-    const d = computeCostDashboard([staleFixed({ status: "LOCKED" })], 5, changed);
-    assert.equal(d.hasStaleHeadcount, true);
-    assert.equal(d.options[0]?.headcountStale, true);
-  });
-
-  it("flags the trip when a front-runner's fixed headcount is stale", () => {
-    const d = computeCostDashboard([staleFixed({ status: "PROPOSED", voteCount: 1 })], 5, changed);
-    assert.equal(d.hasStaleHeadcount, true);
-  });
-
-  it("does NOT flag the trip for a stale option that feeds no total", () => {
-    // A stale proposed option that is not its category's front-runner.
-    const d = computeCostDashboard(
-      [
-        option({ id: "winner", amount: 10, costType: "TOTAL", voteCount: 5 }),
-        staleFixed({ id: "loser", status: "PROPOSED", voteCount: 0 }),
-      ],
-      5,
-      changed,
+  it("a whole-group option follows the live count as it changes", () => {
+    // What the fixed headcount could not do, and the reason it needed a
+    // staleness rule: this one is simply right afterwards.
+    const four = computeCostDashboard(
+      [option({ status: "LOCKED", amount: 400, costType: "TOTAL" })],
+      4,
     );
-    assert.equal(d.frontRunnerOptionIds[0], "winner");
-    assert.equal(d.hasStaleHeadcount, false);
-    // ...but the per-option breakdown still marks it stale for the card.
-    const loser = d.options.find((o) => o.optionId === "loser");
-    assert.equal(loser?.headcountStale, true);
-  });
-
-  it("dynamic options are never stale even after a membership change", () => {
-    const d = computeCostDashboard(
-      [option({ status: "LOCKED", headcountIsFixed: false })],
-      5,
-      changed,
+    const ten = computeCostDashboard(
+      [option({ status: "LOCKED", amount: 400, costType: "TOTAL" })],
+      10,
     );
-    assert.equal(d.hasStaleHeadcount, false);
+    assert.equal(four.options[0]?.effectiveHeadcount, 4);
+    assert.equal(ten.options[0]?.effectiveHeadcount, 10);
+    assert.equal(four.committed[0]?.perPerson, 100);
+    assert.equal(ten.committed[0]?.perPerson, 40);
   });
 });
 
@@ -382,20 +450,15 @@ describe("computeCostDashboard — shape & edge cases", () => {
         option({ id: "c", categoryId: "cat-3", amount: null }),
       ],
       4,
-      null,
     );
-    assert.deepEqual(
-      d.options.map((o) => o.optionId).sort(),
-      ["a", "b", "c"],
-    );
+    assert.deepEqual(d.options.map((o) => o.optionId).sort(), ["a", "b", "c"]);
   });
 
-  it("an empty trip yields empty totals and no warning", () => {
-    const d = computeCostDashboard([], 4, "2026-07-10T00:00:00.000Z");
+  it("an empty trip yields empty totals", () => {
+    const d = computeCostDashboard([], 4);
     assert.deepEqual(d.committed, []);
     assert.deepEqual(d.projected, []);
     assert.deepEqual(d.options, []);
     assert.deepEqual(d.frontRunnerOptionIds, []);
-    assert.equal(d.hasStaleHeadcount, false);
   });
 });

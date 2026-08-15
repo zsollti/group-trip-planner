@@ -1,11 +1,16 @@
 import { useState } from "react";
 import {
   can,
+  type OptionParticipantView,
   type OptionView,
   type OptionVoterView,
   type TripRole,
 } from "@gtp/types";
-import { ApiError, useToggleVote } from "@gtp/api-client";
+import {
+  ApiError,
+  useToggleParticipation,
+  useToggleVote,
+} from "@gtp/api-client";
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
@@ -164,6 +169,160 @@ export function VoteDots({
       ) : null}
       {listing ? (
         <VoterList voters={option.voters} onClose={() => setListing(false)} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Everyone who is in, as a list you can actually read — the participants'
+ * counterpart to {@link VoterList}, and for the same reason: three faces on a
+ * card answer "roughly who", and past that only a full list is honest.
+ */
+function ParticipantList({
+  participants,
+  onClose,
+}: {
+  participants: OptionParticipantView[];
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      eyebrow="Who's in"
+      title={`${participants.length} in`}
+      onClose={onClose}
+    >
+      <>
+        <ul className="voters">
+          {participants.map((p) => (
+            <li key={p.userId} className="voters__item">
+              <Avatar
+                name={p.displayName}
+                userId={p.userId}
+                url={p.avatarUrl}
+                size={28}
+              />
+              <span className="voters__name">{p.displayName}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="board__dialog-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </>
+    </Dialog>
+  );
+}
+
+/**
+ * Who is in for an opt-in option, and a toggle to be one of them.
+ *
+ * Deliberately built as {@link VoteDots}'s twin — same faces, same overflow
+ * count, same inline placement — because the two are the same *kind* of
+ * statement from a member about an option, and giving them different shapes
+ * would make the board look like it had two unrelated ideas.
+ *
+ * They mean different things, though, and the labels carry that: a vote says
+ * *we should do this*, being in says *I will pay for this*. Only an `OPT_IN`
+ * option draws this at all, so the overwhelming majority of cards keep exactly
+ * one toggle and nobody has to learn the difference to use the board.
+ */
+export function ParticipantDots({
+  tripId,
+  category,
+  option,
+  myRole,
+  frozen,
+}: {
+  tripId: string;
+  category: string;
+  option: OptionView;
+  myRole: TripRole;
+  frozen: boolean;
+}) {
+  const toggle = useToggleParticipation(tripId, category);
+  const [error, setError] = useState<string | null>(null);
+  const [listing, setListing] = useState(false);
+
+  if (option.participationMode !== "OPT_IN") return null;
+
+  const shown = option.participants.slice(0, SHOWN);
+  const overflow = option.participants.length - shown.length;
+
+  async function onToggle() {
+    setError(null);
+    try {
+      await toggle.mutateAsync({
+        optionId: option.id,
+        isParticipant: option.viewerIsParticipant,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not change that");
+    }
+  }
+
+  return (
+    <div className="lane__vote lane__in">
+      {/* The faces here and the voters' faces above are often the *same people*
+          in a different meaning, and a row of avatars cannot say which it is.
+          The button text distinguishes them once you read it; this says so
+          before you do. */}
+      <span className="lane__in-label" aria-hidden="true">
+        in
+      </span>
+      {option.participants.length === 0 ? (
+        // Not "no participants": the point of the card is to ask, so the empty
+        // state is the question rather than a report of nothing.
+        <span className="lane__meta">nobody yet</span>
+      ) : (
+        <button
+          type="button"
+          className="lane__voters"
+          aria-label={`${option.participants.length} in — see who`}
+          onClick={() => setListing(true)}
+        >
+          {shown.map((p) => (
+            <span key={p.userId} className="lane__voter">
+              <Avatar
+                name={p.displayName}
+                userId={p.userId}
+                url={p.avatarUrl}
+                size={22}
+                title={p.displayName}
+              />
+            </span>
+          ))}
+          {overflow > 0 ? (
+            <span className="lane__voter-more">+{overflow}</span>
+          ) : null}
+        </button>
+      )}
+      {can(myRole, "vote.cast") && !frozen ? (
+        <button
+          type="button"
+          className={
+            "lane__vote-btn lane__in-btn" +
+            (option.viewerIsParticipant ? " lane__vote-btn--on" : "")
+          }
+          aria-pressed={option.viewerIsParticipant}
+          disabled={toggle.isPending}
+          onClick={onToggle}
+        >
+          {option.viewerIsParticipant ? "✓ I'm in" : "+ I'm in"}
+        </button>
+      ) : null}
+      {error ? (
+        <span className="board__form-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+      {listing ? (
+        <ParticipantList
+          participants={option.participants}
+          onClose={() => setListing(false)}
+        />
       ) : null}
     </div>
   );

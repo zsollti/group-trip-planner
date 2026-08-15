@@ -39,8 +39,7 @@ describe("hasMaterialChange", () => {
     amount: 100,
     currency: "EUR",
     costType: "PER_PERSON",
-    headcount: null,
-    headcountIsFixed: false,
+    participationMode: "WHOLE_GROUP",
     startsAt: null,
     endsAt: null,
   };
@@ -53,9 +52,10 @@ describe("hasMaterialChange", () => {
     assert.equal(hasMaterialChange(base, { ...base, amount: 120 }), true);
     assert.equal(hasMaterialChange(base, { ...base, currency: "HUF" }), true);
     assert.equal(hasMaterialChange(base, { ...base, costType: "TOTAL" }), true);
-    assert.equal(hasMaterialChange(base, { ...base, headcount: 4 }), true);
+    // Switching who an option is priced for changes what every prior vote was
+    // cast about, so the *mode* is material.
     assert.equal(
-      hasMaterialChange(base, { ...base, headcountIsFixed: true }),
+      hasMaterialChange(base, { ...base, participationMode: "OPT_IN" }),
       true,
     );
   });

@@ -6,6 +6,7 @@ import {
   type CategoryBuiltinKey,
   type CostType,
   type OptionView,
+  type ParticipationMode,
   type TripDateRange,
 } from "@gtp/types";
 import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
@@ -24,7 +25,7 @@ import { onAmountInput } from "../lib/amountField";
 
 /**
  * Board-paradigm propose/edit card. Covers the FR-21 fields — title, url,
- * description, amount + currency, cost type, fixed-vs-dynamic headcount, optional
+ * description, amount + currency, cost type, who it is priced for, optional
  * dates, external ref. On edit it carries the option `version` (a 409 means it
  * changed or is locked → the caller reloads). Validation is delegated to the
  * server contract; only the payload shaping (blanks → omitted, local dates → ISO)
@@ -79,11 +80,8 @@ export function OptionForm({
   const [costType, setCostType] = useState<CostType>(
     option?.costType ?? "PER_PERSON",
   );
-  const [headcountIsFixed, setHeadcountIsFixed] = useState(
-    option?.headcountIsFixed ?? false,
-  );
-  const [headcount, setHeadcount] = useState(
-    option?.headcount != null ? String(option.headcount) : "",
+  const [participationMode, setParticipationMode] = useState<ParticipationMode>(
+    option?.participationMode ?? "WHOLE_GROUP",
   );
   // The day and the time are held apart, because the calendar picks days for
   // both granularities and only a `minute` option has a time at all. They are
@@ -130,11 +128,7 @@ export function OptionForm({
       amount: parseAmount(amount) ?? undefined,
       currency,
       costType,
-      headcountIsFixed,
-      headcount:
-        headcountIsFixed && headcount.trim() !== ""
-          ? Number(headcount)
-          : undefined,
+      participationMode,
       startsAt: fromDateInput(
         joinDay(startDay, startTime, fields.dateGranularity),
         fields.dateGranularity,
@@ -248,34 +242,33 @@ export function OptionForm({
                   <option value="TOTAL">Total for the group</option>
                 </select>
               </Field>
-              {headcountIsFixed ? (
-                <Field htmlFor="opt-headcount" label="Headcount">
-                  <Input
-                    id="opt-headcount"
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={headcount}
-                    onChange={(e) => setHeadcount(e.target.value)}
-                  />
-                </Field>
-              ) : (
-                <div />
-              )}
+              <Field htmlFor="opt-participation" label="Priced for">
+                {/* Two named choices rather than a checkbox plus a number. The
+                    number was the problem: it claimed how many without saying
+                    who, and nothing kept it current. */}
+                <select
+                  id="opt-participation"
+                  className="board__select"
+                  value={participationMode}
+                  onChange={(e) =>
+                    setParticipationMode(e.target.value as ParticipationMode)
+                  }
+                >
+                  <option value="WHOLE_GROUP">Everyone on the trip</option>
+                  <option value="OPT_IN">Only whoever's in</option>
+                </select>
+              </Field>
+              <div />
 
-              <div className="board__form-wide">
-                <label className="board__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={headcountIsFixed}
-                    onChange={(e) => setHeadcountIsFixed(e.target.checked)}
-                  />
-                  <span>
-                    Fix the headcount (otherwise it tracks the trip's member
-                    count)
-                  </span>
-                </label>
-              </div>
+              {participationMode === "OPT_IN" ? (
+                <div className="board__form-wide">
+                  <p className="board__field-note">
+                    The card gets an <strong>I'm in</strong> button, and its
+                    cost is split between the people who press it — nobody else
+                    pays for it. Everyone can see who is in.
+                  </p>
+                </div>
+              ) : null}
             </>
           ) : null}
 

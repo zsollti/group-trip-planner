@@ -31,8 +31,10 @@ const summaryOptionSelect = {
   amount: true,
   currency: true,
   costType: true,
-  headcount: true,
-  headcountIsFixed: true,
+  participationMode: true,
+  // An OPT_IN option's headcount is this count, so it is selected for every
+  // option rather than fetched per row.
+  _count: { select: { participants: true } },
   category: { select: { tripId: true } },
 } satisfies Prisma.OptionSelect;
 
@@ -142,7 +144,10 @@ function summarize(
     if (o.status === "LOCKED") {
       cat.locked = true;
       const headcount = resolveHeadcount(
-        { headcountIsFixed: o.headcountIsFixed, headcount: o.headcount },
+        {
+          participationMode: o.participationMode,
+          participantCount: o._count.participants,
+        },
         memberCount,
       );
       const { group } = optionCost(

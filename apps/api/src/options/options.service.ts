@@ -187,7 +187,9 @@ export class OptionsService {
       // for options that share a position (e.g. before a first reorder).
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     });
-    return options.map((o) => toOptionView(o, viewerId));
+    return options.map((o) =>
+      toOptionView(o, viewerId, ctx.trip._count.memberships),
+    );
   }
 
   /** Build the Prisma write payload for the option body (create/edit share it). */
@@ -201,35 +203,11 @@ export class OptionsService {
       amount: input.amount ?? null,
       currency: input.currency,
       costType: input.costType,
-      headcount: input.headcount ?? null,
-      headcountIsFixed: input.headcountIsFixed,
+      participationMode: input.participationMode,
       startsAt: input.startsAt ? new Date(input.startsAt) : null,
       endsAt: input.endsAt ? new Date(input.endsAt) : null,
       externalRef: input.externalRef ?? null,
     };
-  }
-
-  /**
-   * The `headcountConfirmedAt` to write on an edit (decision 2). Reverting to a
-   * dynamic headcount clears it (a dynamic option is never stale). Entering a
-   * fixed headcount, or changing the fixed number, **re-confirms** it against the
-   * current roster (now). A cosmetic edit that leaves the fixed number untouched
-   * **preserves** the old stamp, so an unrelated title change never silently
-   * un-stales a headcount.
-   */
-  private nextHeadcountConfirmedAt(
-    before: {
-      headcountIsFixed: boolean;
-      headcount: number | null;
-      headcountConfirmedAt: Date | null;
-    },
-    input: UpdateOptionInput,
-  ): Date | null {
-    if (!input.headcountIsFixed) return null;
-    const becameFixed = !before.headcountIsFixed;
-    const numberChanged = (input.headcount ?? null) !== before.headcount;
-    if (becameFixed || numberChanged) return new Date();
-    return before.headcountConfirmedAt;
   }
 
   /**
@@ -259,9 +237,6 @@ export class OptionsService {
         categoryId,
         proposerId: user.id,
         position: nextPosition,
-        // A fixed headcount is "confirmed" the moment it is entered (decision 2);
-        // a dynamic option tracks the live count and has no confirmation stamp.
-        headcountConfirmedAt: input.headcountIsFixed ? new Date() : null,
       },
       include: optionInclude,
     });
@@ -278,7 +253,7 @@ export class OptionsService {
       subject: created.title,
       categoryId,
     });
-    return toOptionView(created, user.id);
+    return toOptionView(created, user.id, ctx.trip._count.memberships);
   }
 
   /**
@@ -318,8 +293,7 @@ export class OptionsService {
       amount: input.amount ?? null,
       currency: input.currency,
       costType: input.costType,
-      headcount: input.headcount ?? null,
-      headcountIsFixed: input.headcountIsFixed,
+      participationMode: input.participationMode,
       startsAt: normDate(input.startsAt),
       endsAt: normDate(input.endsAt),
     });
@@ -330,7 +304,6 @@ export class OptionsService {
         ...this.toData(input),
         version: { increment: 1 },
         ...(material ? { materialChangedAt: new Date() } : {}),
-        headcountConfirmedAt: this.nextHeadcountConfirmedAt(option, input),
       },
     });
     if (result.count === 0) {
@@ -344,7 +317,7 @@ export class OptionsService {
       include: optionInclude,
     });
     this.emitOptionsChanged(ctx.trip.id, categoryId);
-    return toOptionView(updated, user.id);
+    return toOptionView(updated, user.id, ctx.trip._count.memberships);
   }
 
   /**
@@ -446,7 +419,7 @@ export class OptionsService {
       update: {},
     });
     this.emitOptionsChanged(ctx.trip.id, categoryId);
-    return this.readOption(option.id, user.id);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
   }
 
   /**
@@ -467,19 +440,83 @@ export class OptionsService {
       where: { optionId: option.id, userId: user.id },
     });
     this.emitOptionsChanged(ctx.trip.id, categoryId);
-    return this.readOption(option.id, user.id);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
+  }
+
+  /**
+   * Say you are in for an option (post-launch, replacing the fixed headcount).
+   *
+   * Deliberately the same shape as {@link castVote} — same guard spine, same
+   * idempotent upsert, same refreshed option in the response — because it is
+   * the same kind of act: a member speaking for themselves, and only for
+   * themselves. Nobody can opt anyone else in; an organizer who needs to
+   * account for someone who never opens the app prices the option for the whole
+   * group instead.
+   *
+   * **Rejected on a WHOLE_GROUP option** rather than silently recorded. There,
+   * everyone is already in, so a row would be a claim the cost engine ignores —
+   * and a control that appears to work while changing nothing is worse than one
+   * that is not offered.
+   */
+  async joinOption(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+    if (option.participationMode !== "OPT_IN") {
+      throw new BadRequestException(
+        "This option is priced for the whole trip, so everyone is already in.",
+      );
+    }
+
+    await this.prisma.optionParticipant.upsert({
+      where: { optionId_userId: { optionId: option.id, userId: user.id } },
+      create: { optionId: option.id, userId: user.id },
+      update: {},
+    });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
+  }
+
+  /**
+   * Withdraw from an option. Idempotent, like un-voting.
+   *
+   * Allowed on a `WHOLE_GROUP` option too, where it is simply a no-op: leaving
+   * something you were never individually signed up for should not be an error,
+   * and the delete is already a `deleteMany` that matches nothing.
+   */
+  async leaveOption(
+    ctx: TripContext,
+    user: User,
+    categoryId: string,
+    optionId: string,
+  ): Promise<OptionView> {
+    this.assertActive(ctx);
+    await this.requireCategory(ctx, categoryId);
+    const option = await this.requireOption(categoryId, optionId);
+
+    await this.prisma.optionParticipant.deleteMany({
+      where: { optionId: option.id, userId: user.id },
+    });
+    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
   }
 
   /** Re-read one option with its tally for the given viewer (post-vote/lock). */
   private async readOption(
     optionId: string,
     viewerId: string,
+    memberCount: number,
   ): Promise<OptionView> {
     const fresh = await this.prisma.option.findUniqueOrThrow({
       where: { id: optionId },
       include: optionInclude,
     });
-    return toOptionView(fresh, viewerId);
+    return toOptionView(fresh, viewerId, memberCount);
   }
 
   /**
@@ -642,7 +679,7 @@ export class OptionsService {
       subject: option.title,
       categoryId,
     });
-    return this.readOption(option.id, user.id);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
   }
 
   /**
@@ -707,7 +744,7 @@ export class OptionsService {
     });
 
     this.emitOptionsChanged(ctx.trip.id, categoryId);
-    return this.readOption(option.id, user.id);
+    return this.readOption(option.id, user.id, ctx.trip._count.memberships);
   }
 
   /**

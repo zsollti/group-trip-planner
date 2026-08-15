@@ -112,11 +112,6 @@ function TallyBody({
 
   return (
     <>
-      {d.hasStaleHeadcount ? (
-        <p className="board__tally-stale" role="status">
-          ⚠ Fixed headcount out of date
-        </p>
-      ) : null}
       {/* One figure on this surface, and the composition states it when it can
           — in the donut's hole, or as the caption over the bar. The fallbacks
           below exist for the two cases it cannot cover: nothing drawable

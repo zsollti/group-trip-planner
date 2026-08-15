@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { CategoryView, OptionView, OptionVoterView } from "@gtp/types";
+import type {
+  CategoryView,
+  OptionParticipantView,
+  OptionView,
+  OptionVoterView,
+} from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { OptionCard } from "./OptionCard";
 
@@ -47,8 +52,10 @@ function opt(over: Partial<OptionView>): OptionView {
     amount: null,
     currency: "EUR",
     costType: "PER_PERSON",
-    headcount: null,
-    headcountIsFixed: false,
+    participationMode: "WHOLE_GROUP",
+    participants: [],
+    viewerIsParticipant: false,
+    effectiveHeadcount: 4,
     startsAt: null,
     endsAt: null,
     externalRef: null,
@@ -86,6 +93,74 @@ const people = (n: number): OptionVoterView[] =>
   Array.from({ length: n }, (_, i) =>
     voter({ userId: `u${i}`, displayName: `Voter ${i}` }),
   );
+
+const joiners = (n: number): OptionParticipantView[] =>
+  Array.from({ length: n }, (_, i) => ({
+    userId: `p${i}`,
+    displayName: `Joiner ${i}`,
+    avatarUrl: null,
+    joinedAt: "2026-08-01T10:00:00.000Z",
+  }));
+
+/**
+ * Being in for an option — the replacement for a headcount somebody typed.
+ *
+ * The rule worth pinning hardest is the *absence*: a whole-group option must
+ * not grow a second toggle. Two controls that look alike on every card is how
+ * a board stops being readable, and the overwhelming majority of options are
+ * for everyone.
+ */
+describe("OptionCard — who's in", () => {
+  it("offers no participation control on a whole-group option", () => {
+    renderCard(opt({}));
+    expect(screen.queryByRole("button", { name: /i'm in/i })).toBeNull();
+    expect(screen.queryByText(/nobody yet/i)).toBeNull();
+  });
+
+  it("asks the question rather than reporting nothing, when nobody is in", () => {
+    renderCard(opt({ participationMode: "OPT_IN", effectiveHeadcount: 0 }));
+    expect(screen.getByText("nobody yet")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "+ I'm in" }),
+    ).toBeInTheDocument();
+  });
+
+  it("draws who is in as faces, and counts the ones that do not fit", () => {
+    renderCard(
+      opt({
+        participationMode: "OPT_IN",
+        participants: joiners(7),
+        effectiveHeadcount: 7,
+      }),
+    );
+    const who = screen.getByRole("button", { name: /7 in — see who/i });
+    expect(within(who).getByTitle("Joiner 0")).toBeInTheDocument();
+    // Three fit; the rest become a count rather than shrinking to dots.
+    expect(within(who).queryByTitle("Joiner 4")).toBeNull();
+    expect(screen.getByText("+4")).toBeInTheDocument();
+  });
+
+  it("shows the viewer their own state, pressed", () => {
+    renderCard(
+      opt({
+        participationMode: "OPT_IN",
+        participants: joiners(1),
+        viewerIsParticipant: true,
+        effectiveHeadcount: 1,
+      }),
+    );
+    const btn = screen.getByRole("button", { name: "✓ I'm in" });
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps the vote toggle alongside it, since they say different things", () => {
+    // A vote says "we should do this"; being in says "I will pay for this".
+    // Both belong on an opt-in card, and neither replaces the other.
+    renderCard(opt({ participationMode: "OPT_IN", effectiveHeadcount: 0 }));
+    expect(screen.getByRole("button", { name: /vote/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /i'm in/i })).toBeInTheDocument();
+  });
+});
 
 describe("OptionCard", () => {
   it("says so plainly when nobody has voted", () => {

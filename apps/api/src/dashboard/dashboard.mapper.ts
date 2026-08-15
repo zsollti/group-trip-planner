@@ -10,6 +10,7 @@ import {
   type DashboardLine,
   type DashboardLineKind,
   type OptionStatus,
+  type ParticipationMode,
   type TripDashboardView,
 } from "@gtp/types";
 import type { StoredRates } from "../rates/rates.service.js";
@@ -21,12 +22,15 @@ import type { StoredRates } from "../rates/rates.service.js";
  */
 export const dashboardOptionInclude = {
   category: { select: { id: true, name: true } },
-  _count: { select: { votes: true } },
+  // Counted in the same statement as the votes, never per row: an OPT_IN
+  // option's headcount *is* this number, so the engine needs it for every
+  // option it prices.
+  _count: { select: { votes: true, participants: true } },
 } as const;
 
 export type DashboardOptionRow = Option & {
   category: { id: string; name: string };
-  _count: { votes: number };
+  _count: { votes: number; participants: number };
 };
 
 /** A stored option row → the lean shape the pure cost engine consumes. */
@@ -38,12 +42,9 @@ export function toEngineOption(o: DashboardOptionRow): CostEngineOption {
     amount: o.amount === null ? null : Number(o.amount),
     currency: o.currency,
     costType: o.costType as CostType,
-    headcount: o.headcount,
-    headcountIsFixed: o.headcountIsFixed,
+    participationMode: o.participationMode as ParticipationMode,
+    participantCount: o._count.participants,
     voteCount: o._count.votes,
-    headcountConfirmedAt: o.headcountConfirmedAt
-      ? o.headcountConfirmedAt.toISOString()
-      : null,
     createdAt: o.createdAt.toISOString(),
   };
 }
@@ -88,7 +89,6 @@ export function toTripDashboardView(
       group: cost.group,
       perPerson: cost.perPerson,
       effectiveHeadcount: cost.effectiveHeadcount,
-      headcountStale: cost.headcountStale,
       converted: convertedLine(cost, trip.defaultCurrency, rates),
     };
   };
@@ -116,7 +116,6 @@ export function toTripDashboardView(
     committed: result.committed.map((s) => ({ ...s })),
     projected: result.projected.map((s) => ({ ...s })),
     lines,
-    hasStaleHeadcount: result.hasStaleHeadcount,
     converted: convertedCost(trip.defaultCurrency, result, rates),
     generatedAt: generatedAt.toISOString(),
   };

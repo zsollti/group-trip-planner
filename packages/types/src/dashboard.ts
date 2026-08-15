@@ -65,10 +65,9 @@ export const DashboardLine = z.object({
   currency: z.string(),
   group: z.number(),
   perPerson: z.number(),
-  /** The headcount the cost was computed against (fixed value or live count). */
+  /** The headcount the cost was computed against — the members who opted in,
+   *  or the live member count. */
   effectiveHeadcount: z.number().int().nonnegative(),
-  /** True iff a fixed headcount predates the trip's last membership change. */
-  headcountStale: z.boolean(),
   /**
    * This line's money in the trip's `defaultCurrency`, or null when no rate
    * could reach it. Always present for a line already in that currency, where
@@ -115,8 +114,10 @@ export type ConvertedCost = z.infer<typeof ConvertedCost>;
  * The whole per-trip cost picture. `committed` is exact (locked decisions);
  * `projected` adds each open category's front-runner. `lines` breaks both down
  * per option so a UI can show what makes up each currency subtotal.
- * `hasStaleHeadcount` is the trip-level warning — true iff any option that feeds
- * a total has a stale fixed headcount.
+ *
+ * There is no stale-headcount warning here any more. It existed because a
+ * typed headcount could fall behind the membership it was counting; a
+ * participant list cannot, so the flag had nothing left to be true about.
  */
 export const TripDashboardView = z.object({
   tripId: z.string().uuid(),
@@ -136,12 +137,11 @@ export const TripDashboardView = z.object({
    * rather than implying the others are covered.
    */
   budgetPerPerson: z.number().nullable(),
-  /** Current member count, i.e. the divisor for dynamic-headcount options. */
+  /** Current member count, i.e. the divisor for whole-group options. */
   memberCount: z.number().int().nonnegative(),
   committed: z.array(DashboardSubtotal),
   projected: z.array(DashboardSubtotal),
   lines: z.array(DashboardLine),
-  hasStaleHeadcount: z.boolean(),
   /**
    * The same money, roughly, in one currency — or `null` when it cannot be
    * offered: no rates stored yet, or nothing published for this trip's own

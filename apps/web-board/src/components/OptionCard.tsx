@@ -13,7 +13,7 @@ import {
 import { ApiError, useLockOption } from "@gtp/api-client";
 import { Menu, type MenuItem } from "./Menu";
 import { OptionDetail } from "./OptionDetail";
-import { VoteDots } from "./optionControls";
+import { ParticipantDots, VoteDots } from "./optionControls";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { categoryHueStyle } from "../lib/categoryTheme";
@@ -232,6 +232,16 @@ export function OptionCard({
         </p>
       ) : null}
       <VoteDots
+        tripId={tripId}
+        category={category.id}
+        option={option}
+        myRole={myRole}
+        frozen={frozen}
+      />
+      {/* Under the votes, and only on an opt-in option: the vote is the
+          question every card asks, while this one asks a second, narrower one
+          that most cards never ask at all. */}
+      <ParticipantDots
         tripId={tripId}
         category={category.id}
         option={option}

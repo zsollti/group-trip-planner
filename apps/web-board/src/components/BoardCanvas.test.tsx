@@ -46,8 +46,10 @@ function opt(over: Partial<OptionView>): OptionView {
     amount: null,
     currency: "EUR",
     costType: "PER_PERSON",
-    headcount: null,
-    headcountIsFixed: false,
+    participationMode: "WHOLE_GROUP",
+    participants: [],
+    viewerIsParticipant: false,
+    effectiveHeadcount: 4,
     startsAt: null,
     endsAt: null,
     externalRef: null,
@@ -106,7 +108,6 @@ function mockFetch() {
           committed: [],
           projected: [],
           lines: [],
-          hasStaleHeadcount: false,
           memberCount: 2,
         });
       }
@@ -128,7 +129,6 @@ function mockEmptyFetch() {
           committed: [],
           projected: [],
           lines: [],
-          hasStaleHeadcount: false,
           memberCount: 2,
         });
       }
@@ -202,7 +202,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -263,7 +262,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -293,7 +291,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -432,7 +429,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -476,7 +472,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -537,7 +532,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -589,7 +583,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -684,7 +677,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -736,7 +728,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }
@@ -776,7 +767,6 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             lines: [],
-            hasStaleHeadcount: false,
             memberCount: 2,
           });
         }

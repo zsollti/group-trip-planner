@@ -3888,3 +3888,24 @@ body {
     padding: 0.45rem 0.5rem;
   }
 }
+
+/* "I'm in" — the participation toggle, on opt-in options only.
+ *
+ * Built to look like the vote row directly above it (same faces, same overflow
+ * count) because the two are the same kind of statement from a member; the
+ * accent border is what keeps them from reading as one control repeated. */
+.lane__in {
+  margin-top: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--lane-line);
+}
+.lane__in-btn {
+  border-color: color-mix(in srgb, var(--board-accent) 45%, transparent);
+}
+.lane__in-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}

@@ -97,11 +97,12 @@ const TAIL_SHARE = 0.05;
  * pays** — and it would then be compared against a target that is per person
  * across the whole group.
  *
- * A dynamic headcount always resolves to the live member count, so this single
- * comparison covers both cases the rule cares about: an option with no fixed
- * headcount is always shared, and a fixed one counts as shared exactly when its
- * number still matches the group. That is why nothing on the wire needs to say
- * whether the headcount was fixed — the resolved number already tells us.
+ * A whole-group option always resolves to the live member count, so this single
+ * comparison covers both cases the rule cares about: a whole-group option is
+ * always shared, and an opt-in one counts as shared exactly when everybody has
+ * joined it. That is why nothing on the wire needs to name the participation
+ * mode here — the resolved number already tells us, and it kept being the right
+ * test when the model underneath it changed completely.
  */
 function isSharedByEveryone(line: DashboardLine, memberCount: number): boolean {
   return line.effectiveHeadcount === memberCount;
@@ -130,9 +131,7 @@ function perPersonInTripCurrency(
  * option priced for part of the group, and no rate able to reach the trip's own
  * currency. In each the caller falls back to the figures it already prints.
  */
-export function costComposition(
-  d: TripDashboardView,
-): CostComposition | null {
+export function costComposition(d: TripDashboardView): CostComposition | null {
   const byCategory = new Map<string, { label: string; amount: number }>();
   const excluded: ExcludedCost[] = [];
   const uncounted = new Set<string>();
@@ -201,7 +200,8 @@ export function costComposition(
     // it the ring *is* the spend, and the mark lands inside it — which is the
     // whole reason to draw one. Without it €5 over and €5,000 over are the same
     // full circle, which is the failure that retired the previous chart.
-    targetMark: target !== null && target > 0 ? Math.min(target / full, 1) : null,
+    targetMark:
+      target !== null && target > 0 ? Math.min(target / full, 1) : null,
     excluded,
     uncounted: [...uncounted],
   };
@@ -222,7 +222,8 @@ function withTail(
   full: number,
 ): CostSlice[] {
   const small = ranked.filter((s) => s.amount / charted < TAIL_SHARE);
-  const keep = small.length >= 2 ? ranked.filter((s) => !small.includes(s)) : ranked;
+  const keep =
+    small.length >= 2 ? ranked.filter((s) => !small.includes(s)) : ranked;
   const slices: CostSlice[] = keep.map((s) => ({
     categoryId: s.categoryId,
     label: s.label,

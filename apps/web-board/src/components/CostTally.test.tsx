@@ -33,7 +33,6 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     lines: [],
-    hasStaleHeadcount: false,
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
@@ -114,7 +113,6 @@ function locked(over: Partial<DashboardLine> = {}): DashboardLine {
     group: perPerson * 4,
     perPerson,
     effectiveHeadcount: 4,
-    headcountStale: false,
     converted: null,
     ...over,
   };
@@ -311,15 +309,6 @@ describe("CostTally", () => {
     expect(container.querySelector(".board__cost-peek")).toBeNull();
     // The chart carries the figure now, so the headline block is not rendered.
     expect(container.querySelector(".board__tally-total")).toBeNull();
-  });
-
-  it("still warns about a stale fixed headcount", async () => {
-    renderTally(
-      dashboard({ committed: [priced(100)], hasStaleHeadcount: true }),
-    );
-    expect(
-      await screen.findByText(/headcount out of date/),
-    ).toBeInTheDocument();
   });
 });
 
