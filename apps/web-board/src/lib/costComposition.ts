@@ -49,6 +49,9 @@ export interface ExcludedCost {
   readonly currency: string;
   /** How many people it was priced for. */
   readonly headcount: number;
+  /** Does the reader pay for this one? It is money they owe that the ring
+   *  cannot hold, which is a different sentence from money someone else owes. */
+  readonly viewerOwes: boolean;
 }
 
 export interface CostComposition {
@@ -153,6 +156,7 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
         perPerson: line.perPerson,
         currency: line.currency,
         headcount: line.effectiveHeadcount,
+        viewerOwes: line.viewerOwes,
       });
       continue;
     }

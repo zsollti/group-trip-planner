@@ -430,6 +430,79 @@ describe("Trip dashboard (e2e)", () => {
     );
   });
 
+  it("charges an opt-in option only to the members who joined it", async () => {
+    /**
+     * The reported bug, end to end. A €100 target, €98 of shared options and a
+     * €4 thing two of five joined: the trip's per-person total adds every
+     * option's per-head cost, so it read €102 for everyone and warned the three
+     * who had declined to spend the €4.
+     *
+     * `viewerCommitted` is the fix, and it is per caller — so the same request
+     * to the same URL answers differently for two members, which is the whole
+     * point and the thing worth pinning.
+     */
+    const owner = await makeUser("vs-owner");
+    const other = await makeUser("vs-other");
+    const trip = await createTrip(owner.accessToken, "Viewer share");
+    const c1 = await multiSelectCategory(owner.accessToken, trip.id);
+    const c2 = await multiSelectCategory(owner.accessToken, trip.id, [c1.id]);
+
+    await join(
+      other.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+
+    const shared = await propose(owner.accessToken, trip.id, c1.id, {
+      title: "Shared",
+      amount: 98,
+      currency: "EUR",
+      costType: "PER_PERSON",
+    });
+    const extra = await propose(owner.accessToken, trip.id, c2.id, {
+      title: "Only some of us",
+      amount: 4,
+      currency: "EUR",
+      costType: "PER_PERSON",
+      participationMode: "OPT_IN",
+    });
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c1.id,
+      shared.id,
+      shared.version,
+      c1.version,
+    );
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c2.id,
+      extra.id,
+      extra.version,
+      c2.version,
+    );
+    await joinOption(owner.accessToken, trip.id, c2.id, extra.id).expect(201);
+
+    const mine = await dashboard(owner.accessToken, trip.id);
+    const theirs = await dashboard(other.accessToken, trip.id);
+
+    // The trip's own total is the same for both, and still adds everything.
+    assert.equal(sub(mine.committed, "EUR")?.perPerson, 102);
+    assert.equal(sub(theirs.committed, "EUR")?.perPerson, 102);
+
+    // The share is not: the joiner owes 102, the member who declined owes 98.
+    assert.equal(sub(mine.viewerCommitted, "EUR")?.perPerson, 102);
+    assert.equal(sub(theirs.viewerCommitted, "EUR")?.perPerson, 98);
+
+    // And each line says whose money it is.
+    const line = (d: TripDashboardView, id: string) =>
+      d.lines.find((l) => l.optionId === id)!;
+    assert.equal(line(mine, extra.id).viewerOwes, true);
+    assert.equal(line(theirs, extra.id).viewerOwes, false);
+    // The shared one is everyone's, however they answered the other.
+    assert.equal(line(theirs, shared.id).viewerOwes, true);
+  });
+
   it("a member who leaves takes their participation with them", async () => {
     // This is the claim the whole model rests on: a headcount cannot fall
     // behind the roster, because it *is* the roster. The FK cascades from the

@@ -9,6 +9,7 @@ import {
   type CostType,
   type DashboardLine,
   type DashboardLineKind,
+  type DashboardSubtotal,
   type OptionStatus,
   type ParticipationMode,
   type TripDashboardView,
@@ -20,18 +21,41 @@ import type { StoredRates } from "../rates/rates.service.js";
  * query (NFR-1, no N+1): each option's category name and its vote tally (via a
  * relation `_count`, resolved in the same SQL statement — never per row).
  */
-export const dashboardOptionInclude = {
-  category: { select: { id: true, name: true } },
-  // Counted in the same statement as the votes, never per row: an OPT_IN
-  // option's headcount *is* this number, so the engine needs it for every
-  // option it prices.
-  _count: { select: { votes: true, participants: true } },
-} as const;
+/**
+ * Everything the dashboard needs from an option, in one statement.
+ *
+ * A **function** of the viewer, because the payload now answers a question
+ * about them: which of these am I paying for? The `participants` include is
+ * filtered to their own row, so it costs no extra query and returns at most one
+ * row per option rather than the whole list.
+ */
+export const dashboardOptionInclude = (viewerId: string) =>
+  ({
+    category: { select: { id: true, name: true } },
+    // Counted in the same statement as the votes, never per row: an OPT_IN
+    // option's headcount *is* this number, so the engine needs it for every
+    // option it prices.
+    _count: { select: { votes: true, participants: true } },
+    participants: { where: { userId: viewerId }, select: { userId: true } },
+  }) as const;
 
 export type DashboardOptionRow = Option & {
   category: { id: string; name: string };
   _count: { votes: number; participants: number };
+  /** The viewer's own participation row, or empty. Never the whole list. */
+  participants: { userId: string }[];
 };
+
+/**
+ * Does this viewer pay for this option?
+ *
+ * Whole-group options are everyone's. An opt-in option is only the people who
+ * said so — and `participants` here is already filtered to the viewer, so its
+ * presence *is* the answer.
+ */
+function viewerOwes(row: DashboardOptionRow): boolean {
+  return row.participationMode !== "OPT_IN" || row.participants.length > 0;
+}
 
 /** A stored option row → the lean shape the pure cost engine consumes. */
 export function toEngineOption(o: DashboardOptionRow): CostEngineOption {
@@ -89,6 +113,7 @@ export function toTripDashboardView(
       group: cost.group,
       perPerson: cost.perPerson,
       effectiveHeadcount: cost.effectiveHeadcount,
+      viewerOwes: viewerOwes(row),
       converted: convertedLine(cost, trip.defaultCurrency, rates),
     };
   };
@@ -105,6 +130,14 @@ export function toTripDashboardView(
     if (line) lines.push(line);
   }
 
+  // The committed total narrowed to what this viewer actually pays for. Built
+  // from the LOCKED lines alone, because that is what the target is read
+  // against, and aggregated per currency so it can be converted the same way
+  // every other total is.
+  const viewerCommitted = aggregateShare(
+    lines.filter((l) => l.kind === "LOCKED" && l.viewerOwes),
+  );
+
   return {
     tripId: trip.id,
     defaultCurrency: trip.defaultCurrency,
@@ -115,8 +148,14 @@ export function toTripDashboardView(
     memberCount,
     committed: result.committed.map((s) => ({ ...s })),
     projected: result.projected.map((s) => ({ ...s })),
+    viewerCommitted,
     lines,
-    converted: convertedCost(trip.defaultCurrency, result, rates),
+    converted: convertedCost(
+      trip.defaultCurrency,
+      result,
+      rates,
+      viewerCommitted,
+    ),
     generatedAt: generatedAt.toISOString(),
   };
 }
@@ -171,6 +210,7 @@ function convertedCost(
   defaultCurrency: string,
   result: CostDashboard,
   rates: StoredRates | null,
+  viewerCommitted: readonly DashboardSubtotal[],
 ): ConvertedCost | null {
   if (!rates) return null;
   const committed = convertSubtotals(
@@ -184,11 +224,28 @@ function convertedCost(
     rates.rates,
   );
   if (!committed || !projected) return null;
+  // Converted from the viewer's own subtotals, never re-added from their lines:
+  // one multiplication per currency rounds better than one per line, and that
+  // is the rule every total on this payload follows.
+  const crossed = convertSubtotals(
+    viewerCommitted,
+    defaultCurrency,
+    rates.rates,
+  );
+  const viewer = crossed
+    ? {
+        group: crossed.group,
+        perPerson: crossed.perPerson,
+        converted: [...crossed.converted],
+        missing: [...crossed.missing],
+      }
+    : null;
 
   return {
     currency: defaultCurrency,
     committed: { group: committed.group, perPerson: committed.perPerson },
     projected: { group: projected.group, perPerson: projected.perPerson },
+    viewer,
     asOf: rates.asOf,
     // The projection is the superset — it is the committed options plus the
     // front-runners — so its currency lists are the ones that describe the
@@ -196,4 +253,25 @@ function convertedCost(
     converted: [...projected.converted],
     missing: [...projected.missing],
   };
+}
+
+/**
+ * Sum a viewer's own lines into per-currency subtotals, sorted by currency.
+ *
+ * Both figures are real: `perPerson` is what this viewer owes, and `group` is
+ * what the whole trip pays for that same set of options — not a restatement of
+ * the first, and not the trip's total either, since the options this viewer
+ * declined are absent from both.
+ */
+function aggregateShare(lines: readonly DashboardLine[]): DashboardSubtotal[] {
+  const byCurrency = new Map<string, { group: number; perPerson: number }>();
+  for (const l of lines) {
+    const acc = byCurrency.get(l.currency) ?? { group: 0, perPerson: 0 };
+    acc.group += l.group;
+    acc.perPerson += l.perPerson;
+    byCurrency.set(l.currency, acc);
+  }
+  return [...byCurrency.entries()]
+    .map(([currency, v]) => ({ currency, ...v }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
 }

@@ -3944,3 +3944,11 @@ body {
   text-transform: uppercase;
   color: var(--board-dim);
 }
+
+/* An excluded option the reader is actually in for. The chart states what
+   everyone shares and the target states what you owe; this is the difference
+   between them, so it is worth picking out of the aside. */
+.cost-comp__aside-mine {
+  font-weight: 700;
+  color: var(--board-accent);
+}

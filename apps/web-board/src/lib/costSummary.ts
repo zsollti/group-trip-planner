@@ -107,6 +107,54 @@ export function lockedCost(d: TripDashboardView): LockedCost {
   };
 }
 
+/**
+ * The same read, narrowed to **what this member actually pays for**.
+ *
+ * `lockedCost` answers "what has the trip committed to". This answers "what
+ * have I committed to", and the two differ the moment an option is priced for
+ * part of the group: the trip's per-person total adds every option's per-head
+ * cost, opt-in ones included, so a €4 thing four of five joined moves all five
+ * people's figure — and tells the fifth they are €4 nearer a limit over money
+ * they declined to spend.
+ *
+ * Same three cases as {@link lockedCost}, over the caller's own subtotals, so
+ * the multi-currency story is identical: exact when there is one currency,
+ * approximate when rates can cross them, and honestly absent when they cannot.
+ */
+export function viewerCost(d: TripDashboardView): LockedCost {
+  const parts = d.viewerCommitted;
+  if (parts.length === 0) return { parts, allIn: null };
+
+  const only = parts.length === 1 ? parts[0] : undefined;
+  if (only) {
+    return {
+      parts,
+      allIn: {
+        group: only.group,
+        perPerson: only.perPerson,
+        currency: only.currency,
+        approximate: false,
+        missing: [],
+      },
+    };
+  }
+
+  const v = d.converted?.viewer;
+  if (!v) return { parts, allIn: null };
+  return {
+    parts,
+    allIn: {
+      group: v.group,
+      perPerson: v.perPerson,
+      currency: d.converted!.currency,
+      approximate: true,
+      missing: v.missing.filter((code) =>
+        parts.some((p) => p.currency === code),
+      ),
+    },
+  };
+}
+
 /** How the locked spend stands against the trip's per-person target. */
 export interface TargetVerdict {
   readonly target: number;
@@ -122,8 +170,13 @@ export interface TargetVerdict {
 }
 
 /**
- * Compare the locked spend to the target, or return null when there is nothing
- * to compare.
+ * Compare a locked spend to the target, or return null when there is nothing to
+ * compare.
+ *
+ * **Fed the caller's own cost** ({@link viewerCost}), not the trip's. A target
+ * denominated per person is a statement about one person's money, and reading
+ * it against a total that includes options they are not part of warns the wrong
+ * people — which is exactly what it did.
  *
  * The target is per person and denominated in the trip's own currency, so the
  * comparison has to be made in that unit — **and per-person money is not the

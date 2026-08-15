@@ -69,6 +69,16 @@ export const DashboardLine = z.object({
    *  or the live member count. */
   effectiveHeadcount: z.number().int().nonnegative(),
   /**
+   * Does the **caller** pay for this line?
+   *
+   * True for every whole-group option, and for an opt-in one only when the
+   * caller has joined it. Without this a per-person total is a figure nobody
+   * necessarily owes: an option four people opted into still contributes its
+   * per-head cost to the trip-wide per-person sum, so the fifth member is told
+   * they owe money for a thing they declined.
+   */
+  viewerOwes: z.boolean(),
+  /**
    * This line's money in the trip's `defaultCurrency`, or null when no rate
    * could reach it. Always present for a line already in that currency, where
    * it is the same figures — a caller should not have to special-case the
@@ -101,6 +111,20 @@ export const ConvertedCost = z.object({
   currency: z.string(),
   committed: DashboardSubtotal.omit({ currency: true }),
   projected: DashboardSubtotal.omit({ currency: true }),
+  /**
+   * The caller's own committed share, crossed into `currency` — or null when
+   * no rate reaches it. Converted from the caller's per-currency subtotals
+   * rather than re-added from lines, which is the same rounding rule every
+   * other total on this payload follows.
+   */
+  viewer: z
+    .object({
+      group: z.number(),
+      perPerson: z.number(),
+      converted: z.array(z.string()),
+      missing: z.array(z.string()),
+    })
+    .nullable(),
   /** Publication date of the rates used (ISO date, not a fetch timestamp). */
   asOf: z.string(),
   /** Currencies folded into the totals. */
@@ -141,6 +165,22 @@ export const TripDashboardView = z.object({
   memberCount: z.number().int().nonnegative(),
   committed: z.array(DashboardSubtotal),
   projected: z.array(DashboardSubtotal),
+  /**
+   * The committed total narrowed to what the **caller** actually pays for —
+   * every whole-group option, plus the opt-in ones they joined.
+   *
+   * `perPerson` is what they owe; `group` is what the whole trip pays for that
+   * same set of options, which is a real number rather than a restatement.
+   * Exact and per currency, like `committed`, and never summed across
+   * currencies (FR-27).
+   *
+   * This exists because a per-person target cannot honestly be read against
+   * `committed`. That total adds every option's per-head cost, opt-in ones
+   * included, so a trip where four of five joined a €4 thing tells all five
+   * they are €4 nearer the limit — and warns the fifth about money they
+   * declined to spend.
+   */
+  viewerCommitted: z.array(DashboardSubtotal),
   lines: z.array(DashboardLine),
   /**
    * The same money, roughly, in one currency — or `null` when it cannot be
