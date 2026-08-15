@@ -662,6 +662,7 @@ export function CategoryLane({
           categoryId={category.id}
           categoryBuiltinKey={category.builtinKey}
           currency={defaultCurrency}
+          tripDates={tripDates}
           onClose={() => setProposing(false)}
         />
       ) : null}
@@ -672,6 +673,7 @@ export function CategoryLane({
           categoryBuiltinKey={category.builtinKey}
           currency={editing.currency}
           option={editing}
+          tripDates={tripDates}
           onClose={() => setEditing(null)}
         />
       ) : null}

@@ -1280,6 +1280,185 @@ body {
 .board__form-wide {
   grid-column: 1 / -1;
 }
+
+/* --- The date-range picker -------------------------------------------------
+ *
+ * Two native date inputs with a month grid disclosed under them. The inputs are
+ * the typing and keyboard path (and on a phone, the OS picker, which beats
+ * anything here); the grid is the enhancement that shows a start and an end as
+ * the one span they are. */
+.drange {
+  display: block;
+}
+.drange__toggle {
+  margin: 0.15rem 0 0;
+  padding: 0.3rem 0.55rem;
+  background: none;
+  border: 1px solid var(--lane-line);
+  border-radius: 8px;
+  color: var(--board-dim);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.drange__toggle:hover {
+  color: var(--board-fg);
+  border-color: var(--board-accent);
+}
+.drange__toggle:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+
+.drange__cal {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 12px;
+  background: var(--lane-bg);
+}
+.drange__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.drange__prompt {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--board-dim);
+}
+.drange__step {
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 8px;
+  background: none;
+  color: var(--board-fg);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.drange__step:hover {
+  border-color: var(--board-accent);
+}
+.drange__step:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+
+/* Two months, because a range crossing a month boundary is the common case. */
+.drange__months {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+@media (max-width: 34rem) {
+  .drange__months {
+    grid-template-columns: 1fr;
+  }
+  /* One month is enough to page through on a phone, and two would put the
+     second one below the fold anyway. */
+  .drange__months > :nth-child(2) {
+    display: none;
+  }
+}
+
+.drange__month {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.drange__caption {
+  padding-bottom: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.drange__month th {
+  padding-bottom: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--board-dim);
+}
+.drange__month th abbr {
+  text-decoration: none;
+}
+.drange__cell {
+  padding: 1px;
+}
+
+.drange__day {
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.drange__day:hover {
+  background: color-mix(in srgb, var(--board-accent) 18%, transparent);
+}
+.drange__day:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: -2px;
+}
+/* Dimmed, never disabled: these are the seam a range crosses, and a grid that
+   refuses the 1st of the next month cannot select a two-week trip. */
+.drange__day--outside {
+  color: var(--board-dim);
+  opacity: 0.65;
+}
+/* The trip's own span, behind everything — a backdrop, not a selection, so it
+   reads as context even under a chosen day. */
+.drange__day--trip {
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--board-accent) 35%, transparent);
+}
+.drange__day--between {
+  background: color-mix(in srgb, var(--board-accent) 20%, transparent);
+  border-radius: 0;
+}
+.drange__day--start,
+.drange__day--end,
+.drange__day--single {
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+  font-weight: 700;
+}
+/* Square off the inner edges so the ends read as the caps of one bar rather
+   than two separate pills with a stripe between them. */
+.drange__day--start {
+  border-radius: 7px 0 0 7px;
+}
+.drange__day--end {
+  border-radius: 0 7px 7px 0;
+}
+.drange__day--single {
+  border-radius: 7px;
+}
+
+.drange__legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--board-dim);
+}
+.drange__legend-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--board-accent) 35%, transparent);
+}
 .board textarea[data-gtp-input] {
   width: 100%;
   resize: vertical;

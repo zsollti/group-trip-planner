@@ -4,7 +4,9 @@ import {
   fromDateInput,
   isoToDayInput,
   isoToMinuteInput,
+  joinDay,
   minuteToIso,
+  splitDay,
   toDateInput,
 } from "./dateInput";
 
@@ -73,5 +75,49 @@ describe("granularity dispatch", () => {
     const iso = "2026-09-06T12:00:00.000Z";
     expect(toDateInput(iso, "day")).toBe("2026-09-06");
     expect(toDateInput(iso, "minute")).toBe(isoToMinuteInput(iso));
+  });
+});
+
+describe("splitting a control's value into a day and a time", () => {
+  it("halves a datetime-local value", () => {
+    expect(splitDay("2026-09-06T07:15")).toEqual({
+      day: "2026-09-06",
+      time: "07:15",
+    });
+  });
+
+  it("gives a bare day an empty time rather than a wrong one", () => {
+    expect(splitDay("2026-09-06")).toEqual({ day: "2026-09-06", time: "" });
+    expect(splitDay("")).toEqual({ day: "", time: "" });
+  });
+
+  it("drops seconds a browser may append", () => {
+    // Some browsers hand back "…T07:15:00"; the control only wants minutes.
+    expect(splitDay("2026-09-06T07:15:00").time).toBe("07:15");
+  });
+
+  it("puts a day and a time back together per granularity", () => {
+    expect(joinDay("2026-09-06", "07:15", "minute")).toBe("2026-09-06T07:15");
+    expect(joinDay("2026-09-06", "07:15", "day")).toBe("2026-09-06");
+  });
+
+  it("defaults a day with no time to midnight, so the grid alone suffices", () => {
+    // Picking two days on the calendar has to be enough. A value the form then
+    // drops for want of a time half would make the picker a decoration.
+    expect(joinDay("2026-09-06", "", "minute")).toBe("2026-09-06T00:00");
+  });
+
+  it("makes nothing from a time with no day", () => {
+    expect(joinDay("", "07:15", "minute")).toBe("");
+    expect(joinDay("", "", "day")).toBe("");
+  });
+
+  it("round-trips whatever the form last held", () => {
+    for (const value of ["2026-09-06T07:15", "2026-12-31T23:59"]) {
+      const { day, time } = splitDay(value);
+      expect(joinDay(day, time, "minute")).toBe(value);
+    }
+    const { day, time } = splitDay("2026-09-06");
+    expect(joinDay(day, time, "day")).toBe("2026-09-06");
   });
 });

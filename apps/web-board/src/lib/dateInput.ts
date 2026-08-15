@@ -74,3 +74,34 @@ export function fromDateInput(
 ): string | undefined {
   return granularity === "day" ? dayToIso(value) : minuteToIso(value);
 }
+
+/**
+ * Split a control's value into the calendar day and the time of day.
+ *
+ * The range picker works in whole days for both granularities — a grid of
+ * squares has nowhere to put 07:15 — so a minute-granularity field is a day
+ * chosen on the grid plus a time typed beside it. This is the seam between
+ * them, and it is pure string surgery on a fixed-width format rather than a
+ * parse, so no timezone gets a chance to move the day.
+ */
+export function splitDay(value: string): { day: string; time: string } {
+  return { day: value.slice(0, 10), time: value.slice(11, 16) };
+}
+
+/**
+ * Put a day and a time back together for a control of the given granularity.
+ *
+ * A day with no time yet defaults to **midnight** rather than staying blank:
+ * the grid's whole job is that picking two days is enough, and a value the form
+ * then drops because its time half is empty would make the picker a decoration.
+ * A time with no day is nothing — there is no instant in "07:15".
+ */
+export function joinDay(
+  day: string,
+  time: string,
+  granularity: OptionDateGranularity,
+): string {
+  if (!day) return "";
+  if (granularity === "day") return day;
+  return `${day}T${time || "00:00"}`;
+}
