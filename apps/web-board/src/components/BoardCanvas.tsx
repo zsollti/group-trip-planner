@@ -282,11 +282,16 @@ export function BoardCanvas({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDragging(null)}
       >
+      <div className="board__layout">
         {/* What this trip costs, and who is on it — the two things the lanes
-            below cannot tell you by being read. The Decided rail used to sit
-            here and it was the third copy of every decision; the lane that
-            answered the question already pins its answer at the top. */}
-        <div className="board__summary">
+            beside them cannot tell you by being read. The Decided rail used to
+            sit here and it was the third copy of every decision; the lane that
+            answered the question already pins its answer at the top.
+
+            A column rather than a band across the top: both are reference
+            material you consult *while* working the lanes, and a band pushed
+            the lanes themselves below the fold on a laptop. */}
+        <aside className="board__rail">
           <CostTally tripId={tripId} />
           <CrewPanel
             tripId={tripId}
@@ -294,7 +299,7 @@ export function BoardCanvas({
             myUserId={myUserId}
             onManage={onManageMembers}
           />
-        </div>
+        </aside>
         <div className="board__canvas" aria-label="Category lanes">
           <SortableContext
             items={laneIds}
@@ -329,6 +334,7 @@ export function BoardCanvas({
             />
           ) : null}
         </div>
+      </div>
         {/* Deliberately a plain preview and not an `OptionCard`: the card in
             hand is not interactive, and mounting a second copy of one would
             duplicate its mutations and its dialog. */}
