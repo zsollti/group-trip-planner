@@ -275,8 +275,7 @@ export function OptionForm({
           <div className="board__form-wide">
             <DateRangeField
               idPrefix="opt"
-              startLabel="Starts (optional)"
-              endLabel="Ends (optional)"
+              legend="When (optional)"
               value={{ start: startDay, end: endDay }}
               onChange={setDays}
               highlight={tripRange}

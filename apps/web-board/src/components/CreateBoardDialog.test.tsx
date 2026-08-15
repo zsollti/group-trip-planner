@@ -17,6 +17,11 @@ import { CreateBoardDialog } from "./CreateBoardDialog";
  * Warsaw picks the 6th and gets a trip starting the 5th. Midday UTC is what
  * makes that impossible, and it is not the kind of thing anyone re-derives while
  * editing this file later.
+ *
+ * The dates are chosen on the calendar now — the two `<input type="date">`s are
+ * gone. Which days are on screen depends on today, so the cases below read the
+ * days out of the grid and assert the *transformation* rather than a literal
+ * date, and stay true whenever they are run.
  */
 
 function renderDialog() {
@@ -61,6 +66,26 @@ function fill(name: string, value: string) {
   fireEvent.change(screen.getByLabelText(name), { target: { value } });
 }
 
+/**
+ * Two days a week apart from the rendered calendar, and the days they are.
+ *
+ * Read out of the grid rather than typed in, because the calendar opens on the
+ * current month: any literal date here would be on screen this month and gone
+ * the next.
+ */
+function pickAWeek(): { start: string; end: string } {
+  const cells = Array.from(
+    document.querySelectorAll<HTMLButtonElement>(".drange__day[data-day]"),
+  );
+  // Row two of the first month, and the same weekday a row below it — always
+  // present in a six-week grid, whatever month it opens on.
+  const first = cells[10]!;
+  const second = cells[17]!;
+  fireEvent.click(first);
+  fireEvent.click(second);
+  return { start: first.dataset.day!, end: second.dataset.day! };
+}
+
 describe("CreateBoardDialog dates", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -84,15 +109,15 @@ describe("CreateBoardDialog dates", () => {
     renderDialog();
 
     fill("Trip name", "Lisbon 2026");
-    fill("Start date", "2026-09-06");
-    fill("End date", "2026-09-13");
+    const { start, end } = pickAWeek();
     fireEvent.click(screen.getByRole("button", { name: "Create board" }));
 
     await waitFor(() => {
       // Midday, not midnight: local midnight east of Greenwich is the previous
-      // day in UTC, and the trip's date-only columns would keep that day.
-      expect(body().startDate).toBe("2026-09-06T12:00:00.000Z");
-      expect(body().endDate).toBe("2026-09-13T12:00:00.000Z");
+      // day in UTC, and the trip's date-only columns would keep that day. The
+      // day is whatever was clicked; the `T12:00:00.000Z` is the point.
+      expect(body().startDate).toBe(`${start}T12:00:00.000Z`);
+      expect(body().endDate).toBe(`${end}T12:00:00.000Z`);
     });
   });
 
@@ -150,7 +175,10 @@ describe("CreateBoardDialog dates", () => {
 
     expect(screen.getByText(/the group vote on it/i)).toBeInTheDocument();
 
-    fill("Start date", "2026-09-06");
+    const first = document.querySelector<HTMLButtonElement>(
+      ".drange__day[data-day]",
+    )!;
+    fireEvent.click(first);
 
     expect(screen.getByText(/unlock it any time/i)).toBeInTheDocument();
   });

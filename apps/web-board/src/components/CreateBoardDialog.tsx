@@ -87,9 +87,8 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
         </Field>
         <DateRangeField
           idPrefix="trip"
-          startLabel="Start date"
-          endLabel="End date"
-          hint="Optional."
+          legend="Trip dates"
+          hint="Optional — leave them for the group to vote on."
           value={{ start: startDay, end: endDay }}
           onChange={(next) => {
             setStartDay(next.start);

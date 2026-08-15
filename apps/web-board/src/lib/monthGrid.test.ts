@@ -5,6 +5,7 @@ import {
   dayRole,
   isoDay,
   monthGrid,
+  moveFocus,
   nextSelection,
   parseDay,
   weekdayLabels,
@@ -205,5 +206,43 @@ describe("nextSelection", () => {
       start: "2026-09-20",
       end: null,
     });
+  });
+});
+
+describe("moveFocus", () => {
+  it("steps by a day and by a week", () => {
+    expect(moveFocus("2026-09-06", "ArrowRight")).toBe("2026-09-07");
+    expect(moveFocus("2026-09-06", "ArrowLeft")).toBe("2026-09-05");
+    expect(moveFocus("2026-09-06", "ArrowDown")).toBe("2026-09-13");
+    expect(moveFocus("2026-09-06", "ArrowUp")).toBe("2026-08-30");
+  });
+
+  it("moves to the ends of the week, Monday first", () => {
+    // 2026-09-06 is a Sunday, so its week runs Mon 31 Aug – Sun 6 Sep.
+    expect(moveFocus("2026-09-06", "Home")).toBe("2026-08-31");
+    expect(moveFocus("2026-09-06", "End")).toBe("2026-09-06");
+    // 2026-09-07 is the Monday that starts the next week.
+    expect(moveFocus("2026-09-07", "Home")).toBe("2026-09-07");
+    expect(moveFocus("2026-09-07", "End")).toBe("2026-09-13");
+  });
+
+  it("pages by month, and clamps rather than rolling over", () => {
+    expect(moveFocus("2026-09-06", "PageDown")).toBe("2026-10-06");
+    expect(moveFocus("2026-09-06", "PageUp")).toBe("2026-08-06");
+    // `setUTCMonth` alone would turn 31 March into 3 March, landing two months
+    // from where the reader asked to go.
+    expect(moveFocus("2026-03-31", "PageUp")).toBe("2026-02-28");
+    expect(moveFocus("2028-03-31", "PageUp")).toBe("2028-02-29");
+    expect(moveFocus("2026-01-31", "PageDown")).toBe("2026-02-28");
+  });
+
+  it("crosses month and year boundaries rather than stopping at them", () => {
+    expect(moveFocus("2026-12-31", "ArrowRight")).toBe("2027-01-01");
+    expect(moveFocus("2026-01-01", "ArrowLeft")).toBe("2025-12-31");
+  });
+
+  it("says nothing for a day it cannot read", () => {
+    expect(moveFocus("", "ArrowRight")).toBeNull();
+    expect(moveFocus("nonsense", "ArrowRight")).toBeNull();
   });
 });

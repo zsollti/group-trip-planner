@@ -52,6 +52,25 @@ function at(offset: number, hour: number, minute = 0): string {
 }
 
 /** Propose an option in a lane and lock it, so it reaches the itinerary. */
+/**
+ * Choose a start and an end on the option form's calendar.
+ *
+ * The two `<input type="date">`s are gone — the grid is the control now, so a
+ * day is clicked rather than typed. The grid opens on the trip's own month and
+ * draws two months plus the neighbouring days, so a target a few days out is
+ * normally on screen; it pages forward when it is not, which keeps this true
+ * whatever day the suite runs on.
+ */
+async function pickDays(page: Page, startDay: string, endDay: string) {
+  for (const iso of [startDay, endDay]) {
+    const cell = page.locator(`.drange__day[data-day="${iso}"]`);
+    for (let i = 0; i < 6 && (await cell.count()) === 0; i += 1) {
+      await page.getByRole("button", { name: "Next month" }).click();
+    }
+    await cell.first().click();
+  }
+}
+
 async function decide(
   page: Page,
   lane: Locator,
@@ -73,8 +92,7 @@ async function decide(
   // The form asks for the two days on one calendar and the times beside it, so
   // a wall-clock value is filled in two halves. The `at()` helper still writes
   // one string, because that is what the assertions are about.
-  await page.getByLabel("Starts (optional)").fill(starts.slice(0, 10));
-  await page.getByLabel("Ends (optional)").fill(ends.slice(0, 10));
+  await pickDays(page, starts.slice(0, 10), ends.slice(0, 10));
   await page.getByLabel("Start time (optional)").fill(starts.slice(11, 16));
   await page.getByLabel("End time (optional)").fill(ends.slice(11, 16));
   await page.getByRole("button", { name: "Propose option" }).click();
