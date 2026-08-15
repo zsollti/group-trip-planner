@@ -1,15 +1,18 @@
-import { useState } from "react";
-import { Field, Input } from "@gtp/ui-primitives";
+import { useEffect, useRef, useState } from "react";
 import {
   addMonths,
   cursorFor,
   dayRole,
+  isoDay,
   monthGrid,
   monthLabel,
+  moveFocus,
   nextSelection,
+  parseDay,
   weekdayLabels,
   within,
   type DayRole,
+  type GridKey,
   type MonthCursor,
 } from "../lib/monthGrid";
 
@@ -19,30 +22,40 @@ export interface DayRange {
   readonly end: string;
 }
 
+const GRID_KEYS = new Set<string>([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
 /**
- * Two dates, picked once.
+ * Two dates, picked once, on a calendar that is simply there.
  *
  * The board used to ask for a start and an end as two unrelated
  * `<input type="date">`s: open one, choose, close, open the other, choose
- * again — and nothing on screen ever showed the two as the span they are. This
- * is the shape every travel site converged on instead: one grid, tap the
- * start, tap the end, with the days between shaded as you move so the second
- * tap is not a guess.
+ * again — and nothing on screen ever showed the two as the span they are. Tap
+ * the start, tap the end, with the days between shaded as you move so the
+ * second tap is not a guess.
  *
- * **The native inputs stay.** They are not a fallback here, they are the
- * typing path and the keyboard path, and on a phone they open the OS picker,
- * which is better than anything this can be. The grid is an enhancement layered
- * over controls that already worked; it is `hidden` until asked for, and
- * nothing in the form depends on it having been used.
+ * **The grid is the control, not an enhancement over one.** Its first version
+ * kept the two native inputs and hid the calendar behind a "Pick on a calendar"
+ * button, which meant every form asked the same question twice and made you
+ * open the better answer by hand. The inputs are gone and the grid is open.
  *
- * The grid is disclosed inline rather than floating. Every place this is used
- * is inside a {@link Dialog} with a focus trap, and a popover inside a trap is
- * a second layer of the same problem — while an inline panel is just more form.
+ * That moved the keyboard story onto the grid, where it now belongs: the cells
+ * are a **roving tabindex** — one tab stop for the whole calendar, then arrows
+ * by day and week, Home/End across the week, PageUp/PageDown by month, Enter or
+ * Space to pick ({@link moveFocus}). Eighty-four tab stops would have been
+ * worse than the inputs it replaced.
  */
 export function DateRangeField({
   idPrefix,
-  startLabel,
-  endLabel,
+  legend,
   hint,
   value,
   onChange,
@@ -50,10 +63,10 @@ export function DateRangeField({
   highlightLabel,
   extra,
 }: {
-  /** Namespaces the two input ids, so several of these can share a form. */
+  /** Namespaces the ids inside, so several of these can share a form. */
   idPrefix: string;
-  startLabel: string;
-  endLabel: string;
+  /** What this range is — the calendar's accessible name and its caption. */
+  legend: string;
   hint?: string;
   value: DayRange;
   onChange: (next: DayRange) => void;
@@ -69,15 +82,10 @@ export function DateRangeField({
   highlight?: DayRange | null;
   /** What the shaded span is, for the legend under the grid. */
   highlightLabel?: string;
-  /**
-   * Fields that belong with the dates — the time-of-day pair, where a category
-   * has one. Rendered directly under the two date inputs rather than after the
-   * whole control, so opening the calendar cannot push them out of sight
-   * halfway down a dialog.
-   */
+  /** Fields that belong with the dates — the time-of-day pair, where a category
+   *  has one. Rendered under the grid, since they qualify what it produced. */
   extra?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState<MonthCursor>(() =>
     cursorFor(value.start || highlight?.start || null),
   );
@@ -86,78 +94,78 @@ export function DateRangeField({
   const start = value.start || null;
   const end = value.end || null;
 
+  /**
+   * The one cell in the tab order. Seeded from the selection so tabbing in
+   * lands where the reader last was, rather than on the 1st of the month.
+   */
+  const [focused, setFocused] = useState<string>(
+    () => value.start || firstOfCursor(cursorFor(value.start || null)),
+  );
+  // Only steal focus when *we* moved it — otherwise every re-render would drag
+  // focus back into the calendar from wherever the reader had gone.
+  const takeFocus = useRef(false);
+
   function pick(iso: string) {
     const next = nextSelection(iso, start, end);
     onChange({ start: next.start, end: next.end ?? "" });
     setHovered(null);
-    // Closing on the second tap is the whole gesture ending; closing on the
-    // first would make the range impossible to finish.
-    if (next.end) setOpen(false);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (!GRID_KEYS.has(e.key)) return;
+    const next = moveFocus(focused, e.key as GridKey);
+    if (!next) return;
+    e.preventDefault();
+    setFocused(next);
+    takeFocus.current = true;
+    // Follow the focus when it leaves the two months on screen, so the day that
+    // now has focus is a day the reader can see.
+    const d = parseDay(next);
+    if (d) {
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth();
+      const second = addMonths(cursor, 1);
+      const shown =
+        (y === cursor.year && m === cursor.month) ||
+        (y === second.year && m === second.month);
+      if (!shown) setCursor({ year: y, month: m });
+    }
   }
 
   return (
-    <div className="drange">
-      <div className="board__form-grid drange__fields">
-        <Field htmlFor={`${idPrefix}-start`} label={startLabel} hint={hint}>
-          <Input
-            id={`${idPrefix}-start`}
-            type="date"
-            value={value.start}
-            onChange={(e) => onChange({ ...value, start: e.target.value })}
-          />
-        </Field>
-        <Field htmlFor={`${idPrefix}-end`} label={endLabel}>
-          <Input
-            id={`${idPrefix}-end`}
-            type="date"
-            value={value.end}
-            // The picker cannot make an inverted range; typing still can, so
-            // the native control refuses it here the way it always did.
-            min={value.start || undefined}
-            onChange={(e) => onChange({ ...value, end: e.target.value })}
-          />
-        </Field>
-      </div>
-
+    <fieldset className="drange" onKeyDown={onKeyDown}>
+      <legend className="drange__legend-text">{legend}</legend>
+      {hint ? <p className="drange__hint">{hint}</p> : null}
+      <RangeGrid
+        idPrefix={idPrefix}
+        cursor={cursor}
+        onCursor={setCursor}
+        start={start}
+        end={end}
+        hovered={hovered}
+        onHover={setHovered}
+        onPick={pick}
+        focused={focused}
+        onFocused={setFocused}
+        takeFocus={takeFocus}
+        highlight={highlight}
+        highlightLabel={highlightLabel}
+        onClear={start ? () => onChange({ start: "", end: "" }) : undefined}
+      />
       {extra}
-
-      <button
-        type="button"
-        className="drange__toggle"
-        aria-expanded={open}
-        aria-controls={`${idPrefix}-grid`}
-        onClick={() => {
-          // Reopening on the month you are working in, not the one you last
-          // paged to — the selection is the context, not the scroll position.
-          if (!open) setCursor(cursorFor(start || highlight?.start || null));
-          setOpen((o) => !o);
-        }}
-      >
-        {open ? "Hide calendar" : "📅 Pick on a calendar"}
-      </button>
-
-      <div id={`${idPrefix}-grid`} hidden={!open}>
-        {open ? (
-          <RangeGrid
-            cursor={cursor}
-            onCursor={setCursor}
-            start={start}
-            end={end}
-            hovered={hovered}
-            onHover={setHovered}
-            onPick={pick}
-            highlight={highlight}
-            highlightLabel={highlightLabel}
-          />
-        ) : null}
-      </div>
-    </div>
+    </fieldset>
   );
+}
+
+/** The first day of a cursor's month — the fallback focus when nothing is picked. */
+function firstOfCursor(cursor: MonthCursor): string {
+  return isoDay(new Date(Date.UTC(cursor.year, cursor.month, 1)));
 }
 
 /** Two months side by side, because a range crossing a month boundary is the
  *  common case rather than the exception. They stack below the breakpoint. */
 function RangeGrid({
+  idPrefix,
   cursor,
   onCursor,
   start,
@@ -165,9 +173,14 @@ function RangeGrid({
   hovered,
   onHover,
   onPick,
+  focused,
+  onFocused,
+  takeFocus,
   highlight,
   highlightLabel,
+  onClear,
 }: {
+  idPrefix: string;
   cursor: MonthCursor;
   onCursor: (next: MonthCursor) => void;
   start: string | null;
@@ -175,8 +188,12 @@ function RangeGrid({
   hovered: string | null;
   onHover: (iso: string | null) => void;
   onPick: (iso: string) => void;
+  focused: string;
+  onFocused: (iso: string) => void;
+  takeFocus: React.MutableRefObject<boolean>;
   highlight: DayRange | null;
   highlightLabel?: string;
+  onClear?: () => void;
 }) {
   const next = addMonths(cursor, 1);
   return (
@@ -208,15 +225,47 @@ function RangeGrid({
         {[cursor, next].map((c) => (
           <Month
             key={`${c.year}-${c.month}`}
+            idPrefix={idPrefix}
             cursor={c}
             start={start}
             end={end}
             hovered={hovered}
             onHover={onHover}
             onPick={onPick}
+            focused={focused}
+            onFocused={onFocused}
+            takeFocus={takeFocus}
             highlight={highlight}
           />
         ))}
+      </div>
+      <div className="drange__foot">
+        {/* What is chosen, as a sentence. The two inputs used to say this by
+            holding it; nothing else on the grid states the range in words, and
+            a reader should not have to decode shading to check what they
+            picked. */}
+        <p className="drange__chosen" aria-live="polite">
+          {start ? (
+            <>
+              <strong>{longDay(start)}</strong>
+              {end && end !== start ? (
+                <>
+                  {" – "}
+                  <strong>{longDay(end)}</strong>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <span className="drange__chosen--empty">No dates chosen</span>
+          )}
+        </p>
+        {/* Without the inputs there is no way to blank a range you set by
+            mistake — every tap sets something. */}
+        {onClear ? (
+          <button type="button" className="drange__clear" onClick={onClear}>
+            Clear
+          </button>
+        ) : null}
       </div>
       {highlight && highlightLabel ? (
         <p className="drange__legend">
@@ -228,21 +277,39 @@ function RangeGrid({
   );
 }
 
+/** A day in the reader's locale, spelled out. UTC, because it is a day. */
+function longDay(iso: string): string {
+  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function Month({
+  idPrefix,
   cursor,
   start,
   end,
   hovered,
   onHover,
   onPick,
+  focused,
+  onFocused,
+  takeFocus,
   highlight,
 }: {
+  idPrefix: string;
   cursor: MonthCursor;
   start: string | null;
   end: string | null;
   hovered: string | null;
   onHover: (iso: string | null) => void;
   onPick: (iso: string) => void;
+  focused: string;
+  onFocused: (iso: string) => void;
+  takeFocus: React.MutableRefObject<boolean>;
   highlight: DayRange | null;
 }) {
   const days = monthGrid(cursor);
@@ -267,6 +334,7 @@ function Month({
             {days.slice(week * 7, week * 7 + 7).map((day) => (
               <DayCell
                 key={day.iso}
+                idPrefix={idPrefix}
                 iso={day.iso}
                 dayOfMonth={day.dayOfMonth}
                 inMonth={day.inMonth}
@@ -276,6 +344,9 @@ function Month({
                     ? within(day.iso, highlight.start, highlight.end)
                     : false
                 }
+                focused={day.iso === focused}
+                onFocused={onFocused}
+                takeFocus={takeFocus}
                 onHover={onHover}
                 onPick={onPick}
               />
@@ -295,22 +366,41 @@ function Month({
  * two-week trip impossible to select without paging first.
  */
 function DayCell({
+  idPrefix,
   iso,
   dayOfMonth,
   inMonth,
   role,
   inTrip,
+  focused,
+  onFocused,
+  takeFocus,
   onHover,
   onPick,
 }: {
+  idPrefix: string;
   iso: string;
   dayOfMonth: number;
   inMonth: boolean;
   role: DayRole;
   inTrip: boolean;
+  focused: boolean;
+  onFocused: (iso: string) => void;
+  takeFocus: React.MutableRefObject<boolean>;
   onHover: (iso: string | null) => void;
   onPick: (iso: string) => void;
 }) {
+  const ref = useRef<HTMLButtonElement>(null);
+
+  // Pull focus only after a key moved it. Without the flag every render would
+  // yank focus back into the grid from wherever the reader had tabbed to.
+  useEffect(() => {
+    if (focused && takeFocus.current) {
+      takeFocus.current = false;
+      ref.current?.focus();
+    }
+  }, [focused, takeFocus]);
+
   const classes = [
     "drange__day",
     inMonth ? "" : "drange__day--outside",
@@ -330,7 +420,9 @@ function DayCell({
   return (
     <td className="drange__cell">
       <button
+        ref={ref}
         type="button"
+        id={`${idPrefix}-day-${iso}`}
         className={classes}
         // The day it stands for, unformatted — the same hook the timeline's
         // day columns carry. The visible label is a bare number and the
@@ -339,9 +431,14 @@ function DayCell({
         data-day={iso}
         aria-label={label}
         aria-pressed={role === "start" || role === "end" || role === "single"}
+        // Roving: exactly one cell is in the tab order at a time.
+        tabIndex={focused ? 0 : -1}
         onClick={() => onPick(iso)}
         onMouseEnter={() => onHover(iso)}
-        onFocus={() => onHover(iso)}
+        onFocus={() => {
+          onFocused(iso);
+          onHover(iso);
+        }}
       >
         {dayOfMonth}
       </button>

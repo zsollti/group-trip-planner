@@ -173,3 +173,77 @@ export function nextSelection(
   if (iso < start) return { start: iso, end: null };
   return { start, end: iso };
 }
+
+/** Keys a date grid answers to, beyond selecting. */
+export type GridKey =
+  | "ArrowLeft"
+  | "ArrowRight"
+  | "ArrowUp"
+  | "ArrowDown"
+  | "Home"
+  | "End"
+  | "PageUp"
+  | "PageDown";
+
+/**
+ * Where a key moves the focused day, or null when the key is not ours.
+ *
+ * This exists because the two native `<input type="date">`s are gone. They were
+ * the typing and keyboard path; with the grid standing alone it has to be
+ * operable by keyboard on its own terms, and a calendar's terms are the
+ * datepicker convention every OS already uses: arrows by day and week, Home/End
+ * to the ends of the week, PageUp/PageDown by month.
+ *
+ * Pure, and total over the calendar — moving off the displayed month simply
+ * returns a day in the next one, and the caller scrolls to follow it. A grid
+ * that refused to move past its own edges would make a range crossing a month
+ * boundary unreachable, which is the same mistake as drawing the edge cells as
+ * blanks.
+ */
+export function moveFocus(iso: string, key: GridKey): string | null {
+  const d = parseDay(iso);
+  if (!d) return null;
+  const step = (days: number) => {
+    const next = new Date(d.getTime());
+    next.setUTCDate(next.getUTCDate() + days);
+    return isoDay(next);
+  };
+  switch (key) {
+    case "ArrowLeft":
+      return step(-1);
+    case "ArrowRight":
+      return step(1);
+    case "ArrowUp":
+      return step(-7);
+    case "ArrowDown":
+      return step(7);
+    // Monday-first, matching the grid: getUTCDay is 0=Sunday.
+    case "Home":
+      return step(-((d.getUTCDay() + 6) % 7));
+    case "End":
+      return step(6 - ((d.getUTCDay() + 6) % 7));
+    case "PageUp":
+      return shiftMonth(d, -1);
+    case "PageDown":
+      return shiftMonth(d, 1);
+    default:
+      return null;
+  }
+}
+
+/**
+ * The same day-of-month one month away, clamped to that month's length.
+ *
+ * `setUTCMonth` alone rolls 31 March back a month to 3 March, because February
+ * has no 31st — a PageUp that lands two months away is a control the reader
+ * cannot trust. Clamping gives 28 (or 29) February, which is what every date
+ * picker does and what someone paging through months means.
+ */
+function shiftMonth(d: Date, delta: number): string {
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + delta;
+  const lastOfTarget = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return isoDay(
+    new Date(Date.UTC(year, month, Math.min(d.getUTCDate(), lastOfTarget))),
+  );
+}

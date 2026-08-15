@@ -81,8 +81,16 @@ export async function createBoard(
   await page.getByLabel("Trip name").fill(name);
   await page.getByLabel("Destination").fill("Lisbon, Portugal");
   if (dates) {
-    await page.getByLabel("Start date").fill(dates.start);
-    await page.getByLabel("End date").fill(dates.end);
+    // Clicked, not typed: the create form's two date inputs are gone and the
+    // calendar is the control. It opens on the current month and draws two, so
+    // a near-future range is usually on screen; page forward when it is not.
+    for (const iso of [dates.start, dates.end]) {
+      const cell = page.locator(`.drange__day[data-day="${iso}"]`);
+      for (let i = 0; i < 6 && (await cell.count()) === 0; i += 1) {
+        await page.getByRole("button", { name: "Next month" }).click();
+      }
+      await cell.first().click();
+    }
   }
   await page.getByRole("button", { name: "Create board" }).click();
 
