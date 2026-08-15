@@ -20,7 +20,6 @@ import { EditBoardDialog } from "../components/EditBoardDialog";
 import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
 import { ActivityDialog } from "../components/ActivityDialog";
-import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
@@ -64,7 +63,6 @@ export function TripDetail() {
   const [managingMembers, setManagingMembers] = useState(false);
   const [viewingActivity, setViewingActivity] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // A channel a lane's "Discuss" action asked the chat panel to open (null = idle).
   const [openChannelId, setOpenChannelId] = useState<string | null>(null);
@@ -163,7 +161,7 @@ export function TripDetail() {
           {trip.data ? (
             <Menu label="Trip menu" items={tripMenuItems(trip.data)} />
           ) : null}
-          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
+          <UserMenu />
         </div>
       </header>
 
@@ -282,10 +280,6 @@ export function TripDetail() {
               tripId={trip.data.id}
               onClose={() => setViewingActivity(false)}
             />
-          ) : null}
-
-          {deleteAccountOpen ? (
-            <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
           ) : null}
 
           <ChatPanel

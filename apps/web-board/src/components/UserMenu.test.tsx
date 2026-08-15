@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { AuthUser } from "@gtp/types";
 import { UserMenu } from "./UserMenu";
@@ -26,7 +26,7 @@ function renderMenu(user: AuthUser | null) {
   mockUser = user;
   return render(
     <MemoryRouter>
-      <UserMenu onDeleteAccount={() => undefined} />
+      <UserMenu />
     </MemoryRouter>,
   );
 }
@@ -63,5 +63,15 @@ describe("UserMenu", () => {
     expect(
       screen.getByRole("button", { name: /account menu/i }),
     ).toBeInTheDocument();
+  });
+
+  it("offers Settings, and no longer account deletion", () => {
+    // Deletion used to sit here, which is why four routes each mounted a
+    // deletion dialog. It lives on the settings page now; a stray re-add would
+    // put an irreversible action one slip of the pointer from "Log out" again.
+    renderMenu(ada);
+    fireEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.queryByText(/delete account/i)).not.toBeInTheDocument();
   });
 });

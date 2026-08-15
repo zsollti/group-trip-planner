@@ -14,13 +14,14 @@ import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 
 /**
- * Notification settings (Phase 5.3) — the global half of the preference story.
+ * The account settings page — your picture, your email preferences, and the
+ * deletion of the whole account, in that order of how often they are wanted.
  * The per-trip mute lives on each board's menu, because that is where the
  * decision "this trip is too noisy" is actually made.
  *
- * Covers all four states: loading, error (with a retry), the loaded toggle, and
- * a saving state on the control itself. There is no empty state — preferences
- * always exist, defaulted on.
+ * The notification section covers all four states: loading, error (with a
+ * retry), the loaded toggle, and a saving state on the control itself. There is
+ * no empty state — preferences always exist, defaulted on.
  */
 export function Settings() {
   const { user, applyUser } = useAuth();
@@ -80,7 +81,7 @@ export function Settings() {
           ‹ Boards
         </Link>
         <div className="board__bar-actions">
-          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
+          <UserMenu />
         </div>
       </header>
 
@@ -148,6 +149,32 @@ export function Settings() {
           </p>
         </section>
       )}
+
+      {/* Deliberately last, and deliberately not in the header menu it used to
+          live in: an account is deleted at most once, and the control for it
+          does not belong one slip of the pointer away from "Log out". Outside
+          the preferences branch above, so a failed preferences load cannot take
+          it down with it. */}
+      <section
+        className="board__panel board__panel--danger"
+        aria-labelledby="danger-heading"
+      >
+        <h2 className="board__panel-title" id="danger-heading">
+          Danger zone
+        </h2>
+        <p className="board__panel-note">
+          Deleting your account removes your personal data for good. Boards you
+          own pass to another member, or are deleted if you're the only one on
+          them — the next screen names them before anything happens.
+        </p>
+        <button
+          type="button"
+          className="board__cta board__cta--danger"
+          onClick={() => setDeleteAccountOpen(true)}
+        >
+          Delete account…
+        </button>
+      </section>
 
       {deleteAccountOpen ? (
         <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />

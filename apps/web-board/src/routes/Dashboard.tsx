@@ -4,7 +4,6 @@ import { Button } from "@gtp/ui-primitives";
 import { useAuth, useHomeDashboard } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
-import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { NotificationBell } from "../components/NotificationBell";
 import { UserMenu } from "../components/UserMenu";
 
@@ -127,7 +126,6 @@ export function Dashboard() {
   const { user } = useAuth();
   const dash = useHomeDashboard();
   const [createOpen, setCreateOpen] = useState(false);
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   const list = dash.data?.trips ?? [];
   const active = list.filter((t) => t.status === "ACTIVE");
@@ -148,7 +146,7 @@ export function Dashboard() {
           {/* No trip socket on the overview: the bell loads from the server and
               refreshes on focus (live pushes need an open trip screen). */}
           <NotificationBell />
-          <UserMenu onDeleteAccount={() => setDeleteAccountOpen(true)} />
+          <UserMenu />
         </div>
       </header>
 
@@ -204,9 +202,6 @@ export function Dashboard() {
 
       {createOpen ? (
         <CreateBoardDialog onClose={() => setCreateOpen(false)} />
-      ) : null}
-      {deleteAccountOpen ? (
-        <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
       ) : null}
     </main>
   );
