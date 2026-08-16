@@ -30,6 +30,21 @@ async function openChat(page: Page): Promise<void> {
   await expect(page.getByRole("dialog", { name: "Trip chat" })).toBeVisible();
 }
 
+/**
+ * The board's live-connection state, as the app publishes it.
+ *
+ * This used to be read off the word "Live" in the header. That badge is gone —
+ * a green light confirming that a working board works — but the state behind it
+ * is what this journey has to synchronise on, so the board carries it as an
+ * attribute instead. Reading the attribute is also strictly better than reading
+ * the label was: it cannot be satisfied by the word appearing anywhere else on
+ * the page, and it distinguishes "connecting" from "connected", which the
+ * absence of a label never could.
+ */
+function socketStatus(page: Page) {
+  return page.locator("header.board__bar");
+}
+
 async function sendMessage(page: Page, text: string): Promise<void> {
   // By role, not by label: "Message" also matches the "Delete message" button
   // that appears on the caller's own messages once they have sent one.
@@ -90,8 +105,14 @@ test("a member who drops offline gets the messages they missed on reconnect", as
     // failure with nothing wrong in the application. Waiting on the indicator
     // the app already publishes is the fix; the drop below is what this journey
     // is actually about.
-    await expect(memberPage.getByText("Live")).toBeVisible();
-    await expect(ownerPage.getByText("Live")).toBeVisible();
+    await expect(socketStatus(memberPage)).toHaveAttribute(
+      "data-socket-status",
+      "connected",
+    );
+    await expect(socketStatus(ownerPage)).toHaveAttribute(
+      "data-socket-status",
+      "connected",
+    );
 
     // A baseline message, so the client has a last-seen id to catch up from —
     // the anchor the recovery is built on.
@@ -99,14 +120,17 @@ test("a member who drops offline gets the messages they missed on reconnect", as
     await expect(ownerPage.getByText("before the drop")).toBeVisible();
 
     // --- the member loses their connection ---------------------------------
-    // The indicator stops reading "Live" rather than reading anything in
-    // particular: a drop starts Socket.IO's own bounded reconnection, which the
-    // hook reports as "Connecting…", and it only becomes "Offline" once those
-    // attempts are exhausted. Asserting the absence keeps this test about
-    // recovery instead of about the retry state machine.
+    // Asserting "no longer connected" rather than any particular state: a drop
+    // starts Socket.IO's own bounded reconnection, which the hook reports as
+    // `connecting`, and it only becomes `error` once those attempts are
+    // exhausted. Naming either one would make this a test of the retry state
+    // machine instead of of recovery.
     refuseSocket = true;
     live.route?.close();
-    await expect(memberPage.getByText("Live")).toHaveCount(0);
+    await expect(socketStatus(memberPage)).not.toHaveAttribute(
+      "data-socket-status",
+      "connected",
+    );
 
     // --- the group carries on without them ---------------------------------
     await sendMessage(ownerPage, "while you were away");
@@ -120,7 +144,10 @@ test("a member who drops offline gets the messages they missed on reconnect", as
     // outage above is deliberately short: this journey is about recovering from
     // a transient drop, which is what that bound is designed for.
     refuseSocket = false;
-    await expect(memberPage.getByText("Live")).toBeVisible();
+    await expect(socketStatus(memberPage)).toHaveAttribute(
+      "data-socket-status",
+      "connected",
+    );
 
     // The gap is filled without a reload, in order, and the message that was
     // already on screen is not duplicated by the catch-up.
