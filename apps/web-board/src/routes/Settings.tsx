@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ApiError,
   useAuth,
+  useUpdateProfile,
   useNotificationPreferences,
   useRemoveAvatar,
   useSetAvatar,
@@ -12,6 +13,7 @@ import { UserMenu } from "../components/UserMenu";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { Button, Field, Input } from "@gtp/ui-primitives";
 
 /**
  * The account settings page — your picture, your email preferences, and the
@@ -87,6 +89,8 @@ export function Settings() {
 
       <p className="board__eyebrow">Account</p>
       <h1 className="board__title">Your settings</h1>
+
+      <NameSection />
 
       <section className="board__panel" aria-labelledby="avatar-heading">
         <h2 className="board__panel-title" id="avatar-heading">
@@ -180,5 +184,76 @@ export function Settings() {
         <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
       ) : null}
     </main>
+  );
+}
+
+/**
+ * Your name, as everyone else sees it.
+ *
+ * It was set at registration and then frozen: no screen in the app could change
+ * it, and it is the name attached to every proposal, vote and message you have
+ * ever made. An account created in a hurry wore that name to the whole group
+ * permanently.
+ *
+ * Saving pushes the updated user straight into the session, so the header
+ * avatar and every list that reads a name follow immediately — the same route
+ * the avatar upload already takes.
+ */
+function NameSection() {
+  const { user, applyUser } = useAuth();
+  const update = useUpdateProfile();
+  const [name, setName] = useState(user?.displayName ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const trimmed = name.trim();
+  // Nothing to do when it is empty or unchanged. Checked on the trimmed value
+  // because " Ada " and "Ada" are the same name, and the server stores the
+  // trimmed one — without this, adding a space would offer a save that
+  // appears to do nothing.
+  const dirty = trimmed !== "" && trimmed !== user?.displayName;
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSaved(false);
+    try {
+      applyUser(await update.mutateAsync({ displayName: trimmed }));
+      setSaved(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't save that name.",
+      );
+    }
+  }
+
+  return (
+    <section className="board__panel" aria-labelledby="name-heading">
+      <h2 className="board__panel-title" id="name-heading">
+        Display name
+      </h2>
+      <form className="settings__name" onSubmit={(e) => void onSubmit(e)}>
+        <Field htmlFor="displayName" label="Your name" error={error ?? undefined}>
+          <Input
+            id="displayName"
+            value={name}
+            maxLength={80}
+            invalid={Boolean(error)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setSaved(false);
+            }}
+          />
+        </Field>
+        <Button type="submit" variant="secondary" disabled={!dirty || update.isPending}>
+          {update.isPending ? "Saving…" : "Save"}
+        </Button>
+      </form>
+      <p className="board__panel-note">
+        {saved
+          ? "Saved. Everyone on your boards sees the new name."
+          : "Shown on everything you propose, vote for and write."}
+      </p>
+    </section>
   );
 }

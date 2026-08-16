@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pickSuccessor, type SuccessorCandidate } from "./policy.js";
+import { displayNameSchema } from "./auth.js";
 
 /**
  * Account-deletion contract + planner (Phase 1.5, SRS FR-6 / GDPR Art. 17).
@@ -61,6 +62,23 @@ export type AccountDeletionImpact = z.infer<typeof AccountDeletionImpact>;
  */
 export const DeleteAccountInput = z.object({ confirm: z.literal(true) });
 export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;
+
+/**
+ * Rename yourself (post-launch).
+ *
+ * The display name was set once at registration and then frozen — there was no
+ * endpoint to change it anywhere in the app. It is the name every other member
+ * sees on a proposal, a vote and a message, so an account created in a hurry
+ * wore that name to everyone, forever.
+ *
+ * Reuses {@link displayNameSchema}, the same rule registration is held to,
+ * rather than a second one that could accept a name the sign-up form would
+ * refuse.
+ */
+export const UpdateProfileInput = z.object({
+  displayName: displayNameSchema,
+});
+export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
 
 /**
  * Classify every owned trip into a transfer (a successor exists) or a deletion

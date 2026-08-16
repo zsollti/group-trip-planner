@@ -19,6 +19,7 @@ import type { User } from "@prisma/client";
 import {
   DeleteAccountInput,
   UpdateNotificationPreferencesInput,
+  UpdateProfileInput,
   type AccountDeletionImpact,
   type AuthUser,
   type NotificationPreferences,
@@ -65,6 +66,25 @@ export class AccountController {
     body: UpdateNotificationPreferencesInput,
   ): Promise<NotificationPreferences> {
     return this.account.updatePreferences(user.id, body);
+  }
+
+  /**
+   * Rename yourself (post-launch).
+   *
+   * **Not gated on a verified email**, unlike creating a trip or an invite.
+   * Those are the high-risk actions verification exists to slow down (SRS §3);
+   * changing the name on your own account affects nobody who has not already
+   * chosen to plan with you, and an unverified account with a typo in its name
+   * being unable to fix it is a worse outcome than the one being prevented.
+   */
+  @Patch("profile")
+  @UseGuards(JwtAuthGuard)
+  updateProfile(
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(UpdateProfileInput))
+    body: UpdateProfileInput,
+  ): Promise<AuthUser> {
+    return this.account.updateProfile(user, body);
   }
 
   /**

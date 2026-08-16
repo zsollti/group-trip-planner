@@ -116,10 +116,18 @@ function pickAWeek(): { start: string; end: string } {
   const cells = Array.from(
     document.querySelectorAll<HTMLButtonElement>(".drange__day[data-day]"),
   );
-  // Row two of the first month, and the same weekday a row below it — always
-  // present in a six-week grid, whatever month it opens on.
-  const first = cells[10]!;
-  const second = cells[17]!;
+  // **Strictly after today**, and not merely "row two of the grid".
+  //
+  // It used to take fixed offsets into the six-week grid, which are days in the
+  // past for most of any month — the calendar opens on the current one. That was
+  // invisible while nothing checked the dates until the server saw them; now the
+  // step refuses a start that has already passed, so a fixture picking last
+  // Tuesday fails on the rule rather than on anything it meant to test.
+  const today = new Date().toISOString().slice(0, 10);
+  const future = cells.filter((c) => c.dataset.day! > today);
+  // A week apart, so the range spans a row boundary the way a real one does.
+  const first = future[1]!;
+  const second = future[8]!;
   fireEvent.click(first);
   fireEvent.click(second);
   return { start: first.dataset.day!, end: second.dataset.day! };

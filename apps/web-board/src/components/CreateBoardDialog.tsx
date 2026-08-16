@@ -11,6 +11,7 @@ import { dayToIso } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
 import { parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
+import { tripDateStepError } from "../lib/tripDateStep";
 
 /**
  * The questions, in the order a trip is actually decided.
@@ -105,6 +106,14 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   // is being typed, and `getValues` does not re-render.
   const name = watch("name") ?? "";
   const destination = watch("destination") ?? "";
+  /**
+   * The date answer's problem, as it is given rather than at the end.
+   *
+   * Derived on every render instead of being stored: it is a function of the
+   * two days and nothing else, so there is no state here that could disagree
+   * with what the calendar shows.
+   */
+  const dateError = tripDateStepError(startDay, endDay);
 
   /** Is there something in this step? Decides Skip-vs-Next, never whether you may go on. */
   function answered(id: StepId): boolean {
@@ -151,6 +160,10 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
     // Only the required step gates. The rest may be left empty on purpose, and
     // validating an empty optional field would refuse to let you skip it.
     if (step.required && !(await trigger("name"))) return;
+    // A half-answered or impossible date pair stops here rather than at the
+    // end. The message is already on screen by the time this runs — this is
+    // what stops the step advancing past it.
+    if (step.id === "dates" && dateError) return;
     if (isLast) {
       await createBoard();
       return;
@@ -228,6 +241,14 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
                 setEndDay(next.end);
               }}
             />
+            {/* Immediately, not at the end. This used to surface only when
+                "Create board" was pressed two steps later, as a complaint
+                about a question the reader had already left behind. */}
+            {dateError ? (
+              <p className="board__form-error" role="alert">
+                {dateError}
+              </p>
+            ) : null}
             {/* Say what filling these in actually does, since it changes the
                 board you land on rather than just recording two fields. */}
             <p className="board__field-note">
@@ -296,7 +317,14 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
               Back
             </Button>
           ) : null}
-          <Button type="submit" variant="primary" disabled={isSubmitting}>
+          {/* Disabled while the dates cannot be used, rather than merely
+              refusing on click: a button that looks live and does nothing is
+              the same dead end as the late error, moved one step earlier. */}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isSubmitting || (step.id === "dates" && dateError !== null)}
+          >
             {isSubmitting
               ? "Creating…"
               : isLast
