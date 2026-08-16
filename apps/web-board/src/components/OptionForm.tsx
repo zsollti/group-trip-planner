@@ -20,6 +20,13 @@ import {
   toDateInput,
 } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
+import { TimeSelect } from "./TimeSelect";
+import {
+  DEFAULT_END_TIME,
+  DEFAULT_START_TIME,
+  shiftTime,
+  toMinutes,
+} from "../lib/timeOfDay";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
 
@@ -92,15 +99,41 @@ export function OptionForm({
   const initialEnd = splitDay(
     toDateInput(option?.endsAt ?? null, fields.dateGranularity),
   );
+  // An option with no time yet opens at midday, running an hour. Blank was the
+  // old answer and `joinDay` turned it into **00:00**, so picking two days on
+  // the calendar and saving proposed something that started at midnight — a
+  // time nobody chose, and one that reads as a real answer on the card. Midday
+  // is the neutral guess; a whole-day option is still made by clearing both.
   const [startDay, setStartDay] = useState(initialStart.day);
-  const [startTime, setStartTime] = useState(initialStart.time);
+  const [startTime, setStartTime] = useState(
+    initialStart.time || DEFAULT_START_TIME,
+  );
   const [endDay, setEndDay] = useState(initialEnd.day);
-  const [endTime, setEndTime] = useState(initialEnd.time);
+  const [endTime, setEndTime] = useState(initialEnd.time || DEFAULT_END_TIME);
   const [error, setError] = useState<string | null>(null);
 
   function setDays(next: { start: string; end: string }) {
     setStartDay(next.start);
     setEndDay(next.end);
+  }
+
+  /**
+   * Moving the start carries the end with it, keeping the gap between them.
+   *
+   * Setting a start and finding the end still where it was is how you get an
+   * option that ends before it begins — and on a single-day option that is the
+   * common case, not an edge one. Only when both are real times: with the end
+   * cleared, the reader has said they don't want one.
+   */
+  function changeStartTime(next: string) {
+    const gap =
+      startTime && endTime
+        ? (toMinutes(endTime) ?? 0) - (toMinutes(startTime) ?? 0)
+        : null;
+    setStartTime(next);
+    if (next && gap !== null && gap > 0) {
+      setEndTime(shiftTime(next, gap) ?? endTime);
+    }
   }
 
   /**
@@ -290,19 +323,19 @@ export function OptionForm({
                       htmlFor="opt-start-time"
                       label="Start time (optional)"
                     >
-                      <Input
+                      <TimeSelect
                         id="opt-start-time"
-                        type="time"
                         value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
+                        onChange={changeStartTime}
+                        emptyLabel="No time"
                       />
                     </Field>
                     <Field htmlFor="opt-end-time" label="End time (optional)">
-                      <Input
+                      <TimeSelect
                         id="opt-end-time"
-                        type="time"
                         value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
+                        onChange={setEndTime}
+                        emptyLabel="No time"
                       />
                     </Field>
                   </div>

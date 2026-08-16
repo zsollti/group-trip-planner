@@ -1,27 +1,28 @@
 import type { SocketStatus } from "@gtp/api-client";
 
-const LABEL: Record<SocketStatus, string> = {
-  connecting: "Connecting…",
-  connected: "Live",
-  error: "Offline",
-  idle: "",
-};
-
 /**
- * The trip's real-time connection indicator (Phase 4.1). Presentational — the
- * `useTripSocket` subscription is owned once by TripDetail and shared with the
- * chat panel, so there's a single socket per trip. Just surfaces the state.
+ * Says when the board has **stopped** updating itself — and nothing otherwise.
+ *
+ * This used to report all three states, so a working board carried a green dot
+ * and the word "Live" permanently in its header. That is chrome describing the
+ * normal case: the board updating as people vote is what the reader already
+ * expects, and a badge confirming it earns none of the space it takes. Worse,
+ * a signal that is green all day is one nobody reads on the day it isn't.
+ *
+ * What is worth interrupting for is the failure: when the socket drops, the
+ * board keeps drawing the last thing it heard, and a stale screen is
+ * indistinguishable from a quiet trip. So `error` says so, and `connecting`
+ * stays silent because it is the ordinary first half-second of every page load.
+ *
+ * Presentational — the `useTripSocket` subscription is owned once by TripDetail
+ * and shared with the chat panel, so there's a single socket per trip.
  */
 export function LiveIndicator({ status }: { status: SocketStatus }) {
-  if (status === "idle") return null;
+  if (status !== "error") return null;
   return (
-    <span
-      className={`board__live board__live--${status}`}
-      role="status"
-      aria-live="polite"
-    >
+    <span className="board__live board__live--error" role="status" aria-live="polite">
       <span className="board__live-dot" aria-hidden="true" />
-      {LABEL[status]}
+      Offline — not updating
     </span>
   );
 }

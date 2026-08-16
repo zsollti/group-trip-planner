@@ -392,10 +392,10 @@ const PROPOSALS_KEY = "gtp.timeline.showProposals";
 /**
  * Whether this reader wants proposals drawn under the itinerary.
  *
- * Persisted per browser, exactly like the cost strip's chart choice
- * (`costChartForm.ts`) and for the same reason: it is one person's view of the
- * trip, not something the group agrees on, so it needs no contract and no write
- * path.
+ * Persisted per browser, like the lane sort before it and for the same reason:
+ * it is one person's view of the trip, not something the group agrees on, so it
+ * needs no contract and no write path. (The cost strip's chart-shape choice was
+ * stored the same way until the bar was dropped and there was nothing to pick.)
  *
  * **Default off, and deliberately not a two-mode switch.** A "Locked / All"
  * toggle would imply two equal views and make you choose a mode before

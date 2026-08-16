@@ -5,7 +5,6 @@ import type {
   CostSlice,
 } from "../lib/costComposition";
 import { categoryHueStyleById } from "../lib/categoryTheme";
-import { useCostChartForm, type CostChartForm } from "../lib/costChartForm";
 import { CostDonut } from "./CostDonut";
 import {
   formatApproxMoney as approx,
@@ -13,14 +12,20 @@ import {
 } from "../lib/money";
 
 /**
- * The cost composition: one chart, the lanes that make it up, and what it
+ * The cost composition: the ring, the lanes that make it up, and what it
  * deliberately leaves out.
  *
- * The chart is a **choice of two drawings of one model** ({@link Composition}),
- * so a donut and a bar of the same trip can never disagree. Both are optional
- * decoration in the strict sense — the list beneath names every lane with its
- * amount and share, which is the accessible version and the one that survives a
- * reader who cannot separate two of the board's hues.
+ * This shipped as a **choice of two drawings** of one {@link Composition} — a
+ * donut and a stacked bar, picked per browser — on the reasoning that a length
+ * is easier to compare than an angle and the preference is a matter of taste.
+ * In use it was neither: one surface, two shapes, and a control asking a
+ * question nobody had. The donut is the one the board kept, and the model it
+ * draws is unchanged, so the bar can come back from history if it is ever
+ * wanted.
+ *
+ * The ring is optional decoration in the strict sense — the list beneath names
+ * every lane with its amount and share, which is the accessible version and the
+ * one that survives a reader who cannot separate two of the board's hues.
  */
 export function CostComposition({
   composition,
@@ -36,7 +41,6 @@ export function CostComposition({
    */
   headline: { headline: string; caption: string; exact?: string | null };
 }) {
-  const [form, setForm] = useCostChartForm();
   /**
    * Which slice the reader is on, shared by the ring and the list.
    *
@@ -58,40 +62,18 @@ export function CostComposition({
     <section className="cost-comp">
       <header className="cost-comp__head">
         <h3 className="cost-comp__title">Where it goes</h3>
-        <FormToggle form={form} onChange={setForm} />
       </header>
 
-      {form === "donut" ? (
-        <div className="cost-comp__chart">
-          <CostDonut
-            composition={composition}
-            categories={categories}
-            label={headline}
-            write={write}
-            activeId={activeId}
-            onActivate={activate}
-          />
-        </div>
-      ) : (
-        // The bar has no hole to put the figure in, so it takes the caption the
-        // donut writes in its middle. Either way the per-person total is stated
-        // exactly once on this surface.
-        <div className="cost-comp__stack">
-          <p className="cost-comp__stack-figure">
-            <strong title={headline.exact ?? undefined}>
-              {headline.headline}
-            </strong>
-            {headline.exact ? (
-              <span className="board__sr-only">
-                {" "}
-                — exactly {headline.exact}
-              </span>
-            ) : null}
-            <span className="cost-comp__stack-caption">{headline.caption}</span>
-          </p>
-          <CostStack composition={composition} categories={categories} />
-        </div>
-      )}
+      <div className="cost-comp__chart">
+        <CostDonut
+          composition={composition}
+          categories={categories}
+          label={headline}
+          write={write}
+          activeId={activeId}
+          onActivate={activate}
+        />
+      </div>
 
       <CostLegend
         composition={composition}
@@ -104,77 +86,6 @@ export function CostComposition({
       <Excluded composition={composition} />
       <Uncounted composition={composition} />
     </section>
-  );
-}
-
-/** Pick the drawing. Two radios in a segmented control, not a mystery icon. */
-function FormToggle({
-  form,
-  onChange,
-}: {
-  form: CostChartForm;
-  onChange: (next: CostChartForm) => void;
-}) {
-  return (
-    <div className="cost-comp__forms" role="group" aria-label="Chart shape">
-      {(["donut", "bar"] as const).map((option) => (
-        <button
-          key={option}
-          type="button"
-          className={
-            "cost-comp__form" + (form === option ? " cost-comp__form--on" : "")
-          }
-          aria-pressed={form === option}
-          onClick={() => onChange(option)}
-        >
-          {option === "donut" ? "Donut" : "Bar"}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
- * The same model as a stacked bar.
- *
- * Easier to compare than the ring — a length beats an angle — and it reuses the
- * strip's existing bar anatomy exactly: the same track, the same 2px gap
- * between fills, the same red rule where the target ran out. Only the fill
- * changed, from one accent measure to the lanes that make it up.
- */
-function CostStack({
-  composition,
-  categories,
-}: {
-  composition: Composition;
-  categories: readonly CategoryView[];
-}) {
-  const { slices, targetMark, overspend, target } = composition;
-  return (
-    <div
-      className={"tally-bar" + (target !== null ? " tally-bar--target" : "")}
-      aria-hidden="true"
-    >
-      {slices.map((slice) => (
-        <div
-          key={slice.categoryId ?? "tail"}
-          className={
-            "tally-bar__seg tally-bar__seg--cat" +
-            (slice.categoryId === null ? " tally-bar__seg--tail" : "")
-          }
-          style={{
-            width: `${slice.share * 100}%`,
-            ...categoryHueStyleById(slice.categoryId, categories),
-          }}
-        />
-      ))}
-      {targetMark !== null && overspend > 0 ? (
-        <span
-          className="tally-bar__limit"
-          style={{ left: `${targetMark * 100}%` }}
-        />
-      ) : null}
-    </div>
   );
 }
 

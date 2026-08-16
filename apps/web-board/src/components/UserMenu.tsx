@@ -1,14 +1,23 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@gtp/api-client";
+import { useAuth, useNotifications } from "@gtp/api-client";
 import { Menu } from "./Menu";
 import { Avatar } from "./Avatar";
+import { NotificationsDialog } from "./NotificationsDialog";
 import { useTheme } from "../lib/theme";
 
 /**
  * The account (avatar) menu (Phase 3.5) shown top-right on every page: the
- * light/dark toggle, Settings, and Log out. Separated from the trip-context
- * actions so account controls stay consistent across the dashboard and the
- * board.
+ * light/dark toggle, Notifications, Settings, and Log out. Separated from the
+ * trip-context actions so account controls stay consistent across the dashboard
+ * and the board.
+ *
+ * **Notifications live here now.** They had their own bell in the header, which
+ * made three separate triggers in the top-right corner of every page competing
+ * for a glance. What is in this menu is the things that are about *you* rather
+ * than about the trip in front of you, and a notification is one of those. The
+ * cost of moving it is that a menu badge cannot be seen until the menu is open,
+ * so the unread mark moved onto the avatar itself, which is always visible.
  *
  * **Delete account is not here.** It used to be, which meant every page that
  * drew this menu also had to mount {@link DeleteAccountDialog} and carry the
@@ -29,24 +38,42 @@ export function UserMenu() {
   const { user, logout } = useAuth();
   const { resolved, toggle } = useTheme();
   const navigate = useNavigate();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // The count the menu badges, and the reason the avatar carries a dot: with
+  // the bell gone, this is the only thing left on screen that can say something
+  // is waiting, and a menu badge is invisible until the menu is open.
+  const notifications = useNotifications();
+  const unread = notifications.data?.unreadCount ?? 0;
 
   return (
+    <>
     <Menu
-      label="Account menu"
+      label={unread > 0 ? `Account menu, ${unread} unread` : "Account menu"}
       align="right"
       triggerClassName="board__avatar-trigger"
       trigger={
-        <Avatar
-          name={user?.displayName ?? "?"}
-          userId={user?.id}
-          url={user?.avatarUrl}
-          size={30}
-        />
+        <span className="board__avatar-wrap">
+          <Avatar
+            name={user?.displayName ?? "?"}
+            userId={user?.id}
+            url={user?.avatarUrl}
+            size={30}
+          />
+          {unread > 0 ? (
+            <span className="board__avatar-dot" aria-hidden="true" />
+          ) : null}
+        </span>
       }
       items={[
         {
           label: resolved === "dark" ? "☀ Light mode" : "☾ Dark mode",
           onSelect: toggle,
+        },
+        {
+          label: "🔔 Notifications",
+          onSelect: () => setNotificationsOpen(true),
+          badge: unread,
         },
         {
           label: "Settings",
@@ -62,5 +89,9 @@ export function UserMenu() {
         { label: "Log out", onSelect: () => void logout() },
       ]}
     />
+    {notificationsOpen ? (
+      <NotificationsDialog onClose={() => setNotificationsOpen(false)} />
+    ) : null}
+    </>
   );
 }

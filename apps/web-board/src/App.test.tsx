@@ -88,7 +88,7 @@ describe("web-board auth flow", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the unread badge and opens the notification bell (Phase 5.1)", async () => {
+  it("shows the unread mark and opens notifications from the account menu (Phase 5.1)", async () => {
     setAccessToken("access-token");
     const markAll = vi.fn();
     vi.stubGlobal(
@@ -138,11 +138,14 @@ describe("web-board auth flow", () => {
 
     renderAt("/");
 
-    // The badge count rides on the trigger's accessible name.
-    const bell = await screen.findByRole("button", {
-      name: /notifications, 1 unread/i,
+    // The bell is gone: the list is a dialog opened from the account menu, and
+    // the unread count rides on *that* trigger's accessible name — the only
+    // place left where a closed menu can still say something is waiting.
+    const account = await screen.findByRole("button", {
+      name: /account menu, 1 unread/i,
     });
-    fireEvent.click(bell);
+    fireEvent.click(account);
+    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
 
     expect(
       await screen.findByText(/grace locked in “night train”/i),
