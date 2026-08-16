@@ -40,7 +40,7 @@ const categories: CategoryView[] = [
     name: "Travel",
     singleChoice: false,
     isBuiltin: true,
-    builtinKey: "TRAVEL",
+    builtinKey: "TRANSPORT",
     paletteKey: null,
     position: 1,
     version: 0,
