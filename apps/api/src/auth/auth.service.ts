@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import argon2 from "argon2";
 import type { User } from "@prisma/client";
 import type {
@@ -9,6 +9,8 @@ import type {
   RegisterInput,
   RegisterResult,
 } from "@gtp/types";
+import { ENV } from "../config/config.module.js";
+import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { EmailService } from "../email/email.service.js";
 import { TokenService, type IssuedToken } from "./token.service.js";
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly email: EmailService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   private async getDummyHash(): Promise<string> {
@@ -80,7 +83,7 @@ export class AuthService {
       where: { id: userId },
       data: { emailVerified: true },
     });
-    return toAuthUser(user);
+    return toAuthUser(user, this.env.ADMIN_EMAILS);
   }
 
   /**
@@ -163,7 +166,7 @@ export class AuthService {
   async refresh(rawToken: string): Promise<AuthSession> {
     const { user, next } = await this.tokens.rotateRefreshToken(rawToken);
     const accessToken = await this.tokens.signAccessToken(user);
-    return { result: { accessToken, user: toAuthUser(user) }, refresh: next };
+    return { result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) }, refresh: next };
   }
 
   async logout(rawToken: string | undefined): Promise<void> {
@@ -173,6 +176,6 @@ export class AuthService {
   private async openSession(user: User): Promise<AuthSession> {
     const accessToken = await this.tokens.signAccessToken(user);
     const refresh = await this.tokens.issueRefreshToken(user.id);
-    return { result: { accessToken, user: toAuthUser(user) }, refresh };
+    return { result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) }, refresh };
   }
 }

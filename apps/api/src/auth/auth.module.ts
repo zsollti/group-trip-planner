@@ -57,6 +57,12 @@ const googleStrategyProvider: Provider = {
   ],
   // Re-export the JWT infra + guards so other feature modules (Trips, ...) can
   // protect their own routes with the same authentication + verification gates.
-  exports: [JwtModule, JwtAuthGuard, VerifiedEmailGuard],
+  //
+  // `TokenService` is exported for the operator console, which reissues a
+  // verification token when someone never received theirs. Deliberately the
+  // same issuer registration uses, rather than a second one living in the
+  // console: two ways to mint a verification token would be two things to keep
+  // in step, and the one used less often is the one that drifts.
+  exports: [JwtModule, JwtAuthGuard, VerifiedEmailGuard, TokenService],
 })
 export class AuthModule {}

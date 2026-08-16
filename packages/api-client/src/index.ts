@@ -49,6 +49,14 @@ export {
 } from "./members.js";
 export { activityKeys, useTripActivity } from "./activity.js";
 export {
+  adminKeys,
+  useAdminOverview,
+  useAdminUserLookup,
+  useAdminAudit,
+  useResendVerification,
+  useMarkVerified,
+} from "./admin.js";
+export {
   accountKeys,
   useDeletionPreview,
   useNotificationPreferences,

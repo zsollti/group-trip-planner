@@ -8,6 +8,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { RatesModule } from "./rates/rates.module.js";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
+import { AdminModule } from "./admin/admin.module.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
@@ -79,6 +80,7 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     NotificationsModule,
     ActivityModule,
     UploadsModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: GlobalThrottlerGuard },

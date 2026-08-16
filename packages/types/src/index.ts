@@ -28,5 +28,6 @@ export * from "./chat.js";
 export * from "./notifications.js";
 export * from "./email-jobs.js";
 export * from "./preferences.js";
+export * from "./admin.js";
 export * from "./activity.js";
 export * from "./uploads.js";

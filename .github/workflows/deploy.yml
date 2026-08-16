@@ -76,6 +76,14 @@ jobs:
         run: |
           mkdir -p apps/web-board/public
           printf '%s' "$SHA" > apps/web-board/public/build.txt
+          # The same trick for the API, which had no way at all to say which
+          # commit it was running. `railway up` uploads this directory rather
+          # than deploying from a git ref, so Railway's own GIT_COMMIT_SHA is
+          # never populated — writing the file is what makes the operator
+          # console able to answer "is the API on the build I just shipped".
+          # The Dockerfile copies apps/api wholesale and runs with that as the
+          # working directory, so it lands right where the service reads it.
+          printf '%s' "$SHA" > apps/api/build.txt
 
       # The API first: its container runs `prisma migrate deploy` at start, so
       # the schema the new frontend expects is in place before that frontend is

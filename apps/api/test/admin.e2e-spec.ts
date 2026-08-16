@@ -1,0 +1,262 @@
+import { after, before, describe, it } from "node:test";
+import assert from "node:assert/strict";
+import type { INestApplication } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import cookieParser from "cookie-parser";
+import request from "supertest";
+import { AppModule } from "../src/app.module.js";
+import { EmailService } from "../src/email/email.service.js";
+import { PrismaService } from "../src/prisma/prisma.service.js";
+import { TokenService } from "../src/auth/token.service.js";
+import { ENV } from "../src/config/config.module.js";
+import { loadEnv } from "../src/config/env.js";
+
+/**
+ * The operator's console (e2e, real DB).
+ *
+ * The console is the one surface in this app where the guard *is* the feature:
+ * everything behind it reads across every account in the system, so "who may
+ * open it" carries more weight here than on any trip route. These cases are
+ * about that boundary first and the payloads second.
+ *
+ * The sweep at the bottom is the important one, and it is deliberately built the
+ * same way as the trip-scoped IDOR sweep: it reads the routes Express actually
+ * has registered under `/admin` and requires each of them to be closed to an
+ * ordinary account. A future `/admin/something` that ships without the guard
+ * fails this test without anyone remembering to extend it.
+ */
+describe("Admin console (e2e)", () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let tokens_: TokenService;
+
+  const suffix = Date.now();
+  const adminEmail = `admin+${suffix}@example.com`;
+  const userIds: string[] = [];
+  const http = () => request(app.getHttpServer());
+
+  let adminToken = "";
+  let plainToken = "";
+  let plainUserId = "";
+  const sentVerifications: string[] = [];
+
+  async function makeUser(label: string, verified = true) {
+    const email = label.includes("@") ? label : `adm+${label}+${suffix}@example.com`;
+    const user = await prisma.user.create({
+      data: { email, displayName: label, emailVerified: verified, passwordHash: "x" },
+    });
+    userIds.push(user.id);
+    return { user, accessToken: await tokens_.signAccessToken(user) };
+  }
+
+  before(async () => {
+    const emailMock = {
+      sendVerificationEmail: (to: string) => {
+        sentVerifications.push(to);
+        return Promise.resolve();
+      },
+      sendAccountExistsNotice: () => Promise.resolve(),
+      sendInviteEmail: () => Promise.resolve(),
+    };
+    // The operator list has to be injected rather than set in `process.env`:
+    // importing AppModule runs `ConfigModule.forRoot()`, which parses the
+    // environment while the module metadata is built — before any `before()`
+    // hook in this file could set a variable. The env schema's own parsing of
+    // the raw string (splitting, trimming, lowercasing) is covered in
+    // `admin.spec.ts`, where it can be tested directly instead of inferred
+    // through an HTTP status.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EmailService)
+      .useValue(emailMock)
+      .overrideProvider(ENV)
+      .useValue({ ...loadEnv(), ADMIN_EMAILS: [adminEmail] })
+      .compile();
+
+    app = moduleRef.createNestApplication();
+    app.use(cookieParser());
+    await app.init();
+    prisma = app.get(PrismaService);
+    tokens_ = app.get(TokenService);
+
+    ({ accessToken: adminToken } = await makeUser(adminEmail));
+    const plain = await makeUser("plain", false);
+    plainToken = plain.accessToken;
+    plainUserId = plain.user.id;
+  });
+
+  after(async () => {
+    if (prisma) {
+      await prisma.adminAuditEvent.deleteMany({ where: { actorEmail: adminEmail } });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    }
+    if (app) await app.close();
+  });
+
+  it("lets a configured operator read the overview", async () => {
+    const res = await http()
+      .get("/admin/overview")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+
+    const body = res.body as {
+      system: { contractVersion: string };
+      volume: { users: number; signups: unknown[] };
+      email: { pending: number };
+      rates: { configured: boolean };
+    };
+    assert.ok(body.system.contractVersion.length > 0);
+    assert.ok(body.volume.users >= 2);
+    // Zero-filled: always exactly 30 days, however quiet the month was.
+    assert.equal(body.volume.signups.length, 30);
+    assert.equal(typeof body.email.pending, "number");
+    assert.equal(typeof body.rates.configured, "boolean");
+  });
+
+  it("finds a user by email fragment and reports their verification state", async () => {
+    // Encoded, because these addresses carry a `+` and a raw one in a query
+    // string is a space — the search would quietly look for something else.
+    const res = await http()
+      .get(`/admin/users?q=${encodeURIComponent(`plain+${suffix}`)}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const body = res.body as { users: { id: string; emailVerified: boolean }[] };
+    assert.equal(body.users.length, 1);
+    assert.equal(body.users[0]!.id, plainUserId);
+    assert.equal(body.users[0]!.emailVerified, false);
+  });
+
+  it("does not 500 on a lookup that looks like a broken id", async () => {
+    // Postgres rejects a malformed uuid as a type error rather than matching
+    // nothing, so an unguarded `{ id: q }` would turn one stray character into
+    // a 500 on the operator's own search box.
+    const res = await http()
+      .get("/admin/users?q=not-a-uuid-but-36-characters-long!!")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    assert.deepEqual((res.body as { users: unknown[] }).users, []);
+  });
+
+  it("resends a verification email and records who did it", async () => {
+    const before_ = sentVerifications.length;
+    await http()
+      .post(`/admin/users/${plainUserId}/resend-verification`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(201);
+
+    assert.equal(sentVerifications.length, before_ + 1);
+    const audit = await http()
+      .get("/admin/audit")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const entries = (audit.body as { entries: { action: string; actorEmail: string }[] })
+      .entries;
+    assert.ok(
+      entries.some(
+        (e) => e.action === "VERIFICATION_RESENT" && e.actorEmail === adminEmail,
+      ),
+      "the resend should be attributable to the operator who did it",
+    );
+  });
+
+  it("marks an account verified, and says so in the answer", async () => {
+    const res = await http()
+      .post(`/admin/users/${plainUserId}/verify`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(201);
+    assert.equal((res.body as { emailVerified: boolean }).emailVerified, true);
+
+    const row = await prisma.user.findUniqueOrThrow({ where: { id: plainUserId } });
+    assert.equal(row.emailVerified, true);
+  });
+
+  it("reports operator status on the session, so the app can offer the link", async () => {
+    const asAdmin = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    assert.equal((asAdmin.body as { isAdmin: boolean }).isAdmin, true);
+
+    const asPlain = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${plainToken}`)
+      .expect(200);
+    assert.equal((asPlain.body as { isAdmin: boolean }).isAdmin, false);
+  });
+
+  it("answers 401 to an anonymous caller, before it answers anything else", async () => {
+    await http().get("/admin/overview").expect(401);
+  });
+
+  /**
+   * The self-maintaining half: every registered `/admin` route, closed.
+   *
+   * **404 and not 403**, which is the one place this app departs from its own
+   * convention of preferring the honest status. A 403 would confirm to any
+   * signed-in stranger that a console exists here and that they are merely not
+   * on the list — a free hint on the highest-value surface in the app. To a
+   * non-operator the console does not exist, which is also exactly true of any
+   * deployment that never sets `ADMIN_EMAILS`.
+   */
+  it("hides every admin route from an ordinary account", async () => {
+    const routes = registeredAdminRoutes(app);
+    assert.ok(routes.length > 0, "expected some /admin routes to be registered");
+
+    for (const { method, path } of routes) {
+      // A concrete url for the one parameterised family; the rest are literal.
+      const url = path.replace(":id", plainUserId);
+      const res = await (http() as unknown as Record<string, (u: string) => request.Test>)
+        [method]!(url)
+        .set("Authorization", `Bearer ${plainToken}`)
+        .send();
+      assert.equal(
+        res.status,
+        404,
+        `${method.toUpperCase()} ${path} answered ${res.status} to a non-operator`,
+      );
+    }
+  });
+});
+
+interface ExpressLayer {
+  route?: {
+    path?: string | string[];
+    methods?: Record<string, boolean>;
+    stack?: { method?: string }[];
+  };
+}
+
+/**
+ * The `/admin` routes Express actually has, read from its own table.
+ *
+ * The point of reading the router rather than listing the routes by hand: a
+ * table written today only ever covers the routes that existed today, and the
+ * dangerous case is precisely the route somebody adds later.
+ */
+function registeredAdminRoutes(
+  app: INestApplication,
+): { method: string; path: string }[] {
+  const instance = app.getHttpAdapter().getInstance() as {
+    router?: { stack?: ExpressLayer[] };
+    _router?: { stack?: ExpressLayer[] };
+  };
+  const stack = instance.router?.stack ?? instance._router?.stack ?? [];
+
+  const found: { method: string; path: string }[] = [];
+  for (const layer of stack) {
+    const route = layer.route;
+    if (!route?.path) continue;
+    const paths = Array.isArray(route.path) ? route.path : [route.path];
+    const methods = route.methods
+      ? Object.entries(route.methods)
+          .filter(([, on]) => on)
+          .map(([m]) => m)
+      : (route.stack ?? []).map((l) => l.method ?? "");
+    for (const path of paths) {
+      if (!path.startsWith("/admin")) continue;
+      for (const method of methods) {
+        if (method && method !== "_all") found.push({ method, path });
+      }
+    }
+  }
+  return found;
+}

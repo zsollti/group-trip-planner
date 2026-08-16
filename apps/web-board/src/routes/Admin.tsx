@@ -1,0 +1,494 @@
+import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import {
+  ApiError,
+  useAdminAudit,
+  useAdminOverview,
+  useAdminUserLookup,
+  useAuth,
+  useMarkVerified,
+  useResendVerification,
+} from "@gtp/api-client";
+import type {
+  AdminEmail,
+  AdminRates,
+  AdminUserSummary,
+  AdminVolume,
+} from "@gtp/types";
+import { Button } from "@gtp/ui-primitives";
+import { UserMenu } from "../components/UserMenu";
+
+/**
+ * The operator's console.
+ *
+ * Not a product screen — this is for running the deployment, and it is built
+ * around the questions that actually come up while doing that: is the mail
+ * queue moving, are the exchange rates fresh, which build is serving, and why
+ * can this one person not create a trip.
+ *
+ * Everything here is a count, a timestamp or an address. There is deliberately
+ * no trip content — no option titles, no messages, no amounts — so that the
+ * console cannot become a way to read the app's users, only a way to run the
+ * service they use.
+ */
+export function Admin() {
+  const { user } = useAuth();
+  const overview = useAdminOverview();
+
+  return (
+    <main className="board">
+      <header className="board__bar">
+        <Link className="board__brand board__brand--link" to="/">
+          ‹ Boards
+        </Link>
+        <div className="board__bar-actions">
+          <UserMenu />
+        </div>
+      </header>
+
+      <p className="board__eyebrow">Operations · signed in as {user?.email}</p>
+      <h1 className="board__title">Console</h1>
+
+      {overview.isPending ? (
+        <p className="board__muted" role="status">
+          Reading the deployment…
+        </p>
+      ) : overview.isError ? (
+        <p className="board__form-error" role="alert">
+          {overview.error.status === 404
+            ? "This deployment has no console configured for you."
+            : "Couldn't read the deployment."}
+        </p>
+      ) : (
+        <div className="admin">
+          <SystemPanel
+            system={overview.data.system}
+            onRefresh={() => void overview.refetch()}
+            refreshing={overview.isFetching}
+          />
+          <EmailPanel email={overview.data.email} />
+          <RatesPanel rates={overview.data.rates} />
+          <VolumePanel volume={overview.data.volume} />
+        </div>
+      )}
+
+      <UserLookup />
+      <AuditPanel />
+    </main>
+  );
+}
+
+/** A titled block. Every panel is one, so they align without each re-stating it. */
+function Panel({
+  title,
+  tone,
+  children,
+}: {
+  title: string;
+  /** `warn` paints the left edge when the panel is reporting a problem. */
+  tone?: "warn";
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={"admin__panel" + (tone ? ` admin__panel--${tone}` : "")}
+      aria-label={title}
+    >
+      <h2 className="admin__panel-title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** One label/value row. The value is monospaced — most of them are identifiers. */
+function Row({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: "warn" | "good";
+}) {
+  return (
+    <div className="admin__row">
+      <span className="admin__row-label">{label}</span>
+      <span className={"admin__row-value" + (tone ? ` admin__row-value--${tone}` : "")}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function when(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString();
+}
+
+/** "3 days ago" for a calendar day or an instant — staleness reads better relative. */
+function ago(iso: string | null): string {
+  if (!iso) return "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function SystemPanel({
+  system,
+  onRefresh,
+  refreshing,
+}: {
+  system: import("@gtp/types").AdminSystem;
+  onRefresh: () => void;
+  refreshing: boolean;
+}) {
+  return (
+    <Panel title="This deployment">
+      <Row label="Environment" value={system.environment} />
+      <Row
+        label="Commit"
+        value={system.commit ? system.commit.slice(0, 10) : "unstamped"}
+      />
+      <Row label="Contract" value={system.contractVersion} />
+      <Row label="Node" value={system.nodeVersion} />
+      <Row
+        label="Up since"
+        value={`${when(system.startedAt)} (${ago(system.startedAt)})`}
+      />
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={onRefresh}
+        disabled={refreshing}
+      >
+        {refreshing ? "Reading…" : "Refresh"}
+      </Button>
+    </Panel>
+  );
+}
+
+/**
+ * The mail queue.
+ *
+ * `stuckSending` is the reason this panel exists. A job claimed `SENDING` by a
+ * worker that then died sits claimed until something reclaims it, and every
+ * other signal in the system stays green while no mail goes out at all.
+ */
+function EmailPanel({ email }: { email: AdminEmail }) {
+  const stuck = email.stuckSending > 0;
+  return (
+    <Panel title="Email queue" tone={stuck ? "warn" : undefined}>
+      {!email.configured ? (
+        <p className="admin__note">
+          No provider key set — mail is logged to the console, not sent.
+        </p>
+      ) : null}
+      <Row label="Pending" value={email.pending} />
+      <Row label="Sending" value={email.sending} />
+      <Row label="Sent" value={email.sent} />
+      <Row
+        label="Failed"
+        value={email.failed}
+        tone={email.failed > 0 ? "warn" : undefined}
+      />
+      {stuck ? (
+        <p className="admin__alert" role="alert">
+          {email.stuckSending} job{email.stuckSending === 1 ? "" : "s"} claimed
+          longer ago than the reclaim window — a worker probably died mid-send.
+        </p>
+      ) : null}
+      {email.recentFailures.length > 0 ? (
+        <ul className="admin__list">
+          {email.recentFailures.map((f) => (
+            <li key={f.id} className="admin__failure">
+              <span className="admin__failure-to">{f.to}</span>
+              <span className="admin__failure-meta">
+                {f.type} · {f.attempts} attempt{f.attempts === 1 ? "" : "s"} ·{" "}
+                {ago(f.updatedAt)}
+              </span>
+              {f.lastError ? (
+                <span className="admin__failure-error">{f.lastError}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Panel>
+  );
+}
+
+/**
+ * The exchange-rate snapshot.
+ *
+ * Conversion fails silently by design, so this is the only place the difference
+ * between "switched off on purpose" and "the feed has been broken for a week"
+ * is visible at all. Rates publish on working days, so the staleness threshold
+ * allows for a weekend before it says anything.
+ */
+function RatesPanel({ rates }: { rates: AdminRates }) {
+  const stale =
+    rates.configured &&
+    (rates.fetchedAt === null ||
+      Date.now() - new Date(rates.fetchedAt).getTime() > 4 * 24 * 3600_000);
+  return (
+    <Panel title="Exchange rates" tone={stale ? "warn" : undefined}>
+      {!rates.configured ? (
+        <p className="admin__note">
+          No feed configured — conversion is off, and every dashboard reports
+          exact per-currency figures only. This is a valid deployment.
+        </p>
+      ) : (
+        <>
+          <Row label="Currencies" value={rates.currencies} />
+          <Row label="Published" value={rates.asOf ?? "—"} />
+          <Row
+            label="Fetched"
+            value={`${when(rates.fetchedAt)} (${ago(rates.fetchedAt)})`}
+            tone={stale ? "warn" : "good"}
+          />
+          <Row label="Source" value={rates.source ?? "—"} />
+          {stale ? (
+            <p className="admin__alert" role="alert">
+              A feed is configured but the snapshot has not refreshed in days.
+              Every ≈ total in the app is being computed from it.
+            </p>
+          ) : null}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/** Bytes, in the unit a human would say. */
+function bytes(n: number | null): string {
+  if (n === null) return "unreadable";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function VolumePanel({ volume }: { volume: AdminVolume }) {
+  const peak = Math.max(1, ...volume.signups.map((d) => d.count));
+  const total = volume.signups.reduce((sum, d) => sum + d.count, 0);
+  return (
+    <Panel title="Volume">
+      <Row
+        label="Users"
+        value={`${volume.users} (${volume.verifiedUsers} verified)`}
+      />
+      <Row
+        label="Trips"
+        value={`${volume.trips} (${volume.activeTrips} active)`}
+      />
+      <Row label="Options" value={volume.options} />
+      <Row label="Messages" value={volume.messages} />
+      <Row label="Uploads" value={bytes(volume.uploadBytes)} />
+      {/* Zero-filled server-side, so a quiet month draws as a quiet month
+          rather than as a dense one with fewer bars. */}
+      <div
+        className="admin__spark"
+        role="img"
+        aria-label={`${total} signups in the last 30 days`}
+      >
+        {volume.signups.map((d) => (
+          <span
+            key={d.date}
+            className="admin__spark-bar"
+            style={{ height: `${Math.round((d.count / peak) * 100)}%` }}
+            title={`${d.date}: ${d.count}`}
+          />
+        ))}
+      </div>
+      <p className="admin__note">{total} signups in the last 30 days</p>
+    </Panel>
+  );
+}
+
+/**
+ * Find one person and act on them.
+ *
+ * The realistic support case is "I can't create a trip", which is almost always
+ * an unverified address — so verification state is the first thing this shows,
+ * and the two things it can do about it sit directly under it.
+ */
+function UserLookup() {
+  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  const results = useAdminUserLookup(query);
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setQuery(input.trim());
+  }
+
+  return (
+    <section className="admin__panel admin__panel--wide" aria-label="Find a user">
+      <h2 className="admin__panel-title">Find a user</h2>
+      <form className="admin__search" onSubmit={onSubmit}>
+        <label className="board__sr-only" htmlFor="admin-q">
+          Email, name, or user id
+        </label>
+        <input
+          id="admin-q"
+          className="board__input"
+          value={input}
+          placeholder="email, name, or user id"
+          onChange={(e) => setInput(e.target.value)}
+        />
+        <Button type="submit" variant="secondary">
+          Find
+        </Button>
+      </form>
+
+      {query && results.isPending ? (
+        <p className="board__muted" role="status">
+          Looking…
+        </p>
+      ) : results.isError ? (
+        <p className="board__form-error" role="alert">
+          Couldn't run that lookup.
+        </p>
+      ) : results.data && results.data.users.length === 0 ? (
+        <p className="board__muted">Nobody matches “{query}”.</p>
+      ) : (
+        results.data?.users.map((u) => <UserCard key={u.id} user={u} />)
+      )}
+    </section>
+  );
+}
+
+function UserCard({ user }: { user: AdminUserSummary }) {
+  const resend = useResendVerification();
+  const verify = useMarkVerified();
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  async function run(what: "resend" | "verify") {
+    setError(null);
+    setDone(null);
+    try {
+      if (what === "resend") {
+        await resend.mutateAsync(user.id);
+        setDone("Verification email sent.");
+      } else {
+        await verify.mutateAsync(user.id);
+        setDone("Marked verified.");
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "That didn't work.");
+    }
+  }
+
+  const busy = resend.isPending || verify.isPending;
+
+  return (
+    <article className="admin__user">
+      <header className="admin__user-head">
+        <strong>{user.displayName}</strong>
+        <span className="admin__user-email">{user.email}</span>
+        {user.emailVerified ? (
+          <span className="admin__badge admin__badge--good">Verified</span>
+        ) : (
+          <span className="admin__badge admin__badge--warn">Unverified</span>
+        )}
+        {user.anonymizedAt ? (
+          <span className="admin__badge">Anonymized</span>
+        ) : null}
+      </header>
+      <Row label="Signed up" value={when(user.createdAt)} />
+      <Row label="Last seen" value={ago(user.lastSeenAt)} />
+      <Row label="Trips" value={user.tripCount} />
+      <Row
+        label="Sign-in"
+        value={user.hasPassword ? "password" : "Google only"}
+      />
+
+      {user.emailJobs.length > 0 ? (
+        <ul className="admin__list">
+          {user.emailJobs.map((j) => (
+            <li key={j.id} className="admin__failure">
+              <span className="admin__failure-meta">
+                {j.type} · {j.status} · {ago(j.createdAt)}
+              </span>
+              {j.lastError ? (
+                <span className="admin__failure-error">{j.lastError}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="admin__note">No mail has been queued for this account.</p>
+      )}
+
+      {!user.emailVerified ? (
+        <div className="admin__actions">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => void run("resend")}
+          >
+            Resend verification
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => void run("verify")}
+          >
+            Mark verified
+          </Button>
+        </div>
+      ) : null}
+
+      {done ? (
+        <p className="admin__done" role="status">
+          {done}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+/** What operators have done here. Short, because it should stay short. */
+function AuditPanel() {
+  const audit = useAdminAudit();
+  const entries = audit.data?.entries ?? [];
+  return (
+    <section className="admin__panel admin__panel--wide" aria-label="Operator log">
+      <h2 className="admin__panel-title">Operator log</h2>
+      {audit.isPending ? (
+        <p className="board__muted" role="status">
+          Loading…
+        </p>
+      ) : entries.length === 0 ? (
+        <p className="board__muted">
+          Nothing has been done from this console yet.
+        </p>
+      ) : (
+        <ul className="admin__list">
+          {entries.map((e) => (
+            <li key={e.id} className="admin__failure">
+              <span className="admin__failure-to">
+                {e.action.toLowerCase().replace(/_/g, " ")}
+                {e.subject ? ` · ${e.subject}` : ""}
+              </span>
+              <span className="admin__failure-meta">
+                {e.actorEmail} · {when(e.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

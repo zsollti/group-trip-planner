@@ -3951,6 +3951,7 @@ body {
 .cost-comp__aside-mine {
   font-weight: 700;
   color: var(--board-accent);
+}
 
 /* --- The create-trip stepper's progress ------------------------------------
  *
@@ -3976,4 +3977,180 @@ body {
 }
 .steps__dot--now {
   background: var(--board-accent);
+}
+
+/* --- The operator's console ------------------------------------------------
+ *
+ * Denser than the rest of the app on purpose. Everything else here is a
+ * planning surface people browse; this is a status board read in a hurry while
+ * something is wrong, so it favours packing facts above the fold over the
+ * breathing room the boards get. */
+.admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.admin__panel {
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  /* The warn tone paints this edge, so the width is reserved in both states —
+     otherwise a panel shifts sideways the moment it has something to report. */
+  border-left: 3px solid var(--lane-line);
+}
+.admin__panel--warn {
+  border-left-color: var(--board-danger);
+}
+.admin__panel--wide {
+  margin-bottom: 0.75rem;
+}
+.admin__panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.admin__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.18rem 0;
+  font-size: 0.8rem;
+}
+.admin__row-label {
+  color: var(--board-dim);
+  white-space: nowrap;
+}
+.admin__row-value {
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  font-size: 0.76rem;
+  text-align: right;
+  /* Identifiers and errors are the long values here; let them wrap rather than
+     push the panel wider than its grid track. */
+  overflow-wrap: anywhere;
+}
+.admin__row-value--warn {
+  color: var(--board-danger);
+  font-weight: 700;
+}
+.admin__row-value--good {
+  color: var(--board-accent);
+}
+.admin__note {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--board-dim);
+}
+.admin__alert {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.4rem;
+  font-size: 0.74rem;
+  color: var(--board-danger);
+  background: color-mix(in srgb, var(--board-danger) 10%, transparent);
+}
+.admin__list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.admin__failure {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--board-fg) 4%, transparent);
+  font-size: 0.74rem;
+}
+.admin__failure-to {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.admin__failure-meta {
+  color: var(--board-dim);
+  font-size: 0.7rem;
+}
+.admin__failure-error {
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  font-size: 0.7rem;
+  color: var(--board-danger);
+  overflow-wrap: anywhere;
+}
+
+/* Thirty bars, one per day. `align-items: end` is what makes them grow from the
+   baseline; a zero-count day still draws a 1px tick so the row reads as a
+   calendar rather than as a gap. */
+.admin__spark {
+  display: flex;
+  align-items: end;
+  gap: 1px;
+  height: 2.2rem;
+  margin-top: 0.6rem;
+}
+.admin__spark-bar {
+  flex: 1;
+  min-height: 1px;
+  border-radius: 1px 1px 0 0;
+  background: var(--board-accent);
+}
+.admin__search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+.admin__search .board__input {
+  flex: 1;
+}
+.admin__user {
+  border-top: 1px solid var(--lane-line);
+  padding-top: 0.6rem;
+  margin-top: 0.6rem;
+}
+.admin__user-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+.admin__user-email {
+  color: var(--board-dim);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.admin__badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--lane-line);
+  color: var(--board-dim);
+}
+.admin__badge--good {
+  color: var(--board-accent);
+  border-color: color-mix(in srgb, var(--board-accent) 45%, transparent);
+}
+.admin__badge--warn {
+  color: var(--board-danger);
+  border-color: color-mix(in srgb, var(--board-danger) 45%, transparent);
+}
+.admin__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+.admin__done {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--board-accent);
 }
