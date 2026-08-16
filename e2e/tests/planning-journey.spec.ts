@@ -130,7 +130,24 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     // rail somewhere else was backwards.
     const settled = settledCard(ownerTransport, optionTitle);
     await expect(settled).toBeVisible();
-    await expect(settled.getByText("Ada")).toBeVisible();
+
+    // Who decided it is recorded, and is read in the **detail** view.
+    //
+    // It used to be a "✦ Decided · Ada" row on the card itself, which made a
+    // decided card taller than the one it beat while repeating what the card's
+    // own treatment and its position already said. The fact still matters —
+    // this is the audit question, "who committed us to this" — so it is
+    // asserted where it now lives rather than dropped along with the row. A
+    // locked card is not editable, so its title opens the read-only view.
+    await settled
+      .getByRole("button", { name: `${optionTitle} — view details` })
+      .click();
+    const detail = ownerPage.getByRole("dialog");
+    // The decided line specifically, not just the name: "Ada" is also on the
+    // voter faces in this same dialog, and a bare name would pass on either.
+    await expect(detail.getByText("✦ Decided · Ada")).toBeVisible();
+    await detail.getByRole("button", { name: /close/i }).click();
+    await expect(detail).toBeHidden();
 
     // …and the participant sees the decision without touching anything.
     await expect(
