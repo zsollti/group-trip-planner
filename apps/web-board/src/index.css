@@ -780,6 +780,18 @@ body {
      a one-line `nowrap` note has no wrap point — so a card with long notes
      stretched its whole column and shouldered the other lanes off the board. */
   min-width: 0;
+  /* A lane grows with every option proposed into it, and one busy lane used to
+     set the height of the whole board: the row is as tall as its tallest
+     column, so twelve restaurants left every other lane with a column of empty
+     space beside it and pushed the lanes after it off the bottom of the page.
+     Past this point the lane keeps its own options to itself and scrolls them.
+     Each lane scrolls independently, so a long one never hides a short one. */
+  max-height: 1000px;
+  overflow-y: auto;
+  /* The cards clear the clip comfortably — the lane's 0.85rem padding is inside
+     the scrollport, so a card's focus ring has ~13px of room either side. (See
+     `.board__dialog-body` for the case where that room did not exist: an
+     `overflow-y` box clips horizontally too, whatever `overflow-x` says.) */
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   /* The category's colour, as the edge you scan along. On top rather than down
@@ -825,11 +837,25 @@ body {
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
+/* Pinned, now that the lane scrolls: the name and the "⋯" are what tell you
+   which question you are reading, and scrolling them away is how you lose your
+   place in a column of twelve near-identical cards. Sticky rather than a
+   restructure into header + scrolling body, which would have put a new
+   scroll container between the lane and its draggable cards. The background is
+   the lane's own, so cards pass behind it rather than through it; the negative
+   margins and matching padding let it span the lane's full width while the
+   text stays where it was. */
 .lane__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
+  margin: -0.85rem -0.85rem 0;
+  padding: 0.85rem 0.85rem 0.35rem;
+  background: var(--lane-bg);
 }
 .lane__head .lane__title {
   flex: 1 1 auto;
@@ -1114,6 +1140,56 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
   gap: 1rem;
+}
+
+/* A tile and its drag grip. The wrapper exists because the tile itself is an
+   `<a>`: the grip has to sit *over* it rather than inside it, or the link
+   swallows the gesture and every attempt to move a board opens one instead. */
+.board__tile-wrap {
+  position: relative;
+  display: flex;
+}
+.board__tile-wrap > .board__tile {
+  flex: 1 1 auto;
+}
+.board__tile-grip {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 1;
+  background: none;
+  border: none;
+  color: var(--board-dim);
+  cursor: grab;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  /* Let the pointer sensor own the gesture on touch (don't scroll instead). */
+  touch-action: none;
+  /* Quiet until wanted: the grip is a second control on a surface whose whole
+     job is opening a board, so it stays out of the way and comes forward on
+     hover or focus. Never `display: none` — a keyboard user has to be able to
+     reach it, and something that only exists on hover cannot be tabbed to. */
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.board__tile-wrap:hover .board__tile-grip,
+.board__tile-grip:focus-visible {
+  opacity: 1;
+}
+.board__tile-grip:hover {
+  color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 10%, transparent);
+}
+.board__tile-grip:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board__tile-grip {
+    transition: none;
+  }
 }
 
 .board__tile {

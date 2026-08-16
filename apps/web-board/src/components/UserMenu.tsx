@@ -71,7 +71,7 @@ export function UserMenu() {
           onSelect: toggle,
         },
         {
-          label: "🔔 Notifications",
+          label: "Notifications",
           onSelect: () => setNotificationsOpen(true),
           badge: unread,
         },

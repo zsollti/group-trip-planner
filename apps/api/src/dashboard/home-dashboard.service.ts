@@ -73,7 +73,14 @@ export class HomeDashboardService {
         include: {
           trip: { include: { _count: { select: { memberships: true } } } },
         },
-        orderBy: { trip: { createdAt: "desc" } },
+        // The member's own arrangement first, then newest-first for everything
+        // they have never dragged. `nulls: "last"` is the whole trick: without
+        // it Postgres sorts NULLs first ascending, so arranging one tile would
+        // bury it under every trip that had never been touched.
+        orderBy: [
+          { sortOrder: { sort: "asc", nulls: "last" } },
+          { trip: { createdAt: "desc" } },
+        ],
         skip: offset,
         take: limit,
       }),
@@ -121,6 +128,32 @@ export class HomeDashboardService {
     });
 
     return { trips, total, limit, offset };
+  }
+
+  /**
+   * Store the caller's own arrangement of their overview.
+   *
+   * One `updateMany` per trip, all in one transaction, so the page never reads
+   * a half-applied order. The `where` carries **both** the trip id and the
+   * caller's `userId`: that is what makes this incapable of touching anyone
+   * else's row, and it is also why an id the caller is not a member of simply
+   * matches nothing instead of needing a membership check of its own — a stale
+   * id from a trip deleted in another tab is not an error worth failing the
+   * whole drag over.
+   *
+   * The indices are the positions as given, so the numbers stay dense and a
+   * later insert never has to renumber around a gap.
+   */
+  async reorderTrips(userId: string, tripIds: readonly string[]): Promise<void> {
+    if (tripIds.length === 0) return;
+    await this.prisma.$transaction(
+      tripIds.map((tripId, index) =>
+        this.prisma.tripMembership.updateMany({
+          where: { tripId, userId },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
   }
 }
 

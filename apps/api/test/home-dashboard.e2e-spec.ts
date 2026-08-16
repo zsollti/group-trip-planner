@@ -246,4 +246,112 @@ describe("Home dashboard (e2e)", () => {
   it("requires authentication", async () => {
     await http().get("/dashboard").expect(401);
   });
+
+  /**
+   * Rearranging the overview (`PATCH /dashboard/order`).
+   *
+   * The order is stored per **membership**, which is the whole design: two
+   * people in the same trip keep their own arrangements, and the only row a
+   * request can reach is the caller's own. Both halves are asserted, because
+   * "it saved my order" and "it did not touch yours" are different claims and
+   * only the second one is a security property.
+   */
+  describe("ordering", () => {
+    it("returns the trips in the order the caller last set", async () => {
+      const u = await makeUser("order-owner");
+      const a = await createTrip(u.accessToken, "Alpha");
+      const b = await createTrip(u.accessToken, "Beta");
+      const c = await createTrip(u.accessToken, "Gamma");
+
+      // Newest first until something is arranged.
+      const before_ = await home(u.accessToken);
+      assert.deepEqual(
+        before_.trips.map((t) => t.name),
+        ["Gamma", "Beta", "Alpha"],
+      );
+
+      await http()
+        .patch("/dashboard/order")
+        .set("Authorization", `Bearer ${u.accessToken}`)
+        .send({ tripIds: [a.id, c.id, b.id] })
+        .expect(204);
+
+      const after_ = await home(u.accessToken);
+      assert.deepEqual(
+        after_.trips.map((t) => t.name),
+        ["Alpha", "Gamma", "Beta"],
+      );
+    });
+
+    it("leaves everyone else's overview alone", async () => {
+      const mine = await makeUser("order-mine");
+      const theirs = await makeUser("order-theirs");
+      const shared = await createTrip(mine.accessToken, "Shared");
+      // A second trip each, so both have an order that could be disturbed.
+      await createTrip(mine.accessToken, "Mine only");
+      const alsoTheirs = await createTrip(theirs.accessToken, "Theirs only");
+      await prisma.tripMembership.create({
+        data: { tripId: shared.id, userId: theirs.user.id, role: "PARTICIPANT" },
+      });
+
+      const theirsBefore = await home(theirs.accessToken);
+      await http()
+        .patch("/dashboard/order")
+        .set("Authorization", `Bearer ${mine.accessToken}`)
+        .send({ tripIds: [shared.id] })
+        .expect(204);
+
+      const theirsAfter = await home(theirs.accessToken);
+      assert.deepEqual(
+        theirsAfter.trips.map((t) => t.id),
+        theirsBefore.trips.map((t) => t.id),
+      );
+      assert.equal(
+        theirsAfter.trips.some((t) => t.id === alsoTheirs.id),
+        true,
+      );
+    });
+
+    it("ignores an id the caller is not a member of, and arranges the rest", async () => {
+      // A tile deleted or left in another tab is the ordinary way a stale id
+      // arrives. Failing the whole drag over it would leave the arrangement
+      // half-applied over something nobody did wrong.
+      const u = await makeUser("order-stale");
+      const stranger = await makeUser("order-stranger");
+      const a = await createTrip(u.accessToken, "Kept A");
+      const b = await createTrip(u.accessToken, "Kept B");
+      const notMine = await createTrip(stranger.accessToken, "Not mine");
+
+      await http()
+        .patch("/dashboard/order")
+        .set("Authorization", `Bearer ${u.accessToken}`)
+        .send({ tripIds: [b.id, notMine.id, a.id] })
+        .expect(204);
+
+      const view = await home(u.accessToken);
+      assert.deepEqual(
+        view.trips.map((t) => t.name),
+        ["Kept B", "Kept A"],
+      );
+
+      // And the stranger's own trip is where it was, not position 1.
+      const strangerView = await home(stranger.accessToken);
+      assert.equal(strangerView.trips[0]?.id, notMine.id);
+    });
+
+    it("rejects a body that is not a list of ids", async () => {
+      const u = await makeUser("order-invalid");
+      for (const body of [{ tripIds: "nope" }, { tripIds: ["not-a-uuid"] }, {}]) {
+        await http()
+          .patch("/dashboard/order")
+          .set("Authorization", `Bearer ${u.accessToken}`)
+          .send(body)
+          .expect(400);
+      }
+    });
+
+    it("requires authentication", async () => {
+      await http().patch("/dashboard/order").send({ tripIds: [] }).expect(401);
+    });
+  });
 });

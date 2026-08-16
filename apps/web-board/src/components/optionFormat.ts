@@ -1,4 +1,5 @@
 import type { OptionDateGranularity, OptionView } from "@gtp/types";
+import { UI_LOCALE } from "../lib/locale";
 import { formatMoney } from "../lib/money";
 
 /**
@@ -35,12 +36,12 @@ export function dateRangeLabel(
 ): string | null {
   if (!startsAt && !endsAt) return null;
   const day = (s: string) =>
-    new Date(s).toLocaleDateString(undefined, {
+    new Date(s).toLocaleDateString(UI_LOCALE, {
       month: "short",
       day: "numeric",
     });
   const time = (s: string) =>
-    new Date(s).toLocaleTimeString(undefined, {
+    new Date(s).toLocaleTimeString(UI_LOCALE, {
       hour: "2-digit",
       minute: "2-digit",
     });

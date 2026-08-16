@@ -609,6 +609,17 @@ model TripMembership {
   // for this member without touching their global preference or the always-on
   // in-app bell. Lives on the membership so it dies with it.
   muted    Boolean  @default(false)
+  // Where this trip sits in THIS member's overview (Phase: post-launch). Lives
+  // on the membership rather than the trip because the order is one person's
+  // view of their own list — two members of the same trip may quite reasonably
+  // put it in different places, and nobody should be able to reorder anyone
+  // else's home page by dragging a tile on theirs.
+  //
+  // Nullable, and null sorts last: an existing membership has never been
+  // arranged, and a default of 0 would have claimed every one of them was
+  // deliberately placed first. Only the tiles someone has actually dragged
+  // carry a number, and the rest keep falling back to newest-first.
+  sortOrder Int?
   // Which invite link (if any) this member joined through. Provenance only; the
   // link may later be disabled/deleted without touching the membership, so it is
   // a nullable soft reference (onDelete: SetNull), not a hard FK.

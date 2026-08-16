@@ -1,3 +1,4 @@
+import { UI_LOCALE } from "./locale";
 /**
  * Picking a time of day, without a spinner.
  *
@@ -79,7 +80,10 @@ export function timeChoices(current: string): string[] {
  * same split the money fields use. Falls back to the raw value if the runtime
  * has no `Intl` data for the locale, which is better than an empty option.
  */
-export function formatTimeOfDay(value: string, locale?: string): string {
+export function formatTimeOfDay(
+  value: string,
+  locale: string = UI_LOCALE,
+): string {
   const minutes = toMinutes(value);
   if (minutes === null) return value;
   const d = new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60);

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { UI_LOCALE } from "../lib/locale";
 import {
   useChat,
   useTripMembers,
@@ -29,7 +30,7 @@ const OVERFLOW_RESERVE_PX = 56;
 const TAB_GAP_PX = 5;
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, {
+  return new Date(iso).toLocaleTimeString(UI_LOCALE, {
     hour: "2-digit",
     minute: "2-digit",
   });
