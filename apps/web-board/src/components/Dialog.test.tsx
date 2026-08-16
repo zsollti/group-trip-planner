@@ -60,18 +60,52 @@ describe("Dialog", () => {
     fireEvent.click(screen.getByText("Open"));
     const dialog = screen.getByRole("dialog");
     const first = screen.getByText("First");
-    const last = screen.getByText("Last");
+    // The shell's own close button, which is last in the DOM even though it is
+    // drawn in the top-right corner — so it, not the content's last control,
+    // is where the trap wraps from.
+    const close = screen.getByRole("button", { name: "Close" });
 
     // Tab from the last control wraps to the first rather than reaching the
     // page behind — without this, aria-modal="true" would be a false promise.
-    last.focus();
+    close.focus();
     fireEvent.keyDown(dialog, { key: "Tab" });
     expect(document.activeElement).toBe(first);
 
     // ...and Shift+Tab from the first wraps back to the last.
     first.focus();
     fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
-    expect(document.activeElement).toBe(last);
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("puts initial focus on the content, not on its own close button", () => {
+    // The close button is deliberately last in the DOM for exactly this
+    // reason. Ordering it first would read better in source and would quietly
+    // steal the caret from every dialog that opens on a form — the control
+    // would work perfectly and the typing would go nowhere.
+    render(<Harness />);
+    fireEvent.click(screen.getByText("Open"));
+    expect(document.activeElement).toBe(screen.getByText("First"));
+  });
+
+  it("closes from the corner button", () => {
+    const onClose = vi.fn();
+    render(<Harness onClose={onClose} />);
+    fireEvent.click(screen.getByText("Open"));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("scrolls its body, not the whole card", () => {
+    // The card must not scroll: the close button is positioned against it, and
+    // an absolutely-positioned child of a scrolling box scrolls away with the
+    // content. That is the bug this arrangement exists to prevent, and the
+    // activity feed — the one dialog whose content grows without limit — is
+    // where it showed.
+    render(<Harness />);
+    fireEvent.click(screen.getByText("Open"));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelector(".board__dialog-body")).not.toBeNull();
+    expect(screen.getByText("First").closest(".board__dialog-body")).not.toBeNull();
   });
 
   it("restores focus to whatever opened it", () => {

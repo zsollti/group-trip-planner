@@ -318,10 +318,13 @@ export function OptionForm({
           </p>
         ) : null}
 
+        {/*
+         * One button, not two. Cancel and the corner X did the same thing, and
+         * a pair where one is destructive-sounding and the other is the only
+         * way to commit invites the wrong click — the dangerous half of that
+         * pair sat directly beside "Propose option".
+         */}
         <div className="board__dialog-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
           <Button
             type="submit"
             variant="primary"

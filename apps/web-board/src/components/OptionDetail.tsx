@@ -1,4 +1,3 @@
-import { Button } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
   isHttpUrl,
@@ -153,11 +152,6 @@ export function OptionDetail({
           </dd>
         </dl>
 
-        <div className="board__dialog-actions">
-          <Button type="button" variant="primary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
       </>
     </Dialog>
   );

@@ -138,6 +138,66 @@ body {
   background-size: 22px 22px;
 }
 
+/* --- Scrollbars -------------------------------------------------------------
+ *
+ * Every scrolling surface in this app was drawing the operating system's
+ * default bar, which meant a light-grey trough with a mid-grey thumb sitting on
+ * a dark board in dark mode — the one element in the whole interface that had
+ * never heard of the theme. Not a small detail either: the lane strip, the
+ * chat, the dialogs and the itinerary all scroll, so the undesigned bar is on
+ * screen most of the time.
+ *
+ * Declared twice on purpose, and the duplication is not laziness:
+ *
+ * - `scrollbar-color` / `scrollbar-width` are the standard properties. Firefox
+ *   has had them for years and Chrome since 121, and they are what will still
+ *   be here in five years — but they only take a thumb and a track colour.
+ * - `::-webkit-scrollbar` is the older, non-standard pseudo-element set, still
+ *   the only thing Safari understands. A browser that supports both prefers the
+ *   standard property, so these do not fight; each is simply the one that lands.
+ *
+ * Both are painted from theme tokens rather than fixed colours, so light and
+ * dark are the same rule read against different variables — the same mechanism
+ * the rest of the stylesheet uses, which is the point.
+ */
+* {
+  scrollbar-width: thin;
+  /* thumb, then track. `color-mix` against the page keeps the bar a tint of the
+     surface it sits on rather than a grey that belongs to neither theme. */
+  scrollbar-color: color-mix(in srgb, var(--board-fg) 24%, transparent)
+    transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+/* Transparent, so a bar over cream paper and one over a dark lane each take the
+   colour of what is behind them instead of stamping a trough on top. */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--board-fg) 24%, transparent);
+  border-radius: 999px;
+  /* A transparent border with `background-clip: padding-box` is what insets the
+     thumb inside the track: without it the thumb spans the full width and the
+     bar reads as a solid slab rather than as a handle. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--board-fg) 42%, transparent);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+/* Where a horizontal and a vertical bar meet. Left to the browser it is a small
+   grey square, which is the one part of the default that survives styling the
+   rest — and the most obviously undesigned pixel on the page. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Phase 3.5: a faint scattered travel-motif backdrop behind every page. Purely
  * decorative (aria-hidden in the markup) and non-interactive; sits on its own
  * layer beneath the content so it never touches layout or focus. */
@@ -1139,14 +1199,63 @@ body {
  * Create buttons off a 720px screen with no way to scroll to them.
  */
 .board__dialog {
+  position: relative;
   width: min(26rem, 92vw);
   max-height: 86vh;
-  overflow-y: auto;
+  /* A column so the heading holds its place and only the body scrolls. The
+     card itself must NOT scroll: the close button is positioned against it,
+     and an absolutely-positioned child of a scrolling box scrolls away with
+     the content — which is the bug this whole arrangement exists to avoid. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 20px 50px rgb(var(--board-shadow) / 0.25);
+}
+.board__dialog-head {
+  flex: none;
+  /* Room for the close button, so a long title wraps before it reaches it
+     instead of running underneath. */
+  padding-right: 2rem;
+}
+.board__dialog-body {
+  /* `min-height: 0` because a flex item's automatic minimum is its content:
+     without it the body refuses to shrink, the card grows past its max-height,
+     and nothing scrolls at all. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* The way out of every dialog, in the corner people already look for it.
+   Sits over the card's own padding rather than taking a row of its own. */
+.board__dialog-x {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--board-dim);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.board__dialog-x:hover {
+  color: var(--board-fg);
+  border-color: var(--lane-line);
+  background: color-mix(in srgb, var(--board-fg) 6%, transparent);
+}
+.board__dialog-x:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
 }
 .board__dialog-actions {
   display: flex;
