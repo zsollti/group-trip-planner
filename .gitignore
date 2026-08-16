@@ -62,3 +62,6 @@ linkedin.md
 aurora.md
 cv.html
 cv.pdf
+
+# Written by the deploy so the operator console can name the running build.
+apps/api/build.txt

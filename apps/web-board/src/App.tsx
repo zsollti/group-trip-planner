@@ -9,6 +9,7 @@ import { TripDetail } from "./routes/TripDetail";
 import { Timeline } from "./routes/Timeline";
 import { Join } from "./routes/Join";
 import { Settings } from "./routes/Settings";
+import { Admin } from "./routes/Admin";
 import { Unsubscribed } from "./routes/Unsubscribed";
 
 /**
@@ -47,6 +48,18 @@ export function App() {
           element={
             <RequireAuth>
               <Settings />
+            </RequireAuth>
+          }
+        />
+        {/* The operator's console. Guarded only as "signed in" here, because
+            the real gate is the API's: every /admin request 404s for anyone
+            this deployment has not named. Routing cannot be the check — a
+            client-side role is a suggestion. */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <Admin />
             </RequireAuth>
           }
         />

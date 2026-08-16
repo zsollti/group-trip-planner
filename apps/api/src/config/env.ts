@@ -58,6 +58,32 @@ const baseEnvSchema = z.object({
         .filter(Boolean),
     ),
 
+  // --- The operator's console (post-launch) ---
+  //
+  // Who may open /admin, by email address. **Empty by default, which turns the
+  // console off entirely** — every admin route 403s and the app has no such
+  // page. Nothing is admin unless a deployment says so.
+  //
+  // Deliberately configuration and not a column on `User`. Being an operator is
+  // a property of *this deployment*, not of a person: it needs no migration to
+  // grant or revoke, it survives a database restore, and — the part that
+  // matters — nobody who obtains a write to the users table can promote
+  // themselves with it. The cost is that it is not queryable in SQL, which is
+  // the right trade for a list that is one line long.
+  //
+  // Compared case-insensitively; addresses are stored as given but matched
+  // lowercased, because an operator typing their own address into a Railway
+  // variable should not have to think about it.
+  ADMIN_EMAILS: z
+    .string()
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
   // --- Google OAuth (Phase 1.0). All three must be set to enable the Google
   //     sign-in routes; otherwise GET /auth/google 404s and the flow is off. ---
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -85,12 +111,18 @@ const baseEnvSchema = z.object({
   // backstop for everything with no budget of its own — in practice, the reads.
   //
   // It was 100 a minute, and the browser suite measured what one member costs:
-  // a brisk minute on a board is ~30 hits on `GET …/options` alone, because the
-  // board refetches every lane's options after each mutation. An IP key is
+  // a brisk minute on a board was ~30 hits on `GET …/options` alone, because
+  // the board refetched every lane's options after each mutation. An IP key is
   // shared by everyone behind one router, so five people planning together on
   // the office wifi are already at the limit — a control that fires on the
   // product working rather than on abuse. It cost us a red CI first, which is
   // the polite version of finding out.
+  //
+  // That per-member figure is now much lower: a write applies its own response
+  // to the cache instead of re-reading the lane, and the live broadcast only
+  // refreshes what the change could reach. **The limit stays at 600 anyway** —
+  // it was never sized by one member's traffic but by a whole household or
+  // office sharing one address, and that has not changed.
   //
   // 600 keeps a real backstop (10 a second per endpoint from one address) with
   // room for a group to share an address. It is not what protects the expensive

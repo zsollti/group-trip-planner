@@ -733,3 +733,32 @@ model ExchangeRate {
 
   @@map("exchange_rates")
 }
+
+/// An operator action taken from the admin console (post-launch).
+///
+/// Separate from {@link AuditEvent} because that one is trip-scoped: its
+/// `tripId` is required and cascades from the trip, so an action against a user
+/// account has nowhere to live in it, and its `AuditAction` enum describes trip
+/// events only. Merging the two would have meant making `tripId` nullable —
+/// weakening a guarantee that holds today for every row in that table — to
+/// accommodate a different kind of event entirely.
+///
+/// **Nothing here references a live row.** The actor's email and the subject
+/// are snapshotted strings, not foreign keys, so the record of "who marked this
+/// account verified" survives both accounts being deleted. A log whose rows
+/// vanish with their subject cannot answer the question it exists for.
+model AdminAuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// One of the shared `AdminAuditAction` values. Stored as text rather than a
+  /// Postgres enum so adding an action later is not a migration on a type.
+  action     String
+  /// The operator's address at the time of the action.
+  actorEmail String
+  /// Who or what it was done to, in words (usually an email).
+  subject    String?
+  createdAt  DateTime @default(now())
+
+  /// The console's only query: newest first.
+  @@index([createdAt])
+  @@map("admin_audit_events")
+}

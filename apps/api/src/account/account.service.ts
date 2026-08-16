@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, User } from "@prisma/client";
 import {
   planAccountDeletion,
@@ -8,6 +8,8 @@ import {
   type OwnedTripForDeletion,
   type UpdateNotificationPreferencesInput,
 } from "@gtp/types";
+import { ENV } from "../config/config.module.js";
+import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { toAuthUser } from "../auth/auth.mapper.js";
 import { ImageAttachmentService } from "../uploads/image-attachment.service.js";
@@ -26,6 +28,7 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly images: ImageAttachmentService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   /**
@@ -194,7 +197,7 @@ export class AccountService {
       where: { id: user.id },
       data: { avatarUrl: stored.url },
     });
-    return toAuthUser(updated);
+    return toAuthUser(updated, this.env.ADMIN_EMAILS);
   }
 
   /** Clear the avatar and delete the object it pointed at. */
@@ -204,6 +207,6 @@ export class AccountService {
       data: { avatarUrl: null },
     });
     await this.images.discard(user.avatarUrl);
-    return toAuthUser(updated);
+    return toAuthUser(updated, this.env.ADMIN_EMAILS);
   }
 }

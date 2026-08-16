@@ -57,6 +57,15 @@ export const AuthUser = z.object({
   /** Profile picture, or null when none is set — the UI draws initials then
    *  (Phase 6.2). Always a URL this service issued. */
   avatarUrl: z.string().nullable(),
+  /**
+   * Whether this deployment treats the account as an operator (post-launch).
+   *
+   * Present so the app knows whether to offer the console's link; it is **not**
+   * what protects it. The routes are guarded server-side against the same
+   * configuration, so flipping this in a debugger reveals a link to a page
+   * whose every request 404s.
+   */
+  isAdmin: z.boolean(),
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 

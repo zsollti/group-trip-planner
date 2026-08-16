@@ -112,7 +112,7 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: User): AuthUser {
-    return toAuthUser(user);
+    return toAuthUser(user, this.env.ADMIN_EMAILS);
   }
 
   /**

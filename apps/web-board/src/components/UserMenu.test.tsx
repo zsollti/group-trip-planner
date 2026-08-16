@@ -37,6 +37,7 @@ const ada: AuthUser = {
   displayName: "Ada Lovelace",
   emailVerified: true,
   avatarUrl: null,
+  isAdmin: false,
 };
 
 describe("UserMenu", () => {
@@ -73,5 +74,21 @@ describe("UserMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: /account menu/i }));
     expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.queryByText(/delete account/i)).not.toBeInTheDocument();
+  });
+
+  it("offers the console only to an operator", () => {
+    // The link is a convenience, not a control: the API checks the same
+    // configuration on every /admin request, so hiding it is about not
+    // showing people a door they cannot open, and revealing it grants nothing.
+    const plain = renderMenu(ada);
+    fireEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    expect(screen.queryByRole("button", { name: /console/i })).toBeNull();
+    plain.unmount();
+
+    renderMenu({ ...ada, isAdmin: true });
+    fireEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    expect(
+      screen.getByRole("button", { name: /console/i }),
+    ).toBeInTheDocument();
   });
 });
