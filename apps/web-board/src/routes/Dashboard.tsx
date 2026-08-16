@@ -1,7 +1,24 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@gtp/ui-primitives";
-import { useAuth, useHomeDashboard } from "@gtp/api-client";
+import { useAuth, useHomeDashboard, useReorderTrips } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { UserMenu } from "../components/UserMenu";
@@ -30,6 +47,43 @@ function money(n: number, currency: string): string {
 function costLabel(cost: HomeTripSummary["cost"]): string {
   if (cost.length === 0) return "No committed cost";
   return cost.map((c) => money(c.committed, c.currency)).join(" · ");
+}
+
+/**
+ * One trip-board tile, draggable into the order this member wants.
+ *
+ * The grip is a button rather than the tile itself, for the same reason the
+ * option cards use one: the tile is a **link**, and a link that is also a drag
+ * handle either swallows the click that opens it or opens a trip every time
+ * someone tries to move it. It also gives the keyboard a real way in — dnd-kit
+ * drives a sortable list from the handle's own key events, so the arrangement
+ * is not a mouse-only feature.
+ */
+function SortableBoardTile({ trip }: { trip: HomeTripSummary }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: trip.id });
+  return (
+    <div
+      ref={setNodeRef}
+      className="board__tile-wrap"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : undefined,
+      }}
+    >
+      <button
+        type="button"
+        className="board__tile-grip"
+        aria-label={`Reorder ${trip.name}`}
+        {...attributes}
+        {...listeners}
+      >
+        ⠿
+      </button>
+      <BoardTile trip={trip} />
+    </div>
+  );
 }
 
 /** One trip-board tile in the overview (Phase 3.4) — with cost + pending. */
@@ -124,11 +178,40 @@ function Onboarding({
 export function Dashboard() {
   const { user } = useAuth();
   const dash = useHomeDashboard();
+  const reorder = useReorderTrips();
   const [createOpen, setCreateOpen] = useState(false);
+  const sensors = useSensors(
+    // The same 6px threshold the board uses: a tile is a link, and without a
+    // distance a click that trembles becomes a drag that never opens anything.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const list = dash.data?.trips ?? [];
   const active = list.filter((t) => t.status === "ACTIVE");
   const history = list.filter((t) => t.status === "HISTORY");
+
+  /**
+   * Commit a drop.
+   *
+   * Only the **active** tiles are sortable — History is what a trip becomes
+   * rather than somewhere you put it — so the ids sent are the reordered active
+   * list followed by history in the order it already had. The server stores
+   * positions for the whole page, so leaving history out would let it drift
+   * above the arrangement the next time anything was dragged.
+   */
+  function onDragEnd(e: DragEndEvent) {
+    const { active: dragged, over } = e;
+    if (!over || dragged.id === over.id) return;
+    const ids = active.map((t) => t.id);
+    const from = ids.indexOf(String(dragged.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    reorder.mutate([
+      ...arrayMove(ids, from, to),
+      ...history.map((t) => t.id),
+    ]);
+  }
 
   return (
     <main className="board board--measure">
@@ -181,11 +264,24 @@ export function Dashboard() {
         />
       ) : (
         <>
-          <div className="board__tiles" aria-label="Your trip boards">
-            {active.map((trip) => (
-              <BoardTile key={trip.id} trip={trip} />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={active.map((t) => t.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="board__tiles" aria-label="Your trip boards">
+                {active.map((trip) => (
+                  <SortableBoardTile key={trip.id} trip={trip} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+          {/* History is not arrangeable: it is what a trip becomes when it ends,
+              not a place you put one, so these keep their own order. */}
           {history.length > 0 ? (
             <>
               <p className="board__eyebrow board__history-head">History</p>

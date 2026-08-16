@@ -227,9 +227,10 @@ export type HomeTripSummary = z.infer<typeof HomeTripSummary>;
 
 /**
  * The all-trips home dashboard (`GET /dashboard`). `trips` is one offset-paginated
- * page (newest first); the front-ends split it into Active and History sections
- * by each trip's `status`. `total` is the caller's full trip count, so a UI can
- * offer "show more".
+ * page in the caller's **own** order — the arrangement they have dragged their
+ * tiles into, then newest-first for everything they have not; the front-ends
+ * split it into Active and History sections by each trip's `status`. `total` is
+ * the caller's full trip count, so a UI can offer "show more".
  */
 export const HomeDashboardView = z.object({
   trips: z.array(HomeTripSummary),
@@ -238,3 +239,23 @@ export const HomeDashboardView = z.object({
   offset: z.number().int().nonnegative(),
 });
 export type HomeDashboardView = z.infer<typeof HomeDashboardView>;
+
+/**
+ * Rearrange the caller's own overview (`PATCH /dashboard/order`).
+ *
+ * The whole visible order, not a "move this one there": a list of ids is the
+ * state the client already holds after a drop, it needs no separate notion of
+ * where a tile came from, and two people dragging at once cannot interleave
+ * into an order neither of them asked for.
+ *
+ * Ids the caller is not a member of are **ignored rather than rejected** —
+ * being sent a stale id is the ordinary consequence of a trip being deleted or
+ * left in another tab, and a 404 would leave the arrangement half-applied over
+ * something nobody did wrong. Nothing here can touch another member's order: the
+ * number is written on the caller's own membership row.
+ */
+export const ReorderTripsInput = z.object({
+  /** Every trip id on the caller's page, in the order they should now appear. */
+  tripIds: z.array(z.string().uuid()).max(200),
+});
+export type ReorderTripsInput = z.infer<typeof ReorderTripsInput>;

@@ -1,3 +1,4 @@
+import { UI_LOCALE } from "./locale";
 /**
  * Month-grid arithmetic for the range picker — everything about *which days a
  * month draws* and nothing about how they are drawn.
@@ -94,26 +95,26 @@ export function monthGrid(cursor: MonthCursor): GridDay[] {
   return days;
 }
 
-/** The month's name and year in the reader's locale, for the grid's caption. */
+/** The month's name and year, for the grid's caption. */
 export function monthLabel(cursor: MonthCursor): string {
   return new Date(Date.UTC(cursor.year, cursor.month, 1)).toLocaleDateString(
-    undefined,
+    UI_LOCALE,
     { month: "long", year: "numeric", timeZone: "UTC" },
   );
 }
 
-/** Weekday initials, Monday first, in the reader's locale. */
+/** Weekday initials, Monday first. */
 export function weekdayLabels(): { short: string; long: string }[] {
   // Any Monday will do; 2026-01-05 is one.
   const monday = Date.UTC(2026, 0, 5);
   return Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
     const d = new Date(monday + i * 86_400_000);
     return {
-      short: d.toLocaleDateString(undefined, {
+      short: d.toLocaleDateString(UI_LOCALE, {
         weekday: "narrow",
         timeZone: "UTC",
       }),
-      long: d.toLocaleDateString(undefined, {
+      long: d.toLocaleDateString(UI_LOCALE, {
         weekday: "long",
         timeZone: "UTC",
       }),

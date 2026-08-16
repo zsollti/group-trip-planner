@@ -92,6 +92,7 @@ export {
   dashboardKeys,
   useTripDashboard,
   useHomeDashboard,
+  useReorderTrips,
 } from "./dashboard.js";
 export {
   notificationKeys,

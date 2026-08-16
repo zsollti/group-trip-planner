@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { UI_LOCALE } from "../lib/locale";
 import { Link, useParams } from "react-router-dom";
 import {
   useCategoriesOptions,
@@ -20,7 +21,7 @@ import { ToggleSwitch } from "../components/ToggleSwitch";
 function fmtTripDate(iso: string | null): string {
   const d = tripDateForDisplay(iso);
   return d
-    ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    ? d.toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" })
     : "—";
 }
 

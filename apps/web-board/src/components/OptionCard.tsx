@@ -226,11 +226,13 @@ export function OptionCard({
           price and the votes. It moved to the detail dialog, which already
           named the proposer — and the edit that flags stale votes is now shown
           where it has consequences, on the votes themselves. */}
-      {locked ? (
-        <p className="lane__decided">
-          ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
-        </p>
-      ) : null}
+      {/* "✦ Decided · Ada" used to sit here, and it was the third thing on the
+          card saying the same thing: a decision already reads as settled from
+          the card's own treatment and its place at the top of the lane. Naming
+          who locked it is worth knowing once, not on every card in the lane —
+          the detail dialog says it, which is where someone goes when they want
+          to know *why* rather than *what*. Dropping the row is what takes a
+          locked card back to the height of an unlocked one. */}
       <VoteDots
         tripId={tripId}
         category={category.id}

@@ -140,6 +140,55 @@ export function CostDonut({
   );
 }
 
+/**
+ * The same ring with nothing in it — one unbroken grey circle.
+ *
+ * The cost strip has two states where there is no composition to draw: a trip
+ * that has locked nothing yet, and one whose locked money cannot be charted
+ * (priced in a currency no rate reaches the trip's own, or priced at zero). Both
+ * used to fall through to a **bar** — which, with nothing to fill it, rendered
+ * as an empty track next to a figure of zero. An empty bar reads as a broken
+ * chart rather than as an empty one, and it put a second, differently shaped
+ * picture on a surface whose chart is a ring.
+ *
+ * So the shape is constant and only its content varies: the ring is always
+ * there, and grey all the way round means the money has not been decided yet.
+ * It reuses the wedges' own headroom colour, so "not spent" looks the same here
+ * as it does on a ring that is partly filled.
+ */
+export function EmptyCostDonut({
+  label,
+}: {
+  label: { headline: string; caption: string };
+}) {
+  return (
+    <div className="cost-donut">
+      <svg
+        className="cost-donut__ring"
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        aria-hidden="true"
+      >
+        <circle
+          className="cost-donut__headroom"
+          cx={CENTRE}
+          cy={CENTRE}
+          r={RADIUS}
+          strokeWidth={THICKNESS}
+        />
+      </svg>
+      <div className="cost-donut__centre">
+        <strong
+          className="cost-donut__figure"
+          style={{ fontSize: `${centreFontRem(label.headline, 98)}rem` }}
+        >
+          {label.headline}
+        </strong>
+        <span className="cost-donut__caption">{label.caption}</span>
+      </div>
+    </div>
+  );
+}
+
 /** One stable key per slice; the tail has no category id to use. */
 function keyOf(slice: CostSlice): string {
   return slice.categoryId ?? "tail";

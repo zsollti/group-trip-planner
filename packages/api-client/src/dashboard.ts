@@ -1,4 +1,10 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import type { HomeDashboardView, TripDashboardView } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 
@@ -40,5 +46,48 @@ export function useHomeDashboard(
     queryKey: dashboardKeys.home(limit, offset),
     queryFn: () =>
       apiFetch<HomeDashboardView>(`/dashboard?limit=${limit}&offset=${offset}`),
+  });
+}
+
+/**
+ * Save the caller's own arrangement of their overview.
+ *
+ * **Writes the new order into the cache first and does not invalidate on
+ * success.** A drag is one of the few mutations where the client is the
+ * authority on the result: the tile is already under the pointer where the user
+ * put it, and refetching would replay the same order a beat later — or worse,
+ * animate the tile back and forth if the request is slow. The rollback on
+ * failure is the honest part: if the write is refused, the tiles return to
+ * where they were rather than showing an order the server does not have.
+ */
+export function useReorderTrips(
+  limit = 20,
+  offset = 0,
+): UseMutationResult<void, ApiError, readonly string[], { previous?: HomeDashboardView }> {
+  const qc = useQueryClient();
+  const key = dashboardKeys.home(limit, offset);
+  return useMutation({
+    mutationFn: (tripIds: readonly string[]) =>
+      apiFetch<void>("/dashboard/order", {
+        method: "PATCH",
+        body: JSON.stringify({ tripIds }),
+      }),
+    onMutate: async (tripIds) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<HomeDashboardView>(key);
+      if (previous) {
+        const byId = new Map(previous.trips.map((t) => [t.id, t]));
+        qc.setQueryData<HomeDashboardView>(key, {
+          ...previous,
+          trips: tripIds
+            .map((id) => byId.get(id))
+            .filter((t): t is HomeDashboardView["trips"][number] => Boolean(t)),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _ids, context) => {
+      if (context?.previous) qc.setQueryData(key, context.previous);
+    },
   });
 }

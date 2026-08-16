@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { UI_LOCALE } from "../lib/locale";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
@@ -44,7 +45,7 @@ const ROLE_LABEL: Record<TripDetailData["role"], string> = {
  */
 function fmtDate(iso: string | null): string {
   const d = tripDateForDisplay(iso);
-  return d ? d.toLocaleDateString() : "—";
+  return d ? d.toLocaleDateString(UI_LOCALE) : "—";
 }
 
 /**

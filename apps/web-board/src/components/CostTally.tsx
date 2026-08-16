@@ -2,6 +2,7 @@ import { useTripCategories, useTripDashboard } from "@gtp/api-client";
 import type { CategoryView, TripDashboardView } from "@gtp/types";
 import { CostBar } from "./CostBar";
 import { CostComposition } from "./CostComposition";
+import { EmptyCostDonut } from "./CostDonut";
 import { costComposition } from "../lib/costComposition";
 // The strip's private formatter moved to `lib/money` when the option cards
 // needed the same thing. One definition, so a total and the cards it is the sum
@@ -102,11 +103,25 @@ function TallyBody({
   // for part of the group and the split matters to this reader.
   const personal = mine.allIn?.perPerson !== locked.allIn?.perPerson;
 
-  // Nothing decided and priced yet. The target still shows if there is one:
-  // hiding it until the first price would read as an edit that failed to save.
+  // Nothing decided and priced yet. The ring still draws, empty: the strip's
+  // shape should not change the moment the first option is locked, and a grey
+  // circle says "nothing decided" in the same language a part-filled one says
+  // the rest. The figure in its hole is a real zero in the trip's own currency
+  // — the unit the target below is in, so the two can be read together.
+  //
+  // The target still shows if there is one: hiding it until the first price
+  // would read as an edit that failed to save.
   if (locked.parts.length === 0) {
     return (
       <>
+        <div className="cost-comp__chart">
+          <EmptyCostDonut
+            label={{
+              headline: money(0, d.defaultCurrency),
+              caption: "per person",
+            }}
+          />
+        </div>
         <p className="board__tally-muted">
           Lock a priced option to start the tally.
         </p>
@@ -195,8 +210,27 @@ function Headline({
           {figure(all.perPerson, all.currency, all.approximate)} per person
         </span>
       </p>
-      {verdict ? (
+      {verdict && verdict.spend > 0 ? (
         <CostBar spend={verdict.spend} target={verdict.target} />
+      ) : null}
+      {/*
+       * A target with nothing counted against it yet.
+       *
+       * The bar above is drawn from `verdict.spend`, which is the locked money
+       * **in the trip's own currency** — so a trip whose only locked option is
+       * priced in something else (or priced at zero) fills none of it, and an
+       * empty track beside a figure of zero reads as a chart that failed rather
+       * than one with nothing to say. The ring says the same thing on purpose.
+       */}
+      {verdict && verdict.spend <= 0 ? (
+        <div className="cost-comp__chart">
+          <EmptyCostDonut
+            label={{
+              headline: money(0, verdict.currency),
+              caption: "per person",
+            }}
+          />
+        </div>
       ) : null}
     </div>
   );

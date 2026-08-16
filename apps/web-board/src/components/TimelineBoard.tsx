@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { UI_LOCALE } from "../lib/locale";
 import {
   categoryOptionFields,
   type CategoryView,
@@ -20,7 +21,7 @@ import {
 /** Clock time of a moment, or the interval it occupies within its day. */
 function timeLabel(entry: TimelineEntry): string {
   const at = (ms: number) =>
-    new Date(ms).toLocaleTimeString(undefined, {
+    new Date(ms).toLocaleTimeString(UI_LOCALE, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -236,7 +237,7 @@ export function TimelineBoard({
             >
               <h3 className="tl__day-head">
                 <span className="tl__day-name">
-                  {new Date(day.at).toLocaleDateString(undefined, {
+                  {new Date(day.at).toLocaleDateString(UI_LOCALE, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",
