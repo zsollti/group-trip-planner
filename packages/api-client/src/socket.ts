@@ -463,11 +463,18 @@ export function useChat(
  * Keep the board live off the trip socket (Phase 4.5 retrofit, FR-29). When any
  * member proposes/edits/deletes an option, votes, or an organizer locks/unlocks a
  * decision, the server broadcasts {@link OPTIONS_CHANGED_EVENT}; this hook
- * invalidates the affected lane's option query plus the cost dashboard, category,
- * and trip-detail queries, so a locked decision and newly-proposed cards appear
- * for every trip viewer without a manual refresh. The socket only signals *that*
- * a lane changed; TanStack Query re-reads the authoritative state over REST
- * ("tolerate refresh"). Mount once per trip screen with the shared socket.
+ * refetches what that change can have moved, so a locked decision and
+ * newly-proposed cards appear for every trip viewer without a manual refresh.
+ * The socket only signals *that* a lane changed; TanStack Query re-reads the
+ * authoritative state over REST ("tolerate refresh"). Mount once per trip screen
+ * with the shared socket.
+ *
+ * It used to refetch all four queries for every event, which meant a vote — the
+ * most frequent thing that happens on a board, and the one that can change the
+ * least — cost each viewer a lane read, a dashboard read, a category-list read
+ * and a trip-detail read. The last two cannot move on a vote. `payload.kind`
+ * carries the blast radius now, and this is where it pays; see
+ * {@link OptionsChangedKind} for what each one means and why.
  */
 export function useBoardLiveSync(
   socket: Socket | null,
@@ -478,12 +485,30 @@ export function useBoardLiveSync(
     if (!socket || !tripId) return;
     const onChanged = (payload: OptionsChanged) => {
       if (payload.tripId !== tripId) return;
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, payload.categoryId),
-      });
+      // Missing `kind` means an older server across a rolling deploy — refetch
+      // everything, which is what it used to do and is never wrong.
+      const kind = payload.kind ?? "decision";
+
+      // A category rename/repaint leaves the options alone; everything else
+      // that reaches here changed one.
+      if (kind !== "category") {
+        void qc.invalidateQueries({
+          queryKey: optionKeys.list(tripId, payload.categoryId),
+        });
+      }
+      // Every kind moves money: an option's cost, a decision's commitment, or
+      // the `categoryName`/palette the dashboard labels its lines with.
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
-      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
-      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+
+      if (kind === "decision" || kind === "category") {
+        // A lock bumps a single-choice category's version; a rename rewrites
+        // the lane's name and colour.
+        void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+      }
+      if (kind === "decision") {
+        // Only locking or unlocking a Dates option writes the trip's own dates.
+        void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      }
     };
     socket.on(OPTIONS_CHANGED_EVENT, onChanged);
     return () => {

@@ -194,6 +194,7 @@ export class CategoriesService {
     this.realtime.emitToTrip(ctx.trip.id, OPTIONS_CHANGED_EVENT, {
       tripId: ctx.trip.id,
       categoryId: existing.id,
+      kind: "category",
     } satisfies OptionsChanged);
     return toCategoryView(updated);
   }
