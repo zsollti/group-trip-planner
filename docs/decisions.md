@@ -133,6 +133,26 @@ Deciding is deliberately _not_ optimistic — the one place the UI waits for the
 server, because showing a decision that is about to be taken back is worse than
 showing a spinner.
 
+**Refetching is scoped to what a change can actually have moved.** The first
+version of the live board invalidated the same four queries — the lane, the cost
+dashboard, the category list and the trip detail — after every write and again
+on every broadcast, so voting cost seven requests: the most frequent act on a
+board, and the one that changes the least. Two things fixed that. Writes that
+touch exactly one option now apply their own response to the cached lane instead
+of discarding it and asking the server what it just told them. And the socket
+event carries how far the change reached, so an ordinary edit refreshes two
+queries where a decision still refreshes four.
+
+The interesting part is why the exceptions are exceptions. Locking is excluded
+from both, because in a single-choice lane it silently unlocks the option it
+supersedes — the response describes one card while a second one changed
+off-screen — and locking the Dates option writes the trip's own start and end.
+A renaming of a lane goes the other way: its options are untouched, but the cost
+dashboard labels its lines with the category's name and colour, so skipping it
+would leave the chart painted the old shade. The rule that emerges is that a
+cache is only as narrow as your account of what a write touches, and that
+account has to include the things the server does on your behalf.
+
 **CSS Modules and custom-property design tokens**, not Tailwind or CSS-in-JS.
 
 The tokens are the mechanism, not decoration: light and dark are the same

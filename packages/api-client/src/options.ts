@@ -3,6 +3,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
@@ -27,6 +28,50 @@ export const optionKeys = {
 
 function optionsPath(tripId: string, categoryId: string): string {
   return `/trips/${tripId}/categories/${categoryId}/options`;
+}
+
+/**
+ * Apply a mutation's own answer to the lane it changed, instead of throwing the
+ * answer away and refetching the lane to learn what we were just told.
+ *
+ * Every write below already returns the affected {@link OptionView}, computed
+ * for **this** caller — so `viewerHasVoted`, `viewerIsParticipant` and
+ * `effectiveHeadcount` are right for the person who will read them. Refetching
+ * bought nothing but a round trip, and it showed: a vote cost the voter a lane
+ * read they already had the answer to, then a second one when the server's own
+ * broadcast came back to them.
+ *
+ * **Only safe for writes that touch exactly one option.** Lock and unlock do
+ * not qualify and deliberately still invalidate: locking in a single-choice
+ * lane unlocks the sibling it supersedes, so the response describes one option
+ * while a second one changed off-screen.
+ *
+ * A cache miss is left alone rather than seeded — writing a one-element array
+ * into a lane that never loaded would render a lane containing only the option
+ * you just touched.
+ */
+function patchLane(
+  qc: QueryClient,
+  tripId: string,
+  categoryId: string,
+  apply: (options: OptionView[]) => OptionView[],
+): void {
+  qc.setQueryData<OptionView[]>(
+    optionKeys.list(tripId, categoryId),
+    (prev) => (prev ? apply(prev) : prev),
+  );
+}
+
+/** Replace one option in its lane, keeping the server's order. */
+function replaceInLane(
+  qc: QueryClient,
+  tripId: string,
+  categoryId: string,
+  updated: OptionView,
+): void {
+  patchLane(qc, tripId, categoryId, (options) =>
+    options.map((o) => (o.id === updated.id ? updated : o)),
+  );
 }
 
 /** A category's live options (any member). */
@@ -75,7 +120,11 @@ export function useCategoriesOptions(
   };
 }
 
-/** Propose an option (Participant+); refreshes the category's option list. */
+/**
+ * Propose an option (Participant+). The new card goes straight into its lane
+ * from the response; the server appends at `max(position) + 1` and the lane is
+ * ordered by position, so the end of the array is exactly where it belongs.
+ */
 export function useProposeOption(
   tripId: string,
   categoryId: string,
@@ -87,10 +136,8 @@ export function useProposeOption(
         method: "POST",
         body: input,
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (created) => {
+      patchLane(qc, tripId, categoryId, (options) => [...options, created]);
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
@@ -116,16 +163,19 @@ export function useEditOption(
         method: "PATCH",
         body,
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (updated) => {
+      replaceInLane(qc, tripId, categoryId, updated);
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
 }
 
-/** Soft-delete an option (proposer or Organizer). */
+/**
+ * Soft-delete an option (proposer or Organizer). The only write here that
+ * answers with nothing, so the lane is patched from the id we sent rather than
+ * from a response — a soft delete drops the row from every future listing, and
+ * it is the one option affected.
+ */
 export function useDeleteOption(
   tripId: string,
   categoryId: string,
@@ -136,10 +186,10 @@ export function useDeleteOption(
       apiFetch<void>(`${optionsPath(tripId, categoryId)}/${optionId}`, {
         method: "DELETE",
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (_void, optionId) => {
+      patchLane(qc, tripId, categoryId, (options) =>
+        options.filter((o) => o.id !== optionId),
+      );
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
@@ -173,6 +223,12 @@ export function useLockOption(
     // so the UI shows the current state — the front-runner someone else locked.
     // The trip detail is refreshed too: locking a Dates option writes the trip's
     // dates + expiry (Phase 2.5).
+    //
+    // This is the one write that must NOT be turned into a `patchLane` like its
+    // neighbours. Its response describes the option that was locked, while in a
+    // single-choice lane the server has just *unlocked the sibling it
+    // superseded* — an option the response says nothing about. Writing the
+    // response alone would leave two cards claiming to be the decision.
     onSettled: () => {
       void qc.invalidateQueries({
         queryKey: optionKeys.list(tripId, categoryId),
@@ -217,9 +273,9 @@ export function useUnlockOption(
 /**
  * Reorder a category's options (Organizers, Phase 3.5 — the board's
  * drag-to-reorder gesture). The caller sends the full set of the category's live
- * option ids in the desired order; the server reassigns `position` by index. On
- * success it refreshes the option list. Reordering is display-only, so nothing
- * else (cost, votes, category) needs invalidating.
+ * option ids in the desired order; the server reassigns `position` by index and
+ * answers with the whole reordered lane, which goes straight into the cache.
+ * Reordering is display-only, so nothing else (cost, votes, category) moves.
  */
 export function useReorderOptions(
   tripId: string,
@@ -232,10 +288,8 @@ export function useReorderOptions(
         method: "POST",
         body: input,
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (reordered) => {
+      qc.setQueryData(optionKeys.list(tripId, categoryId), reordered);
     },
   });
 }
@@ -326,10 +380,8 @@ export function useToggleVote(
         `${optionsPath(tripId, categoryId)}/${optionId}/votes`,
         { method: hasVoted ? "DELETE" : "POST" },
       ),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (updated) => {
+      replaceInLane(qc, tripId, categoryId, updated);
       // A vote can change the front-runner, and therefore the projection.
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
@@ -362,10 +414,8 @@ export function useToggleParticipation(
         `${optionsPath(tripId, categoryId)}/${optionId}/participation`,
         { method: isParticipant ? "DELETE" : "POST" },
       ),
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: optionKeys.list(tripId, categoryId),
-      });
+    onSuccess: (updated) => {
+      replaceInLane(qc, tripId, categoryId, updated);
       void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });

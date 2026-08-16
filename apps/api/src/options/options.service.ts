@@ -18,6 +18,7 @@ import {
   type LockDatesRejection,
   type LockOptionInput,
   type OptionsChanged,
+  type OptionsChangedKind,
   type OptionView,
   type ReorderOptionsInput,
   type UnlockOptionInput,
@@ -125,9 +126,19 @@ export class OptionsService {
    * locked decision and newly-proposed cards appear without a manual refresh. The
    * emit is null-safe (no-op when no socket server is attached), so it never
    * affects the pure/e2e option tests.
+   *
+   * `kind` tells the listener how far to look — see {@link OptionsChangedKind}.
+   * It defaults to `option` because that is what almost every caller here is;
+   * the two that reach further (lock and unlock) say so explicitly, and getting
+   * that wrong is the one way this can under-refresh, so they are the sites to
+   * check if a decision ever stops propagating.
    */
-  private emitOptionsChanged(tripId: string, categoryId: string): void {
-    const payload: OptionsChanged = { tripId, categoryId };
+  private emitOptionsChanged(
+    tripId: string,
+    categoryId: string,
+    kind: OptionsChangedKind = "option",
+  ): void {
+    const payload: OptionsChanged = { tripId, categoryId, kind };
     this.realtime.emitToTrip(tripId, OPTIONS_CHANGED_EVENT, payload);
   }
 
@@ -666,7 +677,7 @@ export class OptionsService {
       }
     });
 
-    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    this.emitOptionsChanged(ctx.trip.id, categoryId, "decision");
     // A settled decision is the notification everyone on the trip wants (5.1).
     // Unlocking is deliberately *not* a trigger — SRS §Phase-5 lists three, and
     // an unlock is an intermediate state, not news.
@@ -743,7 +754,7 @@ export class OptionsService {
       }
     });
 
-    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    this.emitOptionsChanged(ctx.trip.id, categoryId, "decision");
     return this.readOption(option.id, user.id, ctx.trip._count.memberships);
   }
 
