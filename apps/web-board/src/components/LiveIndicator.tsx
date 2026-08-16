@@ -15,7 +15,10 @@ import type { SocketStatus } from "@gtp/api-client";
  * stays silent because it is the ordinary first half-second of every page load.
  *
  * Presentational — the `useTripSocket` subscription is owned once by TripDetail
- * and shared with the chat panel, so there's a single socket per trip.
+ * and shared with the chat panel, so there's a single socket per trip. The
+ * state itself is published by that header as `data-socket-status`, for the
+ * readers (tests, debugging) that need all three states rather than the one
+ * worth a person's attention.
  */
 export function LiveIndicator({ status }: { status: SocketStatus }) {
   if (status !== "error") return null;

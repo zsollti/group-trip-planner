@@ -130,7 +130,18 @@ export function TripDetail() {
 
   return (
     <main className="board">
-      <header className="board__bar">
+      {/*
+       * The socket's state, published but not drawn.
+       *
+       * It used to be legible only as the word "Live" in the corner, so
+       * removing that badge would have taken the machine-readable signal with
+       * it — and something does read it: the reconnect journey waits for *both*
+       * browsers to be in the trip room before it sends the message it later
+       * asserts on, which is the difference between testing recovery and
+       * testing a race. The state exists either way; this is the seam that
+       * keeps it observable without spending a corner of the header on it.
+       */}
+      <header className="board__bar" data-socket-status={tripSocket.status}>
         <Link className="board__brand board__brand--link" to="/">
           ‹ Boards
         </Link>
