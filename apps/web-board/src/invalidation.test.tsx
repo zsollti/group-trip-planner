@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { Socket } from "socket.io-client";
 import {
   createQueryClient,
+  type LiveSocket,
   useBoardLiveSync,
   useCategoryOptions,
   useToggleVote,
@@ -134,7 +134,7 @@ function mockFetch(): void {
  * three methods {@link useBoardLiveSync} touches are real.
  */
 function fakeSocket(): {
-  socket: Socket;
+  socket: LiveSocket;
   emit: (payload: OptionsChanged) => void;
 } {
   const handlers = new Map<string, (payload: OptionsChanged) => void>();
@@ -145,7 +145,7 @@ function fakeSocket(): {
     off: (event: string) => {
       handlers.delete(event);
     },
-  } as unknown as Socket;
+  } as unknown as LiveSocket;
   return {
     socket,
     emit: (payload) => handlers.get(OPTIONS_CHANGED_EVENT)?.(payload),
@@ -157,7 +157,7 @@ function Harness({
   socket,
   onVote,
 }: {
-  socket: Socket;
+  socket: LiveSocket;
   onVote: (fn: () => void) => void;
 }) {
   useTrip("t1");
