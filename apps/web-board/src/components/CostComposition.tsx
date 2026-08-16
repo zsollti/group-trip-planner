@@ -1,5 +1,9 @@
+import { useState } from "react";
 import type { CategoryView } from "@gtp/types";
-import type { CostComposition as Composition } from "../lib/costComposition";
+import type {
+  CostComposition as Composition,
+  CostSlice,
+} from "../lib/costComposition";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { useCostChartForm, type CostChartForm } from "../lib/costChartForm";
 import { CostDonut } from "./CostDonut";
@@ -33,6 +37,22 @@ export function CostComposition({
   headline: { headline: string; caption: string; exact?: string | null };
 }) {
   const [form, setForm] = useCostChartForm();
+  /**
+   * Which slice the reader is on, shared by the ring and the list.
+   *
+   * It lives here rather than in either of them because both are two views of
+   * the same row: hovering a wedge lights its line, hovering a line lifts its
+   * wedge. Two local states would let them disagree, which is the one thing a
+   * chart and its legend must never do.
+   */
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activate = (categoryId: string | null | undefined) =>
+    setActiveId(categoryId === undefined ? null : (categoryId ?? "tail"));
+
+  const write = (n: number) =>
+    composition.approximate
+      ? approx(n, composition.currency)
+      : money(n, composition.currency);
 
   return (
     <section className="cost-comp">
@@ -47,6 +67,9 @@ export function CostComposition({
             composition={composition}
             categories={categories}
             label={headline}
+            write={write}
+            activeId={activeId}
+            onActivate={activate}
           />
         </div>
       ) : (
@@ -70,7 +93,13 @@ export function CostComposition({
         </div>
       )}
 
-      <CostLegend composition={composition} categories={categories} />
+      <CostLegend
+        composition={composition}
+        categories={categories}
+        write={write}
+        activeId={activeId}
+        onActivate={activate}
+      />
       <Overshoot composition={composition} />
       <Excluded composition={composition} />
       <Uncounted composition={composition} />
@@ -160,34 +189,116 @@ function CostStack({
 function CostLegend({
   composition,
   categories,
+  write,
+  activeId,
+  onActivate,
 }: {
   composition: Composition;
   categories: readonly CategoryView[];
+  write: (amount: number) => string;
+  activeId: string | null;
+  onActivate: (categoryId: string | null | undefined) => void;
 }) {
-  const { slices, currency, approximate } = composition;
-  const write = (n: number) =>
-    approximate ? approx(n, currency) : money(n, currency);
+  const { slices, overspend } = composition;
 
   return (
     <ul className="cost-comp__legend">
       {slices.map((slice) => (
-        <li className="cost-comp__row" key={slice.categoryId ?? "tail"}>
-          <span
-            className={
-              "cost-comp__swatch" +
-              (slice.categoryId === null ? " cost-comp__swatch--tail" : "")
-            }
-            style={categoryHueStyleById(slice.categoryId, categories)}
-            aria-hidden="true"
-          />
-          <span className="cost-comp__name">{slice.label}</span>
-          <span className="cost-comp__share">
-            {Math.round(slice.share * 100)}%
-          </span>
-          <span className="cost-comp__amount">{write(slice.amount)}</span>
-        </li>
+        <LegendRow
+          key={slice.categoryId ?? "tail"}
+          slice={slice}
+          categories={categories}
+          write={write}
+          active={(slice.categoryId ?? "tail") === activeId}
+          onActivate={onActivate}
+        />
       ))}
+      {/*
+       * The overshoot as a row of the breakdown, not a footnote under it.
+       *
+       * The ring now draws it as a length, and a length on a chart with no
+       * matching line in the list is the kind of mark a reader has to guess at
+       * — which is exactly what was wrong with the tick it replaced. It carries
+       * no share: it is not a part of the circle, it is how far the circle went
+       * past the budget.
+       */}
+      {overspend > 0 ? (
+        <li className="cost-comp__row cost-comp__row--over">
+          <span className="cost-comp__swatch cost-comp__swatch--over" aria-hidden="true" />
+          <span className="cost-comp__name">Over budget</span>
+          <span className="cost-comp__share" />
+          <span className="cost-comp__amount">{write(overspend)}</span>
+        </li>
+      ) : null}
     </ul>
+  );
+}
+
+/**
+ * One lane in the breakdown, and the keyboard's way into the chart.
+ *
+ * A button rather than a list item with handlers, because this is the path a
+ * keyboard takes: the ring is `aria-hidden` decoration, so if focusing a lane
+ * were not possible here it would not be possible at all, and the hover would
+ * be a mouse-only feature dressed up as an affordance.
+ */
+function LegendRow({
+  slice,
+  categories,
+  write,
+  active,
+  onActivate,
+}: {
+  slice: CostSlice;
+  categories: readonly CategoryView[];
+  write: (amount: number) => string;
+  active: boolean;
+  onActivate: (categoryId: string | null | undefined) => void;
+}) {
+  return (
+    <li className={"cost-comp__row" + (active ? " cost-comp__row--on" : "")}>
+      <button
+        type="button"
+        className="cost-comp__row-btn"
+        onMouseEnter={() => onActivate(slice.categoryId)}
+        onMouseLeave={() => onActivate(undefined)}
+        onFocus={() => onActivate(slice.categoryId)}
+        onBlur={() => onActivate(undefined)}
+      >
+        <span
+          className={
+            "cost-comp__swatch" +
+            (slice.categoryId === null ? " cost-comp__swatch--tail" : "")
+          }
+          style={categoryHueStyleById(slice.categoryId, categories)}
+          aria-hidden="true"
+        />
+        <span className="cost-comp__name">{slice.label}</span>
+        <span className="cost-comp__share">
+          {Math.round(slice.share * 100)}%
+        </span>
+        <span className="cost-comp__amount">{write(slice.amount)}</span>
+        {/*
+         * What the lane's money went on, for a reader who cannot see the hole.
+         *
+         * Not rendered visibly here on purpose: focusing this row already puts
+         * the parts in the middle of the ring, and printing them twice on one
+         * screen would be the legend competing with the chart it explains.
+         * This copy is the same facts routed to the one reader the visual
+         * version never reaches, and it is always in the DOM rather than
+         * revealed, so it belongs to the button's description on focus instead
+         * of appearing out of nowhere.
+         */}
+        {slice.parts.length > 0 ? (
+          <span className="board__sr-only">
+            {" — "}
+            {slice.parts
+              .map((part) => `${part.label} ${write(part.amount)}`)
+              .join(", ")}
+          </span>
+        ) : null}
+      </button>
+    </li>
   );
 }
 

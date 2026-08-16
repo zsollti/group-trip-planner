@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { categoryOptionFields, type CategoryView } from "@gtp/types";
 import { CategoryIcon } from "./CategoryIcon";
+import { calendarDetail } from "../lib/calendarDetail";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { buildCalendar, hourLabels } from "../lib/calendar";
@@ -161,12 +162,21 @@ function TimedBlock({
       minute: "2-digit",
     });
 
+  // What the block is tall enough to say — cost first, then the note.
+  const detail = calendarDetail(heightMinutes);
+  const cost = costLabel(entry.option);
+  const note = entry.option.description?.trim();
+
   const style = {
     ...categoryHueStyle(entry.category),
     top: `${(topMinutes / totalMinutes) * 100}%`,
     height: `${(heightMinutes / totalMinutes) * 100}%`,
     left: `${(lane / laneCount) * 100}%`,
     width: `${(1 / laneCount) * 100}%`,
+    // The note is clamped to whatever the block has left, so a long one is
+    // trimmed by the browser at a line boundary instead of spilling past the
+    // block and over the hour below it.
+    "--note-lines": detail.noteLines,
   } as CSSProperties;
 
   return (
@@ -178,7 +188,7 @@ function TimedBlock({
         clashes ? "cal__event--clash" : "",
         // Under about 45 minutes there is no room for a second line, so the
         // title and time share one rather than being clipped mid-word.
-        heightMinutes <= 45 ? "cal__event--tight" : "",
+        detail.tight ? "cal__event--tight" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -191,6 +201,12 @@ function TimedBlock({
           ? at(entry.start)
           : `${at(entry.start)}–${at(entry.end)}`}
       </span>
+      {detail.showCost && cost ? (
+        <span className="cal__event-cost">{cost}</span>
+      ) : null}
+      {detail.showNote && note ? (
+        <span className="cal__event-note">{note}</span>
+      ) : null}
     </button>
   );
 }

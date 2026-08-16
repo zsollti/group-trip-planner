@@ -2268,28 +2268,89 @@ body {
   fill: none;
   stroke: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
 }
-/* Where the target ran out, on a ring that has already passed it. Two strokes:
-   a wide one in the surface colour, then the rule over it, which is the SVG
-   spelling of the halo the flat bar gets from a box-shadow — and it exists for
-   the same reason, since the mark's usual home is the middle of a saturated
-   wedge. */
-.cost-donut__limit-halo {
-  stroke: var(--lane-bg);
-  stroke-width: 6;
+/* How far past the budget, drawn on its own band outside the wedges.
+   Outside, because the overshoot is not a lane and must not eat one: the
+   wedges keep their true shares of the spend and this measures across them.
+   Round caps so a hairline overshoot is still a mark rather than nothing. */
+.cost-donut__over {
+  fill: none;
+  stroke: var(--board-danger);
+  stroke-width: 5;
+  stroke-linecap: round;
 }
+/* Where the budget ran out. Short, and outside the fills — the previous rule
+   crossed the middle of a saturated wedge, which is the one place a 2px red
+   line disappears. */
 .cost-donut__limit {
   stroke: var(--board-danger);
   stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* Reading one lane. The lift is on stroke-width, which grows the wedge about
+   its own centreline and so never moves its neighbours; `transition` keeps the
+   two directions symmetrical, since a wedge that grows fast and shrinks slowly
+   reads as sticky. The dim on the rest is what makes the lifted one legible
+   without changing any colour's meaning. */
+.cost-donut__wedge {
+  transition:
+    stroke-width 120ms ease-out,
+    opacity 120ms ease-out;
+}
+.cost-donut__wedge--off {
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cost-donut__wedge {
+    transition: none;
+  }
 }
 .cost-donut__centre {
   position: absolute;
-  inset: 0;
+  /* Confined to the hole rather than the whole box. `inset: 0` let a long
+     figure — six digits and a grouped separator, which is every HUF trip —
+     run straight over the ring and out the other side. 66% is the hole's own
+     width: (r - t/2) * 2 / size, the same arithmetic `donutCentre.ts` does. */
+  inset: 17%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.1rem;
   pointer-events: none;
+  text-align: center;
+}
+/* The lane being read: its name above the figure, quiet enough that the money
+   stays the thing the eye lands on. */
+.cost-donut__lane {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* What the lane's money went on. Three at most — the hole cannot hold more,
+   and the count of the rest is what keeps the short list honest. */
+.cost-donut__parts {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  max-width: 100%;
+  font-size: 0.56rem;
+  line-height: 1.25;
+  color: var(--board-dim);
+}
+.cost-donut__parts li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cost-donut__parts-more {
+  font-style: italic;
 }
 .cost-donut__figure {
   font-size: 1.15rem;
@@ -2344,10 +2405,66 @@ body {
   gap: 0.2rem;
 }
 .cost-comp__row {
+  font-size: 0.82rem;
+}
+/* The row is a button now — it is the keyboard's way into the chart, since the
+   ring itself is aria-hidden decoration. Stripped back to looking like the
+   line of text it was: a legend that suddenly reads as a row of controls
+   would be claiming these do something, and all they do is point. */
+.cost-comp__row-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.82rem;
+  width: 100%;
+  padding: 0.1rem 0.2rem;
+  margin: 0 -0.2rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+.cost-comp__row-btn:hover,
+.cost-comp__row--on .cost-comp__row-btn {
+  background: color-mix(in srgb, var(--board-fg) 7%, transparent);
+}
+/* The one place the ring's overshoot is named in words. No swatch colour of
+   its own beyond the danger ink — it is not a lane. */
+.cost-comp__row--over {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.1rem 0.2rem;
+  color: var(--board-danger);
+  font-weight: 600;
+}
+.cost-comp__swatch--over {
+  background: var(--board-danger);
+}
+/* What a lane's money went on, opened under the row the reader is on. Indented
+   to the swatch so it reads as belonging to the lane above it. */
+.cost-comp__parts {
+  list-style: none;
+  margin: 0.15rem 0 0.3rem;
+  padding: 0 0 0 1.5rem;
+  font-size: 0.74rem;
+  color: var(--board-dim);
+}
+.cost-comp__parts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.cost-comp__part-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cost-comp__part-amount {
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 .cost-comp__swatch {
   flex: none;
@@ -3534,6 +3651,37 @@ body {
   font-size: 0.66rem;
   white-space: nowrap;
 }
+/* What a taller block has room to add. The order is the point: the money is
+   short and is what the reader came to weigh, so it takes the line above the
+   note. Both are hidden entirely on blocks too short to hold them — see
+   `calendarDetail.ts`, which decides that rather than leaving it to overflow. */
+.cal__event-cost {
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal__event-note {
+  margin-top: 0.1rem;
+  font-size: 0.64rem;
+  line-height: 1.25;
+  color: var(--board-dim);
+  /* Clamped to the lines the block actually has left, so a long note is cut at
+     a line boundary instead of running past the block onto the hour below. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--note-lines, 2);
+  line-clamp: var(--note-lines, 2);
+  overflow: hidden;
+}
+/* A proposal's block is already quiet; its note must not fade into the paper
+   entirely, so it takes the body ink rather than a second dimming. */
+.cal__event--proposed .cal__event-note {
+  color: inherit;
+  opacity: 0.85;
+}
+
 /* A half-hour block has room for one line, not two. */
 .cal__event--tight {
   flex-direction: row;

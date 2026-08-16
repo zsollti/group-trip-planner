@@ -24,6 +24,21 @@ import type { DashboardLine, TripDashboardView } from "@gtp/types";
  *    print a number a cent away from the one beside it.
  */
 
+/**
+ * What one slice is made of, named.
+ *
+ * A wedge answers "how much of the money is this lane"; the parts answer the
+ * question the wedge immediately raises and cannot itself answer — **which
+ * decisions that lane's money actually went on**. For a category slice these
+ * are its locked options; for the folded tail they are the lanes inside it,
+ * which is the same kind of answer one level up.
+ */
+export interface CostPart {
+  readonly label: string;
+  /** Per-person money, in the composition's currency. */
+  readonly amount: number;
+}
+
 /** A lane's share of the circle. `categoryId` is null for the folded tail. */
 export interface CostSlice {
   readonly categoryId: string | null;
@@ -32,6 +47,8 @@ export interface CostSlice {
   readonly amount: number;
   /** Fraction of the whole circle — of `full`, not of `charted`. */
   readonly share: number;
+  /** Largest first. What this slice is made of — see {@link CostPart}. */
+  readonly parts: readonly CostPart[];
 }
 
 /**
@@ -135,7 +152,10 @@ function perPersonInTripCurrency(
  * currency. In each the caller falls back to the figures it already prints.
  */
 export function costComposition(d: TripDashboardView): CostComposition | null {
-  const byCategory = new Map<string, { label: string; amount: number }>();
+  const byCategory = new Map<
+    string,
+    { label: string; amount: number; parts: CostPart[] }
+  >();
   const excluded: ExcludedCost[] = [];
   const uncounted = new Set<string>();
   let charted = 0;
@@ -173,11 +193,14 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
 
     charted += money.amount;
     const acc = byCategory.get(line.categoryId);
-    if (acc) acc.amount += money.amount;
-    else
+    if (acc) {
+      acc.amount += money.amount;
+      acc.parts.push({ label: line.title, amount: money.amount });
+    } else
       byCategory.set(line.categoryId, {
         label: line.categoryName,
         amount: money.amount,
+        parts: [{ label: line.title, amount: money.amount }],
       });
   }
 
@@ -221,7 +244,12 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
  * them small — reading as itself.
  */
 function withTail(
-  ranked: readonly { categoryId: string; label: string; amount: number }[],
+  ranked: readonly {
+    categoryId: string;
+    label: string;
+    amount: number;
+    parts: readonly CostPart[];
+  }[],
   charted: number,
   full: number,
 ): CostSlice[] {
@@ -233,6 +261,7 @@ function withTail(
     label: s.label,
     amount: s.amount,
     share: s.amount / full,
+    parts: byAmount(s.parts),
   }));
 
   if (small.length >= 2) {
@@ -242,7 +271,20 @@ function withTail(
       label: `Other (${small.length} lanes)`,
       amount,
       share: amount / full,
+      // The tail's parts are the **lanes** it folded, not their options: this
+      // slice exists because those lanes were too small to name individually,
+      // and expanding it into a flat list of every option inside them would
+      // undo the folding at exactly the moment the reader asked what was
+      // folded. One level down is the answer; two is the original problem.
+      parts: byAmount(small.map((s) => ({ label: s.label, amount: s.amount }))),
     });
   }
   return slices;
+}
+
+/** Largest first, then by name, so a redraw never reshuffles equal parts. */
+function byAmount(parts: readonly CostPart[]): CostPart[] {
+  return [...parts].sort(
+    (a, b) => b.amount - a.amount || a.label.localeCompare(b.label),
+  );
 }
