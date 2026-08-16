@@ -219,7 +219,7 @@ export class AccountService {
       where: { id: user.id },
       data: { displayName: input.displayName },
     });
-    return toAuthUser(updated);
+    return toAuthUser(updated, this.env.ADMIN_EMAILS);
   }
 
   /** Clear the avatar and delete the object it pointed at. */

@@ -5,6 +5,8 @@ import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
+import { ENV } from "../src/config/config.module.js";
+import { loadEnv } from "../src/config/env.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { TokenService } from "../src/auth/token.service.js";
@@ -29,6 +31,10 @@ describe("Display name (e2e)", () => {
   const userIds: string[] = [];
   const http = () => request(app.getHttpServer());
 
+  // Matches the address `makeUser("admin")` builds, so that one account is an
+  // operator as far as the app is concerned.
+  const adminEmail = `name+admin+${suffix}@example.com`;
+
   async function makeUser(label: string) {
     const user = await prisma.user.create({
       data: {
@@ -51,6 +57,8 @@ describe("Display name (e2e)", () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(EmailService)
       .useValue(emailMock)
+      .overrideProvider(ENV)
+      .useValue({ ...loadEnv(), ADMIN_EMAILS: [adminEmail] })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -79,6 +87,29 @@ describe("Display name (e2e)", () => {
     assert.equal((res.body as { displayName: string }).displayName, "Ada Lovelace");
     const row = await prisma.user.findUniqueOrThrow({ where: { id: u.user.id } });
     assert.equal(row.displayName, "Ada Lovelace");
+  });
+
+  /**
+   * The rename answers with a full auth user, and an auth user carries the
+   * operator flag — which is derived from the env list, not stored on the row.
+   * Answering with a default-shaped user instead would sign an operator out of
+   * their own console until the next login, with the rename itself looking
+   * like it worked. The account has to be a real operator for this to mean
+   * anything: with the list empty, a right and a wrong answer are both `false`.
+   */
+  it("keeps you an operator when you rename yourself", async () => {
+    const u = await makeUser("admin");
+    assert.equal(u.user.email, adminEmail);
+
+    const res = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ displayName: "Renamed Operator" })
+      .expect(200);
+
+    const body = res.body as { displayName: string; isAdmin: boolean };
+    assert.equal(body.displayName, "Renamed Operator");
+    assert.equal(body.isAdmin, true);
   });
 
   it("trims, so a stray space is not part of your name", async () => {
