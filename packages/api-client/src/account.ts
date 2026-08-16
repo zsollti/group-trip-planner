@@ -10,6 +10,7 @@ import type {
   AuthUser,
   NotificationPreferences,
   UpdateNotificationPreferencesInput,
+  UpdateProfileInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 import { memberKeys } from "./members.js";
@@ -87,6 +88,31 @@ export function useUpdateNotificationPreferences(): UseMutationResult<
  * Member lists and chat carry their own copies of the avatar, so those caches
  * are invalidated too.
  */
+/**
+ * Rename yourself (post-launch).
+ *
+ * Answers with the updated {@link AuthUser}, which the caller pushes straight
+ * into the session — the same shape the avatar mutations use, and for the same
+ * reason: the header, the chat and the crew list all read the name from there,
+ * so one assignment updates every one of them without a refetch.
+ */
+export function useUpdateProfile(): UseMutationResult<
+  AuthUser,
+  ApiError,
+  UpdateProfileInput
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateProfileInput) =>
+      apiFetch<AuthUser>("/account/profile", { method: "PATCH", body: input }),
+    onSuccess: () => {
+      // Every member list in the cache is now showing the old name for this
+      // person — including, on a trip they are looking at, their own row.
+      void queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
 export function useSetAvatar(): UseMutationResult<AuthUser, ApiError, File> {
   const queryClient = useQueryClient();
   return useMutation({

@@ -1270,6 +1270,18 @@ body {
   color: var(--board-dim);
 }
 
+/* The name field and its Save, on one line — the button sits on the field's
+   baseline rather than under it, so the row reads as one control. */
+.settings__name {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.settings__name > :first-child {
+  flex: 1 1 14rem;
+}
+
 /* --- Palette picker ---------------------------------------------------------
  *
  * Eight swatches, each showing all three of its palette's colours in the order

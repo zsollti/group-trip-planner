@@ -63,6 +63,7 @@ export {
   useUpdateNotificationPreferences,
   useSetAvatar,
   useRemoveAvatar,
+  useUpdateProfile,
 } from "./account.js";
 export {
   categoryKeys,

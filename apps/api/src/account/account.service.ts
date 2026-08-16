@@ -7,6 +7,7 @@ import {
   type NotificationPreferences,
   type OwnedTripForDeletion,
   type UpdateNotificationPreferencesInput,
+  type UpdateProfileInput,
 } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
@@ -198,6 +199,27 @@ export class AccountService {
       data: { avatarUrl: stored.url },
     });
     return toAuthUser(updated, this.env.ADMIN_EMAILS);
+  }
+
+  /**
+   * Rename yourself (post-launch).
+   *
+   * A plain column write, and deliberately nothing more. The display name is
+   * denormalized nowhere — every surface that shows it (a proposal's proposer,
+   * a vote's avatar, a chat author, the crew panel) reads it through a join at
+   * request time, so one row changing is the whole change. The two places that
+   * *do* snapshot a name are the trip activity feed and the admin log, and both
+   * snapshot it precisely so history keeps saying what it said at the time.
+   */
+  async updateProfile(
+    user: User,
+    input: UpdateProfileInput,
+  ): Promise<AuthUser> {
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { displayName: input.displayName },
+    });
+    return toAuthUser(updated);
   }
 
   /** Clear the avatar and delete the object it pointed at. */
