@@ -278,15 +278,24 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <div className="board__dialog-actions">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={
-              stepIndex === 0 ? onClose : () => setStepIndex((i) => i - 1)
-            }
-          >
-            {stepIndex === 0 ? "Cancel" : "Back"}
-          </Button>
+          {/*
+           * Back, and only Back. This button used to be Cancel on the first
+           * step and Back on every other one — one control with two unrelated
+           * jobs, which meant the button in that position moved you between
+           * steps four times out of five and threw the form away the fifth.
+           * Abandoning the trip is the corner X now, in the place it is on
+           * every other dialog; this stays a step control and disappears when
+           * there is no step to go back to.
+           */}
+          {stepIndex > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setStepIndex((i) => i - 1)}
+            >
+              Back
+            </Button>
+          ) : null}
           <Button type="submit" variant="primary" disabled={isSubmitting}>
             {isSubmitting
               ? "Creating…"

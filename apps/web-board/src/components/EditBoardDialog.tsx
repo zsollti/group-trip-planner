@@ -179,9 +179,6 @@ export function EditBoardDialog({
               </p>
             ) : null}
             <div className="board__dialog-actions">
-              <Button type="button" variant="secondary" onClick={onClose}>
-                Cancel
-              </Button>
               <Button type="submit" variant="primary" disabled={isSubmitting}>
                 {isSubmitting ? "Saving…" : "Save changes"}
               </Button>

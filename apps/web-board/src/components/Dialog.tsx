@@ -156,11 +156,39 @@ export function Dialog({
         tabIndex={-1}
         onKeyDown={onKeyDown}
       >
-        {eyebrow ? <p className="board__eyebrow">{eyebrow}</p> : null}
-        <h2 className="board__title" id={titleId}>
-          {title}
-        </h2>
-        {children}
+        {/*
+         * The heading stays put and the body scrolls under it, rather than the
+         * whole card scrolling as one. The activity feed is what made the
+         * difference matter: a few hundred events pushed the only way out
+         * hundreds of pixels below the fold, so "close this" meant "scroll to
+         * the end of the history first".
+         */}
+        <div className="board__dialog-head">
+          {eyebrow ? <p className="board__eyebrow">{eyebrow}</p> : null}
+          <h2 className="board__title" id={titleId}>
+            {title}
+          </h2>
+        </div>
+        <div className="board__dialog-body">{children}</div>
+        {/*
+         * Last in the DOM on purpose, though it is drawn top-right.
+         *
+         * Initial focus is "the first focusable thing in the card", which is
+         * how a dialog that opens on a form puts the cursor in its first
+         * field. Putting the close button first in source would quietly take
+         * that over on every dialog in the app — the control would work and
+         * the typing would go nowhere. Ordering it last keeps that behaviour
+         * and costs nothing: Escape already closes, and the focus trap wraps,
+         * so it is one Shift+Tab from the first field either way.
+         */}
+        <button
+          type="button"
+          className="board__dialog-x"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
       </div>
     </div>
   );

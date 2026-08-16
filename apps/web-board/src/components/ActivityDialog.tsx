@@ -1,4 +1,3 @@
-import { Button } from "@gtp/ui-primitives";
 import { useTripActivity } from "@gtp/api-client";
 import { activityHeadline, type ActivityAction } from "@gtp/types";
 import { Dialog } from "./Dialog";
@@ -35,6 +34,12 @@ function when(iso: string): string {
  * Covers the four states — loading, error (with retry), genuinely empty, and
  * loaded — plus an explicit "Load older" rather than scroll-triggered paging,
  * which is both simpler and kinder to keyboard users.
+ *
+ * **No Close button of its own.** It had one, at the bottom, which is the worst
+ * possible place for it here: this is the one dialog whose content grows
+ * without limit, so on a busy trip the only way out sat below every event the
+ * trip had ever recorded. The shell's own close sits in the corner and stays
+ * there while the list scrolls under it.
  */
 export function ActivityDialog({
   tripId,
@@ -105,11 +110,6 @@ export function ActivityDialog({
           </>
         )}
 
-        <div className="board__dialog-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
       </>
     </Dialog>
   );

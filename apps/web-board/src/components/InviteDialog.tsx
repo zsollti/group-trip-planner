@@ -168,9 +168,6 @@ export function InviteDialog({
           ) : null}
 
           <div className="board__dialog-actions">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Close
-            </Button>
             <Button
               type="submit"
               variant="primary"
