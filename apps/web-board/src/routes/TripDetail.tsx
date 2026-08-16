@@ -24,7 +24,7 @@ import { BoardCanvas } from "../components/BoardCanvas";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
-import { NotificationBell } from "../components/NotificationBell";
+import { NotificationToasts } from "../components/NotificationToasts";
 import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
@@ -136,9 +136,11 @@ export function TripDetail() {
         </Link>
         <div className="board__bar-actions">
           {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
-          {/* The socket's personal room carries notifications for every trip the
-              user belongs to, not just this one (Phase 5.1, decision 1). */}
-          <NotificationBell socket={tripSocket.socket} />
+          {/* Only the toasts sit here now — the list itself is in the account
+              menu. The socket's personal room carries notifications for every
+              trip the user belongs to, not just this one (Phase 5.1,
+              decision 1). */}
+          <NotificationToasts socket={tripSocket.socket} />
           {/* Every member, and deliberately not role-gated: reading what the
               trip turned out to be is not an organizer's privilege. */}
           {trip.data ? (

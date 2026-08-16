@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type {
   CategoryView,
@@ -446,15 +446,19 @@ describe("the cost composition", () => {
     expect(hues).toContain("200");
   });
 
-  it("swaps the drawing without touching the figures", async () => {
+  it("draws the ring, and offers no shape to swap it for", async () => {
+    // The composition shipped as a donut *or* a stacked bar behind a segmented
+    // control. One surface with two drawings of one model turned out to be a
+    // question nobody had, so the bar and its toggle were removed. The legend
+    // is the part that never depended on either — it is the model, not the
+    // chart — and it still names every lane.
     const { container } = renderTally(worked(), LANES);
     await screen.findByText("Stay");
     expect(container.querySelector(".cost-donut")).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Bar" }));
-    expect(container.querySelector(".cost-donut")).toBeNull();
-    expect(container.querySelectorAll(".tally-bar__seg--cat")).toHaveLength(3);
-    // The legend is the same list either way — it is the model, not the chart.
+    expect(screen.queryByRole("button", { name: "Bar" })).toBeNull();
+    expect(screen.queryByRole("group", { name: /chart shape/i })).toBeNull();
+    expect(container.querySelector(".tally-bar__seg--cat")).toBeNull();
     expect(screen.getByText("Activities")).toBeInTheDocument();
   });
 

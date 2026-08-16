@@ -4,7 +4,6 @@ import { Button } from "@gtp/ui-primitives";
 import { useAuth, useHomeDashboard } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
-import { NotificationBell } from "../components/NotificationBell";
 import { UserMenu } from "../components/UserMenu";
 
 const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
@@ -143,9 +142,9 @@ export function Dashboard() {
           >
             ＋ New board
           </Button>
-          {/* No trip socket on the overview: the bell loads from the server and
-              refreshes on focus (live pushes need an open trip screen). */}
-          <NotificationBell />
+          {/* No notification surface of its own here: the list is in the
+              account menu, which fetches the count on every page. Live pushes
+              need an open trip screen, so there is no socket to toast from. */}
           <UserMenu />
         </div>
       </header>
