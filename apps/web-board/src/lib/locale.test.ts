@@ -61,10 +61,17 @@ describe("the language to start in, before a session exists", () => {
     expect(storedLocale()).toBe("en");
   });
 
+  it("honours a stored language this build offers", () => {
+    // `hu` was narrowed away here until Hungarian shipped, which is what stopped a
+    // stored value from a later build rendering a language this one did not have.
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, "hu");
+    expect(storedLocale()).toBe("hu");
+  });
+
   it("narrows anything it cannot use to the default", () => {
     // A stored value from a build that offered more languages than this one — or
     // simply junk — must not render a language that does not exist here.
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, "hu");
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, "de");
     expect(storedLocale()).toBe("en");
     window.localStorage.setItem(LOCALE_STORAGE_KEY, "!!");
     expect(storedLocale()).toBe("en");
