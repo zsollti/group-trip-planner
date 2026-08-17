@@ -83,7 +83,26 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     await expect(
       memberPage.getByRole("heading", { name: tripName, level: 1 }),
     ).toBeVisible();
-    await expect(memberPage.getByText("Participant")).toBeVisible();
+    // Scoped to the eyebrow, which is the board's statement about *this
+    // reader* — "Active · Participant". Unscoped, the same words also appear in
+    // the crew panel, where they are Grace's row in a list of people, and the
+    // assertion resolved to two elements and failed strict mode.
+    //
+    // It failed as a **race**, which is why it stood for months and then went
+    // red on main while passing on the branch beside it: the crew roster is
+    // fetched, so before it lands there is one match and after it there are
+    // two. A locator that means one thing only when a request is slow is a
+    // locator that will fail on someone else's machine, eventually.
+    await expect(memberPage.locator(".board__eyebrow")).toContainText(
+      "Participant",
+    );
+    // And the other half of what redeeming an invite means, which the ambiguous
+    // locator was accidentally straddling: they are on the crew now, and
+    // everyone can see it. Asserted where it belongs rather than by matching a
+    // word that happens to appear in both places.
+    await expect(
+      memberPage.getByRole("region", { name: "Crew" }).getByText("Grace"),
+    ).toBeVisible();
 
     // --- the participant proposes an option --------------------------------
     const memberTransport = laneNamed(memberPage, "Transport");
