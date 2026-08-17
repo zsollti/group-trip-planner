@@ -212,7 +212,9 @@ function RangeGrid({
         {/* The instruction, where the question is asked. Two taps is obvious
             once you have done it and not before. */}
         <p className="drange__prompt" role="status">
-          {start && !end ? "Now pick the end" : "Pick a start, then an end"}
+          {start && !end
+            ? t("Now pick the end")
+            : t("Pick a start, then an end")}
         </p>
         <button
           type="button"

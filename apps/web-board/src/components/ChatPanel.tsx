@@ -96,8 +96,8 @@ function MessageRow({
     <li
       className={
         "board__msg" +
-        (message.pending ? " board__msg--pending" : "") +
-        (message.failed ? " board__msg--failed" : "")
+        (message.pending ? t(" board__msg--pending") : "") +
+        (message.failed ? t(" board__msg--failed") : "")
       }
     >
       <div className="board__msg-head">
@@ -109,7 +109,7 @@ function MessageRow({
         />
         <span className="board__msg-author">{message.authorName}</span>
         <span className="board__msg-time">
-          {message.failed ? "not sent" : timeLabel(message.createdAt)}
+          {message.failed ? t("not sent") : timeLabel(message.createdAt)}
         </span>
         {canDelete ? (
           <button
@@ -135,7 +135,7 @@ function MessageRow({
               className={
                 "board__reaction" +
                 (myUserId && g.userIds.includes(myUserId)
-                  ? " board__reaction--on"
+                  ? t(" board__reaction--on")
                   : "")
               }
               aria-pressed={myUserId ? g.userIds.includes(myUserId) : false}
@@ -259,8 +259,8 @@ export function ChatPanel({
   function channelName(channel: ChannelView): string {
     if (channel.type === "GENERAL") return tripName;
     return channel.categoryId
-      ? (categoryName.get(channel.categoryId) ?? "Discussion")
-      : "Discussion";
+      ? (categoryName.get(channel.categoryId) ?? t("Discussion"))
+      : t("Discussion");
   }
   /** Shortened for a chip; `channelName` stays available for `title`. */
   function channelLabel(channel: ChannelView): string {
@@ -388,7 +388,7 @@ export function ChatPanel({
             <strong
               title={activeChannel ? channelName(activeChannel) : undefined}
             >
-              {activeChannel ? channelLabel(activeChannel) : "Chat"}
+              {activeChannel ? channelLabel(activeChannel) : t("Chat")}
             </strong>
             <button
               type="button"
@@ -449,7 +449,7 @@ export function ChatPanel({
                         title={channelName(c)}
                         className={
                           "board__chat-tab" +
-                          (isActive ? " board__chat-tab--active" : "")
+                          (isActive ? t(" board__chat-tab--active") : "")
                         }
                         onClick={() => selectChannel(c.id)}
                       >
@@ -526,7 +526,9 @@ export function ChatPanel({
                     disabled={chat.loadingOlder}
                     onClick={chat.loadOlder}
                   >
-                    {chat.loadingOlder ? "Loading…" : "Load older messages"}
+                    {chat.loadingOlder
+                      ? t("Loading…")
+                      : t("Load older messages")}
                   </button>
                 ) : null}
                 {chat.messages.length === 0 ? (

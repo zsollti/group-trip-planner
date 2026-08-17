@@ -5,6 +5,7 @@ import { Menu } from "./Menu";
 import { Avatar } from "./Avatar";
 import { NotificationsDialog } from "./NotificationsDialog";
 import { useTheme } from "../lib/theme";
+import { t } from "../lib/i18n";
 
 /**
  * The account (avatar) menu (Phase 3.5) shown top-right on every page: the
@@ -49,7 +50,9 @@ export function UserMenu() {
   return (
     <>
       <Menu
-        label={unread > 0 ? `Account menu, ${unread} unread` : "Account menu"}
+        label={
+          unread > 0 ? `Account menu, ${unread} unread` : t("Account menu")
+        }
         align="right"
         triggerClassName="board__avatar-trigger"
         trigger={
@@ -67,16 +70,16 @@ export function UserMenu() {
         }
         items={[
           {
-            label: resolved === "dark" ? "☀ Light mode" : "☾ Dark mode",
+            label: resolved === "dark" ? t("☀ Light mode") : t("☾ Dark mode"),
             onSelect: toggle,
           },
           {
-            label: "Notifications",
+            label: t("Notifications"),
             onSelect: () => setNotificationsOpen(true),
             badge: unread,
           },
           {
-            label: "Settings",
+            label: t("Settings"),
             onSelect: () => navigate("/settings"),
           },
           // Only for accounts this deployment names as operators, and only as a
@@ -84,9 +87,9 @@ export function UserMenu() {
           // /admin request is checked against the same configuration server-side,
           // so forcing this open reveals a page that answers 404 to everything.
           ...(user?.isAdmin
-            ? [{ label: "⚙ Console", onSelect: () => navigate("/admin") }]
+            ? [{ label: t("⚙ Console"), onSelect: () => navigate("/admin") }]
             : []),
-          { label: "Log out", onSelect: () => void logout() },
+          { label: t("Log out"), onSelect: () => void logout() },
         ]}
       />
       {notificationsOpen ? (

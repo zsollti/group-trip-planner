@@ -30,13 +30,7 @@ import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
 import { plural, t } from "../lib/i18n";
-
-const ROLE_LABEL: Record<TripDetailData["role"], string> = {
-  OWNER: "Owner",
-  CO_ORGANIZER: "Co-organizer",
-  PARTICIPANT: "Participant",
-  GUEST: "Guest",
-};
+import { roleLabel } from "../lib/roles";
 
 /**
  * A trip's own date, which is a calendar day rather than an instant — so it
@@ -82,7 +76,7 @@ export function TripDetail() {
       navigate("/");
     } catch (err) {
       setActionError(
-        err instanceof ApiError ? err.message : "Could not delete the board",
+        err instanceof ApiError ? err.message : t("Could not delete the board"),
       );
     }
   }
@@ -99,7 +93,7 @@ export function TripDetail() {
       setActionError(
         err instanceof ApiError
           ? err.message
-          : "Could not change email for this board",
+          : t("Could not change email for this board"),
       );
     }
   }
@@ -110,19 +104,19 @@ export function TripDetail() {
   function tripMenuItems(trip_: TripDetailData): MenuItem[] {
     const role = trip_.role;
     const items: MenuItem[] = [
-      { label: "Members", onSelect: () => setManagingMembers(true) },
-      { label: "Activity", onSelect: () => setViewingActivity(true) },
+      { label: t("Members"), onSelect: () => setManagingMembers(true) },
+      { label: t("Activity"), onSelect: () => setViewingActivity(true) },
       {
-        label: trip_.viewerMuted ? "🔔 Unmute email" : "🔕 Mute email",
+        label: trip_.viewerMuted ? t("🔔 Unmute email") : t("🔕 Mute email"),
         onSelect: () => void onToggleMute(!trip_.viewerMuted),
       },
     ];
     if (can(role, "trip.edit")) {
-      items.push({ label: "Edit trip", onSelect: () => setEditing(true) });
+      items.push({ label: t("Edit trip"), onSelect: () => setEditing(true) });
     }
     if (can(role, "trip.delete")) {
       items.push({
-        label: "Delete trip",
+        label: t("Delete trip"),
         onSelect: () => setConfirmingDelete(true),
         danger: true,
       });
@@ -187,7 +181,7 @@ export function TripDetail() {
           <p className="board__form-error" role="alert">
             {trip.error.status === 404
               ? t("That board doesn't exist or you're not a member.")
-              : "Couldn't load this board."}
+              : t("Couldn't load this board.")}
           </p>
           <Link className="board__cta" to="/">
             {t("Back to boards")}
@@ -196,8 +190,8 @@ export function TripDetail() {
       ) : (
         <>
           <p className="board__eyebrow">
-            {trip.data.status === "HISTORY" ? "History" : "Active"} ·{" "}
-            {ROLE_LABEL[trip.data.role]}
+            {trip.data.status === "HISTORY" ? t("History") : t("Active")} ·{" "}
+            {roleLabel(trip.data.role)}
             {/* Muting is invisible by nature — say so, or people forget they
                 did it and wonder why the inbox is quiet (Phase 5.3). */}
             {trip.data.viewerMuted ? (
@@ -334,7 +328,7 @@ export function TripDetail() {
                   disabled={deleteTrip.isPending}
                   onClick={onDelete}
                 >
-                  {deleteTrip.isPending ? "Deleting…" : "Delete board"}
+                  {deleteTrip.isPending ? t("Deleting…") : t("Delete board")}
                 </Button>
               </div>
             </Dialog>

@@ -102,10 +102,10 @@ export function CostDonut({
                 className={
                   "cost-donut__wedge" +
                   (slice.categoryId === null
-                    ? " cost-donut__wedge--tail"
+                    ? t(" cost-donut__wedge--tail")
                     : "") +
-                  (isActive ? " cost-donut__wedge--on" : "") +
-                  (dimmed ? " cost-donut__wedge--off" : "")
+                  (isActive ? t(" cost-donut__wedge--on") : "") +
+                  (dimmed ? t(" cost-donut__wedge--off") : "")
                 }
                 style={categoryHueStyleById(slice.categoryId, categories)}
                 cx={CENTRE}

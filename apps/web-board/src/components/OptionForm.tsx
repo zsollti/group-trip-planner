@@ -196,8 +196,8 @@ export function OptionForm({
 
   return (
     <Dialog
-      eyebrow={isEdit ? "Edit" : "Propose"}
-      title={isEdit ? "Edit option" : "Propose an option"}
+      eyebrow={isEdit ? t("Edit") : t("Propose")}
+      title={isEdit ? t("Edit option") : t("Propose an option")}
       size="wide"
       onClose={onClose}
     >
@@ -370,7 +370,11 @@ export function OptionForm({
             variant="primary"
             disabled={pending || !title.trim()}
           >
-            {pending ? "Saving…" : isEdit ? "Save option" : "Propose option"}
+            {pending
+              ? t("Saving…")
+              : isEdit
+                ? t("Save option")
+                : t("Propose option")}
           </Button>
         </div>
       </form>

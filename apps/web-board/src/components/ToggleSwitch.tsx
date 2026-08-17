@@ -9,6 +9,8 @@
  * `pending` disables the control while a write is in flight so a double-click
  * cannot queue two opposite updates and land on the wrong one.
  */
+import { t } from "../lib/i18n";
+
 export function ToggleSwitch({
   checked,
   onChange,
@@ -52,7 +54,9 @@ export function ToggleSwitch({
         onClick={() => onChange(!checked)}
       >
         <span className="board__switch-knob" aria-hidden="true" />
-        <span className="board__switch-state">{checked ? "On" : "Off"}</span>
+        <span className="board__switch-state">
+          {checked ? t("On") : t("Off")}
+        </span>
       </button>
     </div>
   );

@@ -42,7 +42,7 @@ export function Login() {
       navigate(next ?? "/");
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Something went wrong",
+        err instanceof ApiError ? err.message : t("Something went wrong"),
       );
     }
   });
@@ -93,7 +93,7 @@ export function Login() {
             </p>
           ) : null}
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? "Signing in…" : "Sign in"}
+            {isSubmitting ? t("Signing in…") : t("Sign in")}
           </Button>
         </form>
         <div className="board__auth-divider" aria-hidden="true">

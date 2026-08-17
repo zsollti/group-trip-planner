@@ -29,7 +29,7 @@ export function Register() {
       setDone(true);
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Something went wrong",
+        err instanceof ApiError ? err.message : t("Something went wrong"),
       );
     }
   });
@@ -105,7 +105,7 @@ export function Register() {
             </p>
           ) : null}
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? "Creating…" : "Create account"}
+            {isSubmitting ? t("Creating…") : t("Create account")}
           </Button>
         </form>
         <p className="board__alt">

@@ -99,23 +99,27 @@ export function OptionCard({
         categoryVersion: category.version,
       });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Could not lock");
+      setActionError(
+        err instanceof ApiError ? err.message : t("Could not lock"),
+      );
     }
   }
 
   const openView = () => setViewing(true);
 
   const items: MenuItem[] = [];
-  items.push({ label: "View details", onSelect: openView });
+  items.push({ label: t("View details"), onSelect: openView });
   if (manageable && !frozen && !locked && onEdit) {
-    items.push({ label: "Edit", onSelect: () => onEdit(option) });
+    items.push({ label: t("Edit"), onSelect: () => onEdit(option) });
   }
   if (canDecide) {
     items.push(
       locked
-        ? { label: "Unlock", onSelect: unlock.run, disabled: unlock.pending }
+        ? { label: t("Unlock"), onSelect: unlock.run, disabled: unlock.pending }
         : {
-            label: category.singleChoice ? "Move to Decided" : "Lock card",
+            label: category.singleChoice
+              ? t("Move to Decided")
+              : t("Lock card"),
             onSelect: doLock,
             disabled: lock.isPending,
           },
@@ -123,7 +127,7 @@ export function OptionCard({
   }
   if (manageable && !frozen && !locked && onDelete) {
     items.push({
-      label: "Delete",
+      label: t("Delete"),
       onSelect: () => onDelete(option),
       danger: true,
       disabled: deleting,
@@ -140,7 +144,7 @@ export function OptionCard({
     <button
       type="button"
       className="lane__field-btn"
-      title={editable ? "Edit option" : "View details"}
+      title={editable ? t("Edit option") : t("View details")}
       onClick={editable ? openEdit : openView}
     >
       <span className={className}>{content}</span>
@@ -157,8 +161,8 @@ export function OptionCard({
       style={{ ...categoryHueStyle(category), ...style }}
       className={
         "lane__card lane__card--option" +
-        (settled ? " lane__card--settled" : "") +
-        (dragging ? " lane__card--dragging" : "")
+        (settled ? t(" lane__card--settled") : "") +
+        (dragging ? t(" lane__card--dragging") : "")
       }
     >
       <div className="lane__card-head">
@@ -191,7 +195,7 @@ export function OptionCard({
       </div>
       {dates
         ? field(
-            "lane__dates" + (elsewhere ? " lane__dates--elsewhere" : ""),
+            "lane__dates" + (elsewhere ? t(" lane__dates--elsewhere") : ""),
             <>
               <CalendarIcon /> {dates}
               {/* Advisory, never a rejection: the dates now say *when within the

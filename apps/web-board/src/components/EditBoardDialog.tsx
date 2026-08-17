@@ -49,7 +49,7 @@ export function EditBoardDialog({
       setCoverError(
         err instanceof ApiError
           ? err.message
-          : "Couldn't upload that cover. Please try again.",
+          : t("Couldn't upload that cover. Please try again."),
       );
     }
   }
@@ -62,7 +62,7 @@ export function EditBoardDialog({
       setCoverError(
         err instanceof ApiError
           ? err.message
-          : "Couldn't remove the cover. Please try again.",
+          : t("Couldn't remove the cover. Please try again."),
       );
     }
   }
@@ -94,7 +94,7 @@ export function EditBoardDialog({
         setConflict(true);
       } else {
         setFormError(
-          err instanceof ApiError ? err.message : "Could not save changes",
+          err instanceof ApiError ? err.message : t("Could not save changes"),
         );
       }
     }
@@ -186,7 +186,7 @@ export function EditBoardDialog({
             ) : null}
             <div className="board__dialog-actions">
               <Button type="submit" variant="primary" disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Save changes"}
+                {isSubmitting ? t("Saving…") : t("Save changes")}
               </Button>
             </div>
 

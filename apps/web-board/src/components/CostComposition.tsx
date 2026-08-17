@@ -171,7 +171,7 @@ function LegendRow({
   onActivate: (categoryId: string | null | undefined) => void;
 }) {
   return (
-    <li className={"cost-comp__row" + (active ? " cost-comp__row--on" : "")}>
+    <li className={"cost-comp__row" + (active ? t(" cost-comp__row--on") : "")}>
       <button
         type="button"
         className="cost-comp__row-btn"
@@ -183,7 +183,7 @@ function LegendRow({
         <span
           className={
             "cost-comp__swatch" +
-            (slice.categoryId === null ? " cost-comp__swatch--tail" : "")
+            (slice.categoryId === null ? t(" cost-comp__swatch--tail") : "")
           }
           style={categoryHueStyleById(slice.categoryId, categories)}
           aria-hidden="true"

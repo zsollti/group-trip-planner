@@ -62,8 +62,8 @@ export function Admin() {
       ) : overview.isError ? (
         <p className="board__form-error" role="alert">
           {overview.error.status === 404
-            ? "This deployment has no console configured for you."
-            : "Couldn't read the deployment."}
+            ? t("This deployment has no console configured for you.")
+            : t("Couldn't read the deployment.")}
         </p>
       ) : (
         <div className="admin">
@@ -113,7 +113,7 @@ function DemoPanel() {
     try {
       setResult(await reseed.mutateAsync());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "That didn't work.");
+      setError(err instanceof ApiError ? err.message : t("That didn't work."));
     }
   }
 
@@ -158,7 +158,7 @@ function DemoPanel() {
             disabled={reseed.isPending}
             onClick={() => setConfirming(true)}
           >
-            {reseed.isPending ? "Rebuilding…" : "Rebuild the demo trip"}
+            {reseed.isPending ? t("Rebuilding…") : t("Rebuild the demo trip")}
           </Button>
         </div>
       )}
@@ -178,7 +178,7 @@ function DemoPanel() {
             label={t("Replaced")}
             value={
               result.removedTrips === 0
-                ? "nothing — there was no demo trip here"
+                ? t("nothing — there was no demo trip here")
                 : `${result.removedTrips} previous demo trip(s)`
             }
           />
@@ -249,7 +249,7 @@ function ago(iso: string | null): string {
   if (!iso) return "never";
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(ms / 60_000);
-  if (mins < 1) return "just now";
+  if (mins < 1) return t("just now");
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 48) return `${hours}h ago`;
@@ -284,7 +284,7 @@ function SystemPanel({
         onClick={onRefresh}
         disabled={refreshing}
       >
-        {refreshing ? "Reading…" : "Refresh"}
+        {refreshing ? t("Reading…") : t("Refresh")}
       </Button>
     </Panel>
   );
@@ -504,13 +504,13 @@ function UserCard({ user }: { user: AdminUserSummary }) {
     try {
       if (what === "resend") {
         await resend.mutateAsync(user.id);
-        setDone("Verification email sent.");
+        setDone(t("Verification email sent."));
       } else {
         await verify.mutateAsync(user.id);
-        setDone("Marked verified.");
+        setDone(t("Marked verified."));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "That didn't work.");
+      setError(err instanceof ApiError ? err.message : t("That didn't work."));
     }
   }
 
@@ -539,7 +539,7 @@ function UserCard({ user }: { user: AdminUserSummary }) {
       <Row label={t("Trips")} value={user.tripCount} />
       <Row
         label={t("Sign-in")}
-        value={user.hasPassword ? "password" : "Google only"}
+        value={user.hasPassword ? "password" : t("Google only")}
       />
 
       {user.emailJobs.length > 0 ? (

@@ -22,7 +22,7 @@ import {
 } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
-import { ROLE_LABEL } from "../lib/roles";
+import { roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
@@ -72,7 +72,7 @@ export function MemberDialog({
     try {
       await changeRole.mutateAsync({ userId: m.userId, role });
     } catch (err) {
-      report(err, "Could not change the role");
+      report(err, t("Could not change the role"));
     }
   }
 
@@ -94,7 +94,7 @@ export function MemberDialog({
       }
       setPending(null);
     } catch (err) {
-      report(err, "Could not complete that action");
+      report(err, t("Could not complete that action"));
     }
   }
 
@@ -142,7 +142,7 @@ export function MemberDialog({
                       {isSelf ? (
                         <span className="board__muted"> {t("(you)")}</span>
                       ) : null}{" "}
-                      <span className="board__muted">{ROLE_LABEL[m.role]}</span>
+                      <span className="board__muted">{roleLabel(m.role)}</span>
                     </div>
                     <div className="board__invite-item-actions">
                       {manageable ? (
@@ -160,7 +160,7 @@ export function MemberDialog({
                           >
                             {assignableRoles.map((r) => (
                               <option key={r} value={r}>
-                                {ROLE_LABEL[r]}
+                                {roleLabel(r)}
                               </option>
                             ))}
                           </select>
@@ -234,7 +234,9 @@ export function MemberDialog({
                             setError(null);
                             unblock
                               .mutateAsync(b.userId)
-                              .catch((err) => report(err, "Could not unblock"));
+                              .catch((err) =>
+                                report(err, t("Could not unblock")),
+                              );
                           }}
                         >
                           {t("Unblock")}
@@ -263,7 +265,9 @@ export function MemberDialog({
                   ? `Block ${pending.name}? They're removed and barred from rejoining.`
                   : pending.kind === "transfer"
                     ? `Make ${pending.name} the owner? You'll become a co-organizer.`
-                    : "Leave this trip? You'll lose access unless re-invited."}
+                    : t(
+                        "Leave this trip? You'll lose access unless re-invited.",
+                      )}
             </p>
             <div className="board__dialog-actions">
               <Button
@@ -275,10 +279,10 @@ export function MemberDialog({
               </Button>
               <Button type="button" variant="primary" onClick={onConfirm}>
                 {pending.kind === "leave"
-                  ? "Leave trip"
+                  ? t("Leave trip")
                   : pending.kind === "transfer"
-                    ? "Transfer ownership"
-                    : "Confirm"}
+                    ? t("Transfer ownership")
+                    : t("Confirm")}
               </Button>
             </div>
           </div>

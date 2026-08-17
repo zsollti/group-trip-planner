@@ -33,7 +33,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
       setFormError(
         err instanceof ApiError
           ? err.message
-          : "Could not delete your account. Try again.",
+          : t("Could not delete your account. Try again."),
       );
     }
   }
@@ -123,7 +123,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
                 disabled={submitting}
                 onClick={() => void onConfirm()}
               >
-                {submitting ? "Deleting…" : "Delete my account"}
+                {submitting ? t("Deleting…") : t("Delete my account")}
               </Button>
             </div>
           </>

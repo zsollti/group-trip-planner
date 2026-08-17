@@ -129,7 +129,7 @@ function TallyBody({
           <EmptyCostDonut
             label={{
               headline: money(0, d.defaultCurrency),
-              caption: "per person",
+              caption: t("per person"),
             }}
           />
         </div>
@@ -165,8 +165,8 @@ function TallyBody({
             // earns its place by answering the question the aside raises.
             caption:
               composition.excluded.length > 0
-                ? "per person, shared"
-                : "per person",
+                ? t("per person, shared")
+                : t("per person"),
             exact,
           }}
         />
@@ -243,7 +243,7 @@ function Headline({
           <EmptyCostDonut
             label={{
               headline: money(0, verdict.currency),
-              caption: "per person",
+              caption: t("per person"),
             }}
           />
         </div>
@@ -315,15 +315,15 @@ function TargetLine({
   const gap = figure(v.gap, v.currency, v.approximate);
   return (
     <p
-      className={"board__budget" + (v.over ? " board__budget--over" : "")}
+      className={"board__budget" + (v.over ? t(" board__budget--over") : "")}
       role="status"
     >
       <span className="board__budget-label">{t("Target")}</span>
       <strong>{money(v.target, v.currency)}</strong>
       <span className="board__budget-per">{t("/person")}</span>
       <span className="board__budget-verdict">
-        {personal ? "yours: " : ""}
-        {gap} {v.over ? "over" : "to spare"}
+        {personal ? t("yours: ") : ""}
+        {gap} {v.over ? "over" : t("to spare")}
         {/* Never silently compare across currencies. */}
         {v.uncounted.length > 0
           ? ` · ${v.uncounted.join(", ")} not counted`

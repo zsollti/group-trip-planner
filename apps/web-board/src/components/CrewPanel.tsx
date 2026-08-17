@@ -1,7 +1,7 @@
 import { can, type TripRole } from "@gtp/types";
 import { useTripMembers } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
-import { ROLE_LABEL } from "../lib/roles";
+import { roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 /**
@@ -56,7 +56,7 @@ export function CrewPanel({
         {t("Crew")}
         {roster ? <span className="crew__count">{roster.length}</span> : null}
         <button type="button" className="crew__manage" onClick={onManage}>
-          {canManage ? "Manage" : "View"}
+          {canManage ? t("Manage") : t("View")}
         </button>
       </h2>
 
@@ -97,7 +97,7 @@ export function CrewPanel({
                 {/* The role is the "maybe" in the ask, and it earns its place:
                     knowing who can actually lock a decision is the difference
                     between waiting for someone and asking the wrong person. */}
-                <span className="crew__role">{ROLE_LABEL[m.role]}</span>
+                <span className="crew__role">{roleLabel(m.role)}</span>
               </span>
             </li>
           ))}

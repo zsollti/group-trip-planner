@@ -181,7 +181,7 @@ function LaneHeader({
       setError(
         err instanceof ApiError
           ? err.message
-          : "Could not update this category",
+          : t("Could not update this category"),
       );
       return false;
     }
@@ -201,7 +201,7 @@ function LaneHeader({
   // Colour leads: it is the only item here that every lane has, Dates included
   // — which is also what gives that lane a "⋯" for the first time.
   const laneMenuItems: MenuItem[] = [
-    { label: "Change colour", onSelect: () => setPicking(true) },
+    { label: t("Change colour"), onSelect: () => setPicking(true) },
   ];
   if (canBeMultiSelect(category)) {
     laneMenuItems.push({
@@ -214,7 +214,7 @@ function LaneHeader({
   }
   if (canDeleteCategory(category)) {
     laneMenuItems.push({
-      label: "Delete category",
+      label: t("Delete category"),
       onSelect: onRequestDelete,
       danger: true,
     });
@@ -463,7 +463,7 @@ export function CategoryLane({
     try {
       await deleteOption.mutateAsync(o.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not delete");
+      setError(err instanceof ApiError ? err.message : t("Could not delete"));
     }
   }
 
@@ -473,7 +473,9 @@ export function CategoryLane({
       await deleteCategory.mutateAsync(category.id);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not delete the category",
+        err instanceof ApiError
+          ? err.message
+          : t("Could not delete the category"),
       );
     }
   }
@@ -488,7 +490,9 @@ export function CategoryLane({
       onOpenChannel(channel.id);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not open the discussion",
+        err instanceof ApiError
+          ? err.message
+          : t("Could not open the discussion"),
       );
     }
   }
@@ -569,7 +573,7 @@ export function CategoryLane({
               disabled={deleteCategory.isPending}
               onClick={onDeleteCategory}
             >
-              {deleteCategory.isPending ? "Deleting…" : "Delete"}
+              {deleteCategory.isPending ? t("Deleting…") : t("Delete")}
             </Button>
           </div>
         </div>
@@ -582,15 +586,15 @@ export function CategoryLane({
           ref={decideDrop.setNodeRef}
           className={
             "lane__decide-drop" +
-            (decideDrop.isOver ? " lane__decide-drop--over" : "")
+            (decideDrop.isOver ? t(" lane__decide-drop--over") : "")
           }
           aria-hidden="true"
         >
           {decideDrop.isOver
-            ? "Drop to decide"
+            ? t("Drop to decide")
             : category.singleChoice
-              ? "Drop here to decide"
-              : "Drop here to lock"}
+              ? t("Drop here to decide")
+              : t("Drop here to lock")}
         </div>
       ) : null}
 
@@ -634,7 +638,7 @@ export function CategoryLane({
             </button>
           ) : (
             <div className="lane__card lane__card--ghost">
-              {frozen ? "Nothing was decided here" : "No options yet"}
+              {frozen ? t("Nothing was decided here") : t("No options yet")}
             </div>
           )
         ) : (

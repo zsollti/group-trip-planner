@@ -63,7 +63,7 @@ export function TimelineCalendar({
             <div
               key={day.key}
               className={
-                "cal__head" + (day.outsideTrip ? " cal__head--outside" : "")
+                "cal__head" + (day.outsideTrip ? t(" cal__head--outside") : "")
               }
               data-day={day.key}
             >
@@ -121,7 +121,7 @@ export function TimelineCalendar({
             <div
               key={day.key}
               className={
-                "cal__col" + (day.outsideTrip ? " cal__col--outside" : "")
+                "cal__col" + (day.outsideTrip ? t(" cal__col--outside") : "")
               }
             >
               {hours.map((h) => (

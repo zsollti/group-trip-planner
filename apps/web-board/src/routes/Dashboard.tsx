@@ -23,13 +23,7 @@ import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { UserMenu } from "../components/UserMenu";
 import { plural, t, tNode } from "../lib/i18n";
-
-const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
-  OWNER: "Owner",
-  CO_ORGANIZER: "Co-org",
-  PARTICIPANT: "Participant",
-  GUEST: "Guest",
-};
+import { roleLabel } from "../lib/roles";
 
 /** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
 function money(n: number, currency: string): string {
@@ -46,7 +40,7 @@ function money(n: number, currency: string): string {
 
 /** A trip's committed cost as a compact per-currency string. */
 function costLabel(cost: HomeTripSummary["cost"]): string {
-  if (cost.length === 0) return "No committed cost";
+  if (cost.length === 0) return t("No committed cost");
   return cost.map((c) => money(c.committed, c.currency)).join(" · ");
 }
 
@@ -97,7 +91,7 @@ function SortableBoardTile({ trip }: { trip: HomeTripSummary }) {
 function BoardTile({ trip }: { trip: HomeTripSummary }) {
   return (
     <Link className="board__tile" to={`/trips/${trip.id}`}>
-      <span className="board__tile-badge">{ROLE_LABEL[trip.role]}</span>
+      <span className="board__tile-badge">{roleLabel(trip.role)}</span>
       <span className="board__tile-name">{trip.name}</span>
       <span className="board__tile-meta">
         {trip.destination ?? t("No destination yet")}
@@ -150,7 +144,7 @@ function Onboarding({
   return (
     <section className="board__onboard" aria-labelledby="onboard-heading">
       <h2 className="board__onboard-title" id="onboard-heading">
-        {verified ? "Let's plan something" : "Almost there"}
+        {verified ? t("Let's plan something") : t("Almost there")}
       </h2>
       <p className="board__onboard-lead">
         {t(
