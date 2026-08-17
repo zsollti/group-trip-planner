@@ -259,13 +259,18 @@ pnpm --filter @gtp/web-board dev          # Trip Board → http://localhost:5175
 Without a `RESEND_API_KEY`, verification and invite links are written to the API
 log instead of being emailed — which is what you want locally.
 
-`demo:seed` builds the public demo trip — five members, thirteen options across
+`demo:seed` builds the public demo trip — five members, fourteen options across
 the built-in categories, four locked decisions, a front-runner in a second
-currency, a stale vote and a stale headcount, and two chat channels. It is
-re-runnable: it deletes the demo user's trips and rebuilds them, so it doubles as
-the reset for when visitors have edited the live demo. Real accounts are never
-touched. Trip dates are computed relative to now, so the demo never drifts into
-the past.
+currency, a stale vote, two chat channels, and two opt-in options the demo
+account is in one of. Most options carry clock times so the itinerary has
+something to draw; three deliberately do not, because the timeline's "not placed"
+list is the honest half of that page. It is re-runnable: it deletes the demo
+user's trips and rebuilds them, so it doubles as the reset for when visitors have
+edited the live demo. Real accounts are never touched. Trip dates are computed
+relative to now, so the demo never drifts into the past.
+
+An operator can run the same thing from the console at `/admin` instead of a
+terminal — same code, one confirm step, and a row in the operator log.
 
 The full gate, the same one CI runs:
 

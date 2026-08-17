@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type {
   AdminAuditAction,
   AdminAuditLog,
+  AdminDemoSeed,
   AdminEmail,
   AdminOverview,
   AdminRates,
@@ -19,6 +20,7 @@ import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { EmailService } from "../email/email.service.js";
 import { TokenService } from "../auth/token.service.js";
+import { seedDemoTrip } from "./demo-seed.js";
 
 /** How many days of signup history the sparkline covers. */
 const SIGNUP_DAYS = 30;
@@ -353,6 +355,25 @@ export class AdminService {
     });
     await this.record(actorEmail, "USER_MARKED_VERIFIED", user.email);
     return this.summaryOf(user.id);
+  }
+
+  /**
+   * Rebuild the public demo trip.
+   *
+   * The same code the `demo:seed` CLI runs — imported, not reimplemented, so the
+   * console and the terminal cannot drift into building different demos.
+   *
+   * This is the one destructive thing the console can do, and the only action
+   * here that touches trip content rather than an account. Its blast radius is
+   * fixed in the seed rather than checked here: it deletes the trips owned by
+   * `demo@example.com` and nothing else, so there is no argument to get wrong and
+   * no way to aim it at a real group's board. The audit row names the operator,
+   * like every other write on this console.
+   */
+  async reseedDemo(actorEmail: string): Promise<AdminDemoSeed> {
+    const summary = await seedDemoTrip(this.prisma);
+    await this.record(actorEmail, "DEMO_RESEEDED", summary.email);
+    return summary;
   }
 
   /** The console's own history, newest first. */

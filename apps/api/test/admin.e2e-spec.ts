@@ -41,9 +41,16 @@ describe("Admin console (e2e)", () => {
   const sentVerifications: string[] = [];
 
   async function makeUser(label: string, verified = true) {
-    const email = label.includes("@") ? label : `adm+${label}+${suffix}@example.com`;
+    const email = label.includes("@")
+      ? label
+      : `adm+${label}+${suffix}@example.com`;
     const user = await prisma.user.create({
-      data: { email, displayName: label, emailVerified: verified, passwordHash: "x" },
+      data: {
+        email,
+        displayName: label,
+        emailVerified: verified,
+        passwordHash: "x",
+      },
     });
     userIds.push(user.id);
     return { user, accessToken: await tokens_.signAccessToken(user) };
@@ -86,7 +93,9 @@ describe("Admin console (e2e)", () => {
 
   after(async () => {
     if (prisma) {
-      await prisma.adminAuditEvent.deleteMany({ where: { actorEmail: adminEmail } });
+      await prisma.adminAuditEvent.deleteMany({
+        where: { actorEmail: adminEmail },
+      });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }
     if (app) await app.close();
@@ -119,7 +128,9 @@ describe("Admin console (e2e)", () => {
       .get(`/admin/users?q=${encodeURIComponent(`plain+${suffix}`)}`)
       .set("Authorization", `Bearer ${adminToken}`)
       .expect(200);
-    const body = res.body as { users: { id: string; emailVerified: boolean }[] };
+    const body = res.body as {
+      users: { id: string; emailVerified: boolean }[];
+    };
     assert.equal(body.users.length, 1);
     assert.equal(body.users[0]!.id, plainUserId);
     assert.equal(body.users[0]!.emailVerified, false);
@@ -148,11 +159,13 @@ describe("Admin console (e2e)", () => {
       .get("/admin/audit")
       .set("Authorization", `Bearer ${adminToken}`)
       .expect(200);
-    const entries = (audit.body as { entries: { action: string; actorEmail: string }[] })
-      .entries;
+    const entries = (
+      audit.body as { entries: { action: string; actorEmail: string }[] }
+    ).entries;
     assert.ok(
       entries.some(
-        (e) => e.action === "VERIFICATION_RESENT" && e.actorEmail === adminEmail,
+        (e) =>
+          e.action === "VERIFICATION_RESENT" && e.actorEmail === adminEmail,
       ),
       "the resend should be attributable to the operator who did it",
     );
@@ -165,8 +178,93 @@ describe("Admin console (e2e)", () => {
       .expect(201);
     assert.equal((res.body as { emailVerified: boolean }).emailVerified, true);
 
-    const row = await prisma.user.findUniqueOrThrow({ where: { id: plainUserId } });
+    const row = await prisma.user.findUniqueOrThrow({
+      where: { id: plainUserId },
+    });
     assert.equal(row.emailVerified, true);
+  });
+
+  it("rebuilds the demo trip, and builds the demo it promises", async () => {
+    // The console's one destructive action, and the one thing here that writes
+    // trip content. Two halves are worth pinning: that it is attributable, and
+    // that what it produces still demonstrates what the demo exists to show —
+    // the seed is a fixture for strangers, so a change that quietly flattened it
+    // would leave the app looking simpler than it is.
+    //
+    // The demo accounts are deliberately *not* cleaned up afterwards. They are
+    // upserted, so a second run is a no-op on them, and locally this leaves the
+    // same demo trip behind that `pnpm demo:seed` would.
+    const res = await http()
+      .post("/admin/demo-seed")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(201);
+
+    const body = res.body as {
+      tripId: string;
+      email: string;
+      members: number;
+      options: number;
+      decisions: number;
+      messages: number;
+    };
+    assert.equal(body.email, "demo@example.com");
+    assert.equal(body.members, 5);
+    assert.equal(body.decisions, 4);
+    assert.ok(body.options >= 14, "every seeded option is counted");
+
+    const audit = await http()
+      .get("/admin/audit")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    assert.ok(
+      (
+        audit.body as { entries: { action: string; actorEmail: string }[] }
+      ).entries.some(
+        (e) => e.action === "DEMO_RESEEDED" && e.actorEmail === adminEmail,
+      ),
+      "a rebuild names the operator who ran it",
+    );
+
+    const options = await prisma.option.findMany({
+      where: { category: { tripId: body.tripId } },
+      include: { participants: { select: { userId: true } } },
+    });
+    assert.equal(options.length, body.options);
+
+    // Times, because the itinerary needs them — and not on everything, because
+    // the itinerary's "not placed" list is the honest half of that page and a
+    // demo where nothing is missing never shows it.
+    const timed = options.filter((o) => o.startsAt !== null);
+    assert.ok(
+      timed.length >= 8,
+      "most decisions can be placed on the timeline",
+    );
+    assert.ok(
+      options.some((o) => o.startsAt === null),
+      "and at least one cannot, so the unscheduled list is demonstrated",
+    );
+
+    // Both sides of "I'm in": one opt-in option the demo account joined, and one
+    // it did not. With only the first, a visitor could see who was in but never
+    // the invitation to join.
+    const demo = await prisma.user.findUniqueOrThrow({
+      where: { email: "demo@example.com" },
+      select: { id: true },
+    });
+    const optIn = options.filter((o) => o.participationMode === "OPT_IN");
+    assert.equal(
+      optIn.length,
+      2,
+      "two opt-in options, so both states are on screen",
+    );
+    const joined = optIn.filter((o) =>
+      o.participants.some((p) => p.userId === demo.id),
+    );
+    assert.equal(joined.length, 1);
+    // The one it joined has company; the one it didn't is somebody else's plan.
+    assert.ok(joined[0]!.participants.length > 1);
+    const notJoined = optIn.find((o) => o !== joined[0])!;
+    assert.ok(notJoined.participants.length > 0);
   });
 
   it("reports operator status on the session, so the app can offer the link", async () => {
@@ -199,13 +297,17 @@ describe("Admin console (e2e)", () => {
    */
   it("hides every admin route from an ordinary account", async () => {
     const routes = registeredAdminRoutes(app);
-    assert.ok(routes.length > 0, "expected some /admin routes to be registered");
+    assert.ok(
+      routes.length > 0,
+      "expected some /admin routes to be registered",
+    );
 
     for (const { method, path } of routes) {
       // A concrete url for the one parameterised family; the rest are literal.
       const url = path.replace(":id", plainUserId);
-      const res = await (http() as unknown as Record<string, (u: string) => request.Test>)
-        [method]!(url)
+      const res = await (
+        http() as unknown as Record<string, (u: string) => request.Test>
+      )[method]!(url)
         .set("Authorization", `Bearer ${plainToken}`)
         .send();
       assert.equal(

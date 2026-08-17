@@ -129,6 +129,19 @@ export const INVITE_CREATE_THROTTLE: Budget = {
   default: { limit: 30, ttl: hour },
 };
 
+/**
+ * Rebuilding the demo trip from the operator console.
+ *
+ * The tightest budget in the policy, and the only one whose reason is not abuse:
+ * the route is already behind both admin guards, so nobody unauthorised can
+ * reach it at all. What this bounds is the operator's own double-click. One run
+ * deletes and rewrites the whole demo — five upserts, an argon2 hash, fifty-odd
+ * inserts — and two of them racing would interleave those writes against each
+ * other. Three an hour is more than anyone needs to reset a demo and far too few
+ * to overlap by accident.
+ */
+export const DEMO_SEED_THROTTLE: Budget = { default: { limit: 3, ttl: hour } };
+
 /* -------------------------------------------------------------------------- */
 /* Socket events (per user, enforced in the gateway)                          */
 /* -------------------------------------------------------------------------- */

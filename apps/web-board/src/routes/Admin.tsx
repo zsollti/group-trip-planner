@@ -9,8 +9,10 @@ import {
   useAuth,
   useMarkVerified,
   useResendVerification,
+  useRunDemoSeed,
 } from "@gtp/api-client";
 import type {
+  AdminDemoSeed,
   AdminEmail,
   AdminRates,
   AdminUserSummary,
@@ -74,8 +76,113 @@ export function Admin() {
       )}
 
       <UserLookup />
+      <DemoPanel />
       <AuditPanel />
     </main>
+  );
+}
+
+/**
+ * Rebuild the public demo trip.
+ *
+ * The only destructive button in the app, and the only thing here that writes
+ * trip content rather than reading metadata — so it is the only one that asks
+ * twice. The confirm step is inline rather than a dialog, matching how deleting
+ * a lane asks: a question in the place the answer will land, not a layer over
+ * the screen.
+ *
+ * What it is *for*: the demo drifts. Visitors sign in with the published
+ * credentials and vote, propose and lock things, and a migration can quietly
+ * change the shape of what the demo was built to show. Until now the fix was a
+ * CLI run against the production database — which meant reaching for a
+ * connection string to repair a display trip.
+ */
+function DemoPanel() {
+  const reseed = useRunDemoSeed();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AdminDemoSeed | null>(null);
+
+  async function run() {
+    setError(null);
+    setResult(null);
+    setConfirming(false);
+    try {
+      setResult(await reseed.mutateAsync());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "That didn't work.");
+    }
+  }
+
+  return (
+    <section className="admin__panel admin__panel--wide" aria-label="Demo data">
+      <h2 className="admin__panel-title">Demo data</h2>
+      <p className="admin__note">
+        Deletes the trips owned by <strong>demo@example.com</strong> and
+        rebuilds the published demo board from the seed — five members, fourteen
+        options, four decisions, the chat and the votes. No other account is
+        touched, and the demo password is reset to the one in the README.
+      </p>
+
+      {confirming ? (
+        <>
+          <p className="admin__alert" role="alert">
+            This throws away whatever visitors have done to the demo, and cannot
+            be undone.
+          </p>
+          <div className="admin__actions">
+            <Button type="button" onClick={() => void run()}>
+              Yes, rebuild it
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="admin__actions">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={reseed.isPending}
+            onClick={() => setConfirming(true)}
+          >
+            {reseed.isPending ? "Rebuilding…" : "Rebuild the demo trip"}
+          </Button>
+        </div>
+      )}
+
+      {result ? (
+        <div>
+          <p className="admin__done" role="status">
+            Demo rebuilt.
+          </p>
+          <Row label="Trip" value={result.tripName} />
+          <Row label="Board id" value={result.tripId} />
+          <Row
+            label="Contents"
+            value={`${result.members} members · ${result.options} options · ${result.decisions} decisions · ${result.messages} messages`}
+          />
+          <Row
+            label="Replaced"
+            value={
+              result.removedTrips === 0
+                ? "nothing — there was no demo trip here"
+                : `${result.removedTrips} previous demo trip(s)`
+            }
+          />
+        </div>
+      ) : null}
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -114,7 +221,11 @@ function Row({
   return (
     <div className="admin__row">
       <span className="admin__row-label">{label}</span>
-      <span className={"admin__row-value" + (tone ? ` admin__row-value--${tone}` : "")}>
+      <span
+        className={
+          "admin__row-value" + (tone ? ` admin__row-value--${tone}` : "")
+        }
+      >
         {value}
       </span>
     </div>
@@ -327,7 +438,10 @@ function UserLookup() {
   }
 
   return (
-    <section className="admin__panel admin__panel--wide" aria-label="Find a user">
+    <section
+      className="admin__panel admin__panel--wide"
+      aria-label="Find a user"
+    >
       <h2 className="admin__panel-title">Find a user</h2>
       <form className="admin__search" onSubmit={onSubmit}>
         <label className="board__sr-only" htmlFor="admin-q">
@@ -465,7 +579,10 @@ function AuditPanel() {
   const audit = useAdminAudit();
   const entries = audit.data?.entries ?? [];
   return (
-    <section className="admin__panel admin__panel--wide" aria-label="Operator log">
+    <section
+      className="admin__panel admin__panel--wide"
+      aria-label="Operator log"
+    >
       <h2 className="admin__panel-title">Operator log</h2>
       {audit.isPending ? (
         <p className="board__muted" role="status">

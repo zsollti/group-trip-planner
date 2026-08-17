@@ -273,10 +273,22 @@ as the precedent.
 ### Seeding (and resetting) the public demo trip
 
 The README publishes credentials for a demo account so a visitor can see a
-populated board without registering. That data comes from `demo:seed`, which is
+populated board without registering. That data comes from the demo seed, which is
 **not** run automatically — a deploy must never rewrite trip data.
 
-Run it deliberately, one of two ways.
+Run it deliberately, one of three ways.
+
+**From the operator console (preferred).** Sign in as an address listed in
+`ADMIN_EMAILS`, open **/admin**, and use *Demo data → Rebuild the demo trip*. It
+asks once before it does anything, then reports what it built and how many demo
+trips it replaced, and writes a `DEMO_RESEEDED` row into the operator log naming
+you.
+
+It runs the same code as the CLI below — `src/admin/demo-seed.ts`, imported by
+both — so there is no chance of the button and the terminal building different
+demos. Reach for one of the CLI routes when the console is not available to you:
+the API is up but the web app is not, `ADMIN_EMAILS` is unset, or you are
+seeding a fresh database that has no operator account yet.
 
 **Inside the container (preferred).** `apps/api/prisma` is copied into the image
 and `@gtp/types` is built there, so the script is already present and the private
@@ -314,6 +326,11 @@ Re-run it whenever the demo has been left in a poor state. If that becomes
 frequent, the natural next step is a scheduled Railway cron job on the same
 command — the script is already idempotent, so nothing has to change to support
 that.
+
+The console's button is rate-limited to three runs an hour. That is not an abuse
+control (both admin guards have already run by then); it is there so a
+double-click cannot start a second rebuild while the first is still deleting and
+rewriting the same rows.
 
 ---
 

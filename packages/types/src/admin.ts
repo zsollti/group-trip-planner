@@ -193,3 +193,29 @@ export const AdminAuditLog = z.object({
   entries: z.array(AdminAuditEntry),
 });
 export type AdminAuditLog = z.infer<typeof AdminAuditLog>;
+
+/**
+ * What rebuilding the demo trip built.
+ *
+ * The one place this console reports on trip content, and it is allowed to
+ * because the trip in question is the published demo — its members, options and
+ * chat are in the README. Counts rather than titles even so: the operator is
+ * checking that a rebuild happened, not reading a board.
+ *
+ * `removedTrips` is the honest part of the answer. The seed deletes the demo
+ * account's trips before rebuilding, so this says how many were swept — zero on
+ * a database that had none, which is how an operator tells "it built the demo"
+ * from "it replaced the demo".
+ */
+export const AdminDemoSeed = z.object({
+  tripId: z.string().uuid(),
+  tripName: z.string(),
+  /** The address the demo is signed into with. */
+  email: z.string(),
+  members: z.number().int(),
+  options: z.number().int(),
+  decisions: z.number().int(),
+  messages: z.number().int(),
+  removedTrips: z.number().int(),
+});
+export type AdminDemoSeed = z.infer<typeof AdminDemoSeed>;
