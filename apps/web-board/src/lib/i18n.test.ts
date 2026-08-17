@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import ts from "typescript";
 import { t, plural, pickForm, translateUi } from "./i18n";
@@ -20,14 +21,25 @@ import { UI_MESSAGES, UI_TRANSLATIONS } from "./ui-messages";
  * it sits inside a function or beside it.
  */
 
-const SRC = join(dirname(new URL(import.meta.url).pathname.slice(1)), "..");
+/**
+ * The board's source tree, resolved from this file.
+ *
+ * `fileURLToPath` and not `new URL(...).pathname.slice(1)`. That slice is the
+ * Windows fix — a file URL there is `/D:/tdk/...`, and the leading slash has to go —
+ * and it is precisely wrong on Linux, where it eats the **root** slash and yields
+ * `home/runner/work/...`. The suite passed on my machine and failed in CI with
+ * ENOENT on a path missing its first character, which is the only way that bug ever
+ * announces itself.
+ */
+const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function sources(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) out.push(...sources(path));
-    else if (/\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path)) out.push(path);
+    else if (/\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path))
+      out.push(path);
   }
   return out;
 }
@@ -61,7 +73,10 @@ function translatedLiterals(): { text: string; file: string }[] {
               ? node.arguments.slice(1, 3)
               : [];
         for (const arg of args) {
-          if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) {
+          if (
+            ts.isStringLiteral(arg) ||
+            ts.isNoSubstitutionTemplateLiteral(arg)
+          ) {
             found.push({ text: arg.text, file });
           }
         }
@@ -85,7 +100,9 @@ describe("translating a message", () => {
   it("returns the source string in the source language, with no lookup", () => {
     // English is never a catalogue entry: translating into it is the identity, and
     // 507 strings mapped to themselves would be 507 chances to disagree.
-    expect(translateUi("Plan your first trip", "en")).toBe("Plan your first trip");
+    expect(translateUi("Plan your first trip", "en")).toBe(
+      "Plan your first trip",
+    );
   });
 
   it("uses the catalogue for another language", () => {
@@ -131,7 +148,10 @@ describe("the catalogue matches the code", () => {
     const known = new Set<string>(UI_MESSAGES);
     const missing = translatedLiterals()
       .filter(({ text }) => !known.has(text))
-      .map(({ text, file }) => `${text}  (${file.replace(/\\/g, "/").split("/src/")[1]})`);
+      .map(
+        ({ text, file }) =>
+          `${text}  (${file.replace(/\\/g, "/").split("/src/")[1]})`,
+      );
     expect(missing).toEqual([]);
   });
 
