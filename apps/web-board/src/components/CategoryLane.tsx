@@ -219,87 +219,110 @@ function LaneHeader({
 
   return (
     <>
-      <div className="lane__head">
-        {/* Outside the editing branch on purpose: a lane keeps its identity
+      {/* Everything that identifies the lane pins together.
+       *
+       * The name was sticky and the single-choice/multi-select line under it was
+       * not, so scrolling a lane slid the mode label up **behind** the name — a
+       * label half-covered by the heading it belongs to — and then away
+       * entirely, leaving a column of near-identical cards with no statement of
+       * how the lane decides. They answer one question between them ("which
+       * lane is this, and how does it pick a winner?"), so they pin as one
+       * block.
+       *
+       * This element carries the lane's top padding, which `.lane` no longer
+       * has. That is not cosmetic: a sticky box whose static position is above
+       * its `top` offset jumps down to meet it the moment you scroll, and the
+       * old `margin-top: -0.85rem` put it exactly 0.85rem above `top: 0`. The
+       * header sat flush under the lane's coloured border at rest and dropped a
+       * lane's-padding gap as soon as you moved — a gap the cards then scrolled
+       * through, between the border and the name. With the padding here, static
+       * and stuck are the same place and there is nothing to jump. */}
+      <div className="lane__pin">
+        <div className="lane__head">
+          {/* Outside the editing branch on purpose: a lane keeps its identity
             while you are renaming it, and a mark that vanishes the moment you
             click the title reads as something breaking. */}
-        <CategoryIcon category={category} className="lane__icon" />
-        {editing ? (
-          <form className="lane__rename" onSubmit={submit}>
-            <input
-              data-gtp-input
-              autoFocus
-              aria-label={`Rename ${category.name}`}
-              maxLength={CATEGORY_NAME_MAX_LENGTH}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={submit}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setDraft(category.name);
-                  setEditing(false);
-                }
-              }}
-            />
-          </form>
-        ) : (
-          // The header shows a shortened name with the full one on `title`, so a
-          // long name can't stretch the lane but stays readable on hover — and
-          // the h2's aria-label keeps it intact for a screen reader.
-          <h2
-            className="lane__title"
-            id={`lane-title-${category.id}`}
-            aria-label={category.name}
-          >
-            {isOrganizer ? (
-              <button
-                type="button"
-                className="lane__title-btn"
-                title={category.name}
-                aria-label={`${category.name} — rename category`}
-                onClick={() => {
-                  setDraft(category.name);
-                  setEditing(true);
+          <CategoryIcon category={category} className="lane__icon" />
+          {editing ? (
+            <form className="lane__rename" onSubmit={submit}>
+              <input
+                data-gtp-input
+                autoFocus
+                aria-label={`Rename ${category.name}`}
+                maxLength={CATEGORY_NAME_MAX_LENGTH}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={submit}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setDraft(category.name);
+                    setEditing(false);
+                  }
                 }}
-              >
-                {truncateName(category.name)}
-              </button>
-            ) : (
-              <span
-                title={isTruncated(category.name) ? category.name : undefined}
-              >
-                {truncateName(category.name)}
-              </span>
-            )}
-          </h2>
-        )}
-        <div className="lane__card-tools">
-          {/* Start (or open) this category's discussion — any member (FR-29). */}
-          <button
-            type="button"
-            className="lane__discuss"
-            title={`Discuss ${category.name}`}
-            aria-label={`Discuss ${category.name}`}
-            disabled={discussing}
-            onClick={onDiscuss}
-          >
-            💬
-          </button>
-          {grip}
-          {/* Dates still gets neither of the other two items: it is the trip's
+              />
+            </form>
+          ) : (
+            // The header shows a shortened name with the full one on `title`, so a
+            // long name can't stretch the lane but stays readable on hover — and
+            // the h2's aria-label keeps it intact for a screen reader.
+            <h2
+              className="lane__title"
+              id={`lane-title-${category.id}`}
+              aria-label={category.name}
+            >
+              {isOrganizer ? (
+                <button
+                  type="button"
+                  className="lane__title-btn"
+                  title={category.name}
+                  aria-label={`${category.name} — rename category`}
+                  onClick={() => {
+                    setDraft(category.name);
+                    setEditing(true);
+                  }}
+                >
+                  {truncateName(category.name)}
+                </button>
+              ) : (
+                <span
+                  title={isTruncated(category.name) ? category.name : undefined}
+                >
+                  {truncateName(category.name)}
+                </span>
+              )}
+            </h2>
+          )}
+          <div className="lane__card-tools">
+            {/* Start (or open) this category's discussion — any member (FR-29). */}
+            <button
+              type="button"
+              className="lane__discuss"
+              title={`Discuss ${category.name}`}
+              aria-label={`Discuss ${category.name}`}
+              disabled={discussing}
+              onClick={onDiscuss}
+            >
+              💬
+            </button>
+            {grip}
+            {/* Dates still gets neither of the other two items: it is the trip's
               only date-setting path and cannot be recreated once gone
               (canDeleteCategory), and it holds one date range so it cannot go
               multi-select (canBeMultiSelect). It used to have no "⋯" at all for
               that reason — a menu of things that would be refused is worse than
               no menu — and has one now only because its colour is as changeable
               as any other lane's. */}
-          {isOrganizer && laneMenuItems.length > 0 ? (
-            <Menu
-              label={`${category.name} lane actions`}
-              items={laneMenuItems}
-            />
-          ) : null}
+            {isOrganizer && laneMenuItems.length > 0 ? (
+              <Menu
+                label={`${category.name} lane actions`}
+                items={laneMenuItems}
+              />
+            ) : null}
+          </div>
         </div>
+        <p className="lane__meta">
+          {category.singleChoice ? "single-choice" : "multi-select"}
+        </p>
       </div>
       {error ? (
         <p className="board__form-error" role="alert">
@@ -514,9 +537,6 @@ export function CategoryLane({
         onDiscuss={onDiscuss}
         discussing={startDiscussion.isPending}
       />
-      <p className="lane__meta">
-        {category.singleChoice ? "single-choice" : "multi-select"}
-      </p>
 
       {confirmingDelete ? (
         <div

@@ -785,8 +785,18 @@ body {
      column, so twelve restaurants left every other lane with a column of empty
      space beside it and pushed the lanes after it off the bottom of the page.
      Past this point the lane keeps its own options to itself and scrolls them.
-     Each lane scrolls independently, so a long one never hides a short one. */
-  max-height: 1000px;
+     Each lane scrolls independently, so a long one never hides a short one.
+
+     Measured against the **viewport**, not in pixels. The cap was a flat 1000px,
+     which is a different thing on every screen: most of a laptop, half of a
+     desktop, several screenfuls on a phone — and on the small screens it was
+     meant to help, a lane could still be twice as tall as the window. A lane
+     scrolled to the top of the screen now ends near the bottom of it, whatever
+     the screen is, which is the shape that lets you read a lane without losing
+     the board. `dvh` rather than `vh` so a phone's retracting address bar
+     doesn't leave the last card under it. The rail opposite is capped the same
+     way (`.board__rail`). */
+  max-height: 90dvh;
   overflow-y: auto;
   /* The cards clear the clip comfortably — the lane's 0.85rem padding is inside
      the scrollport, so a card's focus ring has ~13px of room either side. (See
@@ -800,7 +810,9 @@ body {
      different questions instead of a stripe repeated five times. */
   border-top: 3px solid var(--cat-main);
   border-radius: 14px;
-  padding: 0.85rem;
+  /* No top padding: `.lane__pin` owns it, so the sticky header's resting and
+     stuck positions coincide. See the note on `.lane__pin`. */
+  padding: 0 0.85rem 0.85rem;
   box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
 }
 /* The lane's own mark, in its own colour. */
@@ -837,25 +849,39 @@ body {
 }
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
-/* Pinned, now that the lane scrolls: the name and the "⋯" are what tell you
-   which question you are reading, and scrolling them away is how you lose your
-   place in a column of twelve near-identical cards. Sticky rather than a
-   restructure into header + scrolling body, which would have put a new
-   scroll container between the lane and its draggable cards. The background is
-   the lane's own, so cards pass behind it rather than through it; the negative
-   margins and matching padding let it span the lane's full width while the
-   text stays where it was. */
-.lane__head {
+/* Pinned, now that the lane scrolls: the name, the mode and the "⋯" are what
+   tell you which question you are reading, and scrolling them away is how you
+   lose your place in a column of twelve near-identical cards. Sticky rather than
+   a restructure into header + scrolling body, which would have put a new scroll
+   container between the lane and its draggable cards. The background is the
+   lane's own, so cards pass behind it rather than through it; the negative
+   horizontal margins and matching padding let it span the lane's full width
+   while the text stays where it was.
+
+   **No negative top margin, and `.lane` has no top padding.** That pairing is
+   what fixes the gap: a sticky box is clamped between its static position and
+   its `top` offset, so pulling it 0.85rem above `top: 0` meant it sat flush at
+   rest and then dropped by exactly that much the moment the lane scrolled —
+   opening a strip between the lane's coloured border and the name, through
+   which the cards were visible. Owning the padding instead puts static and
+   stuck in the same place, so there is nothing left to jump.
+
+   The top padding is also the space above the name, which was the lane's full
+   0.85rem and is now 0.6rem — a shorter gap between the coloured edge and the
+   word it belongs to. */
+.lane__pin {
   position: sticky;
   top: 0;
   z-index: 2;
+  margin-inline: -0.85rem;
+  padding: 0.6rem 0.85rem 0.4rem;
+  background: var(--lane-bg);
+}
+.lane__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  margin: -0.85rem -0.85rem 0;
-  padding: 0.85rem 0.85rem 0.35rem;
-  background: var(--lane-bg);
 }
 .lane__head .lane__title {
   flex: 1 1 auto;
@@ -1211,10 +1237,17 @@ body {
   border-color: var(--board-accent);
 }
 
+/* Owner / Co-org / Participant / Guest, in the tile's top corner — where the
+   drag grip was later put on top of it, so "Participant" ran under the ⠿ and
+   came out "Participan⠿". The grip keeps the corner: it is the same gesture in
+   the same place as the option cards', and moving it would make the two
+   surfaces disagree about where you pick a thing up. The badge steps aside
+   instead, since it is read once and never aimed at. `.board__tile-name`'s
+   right padding clears both. */
 .board__tile-badge {
   position: absolute;
   top: 0.75rem;
-  right: 0.75rem;
+  right: 2.1rem;
   font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1224,7 +1257,9 @@ body {
 .board__tile-name {
   font-weight: 700;
   font-size: 1.05rem;
-  padding-right: 3.5rem;
+  /* Clears the badge *and* the grip beyond it — a long trip name would
+     otherwise run under both. */
+  padding-right: 5.2rem;
 }
 .board__tile-meta {
   color: var(--board-dim);
@@ -2135,13 +2170,13 @@ body {
 }
 
 /* Planning categories (Phase 2.1). */
-/* The single-choice/multi-select label under a lane's name. The top margin used
-   to be -0.5rem, cancelling `.lane__title`'s own 0.75rem bottom margin — but the
-   title only carries that margin OUTSIDE the header. Inside `.lane__head` it is
-   overridden to 0, so the negative pull had nothing left to cancel and closed
-   the gap onto the name itself. */
+/* The single-choice/multi-select label under a lane's name. It lives inside
+   `.lane__pin` now, so it pins with the name instead of sliding up behind it,
+   and the spacing below it belongs to the pin's own padding rather than to a
+   margin here — a margin would sit inside the sticky box and hold the cards a
+   full line further down the lane, every lane, forever. */
 .lane__meta {
-  margin: 0.35rem 0 0.7rem;
+  margin: 0.2rem 0 0;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
