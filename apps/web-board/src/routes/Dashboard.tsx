@@ -60,8 +60,14 @@ function costLabel(cost: HomeTripSummary["cost"]): string {
  * is not a mouse-only feature.
  */
 function SortableBoardTile({ trip }: { trip: HomeTripSummary }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: trip.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: trip.id });
   return (
     <div
       ref={setNodeRef}
@@ -137,33 +143,41 @@ function Onboarding({
   return (
     <section className="board__onboard" aria-labelledby="onboard-heading">
       <h2 className="board__onboard-title" id="onboard-heading">
-        {verified ? "Start your first board" : "One step first"}
+        {verified ? "Let's plan something" : "Almost there"}
       </h2>
       <p className="board__onboard-lead">
-        A trip board is one shared canvas per trip: lanes for dates, transport,
-        stay, food and whatever else you add. Everyone drops in options, votes
-        on them, and an organiser locks in the winners — which stay at the top
-        of the lane they answer, with a running cost above.
+        No boards yet — so here's the idea. A board is one place for one trip,
+        with a lane for each thing you have to agree on: when to go, how to get
+        there, where to sleep, what to do. Anyone can add an option to a lane,
+        everyone votes, and when the group has made its mind up an organiser
+        locks the winner in. It stays at the top of its lane, the cost adds
+        itself up as you go, and nobody has to scroll back through a group chat
+        to remember what was decided.
       </p>
 
       {verified ? (
         <>
           <button type="button" className="board__cta" onClick={onCreate}>
-            Create your first trip
+            Plan your first trip
           </button>
           <p className="board__onboard-note">
-            You'll be its owner, and you can invite the others with a link.
+            Takes about a minute. You'll be the owner, and you can bring
+            everyone else in with a single link — no accounts to set up for
+            them, no app to install.
           </p>
         </>
       ) : (
         <div className="board__onboard-gate">
           <p className="board__onboard-note">
-            Creating a board needs a verified email address. We sent a link to{" "}
-            <strong>{email ?? "your address"}</strong> — open it and come back.
+            One thing first: starting a board needs a confirmed email address.
+            We've sent a link to <strong>{email ?? "your address"}</strong> —
+            open it and you're set. (Check the spam folder if it's taking its
+            time.)
           </p>
           <p className="board__onboard-note">
-            You don't have to wait to take part: you can already join a board
-            you've been invited to, propose options, vote and chat.
+            No need to wait around, though. If someone has already invited you
+            to their board you can join it right now, and propose, vote and chat
+            like everyone else.
           </p>
         </div>
       )}
@@ -184,7 +198,9 @@ export function Dashboard() {
     // The same 6px threshold the board uses: a tile is a link, and without a
     // distance a click that trembles becomes a drag that never opens anything.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const list = dash.data?.trips ?? [];
@@ -207,10 +223,7 @@ export function Dashboard() {
     const from = ids.indexOf(String(dragged.id));
     const to = ids.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
-    reorder.mutate([
-      ...arrayMove(ids, from, to),
-      ...history.map((t) => t.id),
-    ]);
+    reorder.mutate([...arrayMove(ids, from, to), ...history.map((t) => t.id)]);
   }
 
   return (

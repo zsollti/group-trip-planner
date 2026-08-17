@@ -84,7 +84,7 @@ describe("web-board auth flow", () => {
     // Landed on the boards overview with an empty-state CTA.
     expect(await screen.findByText(/welcome, ada/i)).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: /create your first trip/i }),
+      await screen.findByRole("button", { name: /plan your first trip/i }),
     ).toBeInTheDocument();
   });
 
@@ -190,12 +190,12 @@ describe("web-board auth flow", () => {
 
     // The step that actually unblocks them, addressed to their inbox...
     expect(
-      await screen.findByText(/verified email address/i),
+      await screen.findByText(/confirmed email address/i),
     ).toBeInTheDocument();
     expect(screen.getByText("ada@example.com")).toBeInTheDocument();
     // ...and not the create CTA, whose request the server would refuse.
     expect(
-      screen.queryByRole("button", { name: /create your first trip/i }),
+      screen.queryByRole("button", { name: /plan your first trip/i }),
     ).not.toBeInTheDocument();
   });
 
