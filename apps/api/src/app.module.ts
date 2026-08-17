@@ -1,7 +1,11 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 // The Nest wiring lives on the /setup subpath; the package root is the SDK.
-import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
+import { SentryModule } from "@sentry/nestjs/setup";
+import {
+  LocalizingExceptionFilter,
+  LocalizingSentryFilter,
+} from "./i18n/localizing.filter.js";
 import { GlobalThrottlerGuard } from "./common/per-user-throttle.js";
 import { sentryEnabled } from "./observability/instrument.js";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -84,13 +88,26 @@ import { UploadsModule } from "./uploads/uploads.module.js";
   ],
   providers: [
     { provide: APP_GUARD, useClass: GlobalThrottlerGuard },
-    // Reports unhandled exceptions. It extends Nest's BaseExceptionFilter, so
-    // the HTTP responses clients see are unchanged; 4xx HttpExceptions (a 404
-    // for a non-member, a 409 on a lost lock race) are expected behaviour and
-    // are not reported.
-    ...(sentryEnabled
-      ? [{ provide: APP_FILTER, useClass: SentryGlobalFilter }]
-      : []),
+    // **Exactly one global filter**, whichever the deployment needs. It renders
+    // every exception message in the reader's language and then delegates to its
+    // base for the response itself.
+    //
+    // With Sentry configured the base is `SentryGlobalFilter`, which reports
+    // unhandled exceptions and extends Nest's `BaseExceptionFilter`, so the HTTP
+    // responses clients see are unchanged; 4xx HttpExceptions (a 404 for a
+    // non-member, a 409 on a lost lock race) are expected behaviour and are not
+    // reported.
+    //
+    // Registering a second filter beside Sentry's instead would have made the
+    // outcome depend on which one Nest consults first, and both wrong answers are
+    // silent: either messages stop being translated, or exceptions stop being
+    // reported. Subclassing removes the question.
+    {
+      provide: APP_FILTER,
+      useClass: sentryEnabled
+        ? LocalizingSentryFilter
+        : LocalizingExceptionFilter,
+    },
   ],
 })
 export class AppModule {}

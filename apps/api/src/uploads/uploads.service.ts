@@ -17,6 +17,7 @@ import {
   type ImageRejection,
 } from "./image-validation.js";
 import { STORAGE_DRIVER, type StorageDriver } from "./storage.driver.js";
+import { localizedException } from "../i18n/localized-message.js";
 
 /**
  * The part of multer's file object the pipeline actually uses. Declared here
@@ -76,8 +77,10 @@ export class UploadsService {
     // Belt-and-braces: the controller's multer limit already rejects oversize
     // mid-stream, but the service must hold its own invariant.
     if ((file.size ?? file.buffer.length) > this.env.UPLOAD_MAX_BYTES) {
-      throw new PayloadTooLargeException(
-        `Images must be ${Math.floor(this.env.UPLOAD_MAX_BYTES / 1024 / 1024)}MB or smaller.`,
+      throw localizedException(
+        (message) => new PayloadTooLargeException(message),
+        "Images must be {mb}MB or smaller.",
+        { mb: Math.floor(this.env.UPLOAD_MAX_BYTES / 1024 / 1024) },
       );
     }
 

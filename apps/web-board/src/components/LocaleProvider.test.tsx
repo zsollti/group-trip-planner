@@ -18,8 +18,11 @@ import { LOCALE_STORAGE_KEY, intlTag, setActiveLocale } from "../lib/locale";
 
 let user: AuthUser | null = null;
 
+const setApiLanguage = vi.fn();
+
 vi.mock("@gtp/api-client", () => ({
   useAuth: () => ({ user }),
+  setApiLanguage: (tag: string | null) => setApiLanguage(tag),
 }));
 
 const ada: AuthUser = {
@@ -42,6 +45,7 @@ function DuringRender({ seen }: { seen: string[] }) {
 afterEach(() => {
   user = null;
   setActiveLocale("en");
+  setApiLanguage.mockClear();
   window.localStorage.clear();
   vi.unstubAllGlobals();
 });
@@ -104,6 +108,17 @@ describe("LocaleProvider", () => {
     user = ada;
     renderHook(() => useLocale(), { wrapper: LocaleProvider });
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+  });
+
+  it("tells the API which language the screen is in", () => {
+    // Not the browser's preference — the language being *displayed*. The API reads
+    // this header only when there is no account to ask, which is exactly the
+    // pre-auth screens, where an error in the wrong language is least
+    // recoverable. Sent as a formatting tag, the same string a date is written
+    // with, because that is what `Accept-Language` is defined to carry.
+    user = ada;
+    renderHook(() => useLocale(), { wrapper: LocaleProvider });
+    expect(setApiLanguage).toHaveBeenCalledWith("en-GB");
   });
 
   it("refuses to guess when it is used outside the provider", () => {

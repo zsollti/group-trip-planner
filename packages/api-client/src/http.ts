@@ -33,6 +33,25 @@ export function getApiBaseUrl(): string {
   return baseUrl;
 }
 
+/**
+ * The language the app is currently *displaying*, sent as `Accept-Language`.
+ *
+ * The browser already sends its own, so this is not about adding a header — it is
+ * about overriding one. The two differ for anyone who has chosen a language in
+ * the app: a Hungarian browser reading the English interface should get English
+ * error messages, because the error appears on an English screen. The API reads
+ * the header only when there is no account to ask, which is exactly the
+ * pre-auth screens — sign-in, register, verify, invite-join — where an error in
+ * the wrong language is least recoverable.
+ *
+ * Null until an app sets it, which leaves the browser's own header in place.
+ */
+let uiLanguage: string | null = null;
+
+export function setApiLanguage(tag: string | null): void {
+  uiLanguage = tag;
+}
+
 // Access token lives in memory only — never localStorage (XSS-safe). The
 // refresh token is the httpOnly cookie the browser sends automatically.
 let accessToken: string | null = null;
@@ -101,6 +120,7 @@ async function performFetch(
   const headers: Record<string, string> = {};
   if (hasBody && !isMultipart) headers["Content-Type"] = "application/json";
   if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  if (uiLanguage) headers["Accept-Language"] = uiLanguage;
 
   return fetch(`${baseUrl}${path}`, {
     method: init.method ?? "GET",

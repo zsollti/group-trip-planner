@@ -11,6 +11,7 @@ export {
   ApiError,
   apiFetch,
   setApiBaseUrl,
+  setApiLanguage,
   getApiBaseUrl,
   setAccessToken,
   getAccessToken,

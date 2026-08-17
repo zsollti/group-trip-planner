@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { Resend } from "resend";
+import { DEFAULT_LOCALE, type Locale } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
+import { interpolate, translate } from "../i18n/messages.js";
 
 /**
  * Outbound email. Two channels live here, and the split is the point (FR-36):
@@ -16,6 +18,23 @@ import type { Env } from "../config/env.js";
  * In dev / without a Resend key, messages are logged so links are visible in the
  * console. When RESEND_API_KEY is set (staging/prod) the same calls send real
  * email.
+ *
+ * **Every method takes the recipient's language**, because there is no client in
+ * an inbox: nothing downstream of here can choose it later. It defaults to the
+ * source language so a caller that genuinely has nobody to ask — the
+ * account-exists notice goes to an address, not necessarily to an account — is
+ * not forced to invent an answer.
+ *
+ * Prose is translated; **markup is not**. The sentences go through the catalogue
+ * and the HTML is assembled here, so a translator never sees a tag and cannot
+ * break a link. User-supplied values (a trip name, a message excerpt) are still
+ * escaped on the way in, exactly as before.
+ *
+ * Each sentence is translated **whole**, with `{placeholders}` for the values it
+ * contains — never assembled from fragments. `t("You're invited to") + name`
+ * would read correctly in English and wrongly in a language that puts the verb,
+ * the quote or the possessive somewhere else; a translator handed the whole
+ * sentence can move the placeholder to where their language needs it.
  */
 @Injectable()
 export class EmailService {
@@ -26,10 +45,17 @@ export class EmailService {
     this.resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
   }
 
-  async sendVerificationEmail(to: string, rawToken: string): Promise<void> {
+  async sendVerificationEmail(
+    to: string,
+    rawToken: string,
+    locale: Locale = DEFAULT_LOCALE,
+  ): Promise<void> {
+    const t = (message: string) => translate(message, locale);
     const link = `${this.env.WEB_APP_URL}/verify?token=${encodeURIComponent(rawToken)}`;
-    const subject = "Verify your email";
-    const html = `<p>Welcome to Group Trip Planner. Confirm your email:</p><p><a href="${link}">Verify my email</a></p>`;
+    const subject = t("Verify your email");
+    const html =
+      `<p>${t("Welcome to Group Trip Planner. Confirm your email:")}</p>` +
+      `<p><a href="${link}">${t("Verify my email")}</a></p>`;
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -52,17 +78,23 @@ export class EmailService {
     to: string,
     rawToken: string,
     tripName: string,
+    locale: Locale = DEFAULT_LOCALE,
   ): Promise<void> {
+    const t = (
+      message: string,
+      params?: Readonly<Record<string, string | number>>,
+    ) => interpolate(translate(message, locale), params);
     const link = `${this.env.WEB_APP_URL}/join/${encodeURIComponent(rawToken)}`;
     // The trip name is user-supplied and this mail goes to an address the
     // inviter types, so an unescaped name would let anyone compose arbitrary
     // markup — a link of their choosing — inside a mail sent from our domain
     // (Phase 7.2). The subject is a plain-text JSON field, not a header we
     // assemble, so it needs no escaping; the HTML body does.
-    const subject = `You're invited to "${tripName}"`;
+    const subject = t(`You're invited to "{trip}"`, { trip: tripName });
     const html =
-      `<p>You've been invited to join "${escapeHtml(tripName)}" on ` +
-      `Group Trip Planner.</p><p><a href="${link}">Open the invite</a></p>`;
+      `<p>${t(`You've been invited to join "{trip}" on Group Trip Planner.`, {
+        trip: escapeHtml(tripName),
+      })}</p>` + `<p><a href="${link}">${t("Open the invite")}</a></p>`;
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -81,9 +113,13 @@ export class EmailService {
    * registration response can stay identical for new vs existing emails (no
    * enumeration) while still being helpful to the real owner.
    */
-  async sendAccountExistsNotice(to: string): Promise<void> {
-    const subject = "You already have an account";
-    const html = `<p>Someone tried to register with this email. If it was you, just log in — no new account was created.</p>`;
+  async sendAccountExistsNotice(
+    to: string,
+    locale: Locale = DEFAULT_LOCALE,
+  ): Promise<void> {
+    const t = (message: string) => translate(message, locale);
+    const subject = t("You already have an account");
+    const html = `<p>${t("Someone tried to register with this email. If it was you, just log in — no new account was created.")}</p>`;
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -114,19 +150,33 @@ export class EmailService {
     excerpt: string;
     tripId: string;
     unsubscribeToken: string;
+    locale?: Locale;
   }): Promise<void> {
+    const t = (
+      message: string,
+      params?: Readonly<Record<string, string | number>>,
+    ) =>
+      interpolate(translate(message, input.locale ?? DEFAULT_LOCALE), params);
     const tripLink = `${this.env.WEB_APP_URL}/trips/${input.tripId}`;
     const unsubscribeLink = this.unsubscribeUrl(input.unsubscribeToken);
-    const subject = `${input.actorName} mentioned you in "${input.tripName}"`;
+    const subject = t('{name} mentioned you in "{trip}"', {
+      name: input.actorName,
+      trip: input.tripName,
+    });
     const html =
-      `<p><strong>${escapeHtml(input.actorName)}</strong> mentioned you in ` +
-      `"${escapeHtml(input.tripName)}":</p>` +
+      // The bold is carried *in the value*, not in the catalogue entry: a
+      // translator should never be handed a tag they could break, and the
+      // emphasis belongs to the name rather than to the sentence.
+      `<p>${t('{name} mentioned you in "{trip}":', {
+        name: `<strong>${escapeHtml(input.actorName)}</strong>`,
+        trip: escapeHtml(input.tripName),
+      })}</p>` +
       `<blockquote>${escapeHtml(input.excerpt)}</blockquote>` +
-      `<p><a href="${tripLink}">Open the trip</a></p>` +
+      `<p><a href="${tripLink}">${t("Open the trip")}</a></p>` +
       `<hr><p style="font-size:12px;color:#666">` +
-      `You get this because "email me when I'm @mentioned" is on. ` +
-      `<a href="${unsubscribeLink}">Unsubscribe</a> — it only turns off ` +
-      `notification email, never account email.</p>`;
+      `${t("You get this because mention email is on.")} ` +
+      `<a href="${unsubscribeLink}">${t("Unsubscribe")}</a> — ` +
+      `${t("it only turns off notification email, never account email.")}</p>`;
 
     if (this.resend) {
       await this.resend.emails.send({

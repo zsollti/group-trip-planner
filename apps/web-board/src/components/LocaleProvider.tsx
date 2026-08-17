@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { useAuth } from "@gtp/api-client";
+import { setApiLanguage, useAuth } from "@gtp/api-client";
 import { intlTagFor } from "@gtp/types";
 import {
   activeLocale,
@@ -39,6 +39,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   // React owns, so it is safe in a render pass in a way that setState would not
   // be.
   if (activeLocale() !== locale) setActiveLocale(locale);
+
+  // The API answers in the reader's language, and on the pre-auth screens the
+  // header is the only way it can know which that is — there is no account to
+  // read yet on sign-in, register, verify or invite-join. Sent as the language
+  // being *displayed*, not the browser's preference: those differ for anyone who
+  // has chosen a language here, and an error belongs in the language of the screen
+  // it appears on. Set during render for the same reason as above — a request
+  // fired from a child's first effect must already carry it.
+  setApiLanguage(intlTagFor(locale));
 
   // Remembering it *is* a side effect, so it belongs in one. Only ever mirrors
   // the signed-in account's choice: writing the browser's own guess here would
