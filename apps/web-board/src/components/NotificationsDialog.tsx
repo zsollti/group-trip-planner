@@ -87,7 +87,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 className={
-                  "bell__item" + (n.readAt ? "" : t(" bell__item--unread"))
+                  "bell__item" + (n.readAt ? "" : " bell__item--unread")
                 }
                 onClick={() => go(n)}
               >

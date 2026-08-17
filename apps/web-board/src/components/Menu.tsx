@@ -97,7 +97,7 @@ export function Menu({
       {open ? (
         <div
           className={
-            "menu__list" + (align === "left" ? t(" menu__list--left") : "")
+            "menu__list" + (align === "left" ? " menu__list--left" : "")
           }
         >
           {items.map((item, i) => (
@@ -106,7 +106,7 @@ export function Menu({
               ref={i === 0 ? firstItemRef : undefined}
               type="button"
               className={
-                "menu__item" + (item.danger ? t(" menu__item--danger") : "")
+                "menu__item" + (item.danger ? " menu__item--danger" : "")
               }
               disabled={item.disabled}
               aria-current={item.selected ? "true" : undefined}

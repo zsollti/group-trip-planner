@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { t } from "./i18n";
 
 /**
  * Manual light/dark theme (Phase 3.5). The board defaults to the OS setting
@@ -30,7 +29,7 @@ function osPrefersDark(): boolean {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia(t("(prefers-color-scheme: dark)")).matches
+    window.matchMedia("(prefers-color-scheme: dark)").matches
   );
 }
 

@@ -138,7 +138,7 @@ export function VoteDots({
             <span
               key={v.userId}
               className={
-                "lane__voter" + (v.stale ? t(" lane__voter--stale") : "")
+                "lane__voter" + (v.stale ? " lane__voter--stale" : "")
               }
             >
               <Avatar
@@ -164,7 +164,7 @@ export function VoteDots({
           type="button"
           className={
             "lane__vote-btn" +
-            (option.viewerHasVoted ? t(" lane__vote-btn--on") : "")
+            (option.viewerHasVoted ? " lane__vote-btn--on" : "")
           }
           aria-pressed={option.viewerHasVoted}
           disabled={toggle.isPending}
@@ -319,7 +319,7 @@ export function ParticipantDots({
           type="button"
           className={
             "lane__vote-btn lane__in-btn" +
-            (option.viewerIsParticipant ? t(" lane__vote-btn--on") : "")
+            (option.viewerIsParticipant ? " lane__vote-btn--on" : "")
           }
           aria-pressed={option.viewerIsParticipant}
           disabled={toggle.isPending}

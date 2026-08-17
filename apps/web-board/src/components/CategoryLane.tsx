@@ -586,7 +586,7 @@ export function CategoryLane({
           ref={decideDrop.setNodeRef}
           className={
             "lane__decide-drop" +
-            (decideDrop.isOver ? t(" lane__decide-drop--over") : "")
+            (decideDrop.isOver ? " lane__decide-drop--over" : "")
           }
           aria-hidden="true"
         >

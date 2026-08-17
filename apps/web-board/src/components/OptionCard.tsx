@@ -161,8 +161,8 @@ export function OptionCard({
       style={{ ...categoryHueStyle(category), ...style }}
       className={
         "lane__card lane__card--option" +
-        (settled ? t(" lane__card--settled") : "") +
-        (dragging ? t(" lane__card--dragging") : "")
+        (settled ? " lane__card--settled" : "") +
+        (dragging ? " lane__card--dragging" : "")
       }
     >
       <div className="lane__card-head">
@@ -195,7 +195,7 @@ export function OptionCard({
       </div>
       {dates
         ? field(
-            "lane__dates" + (elsewhere ? t(" lane__dates--elsewhere") : ""),
+            "lane__dates" + (elsewhere ? " lane__dates--elsewhere" : ""),
             <>
               <CalendarIcon /> {dates}
               {/* Advisory, never a rejection: the dates now say *when within the
