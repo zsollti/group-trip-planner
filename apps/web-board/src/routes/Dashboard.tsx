@@ -82,7 +82,7 @@ function SortableBoardTile({ trip }: { trip: HomeTripSummary }) {
       <button
         type="button"
         className="board__tile-grip"
-        aria-label={`Reorder ${trip.name}`}
+        aria-label={t("Reorder {trip}", { trip: trip.name })}
         {...attributes}
         {...listeners}
       >
@@ -249,7 +249,9 @@ export function Dashboard() {
       </header>
 
       <p className="board__eyebrow">{t("Boards")}</p>
-      <h1 className="board__title">Welcome, {user?.displayName}</h1>
+      <h1 className="board__title">
+        {t("Welcome, {name}", { name: user?.displayName ?? "" })}
+      </h1>
 
       {dash.isPending ? (
         <div
@@ -263,7 +265,7 @@ export function Dashboard() {
         </div>
       ) : dash.isError ? (
         <p className="board__form-error" role="alert">
-          Couldn't load your boards.{" "}
+          {t("Couldn't load your boards.")}{" "}
           <button
             type="button"
             className="board__link-btn"
