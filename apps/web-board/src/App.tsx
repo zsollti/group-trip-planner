@@ -11,14 +11,26 @@ import { Join } from "./routes/Join";
 import { Settings } from "./routes/Settings";
 import { Admin } from "./routes/Admin";
 import { Unsubscribed } from "./routes/Unsubscribed";
+import { LocaleProvider } from "./components/LocaleProvider";
 
 /**
- * UI C — Trip Board. Routes only; providers live in main.tsx so tests can mount
- * <App /> under their own router.
+ * UI C — Trip Board. Routes, plus the one provider that belongs to the app
+ * rather than to the page it is mounted on.
+ *
+ * The session, the query client and the router still live in main.tsx, so a test
+ * can mount <App /> under its own router. **The language does not**, and the
+ * distinction is worth keeping: those three are the environment the app runs in,
+ * while the language is a property of the app itself — every screen inside these
+ * routes formats a date or reads a label with it. Leaving it in main.tsx meant
+ * anything that mounted <App /> directly rendered a Settings page whose language
+ * section threw, which is how this arrangement was found.
+ *
+ * It sits inside `AuthProvider` (from either caller) because a signed-in
+ * account's stored language is the answer whenever there is one.
  */
 export function App() {
   return (
-    <>
+    <LocaleProvider>
       <BoardBackdrop />
       <Routes>
         <Route
@@ -91,6 +103,6 @@ export function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </LocaleProvider>
   );
 }

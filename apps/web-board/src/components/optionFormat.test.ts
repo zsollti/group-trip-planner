@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OptionView } from "@gtp/types";
 import { costLabel, dateRangeLabel } from "./optionFormat";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 
 /**
  * The card's date label, at the two precisions a category can capture.
@@ -13,12 +13,12 @@ import { UI_LOCALE } from "../lib/locale";
  * break.
  */
 const day = (iso: string) =>
-  new Date(iso).toLocaleDateString(UI_LOCALE, {
+  new Date(iso).toLocaleDateString(intlTag(), {
     month: "short",
     day: "numeric",
   });
 const time = (iso: string) =>
-  new Date(iso).toLocaleTimeString(UI_LOCALE, {
+  new Date(iso).toLocaleTimeString(intlTag(), {
     hour: "2-digit",
     minute: "2-digit",
   });

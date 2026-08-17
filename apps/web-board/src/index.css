@@ -1386,6 +1386,51 @@ body {
   flex: 1 1 14rem;
 }
 
+/* --- Language picker --------------------------------------------------------
+ *
+ * One button per language the build offers, each labelled in its own language.
+ * Marked with the app's accent and a tick rather than colour alone — the same
+ * rule the palette picker follows, and for the same reason.
+ *
+ * Styled now although only one language exists, so adding a dictionary is a
+ * dictionary and not also a styling pass. The section renders a sentence instead
+ * of these buttons until there is something to choose between. */
+.settings__languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.settings__language {
+  padding: 0.45rem 0.8rem;
+  border: 2px solid var(--lane-line);
+  border-radius: 999px;
+  background: var(--lane-bg);
+  color: var(--board-fg);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings__language:hover:not(:disabled) {
+  border-color: var(--board-accent);
+}
+.settings__language:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+.settings__language[aria-checked="true"] {
+  border-color: var(--board-accent);
+}
+.settings__language[aria-checked="true"]::after {
+  content: " ✓";
+  color: var(--board-accent);
+}
+.settings__language:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* --- Palette picker ---------------------------------------------------------
  *
  * Eight swatches, each showing all three of its palette's colours in the order

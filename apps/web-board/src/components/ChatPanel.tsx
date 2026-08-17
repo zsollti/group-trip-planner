@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 import {
   useChat,
   useTripMembers,
@@ -30,7 +30,7 @@ const OVERFLOW_RESERVE_PX = 56;
 const TAB_GAP_PX = 5;
 
 function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString(UI_LOCALE, {
+  return new Date(iso).toLocaleTimeString(intlTag(), {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -374,7 +374,9 @@ export function ChatPanel({
       {open ? (
         <section className="board__chat" role="dialog" aria-label="Trip chat">
           <header className="board__chat-head">
-            <strong title={activeChannel ? channelName(activeChannel) : undefined}>
+            <strong
+              title={activeChannel ? channelName(activeChannel) : undefined}
+            >
               {activeChannel ? channelLabel(activeChannel) : "Chat"}
             </strong>
             <button

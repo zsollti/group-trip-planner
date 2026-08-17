@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { pickSuccessor, type SuccessorCandidate } from "./policy.js";
 import { displayNameSchema } from "./auth.js";
+import { localeSchema } from "./locale.js";
 
 /**
  * Account-deletion contract + planner (Phase 1.5, SRS FR-6 / GDPR Art. 17).
@@ -64,7 +65,7 @@ export const DeleteAccountInput = z.object({ confirm: z.literal(true) });
 export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;
 
 /**
- * Rename yourself (post-launch).
+ * Your own account's settings: the name you wear, and the language you read.
  *
  * The display name was set once at registration and then frozen — there was no
  * endpoint to change it anywhere in the app. It is the name every other member
@@ -74,10 +75,29 @@ export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;
  * Reuses {@link displayNameSchema}, the same rule registration is held to,
  * rather than a second one that could accept a name the sign-up form would
  * refuse.
+ *
+ * **Both fields are optional, and a request must carry one of them.** That is
+ * what PATCH means, and it is what the two callers need: the rename form knows
+ * nothing about the language switch and the switch must not have to re-send a
+ * name it never asked about — a form that resubmits a field it does not own is
+ * how one screen quietly reverts another's edit. The `refine` keeps an empty body
+ * a 400 rather than a silent no-op, so "nothing happened" is never the answer to
+ * a request that asked for nothing.
  */
-export const UpdateProfileInput = z.object({
-  displayName: displayNameSchema,
-});
+export const UpdateProfileInput = z
+  .object({
+    displayName: displayNameSchema.optional(),
+    /**
+     * The language to read the app in. Validated against what this build
+     * actually offers, so a language cannot be selected before it is translated —
+     * a reader who somehow submits one gets a 400 rather than a half-English
+     * screen.
+     */
+    locale: localeSchema.optional(),
+  })
+  .refine((v) => v.displayName !== undefined || v.locale !== undefined, {
+    message: "Nothing to change.",
+  });
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
 
 /**
@@ -95,7 +115,9 @@ export function planAccountDeletion(
   for (const trip of ownedTrips) {
     // pickSuccessor returns one of `otherMembers` by reference (or null), so the
     // result carries the DeletableTripMember's displayName.
-    const successor = pickSuccessor(trip.otherMembers) as DeletableTripMember | null;
+    const successor = pickSuccessor(
+      trip.otherMembers,
+    ) as DeletableTripMember | null;
     if (successor) {
       transfers.push({
         tripId: trip.tripId,

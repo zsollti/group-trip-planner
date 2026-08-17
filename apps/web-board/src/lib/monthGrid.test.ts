@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UI_LOCALE } from "./locale";
+import { intlTag } from "./locale";
 import {
   addMonths,
   cursorFor,
@@ -125,7 +125,7 @@ describe("weekdayLabels", () => {
     expect(labels).toHaveLength(7);
     // Locale-dependent text, so assert the day it names rather than the string.
     expect(labels[0]!.long).toBe(
-      new Date(Date.UTC(2026, 0, 5)).toLocaleDateString(UI_LOCALE, {
+      new Date(Date.UTC(2026, 0, 5)).toLocaleDateString(intlTag(), {
         weekday: "long",
         timeZone: "UTC",
       }),

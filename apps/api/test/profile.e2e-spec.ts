@@ -84,8 +84,13 @@ describe("Display name (e2e)", () => {
       .send({ displayName: "Ada Lovelace" })
       .expect(200);
 
-    assert.equal((res.body as { displayName: string }).displayName, "Ada Lovelace");
-    const row = await prisma.user.findUniqueOrThrow({ where: { id: u.user.id } });
+    assert.equal(
+      (res.body as { displayName: string }).displayName,
+      "Ada Lovelace",
+    );
+    const row = await prisma.user.findUniqueOrThrow({
+      where: { id: u.user.id },
+    });
     assert.equal(row.displayName, "Ada Lovelace");
   });
 
@@ -119,7 +124,10 @@ describe("Display name (e2e)", () => {
       .set("Authorization", `Bearer ${u.accessToken}`)
       .send({ displayName: "  Grace Hopper  " })
       .expect(200);
-    assert.equal((res.body as { displayName: string }).displayName, "Grace Hopper");
+    assert.equal(
+      (res.body as { displayName: string }).displayName,
+      "Grace Hopper",
+    );
   });
 
   it("refuses an empty name and one past the limit", async () => {
@@ -135,12 +143,90 @@ describe("Display name (e2e)", () => {
     // the settings page accept a name the sign-up form refuses.
     await http()
       .post("/auth/register")
-      .send({ email: `dup+${suffix}@example.com`, password: "Sup3rSecret!pass", displayName: "" })
+      .send({
+        email: `dup+${suffix}@example.com`,
+        password: "Sup3rSecret!pass",
+        displayName: "",
+      })
       .expect(400);
   });
 
   it("needs a session", async () => {
-    await http().patch("/account/profile").send({ displayName: "Nobody" }).expect(401);
+    await http()
+      .patch("/account/profile")
+      .send({ displayName: "Nobody" })
+      .expect(401);
+  });
+
+  it("stores the language on the account, and hands it back on the session", async () => {
+    // The language lives on the account rather than in a browser, so the same
+    // reader gets the same language on their phone as on their laptop. `/auth/me`
+    // is what the app reads it from — it has to arrive with the session, or the
+    // first screen after sign-in would repaint in front of the reader.
+    const u = await makeUser("locale");
+    const before = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .expect(200);
+    assert.equal(
+      (before.body as { locale: string }).locale,
+      "en",
+      "an account that has never said reads the app in the default",
+    );
+
+    const res = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ locale: "en" })
+      .expect(200);
+    assert.equal((res.body as { locale: string }).locale, "en");
+  });
+
+  it("changes the language without being told the name again", async () => {
+    // The two settings are edited by two different forms. A PATCH that demanded
+    // `displayName` would make the language switch resubmit a name it never
+    // asked about — which is how one screen quietly reverts another's edit.
+    const u = await makeUser("locale-only");
+    await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ displayName: "Ada Lovelace" })
+      .expect(200);
+
+    const res = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ locale: "en" })
+      .expect(200);
+    assert.equal(
+      (res.body as { displayName: string }).displayName,
+      "Ada Lovelace",
+      "the name it was not asked about is untouched",
+    );
+  });
+
+  it("refuses a language it has not been translated into, and an empty patch", async () => {
+    const u = await makeUser("locale-bad");
+    // Hungarian is a real language with a known date format in the contract's
+    // tag table — and still not selectable, because this build has no dictionary
+    // for it. A 400 here is what keeps a half-English screen unreachable.
+    for (const body of [
+      { locale: "hu" },
+      { locale: "klingon" },
+      { locale: "" },
+    ]) {
+      await http()
+        .patch("/account/profile")
+        .set("Authorization", `Bearer ${u.accessToken}`)
+        .send(body)
+        .expect(400);
+    }
+    // And a request that asks for nothing is a mistake, not a no-op.
+    await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({})
+      .expect(400);
   });
 
   it("does not require a verified email", async () => {
@@ -183,7 +269,12 @@ describe("Display name (e2e)", () => {
     await http()
       .post(`/trips/${tripId}/categories/${categoryId}/options`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ title: "Hostel", currency: "EUR", costType: "PER_PERSON", participationMode: "WHOLE_GROUP" })
+      .send({
+        title: "Hostel",
+        currency: "EUR",
+        costType: "PER_PERSON",
+        participationMode: "WHOLE_GROUP",
+      })
       .expect(201);
 
     await http()

@@ -9,7 +9,9 @@ import {
   useSetAvatar,
   useUpdateNotificationPreferences,
 } from "@gtp/api-client";
+import { LOCALES, LOCALE_LABEL, type Locale } from "@gtp/types";
 import { UserMenu } from "../components/UserMenu";
+import { useLocale } from "../lib/useLocale";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
@@ -91,6 +93,7 @@ export function Settings() {
       <h1 className="board__title">Your settings</h1>
 
       <NameSection />
+      <LanguageSection />
 
       <section className="board__panel" aria-labelledby="avatar-heading">
         <h2 className="board__panel-title" id="avatar-heading">
@@ -188,6 +191,89 @@ export function Settings() {
 }
 
 /**
+ * The language the app is read in.
+ *
+ * It lives on the account rather than in this browser, so the same reader gets
+ * the same language on their phone as on their laptop. `localStorage` mirrors it
+ * (see `LocaleProvider`) only so the screens *outside* a session — sign-in,
+ * register, the invite-join page — have something to go on.
+ *
+ * The section states the current language even when there is only one to be in.
+ * That is not decoration: it is the one place the choice will appear, and saying
+ * "English" today is how a reader learns that the app has a language at all
+ * rather than wondering whether it has a setting they cannot find. The picker
+ * itself appears when there is something to pick, which is a dictionary away.
+ */
+function LanguageSection() {
+  const { applyUser } = useAuth();
+  const { locale } = useLocale();
+  const update = useUpdateProfile();
+  const [error, setError] = useState<string | null>(null);
+
+  async function choose(next: Locale) {
+    if (next === locale) return;
+    setError(null);
+    try {
+      // Straight into the session, which is what `LocaleProvider` reads — so the
+      // page repaints in the new language on the same tick, with no refetch and
+      // no reload.
+      applyUser(await update.mutateAsync({ locale: next }));
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't change the language.",
+      );
+    }
+  }
+
+  return (
+    <section className="board__panel" aria-labelledby="language-heading">
+      <h2 className="board__panel-title" id="language-heading">
+        Language
+      </h2>
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {LOCALES.length > 1 ? (
+        <div
+          className="settings__languages"
+          role="radiogroup"
+          aria-labelledby="language-heading"
+        >
+          {LOCALES.map((l) => (
+            <button
+              key={l}
+              type="button"
+              role="radio"
+              aria-checked={l === locale}
+              className="settings__language"
+              disabled={update.isPending}
+              onClick={() => void choose(l)}
+            >
+              {LOCALE_LABEL[l]}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="board__panel-note">
+          This app is in <strong>{LOCALE_LABEL[locale]}</strong>. It is the only
+          language available so far.
+        </p>
+      )}
+
+      <p className="board__panel-note">
+        Dates and times follow it too — the words in a date are part of the
+        language, so they cannot be left to the browser. Amounts do not: how a
+        number is grouped is a local convention rather than a language, and it
+        keeps following your own.
+      </p>
+    </section>
+  );
+}
+
+/**
  * Your name, as everyone else sees it.
  *
  * It was set at registration and then frozen: no screen in the app could change
@@ -233,7 +319,11 @@ function NameSection() {
         Display name
       </h2>
       <form className="settings__name" onSubmit={(e) => void onSubmit(e)}>
-        <Field htmlFor="displayName" label="Your name" error={error ?? undefined}>
+        <Field
+          htmlFor="displayName"
+          label="Your name"
+          error={error ?? undefined}
+        >
           <Input
             id="displayName"
             value={name}
@@ -245,7 +335,11 @@ function NameSection() {
             }}
           />
         </Field>
-        <Button type="submit" variant="secondary" disabled={!dirty || update.isPending}>
+        <Button
+          type="submit"
+          variant="secondary"
+          disabled={!dirty || update.isPending}
+        >
           {update.isPending ? "Saving…" : "Save"}
         </Button>
       </form>

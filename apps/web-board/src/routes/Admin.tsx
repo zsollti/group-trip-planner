@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 import { Link } from "react-router-dom";
 import {
   ApiError,
@@ -234,7 +234,7 @@ function Row({
 
 function when(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString(UI_LOCALE);
+  return new Date(iso).toLocaleString(intlTag());
 }
 
 /** "3 days ago" for a calendar day or an instant — staleness reads better relative. */

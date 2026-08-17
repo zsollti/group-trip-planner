@@ -30,6 +30,13 @@ model User {
   // in every notification email flips exactly this flag. Gates the notification
   // channel ONLY; transactional mail ignores it.
   emailOnMention Boolean  @default(true)
+  // The language this account reads the interface in (post-launch). Text with a
+  // default rather than a Postgres enum, so offering another language is a
+  // dictionary and a one-line contract change instead of a migration on a type —
+  // the same reasoning as `admin_audit_events.action`. Validated on the way in
+  // and on the way out against the shared `LOCALES`, so a value this build does
+  // not offer can neither be stored nor rendered.
+  locale        String    @default("en")
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
   anonymizedAt  DateTime?
   createdAt     DateTime  @default(now())
