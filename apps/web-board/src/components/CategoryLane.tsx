@@ -6,6 +6,7 @@ import {
   canBeMultiSelect,
   canDeleteCategory,
   CATEGORY_NAME_MAX_LENGTH,
+  maxCategoryOptions,
   type CategoryPaletteKey,
   type CategoryView,
   type OptionView,
@@ -440,6 +441,13 @@ export function CategoryLane({
   const isOrganizer = can(myRole, "category.manage") && !frozen;
   const canPropose = can(myRole, "option.propose") && !frozen;
 
+  // How full the lane is, counted the way the server counts it: every live
+  // option, decisions included. A locked card is pinned at the top of the lane
+  // taking its room, so a cap that ignored it would be a different limit from
+  // the one the API enforces — and the board would offer a form that 403s.
+  const optionCap = maxCategoryOptions();
+  const laneIsFull = options.length + decided.length >= optionCap;
+
   const {
     setNodeRef,
     transform,
@@ -681,13 +689,27 @@ export function CategoryLane({
           reconsidering starts by unlocking. */}
       {canPropose &&
       (options.length > 0 || (decided.length > 0 && !category.singleChoice)) ? (
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => setProposing(true)}
-        >
-          {t("+ Add card")}
-        </Button>
+        laneIsFull ? (
+          /* Said, not silently withheld. A button that vanished at the cap
+             would read as the board losing an action, and the reader would go
+             looking for the setting that took it away; the sentence names the
+             limit and the way out of it. Deliberately not `role="alert"` — the
+             lane is full, which is a state, not something that just went
+             wrong. */
+          <p className="lane__full">
+            {t("Full at {cap} options — remove one to add another.", {
+              cap: optionCap,
+            })}
+          </p>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setProposing(true)}
+          >
+            {t("+ Add card")}
+          </Button>
+        )
       ) : null}
 
       {proposing ? (

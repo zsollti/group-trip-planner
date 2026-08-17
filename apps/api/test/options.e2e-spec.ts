@@ -8,6 +8,7 @@ import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { TokenService } from "../src/auth/token.service.js";
+import { maxCategoryOptions } from "@gtp/types";
 
 /**
  * Options integration test (real DB) — the Phase-2.2 DoD:
@@ -327,7 +328,11 @@ describe("Options (e2e)", () => {
     return res.body.id as string;
   }
 
-  async function listIds(accessToken: string, tripId: string, categoryId: string) {
+  async function listIds(
+    accessToken: string,
+    tripId: string,
+    categoryId: string,
+  ) {
     const res = await http()
       .get(optionsUrl(tripId, categoryId))
       .set("Authorization", `Bearer ${accessToken}`)
@@ -360,7 +365,12 @@ describe("Options (e2e)", () => {
 
     // A new proposal still appends at the very end of the reordered list.
     const d = await propose(owner.accessToken, trip.id, cat, "D");
-    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [c, b, a, d]);
+    assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [
+      c,
+      b,
+      a,
+      d,
+    ]);
   });
 
   it("rejects a partial reorder (400) and a non-organizer/non-member", async () => {
@@ -399,5 +409,71 @@ describe("Options (e2e)", () => {
 
     // Order is unchanged after the rejected attempts.
     assert.deepEqual(await listIds(owner.accessToken, trip.id, cat), [a, b]);
+  });
+
+  /**
+   * The per-lane option cap. A lane is a question a group votes on, and past a
+   * point it stops being one — so the policy layer bounds it, exactly as it
+   * bounds members and categories, and for the same post-MVP reason: a paid
+   * tier raises the number without any handler learning a new one.
+   */
+  it("refuses an option past the policy cap, decisions counted", async () => {
+    const owner = await makeUser("optcap-owner");
+    const trip = await createTrip(owner.accessToken, "Full Lane");
+    const cats = (
+      await http()
+        .get(`/trips/${trip.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body as { id: string; builtinKey: string | null; version: number }[];
+    // Activities, because it seeds multi-select: the lock below has to be
+    // legal for the "decisions count too" half of this test to mean anything.
+    const acts = cats.find((c) => c.builtinKey === "ACTIVITIES")!;
+    const url = optionsUrl(trip.id, acts.id);
+
+    const cap = maxCategoryOptions();
+    const made: { id: string; version: number }[] = [];
+    for (let i = 0; i < cap; i++) {
+      const res = await http()
+        .post(url)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ title: `Option ${i}`, currency: "EUR" })
+        .expect(201);
+      made.push({ id: res.body.id, version: res.body.version });
+    }
+
+    const refused = await http()
+      .post(url)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "One too many", currency: "EUR" })
+      .expect(403);
+    assert.match(refused.body.message, /full at 8 options/);
+
+    // Locking one frees nothing: a decision is pinned at the top of the lane,
+    // taking its room. If locked options were excluded from the count, a
+    // multi-select lane could grow without end by locking as it went.
+    await http()
+      .post(`${url}/${made[0]!.id}/lock`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ optionVersion: made[0]!.version, categoryVersion: acts.version })
+      .expect(201);
+    await http()
+      .post(url)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Still too many", currency: "EUR" })
+      .expect(403);
+
+    // Deleting one makes room — the cap is a ceiling, not a one-way door, and
+    // a soft-deleted row must not hold a slot against the group even though it
+    // keeps its position.
+    await http()
+      .delete(`${url}/${made[1]!.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+    await http()
+      .post(url)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Room again", currency: "EUR" })
+      .expect(201);
   });
 });

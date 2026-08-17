@@ -217,6 +217,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Fetched: "Letöltve",
   Find: "Keresés",
   "Find a user": "Felhasználó keresése",
+  "Full at {cap} options — remove one to add another.":
+    "Betelt, {cap} javaslat van benne — törölj egyet, ha újat szeretnél.",
   "GTP · Trip Board": "GTP · Utazástábla",
   "Give these dates and they'll take their place on the trip. ":
     "Add meg ezeket a dátumokat, és bekerülnek az utazás menetébe. ",

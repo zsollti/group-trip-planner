@@ -129,6 +129,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
   // entry is a decision here, not an omission — the fallback is the source language.
   "“{name}” has {locked} decided options. Unlock all but one before making it single-choice.":
     "A „{name}” sávban {locked} eldöntött javaslat van. Egy kivételével oldd fel őket, hogy egyválasztós legyen.",
+  "“{name}” is full at {cap} options. Remove one to propose another.":
+    "A „{name}” sáv megtelt, {cap} javaslat van benne. Törölj egyet, ha újat szeretnél.",
 };
 
 /** Hungarian for the four emails. Whole sentences, placeholders where values go. */

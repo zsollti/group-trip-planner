@@ -2,8 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   BUILTIN_CATEGORIES,
+  DEFAULT_MAX_CATEGORY_OPTIONS,
   DEFAULT_MAX_TRIP_CATEGORIES,
   DEFAULT_MAX_TRIP_MEMBERS,
+  maxCategoryOptions,
   maxTripCategories,
   maxTripMembers,
   maxTripHorizonDays,
@@ -48,6 +50,27 @@ describe("policy.maxTripMembers / maxTripHorizonDays", () => {
   it("honours a per-trip category override (the same subscription seam)", () => {
     assert.equal(maxTripCategories({ maxCategoriesOverride: 20 }), 20);
     assert.equal(maxTripCategories({ maxCategoriesOverride: null }), 8);
+  });
+
+  it("caps a category's options at eight, independently of the lane cap", () => {
+    assert.equal(maxCategoryOptions(), DEFAULT_MAX_CATEGORY_OPTIONS);
+    assert.equal(maxCategoryOptions(), 8);
+    assert.equal(maxCategoryOptions({}), 8);
+  });
+
+  it("honours a per-trip options override — the tier seam this exists for", () => {
+    assert.equal(maxCategoryOptions({ maxCategoryOptionsOverride: 25 }), 25);
+    assert.equal(maxCategoryOptions({ maxCategoryOptionsOverride: null }), 8);
+  });
+
+  it("keeps the three caps independent of one another", () => {
+    // They happen to share a number today. Overriding one must not move the
+    // others — that is the whole point of asking the policy per limit rather
+    // than reading a shared constant.
+    const trip = { maxCategoryOptionsOverride: 40 };
+    assert.equal(maxCategoryOptions(trip), 40);
+    assert.equal(maxTripCategories(trip), 8);
+    assert.equal(maxTripMembers(trip), 30);
   });
 });
 

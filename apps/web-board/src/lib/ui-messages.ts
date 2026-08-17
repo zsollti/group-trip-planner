@@ -191,6 +191,7 @@ export const UI_MESSAGES = [
   "Fetched",
   "Find",
   "Find a user",
+  "Full at {cap} options — remove one to add another.",
   "GTP · Trip Board",
   "Give these dates and they'll take their place on the trip. ",
   "Global",

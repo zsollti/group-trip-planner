@@ -102,6 +102,7 @@ export const SERVER_MESSAGES = [
   "You've been removed from this trip and can't rejoin.",
   "database unreachable",
   "“{name}” has {locked} decided options. Unlock all but one before making it single-choice.",
+  "“{name}” is full at {cap} options. Remove one to propose another.",
 ] as const;
 
 /**
