@@ -27,13 +27,30 @@ describe("BUILTIN_CATEGORIES", () => {
     );
   });
 
-  it("seeds every built-in single-choice — multi-select is opt-in per trip", () => {
-    // The flags used to guess per category (Transport and Activities
-    // multi-select). Whether a trip wants one flight or a leg each way is a
-    // property of the trip, not of the word "Transport", so the seed takes the
-    // stricter reading and the trip changes what it needs.
+  it("seeds every built-in multi-select except Dates", () => {
+    // A trip keeps several activities, several legs, sometimes several places
+    // to stay. Seeding single-choice made the common case the one you had to
+    // set up by hand, lane by lane, before the board could hold what the group
+    // decided. Dates is not a default here but a rule — see canBeMultiSelect.
     for (const c of BUILTIN_CATEGORIES) {
-      assert.equal(c.singleChoice, true, `${c.builtinKey} seeds single-choice`);
+      assert.equal(
+        c.singleChoice,
+        c.builtinKey === "DATES",
+        `${c.builtinKey} seeds ${c.builtinKey === "DATES" ? "single-choice" : "multi-select"}`,
+      );
+    }
+  });
+
+  it("never seeds a category its own rule would refuse", () => {
+    // The guard that would have caught the demo seed writing two locked
+    // options into a single-choice Transport lane: a seeded multi-select
+    // category must be one that is allowed to be multi-select.
+    for (const c of BUILTIN_CATEGORIES) {
+      if (c.singleChoice) continue;
+      assert.ok(
+        canBeMultiSelect({ builtinKey: c.builtinKey }),
+        `${c.builtinKey} may hold several winners`,
+      );
     }
   });
 

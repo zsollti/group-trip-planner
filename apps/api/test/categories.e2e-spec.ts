@@ -133,9 +133,15 @@ describe("Categories (e2e)", () => {
       "all seeded categories are built-in",
     );
     const byKey = Object.fromEntries(cats.map((c) => [c.builtinKey, c]));
-    // Every built-in now seeds single-choice; multi-select is opt-in per trip.
+    // Multi-select is the seeded default now — a trip keeps several activities
+    // and often several legs. Dates is the exception, and not a default: it
+    // holds the one range the trip writes back (canBeMultiSelect).
     for (const c of cats) {
-      assert.equal(c.singleChoice, true, `${c.builtinKey} seeds single-choice`);
+      assert.equal(
+        c.singleChoice,
+        c.builtinKey === "DATES",
+        `${c.builtinKey} seeds the documented mode`,
+      );
     }
     assert.ok(byKey.DATES, "Dates is seeded");
     assert.deepEqual(
@@ -428,26 +434,26 @@ describe("Categories (e2e)", () => {
    * anyone else is, because neither is about the caller's role.
    */
   describe("selection mode", () => {
-    it("lets an Organizer switch a category to multi-select and back", async () => {
+    it("lets an Organizer switch a category to single-choice and back", async () => {
       const owner = await makeUser("mode-owner");
       const trip = await createTrip(owner.accessToken, "Modes");
       const cats = (
         await listCategories(owner.accessToken, trip.id).expect(200)
       ).body as Cat[];
       const stay = cats.find((c) => c.builtinKey === "ACCOMMODATION")!;
-      assert.equal(stay.singleChoice, true, "seeded single-choice");
+      assert.equal(stay.singleChoice, false, "seeded multi-select");
 
-      const wide = await http()
+      const narrow = await http()
         .patch(`/trips/${trip.id}/categories/${stay.id}`)
         .set("Authorization", `Bearer ${owner.accessToken}`)
         .send({
           name: stay.name,
-          singleChoice: false,
+          singleChoice: true,
           paletteKey: null,
           version: stay.version,
         })
         .expect(200);
-      assert.equal(wide.body.singleChoice, false);
+      assert.equal(narrow.body.singleChoice, true);
 
       const back = await http()
         .patch(`/trips/${trip.id}/categories/${stay.id}`)
@@ -455,11 +461,11 @@ describe("Categories (e2e)", () => {
         .send({
           name: stay.name,
           paletteKey: null,
-          singleChoice: true,
-          version: wide.body.version,
+          singleChoice: false,
+          version: narrow.body.version,
         })
         .expect(200);
-      assert.equal(back.body.singleChoice, true);
+      assert.equal(back.body.singleChoice, false);
     });
 
     it("refuses to make Dates multi-select, even for the Owner", async () => {
@@ -491,7 +497,10 @@ describe("Categories (e2e)", () => {
       ).body as Cat[];
       const acts = cats.find((c) => c.builtinKey === "ACTIVITIES")!;
 
-      // Widen it, then lock two options — legal only while multi-select.
+      // Activities seeds multi-select, so this write re-states the mode rather
+      // than changing it. It is kept because the version it bumps is what the
+      // narrowing attempt below has to carry — the point of the test is the
+      // refusal, not how the lane came to be wide.
       const wide = await http()
         .patch(`/trips/${trip.id}/categories/${acts.id}`)
         .set("Authorization", `Bearer ${owner.accessToken}`)
