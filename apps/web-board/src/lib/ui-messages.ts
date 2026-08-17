@@ -160,7 +160,7 @@ export const UI_MESSAGES = [
   "Destination",
   "Disable",
   "Disabled",
-  "Discuss {lane}",
+  "Discuss",
   "Discussion",
   "Dismiss notification",
   "Display name",

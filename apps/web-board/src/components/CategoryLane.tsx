@@ -197,27 +197,45 @@ function LaneHeader({
     if (await save({ name })) setEditing(false);
   }
 
-  // Built once so the "⋯" can be dropped entirely when it would be empty.
-  // Colour leads: it is the only item here that every lane has, Dates included
-  // — which is also what gives that lane a "⋯" for the first time.
+  /*
+   * The lane's "⋯", built from what *this* reader may do to *this* lane.
+   *
+   * Discuss leads and is the one item every member gets: starting a category's
+   * discussion is not an organizer's privilege (FR-29). It used to be a 💬
+   * button of its own beside the menu, which is why the menu could be dropped
+   * whenever a reader had no organizer items — the header always had one
+   * control. Folding the two together means the menu is now the header's only
+   * control, so it renders for everyone and *filters* rather than disappears:
+   * hiding it for a participant would take category chat with it.
+   *
+   * Colour leads the organizer half: it is the only one every lane has, Dates
+   * included.
+   */
   const laneMenuItems: MenuItem[] = [
-    { label: t("Change colour"), onSelect: () => setPicking(true) },
+    { label: t("Discuss"), onSelect: onDiscuss, disabled: discussing },
   ];
-  if (canBeMultiSelect(category)) {
+  if (isOrganizer) {
     laneMenuItems.push({
-      label: category.singleChoice
-        ? t("Allow several winners")
-        : t("Keep only one winner"),
-      onSelect: () => void save({ singleChoice: !category.singleChoice }),
-      disabled: update.isPending,
+      label: t("Change colour"),
+      separated: true,
+      onSelect: () => setPicking(true),
     });
-  }
-  if (canDeleteCategory(category)) {
-    laneMenuItems.push({
-      label: t("Delete category"),
-      onSelect: onRequestDelete,
-      danger: true,
-    });
+    if (canBeMultiSelect(category)) {
+      laneMenuItems.push({
+        label: category.singleChoice
+          ? t("Allow several winners")
+          : t("Keep only one winner"),
+        onSelect: () => void save({ singleChoice: !category.singleChoice }),
+        disabled: update.isPending,
+      });
+    }
+    if (canDeleteCategory(category)) {
+      laneMenuItems.push({
+        label: t("Delete category"),
+        onSelect: onRequestDelete,
+        danger: true,
+      });
+    }
   }
 
   return (
@@ -298,31 +316,16 @@ function LaneHeader({
             </h2>
           )}
           <div className="lane__card-tools">
-            {/* Start (or open) this category's discussion — any member (FR-29). */}
-            <button
-              type="button"
-              className="lane__discuss"
-              title={t("Discuss {lane}", { lane: category.name })}
-              aria-label={t("Discuss {lane}", { lane: category.name })}
-              disabled={discussing}
-              onClick={onDiscuss}
-            >
-              💬
-            </button>
             {grip}
-            {/* Dates still gets neither of the other two items: it is the trip's
+            {/* Dates still gets neither of the two edit items: it is the trip's
               only date-setting path and cannot be recreated once gone
               (canDeleteCategory), and it holds one date range so it cannot go
-              multi-select (canBeMultiSelect). It used to have no "⋯" at all for
-              that reason — a menu of things that would be refused is worse than
-              no menu — and has one now only because its colour is as changeable
-              as any other lane's. */}
-            {isOrganizer && laneMenuItems.length > 0 ? (
-              <Menu
-                label={t("{lane} lane actions", { lane: category.name })}
-                items={laneMenuItems}
-              />
-            ) : null}
+              multi-select (canBeMultiSelect). Its menu is Discuss and a colour,
+              which is why it has one at all. */}
+            <Menu
+              label={t("{lane} lane actions", { lane: category.name })}
+              items={laneMenuItems}
+            />
           </div>
         </div>
         <p className="lane__meta">
