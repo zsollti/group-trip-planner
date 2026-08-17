@@ -122,7 +122,7 @@ function DemoPanel() {
     >
       <h2 className="admin__panel-title">{t("Demo data")}</h2>
       <p className="admin__note">
-        Deletes the trips owned by <strong>{t("demo@example.com")}</strong> and
+        Deletes the trips owned by <strong>demo@example.com</strong> and
         rebuilds the published demo board from the seed — five members, fourteen
         options, four decisions, the chat and the votes. No other account is
         touched, and the demo password is reset to the one in the README.

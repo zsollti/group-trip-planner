@@ -155,7 +155,7 @@ export function InviteDialog({
               <Input
                 id="invite-email"
                 type="email"
-                placeholder={t("friend@example.com")}
+                placeholder="friend@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
