@@ -43,7 +43,7 @@ export interface CostEngineOption {
   readonly categoryId: string;
   /** `PROPOSED` options feed the projection; `LOCKED` ones feed the committed total. */
   readonly status: OptionStatus;
-  /** Price; `null` (unpriced) contributes zero to every total. */
+  /** Price; `null` (unpriced) is left out of the totals entirely — see {@link priced}. */
   readonly amount: number | null;
   /** 3-letter currency code — the aggregation key (never converted). */
   readonly currency: string;
@@ -130,6 +130,38 @@ export function optionCost(
   };
 }
 
+/**
+ * The costs of the options that carry a price, ready to aggregate.
+ *
+ * **Unpriced options are dropped, not zeroed.** {@link optionCost} values them
+ * at zero, which is right for the per-option figure a card shows — an option
+ * with no price costs nothing. But feeding that zero into
+ * {@link aggregateByCurrency} keys it under the option's `currency` anyway, and
+ * a currency is a claim: it says this trip has money committed in it. So a trip
+ * created in dollars whose only decision was its dates reported a **EUR**
+ * subtotal of zero, purely because the seeded Dates option had to carry some
+ * currency code, and every surface downstream dutifully drew it — a total, a
+ * per-person figure and a chart, all about money nobody had agreed to spend.
+ *
+ * `costSummary` on the front end already says this in words: "priced-at-zero is
+ * not the same as unpriced ... an empty list means nothing has been decided and
+ * costed yet". It could only rely on that once the engine stopped putting
+ * unpriced options in the list.
+ *
+ * Note this filters the **aggregation only**. `CostDashboard.options` still
+ * carries every option, priced or not, because any card may need to look up its
+ * own figure.
+ */
+function priced(
+  options: readonly CostEngineOption[],
+  costById: ReadonlyMap<string, OptionCost>,
+): OptionCost[] {
+  return options
+    .filter((o) => o.amount !== null)
+    .map((o) => costById.get(o.id))
+    .filter((c): c is OptionCost => c !== undefined);
+}
+
 /** Sum a set of option costs into per-currency subtotals, sorted by currency. */
 function aggregateByCurrency(costs: readonly OptionCost[]): CurrencySubtotal[] {
   const byCurrency = new Map<string, { group: number; perPerson: number }>();
@@ -212,12 +244,8 @@ export function computeCostDashboard(
     if (winner) frontRunners.push(winner);
   }
 
-  const lockedCosts = locked
-    .map((o) => costById.get(o.id))
-    .filter((c): c is OptionCost => c !== undefined);
-  const frontRunnerCosts = frontRunners
-    .map((o) => costById.get(o.id))
-    .filter((c): c is OptionCost => c !== undefined);
+  const lockedCosts = priced(locked, costById);
+  const frontRunnerCosts = priced(frontRunners, costById);
 
   const committed = aggregateByCurrency(lockedCosts);
   const projected = aggregateByCurrency([...lockedCosts, ...frontRunnerCosts]);

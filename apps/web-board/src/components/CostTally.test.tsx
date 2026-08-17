@@ -345,6 +345,37 @@ describe("CostTally", () => {
     ).toBeInTheDocument();
   });
 
+  it("states a locked-but-costless trip once, in the trip's own currency", async () => {
+    // The bug this pins: a trip whose only decision was its dates. The seeded
+    // Dates option is unpriced and used to be stored as EUR whatever currency
+    // the trip was in, and the engine aggregated it anyway — so a dollar trip
+    // got a zero-EUR subtotal, and the strip printed "0 EUR" as a total, "0 EUR
+    // per person" beside it, and then drew "0 USD" in the ring below. Three
+    // figures for no money, two of them in a currency the trip does not use.
+    //
+    // The engine no longer aggregates unpriced options, so this state should be
+    // unreachable from that route — but a locked option priced at *zero* still
+    // produces a real subtotal of nothing, and it must read the same way.
+    renderTally(
+      dashboard({
+        defaultCurrency: "USD",
+        committed: [{ currency: "EUR", group: 0, perPerson: 0 }],
+        lines: [locked({ perPerson: 0, group: 0 })],
+      }),
+    );
+
+    expect(
+      await screen.findByText(/Lock a priced option to start the tally/),
+    ).toBeInTheDocument();
+    // The ring's own caption, which is the *only* "per person" left — the
+    // headline's separate restatement of the same zero is gone. Two matches at
+    // most, both belonging to the ring: its figure and its label.
+    expect(screen.queryByText(/per person/)).toBeInTheDocument();
+    expect(screen.getAllByText(/0/).length).toBeLessThanOrEqual(2);
+    // And nothing anywhere claims a currency the trip is not denominated in.
+    expect(document.body.textContent).not.toMatch(/EUR|€/);
+  });
+
   it("is a plain panel — no disclosure, no label, no group total", async () => {
     // It was a <details> headed "💶 Locked in" with a peek figure beside it and
     // the group total large beneath. The composition inside states the

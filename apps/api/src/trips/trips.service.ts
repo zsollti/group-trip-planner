@@ -77,7 +77,13 @@ export class TripsService {
       await CategoriesService.seedBuiltins(tx, created.id);
       await ChannelsService.createGeneral(tx, created.id);
       if (dates) {
-        await OptionsService.seedLockedDates(tx, created.id, user.id, dates);
+        await OptionsService.seedLockedDates(
+          tx,
+          created.id,
+          user.id,
+          dates,
+          created.defaultCurrency,
+        );
       }
       return created;
     });

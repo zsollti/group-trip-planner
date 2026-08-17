@@ -461,4 +461,69 @@ describe("computeCostDashboard — shape & edge cases", () => {
     assert.deepEqual(d.options, []);
     assert.deepEqual(d.frontRunnerOptionIds, []);
   });
+
+  it("an unpriced option claims no currency, locked or leading", () => {
+    // The bug, as reported: a USD trip whose only decision was its dates showed
+    // "0 EUR" in its cost dashboard. The seeded Dates option is unpriced and was
+    // stored as EUR whatever the trip's currency, and this function aggregated
+    // every locked option by `currency` regardless of `amount` — so it emitted a
+    // subtotal of nothing, and every surface downstream drew it: a total, a
+    // per-person figure, a chart.
+    //
+    // Zero is the right *per-option* figure for an unpriced option and it still
+    // gets one below. What it must not do is put its currency in a subtotal,
+    // because a currency row is a claim that this trip has money committed in
+    // that currency — and nobody had committed anything.
+    const d = computeCostDashboard(
+      [
+        option({ id: "dates", status: "LOCKED", amount: null }),
+        option({
+          id: "leading",
+          categoryId: "cat-2",
+          status: "PROPOSED",
+          amount: null,
+          currency: "GBP",
+          voteCount: 3,
+        }),
+      ],
+      4,
+    );
+
+    // Neither total names a currency — not the locked one, and not the
+    // front-runner that feeds the projection either.
+    assert.deepEqual(d.committed, []);
+    assert.deepEqual(d.projected, []);
+    // The unpriced leader is still *a* leader; it is dropped from the money, not
+    // from the board.
+    assert.deepEqual(d.frontRunnerOptionIds, ["leading"]);
+    // And each option still carries its own zero, for the card that shows it.
+    assert.deepEqual(
+      d.options.map((o) => [o.optionId, o.group, o.perPerson]),
+      [
+        ["dates", 0, 0],
+        ["leading", 0, 0],
+      ],
+    );
+  });
+
+  it("keeps the priced options when an unpriced one sits beside them", () => {
+    // The filter's blast radius: dropping the unpriced option must not disturb
+    // the row its priced neighbour in the same currency contributes to.
+    const d = computeCostDashboard(
+      [
+        option({ id: "dates", status: "LOCKED", amount: null }),
+        option({
+          id: "flight",
+          categoryId: "cat-2",
+          status: "LOCKED",
+          amount: 89,
+          costType: "PER_PERSON",
+        }),
+      ],
+      4,
+    );
+    assert.deepEqual(d.committed, [
+      { currency: "EUR", group: 356, perPerson: 89 },
+    ]);
+  });
 });
