@@ -14,7 +14,7 @@ import {
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /** How many faces fit on a card before the rest become a count. */
 const SHOWN = 3;
@@ -35,7 +35,11 @@ function VoterList({
   onClose: () => void;
 }) {
   return (
-    <Dialog eyebrow="Votes" title={`${voters.length} voted`} onClose={onClose}>
+    <Dialog
+      eyebrow="Votes"
+      title={t("{n} voted", { n: voters.length })}
+      onClose={onClose}
+    >
       <>
         <ul className="voters">
           {voters.map((v) => (
@@ -123,7 +127,11 @@ export function VoteDots({
         <button
           type="button"
           className="lane__voters"
-          aria-label={`${option.voteCount} ${option.voteCount === 1 ? "vote" : "votes"} — see who`}
+          aria-label={plural(
+            option.voteCount,
+            "{n} vote — see who",
+            "{n} votes — see who",
+          )}
           onClick={() => setListing(true)}
         >
           {shown.map((v) => (
@@ -190,7 +198,7 @@ function ParticipantList({
   return (
     <Dialog
       eyebrow="Who's in"
-      title={`${participants.length} in`}
+      title={t("{n} in", { n: participants.length })}
       onClose={onClose}
     >
       <>
@@ -281,7 +289,9 @@ export function ParticipantDots({
         <button
           type="button"
           className="lane__voters"
-          aria-label={`${option.participants.length} in — see who`}
+          aria-label={t("{n} in — see who", {
+            n: option.participants.length,
+          })}
           onClick={() => setListing(true)}
         >
           {shown.map((p) => (

@@ -17,7 +17,7 @@ import {
   type TimelineEntry,
   type TimelineSpan,
 } from "../lib/timeline";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /** Clock time of a moment, or the interval it occupies within its day. */
 function timeLabel(entry: TimelineEntry): string {
@@ -115,7 +115,9 @@ function EntryCard({
           ) : null}
           {clashes ? (
             <span className="tl__card-clash">
-              Overlaps another {entry.category.name} decision
+              {t("Overlaps another {lane} decision", {
+                lane: entry.category.name,
+              })}
             </span>
           ) : null}
         </span>
@@ -207,8 +209,11 @@ export function TimelineBoard({
       ) : null}
       {timeline.truncated ? (
         <p className="tl__banner" role="status">
-          Showing the first {days.length} days — something is dated much further
-          out than the rest.
+          {plural(
+            days.length,
+            "Showing the first {n} day — something is dated much further out than the rest.",
+            "Showing the first {n} days — something is dated much further out than the rest.",
+          )}
         </p>
       ) : null}
 

@@ -16,7 +16,7 @@ import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { Button, Field, Input } from "@gtp/ui-primitives";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 /**
  * The account settings page — your picture, your email preferences, and the
@@ -156,8 +156,10 @@ export function Settings() {
             )}
           </p>
           <p className="board__panel-note">
-            To silence a single noisy board, open it and use{" "}
-            <strong>{t("Mute email")}</strong> in its ⋯ menu.
+            {tNode(
+              "To silence a single noisy board, open it and use {control} in its ⋯ menu.",
+              { control: <strong>{t("Mute email")}</strong> },
+            )}
           </p>
         </section>
       )}
@@ -263,8 +265,10 @@ function LanguageSection() {
         </div>
       ) : (
         <p className="board__panel-note">
-          This app is in <strong>{LOCALE_LABEL[locale]}</strong>. It is the only
-          language available so far.
+          {tNode(
+            "This app is in {language}. It is the only language available so far.",
+            { language: <strong>{LOCALE_LABEL[locale]}</strong> },
+          )}
         </p>
       )}
 
