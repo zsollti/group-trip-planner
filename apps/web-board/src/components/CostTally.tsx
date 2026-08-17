@@ -65,7 +65,19 @@ function exactParts(locked: LockedCost): string | null {
  *
  * Functional four states: loading, error, nothing-yet, and the tally.
  */
-export function CostTally({ tripId }: { tripId: string }) {
+export function CostTally({
+  tripId,
+  myUserId,
+}: {
+  tripId: string;
+  /**
+   * The reader, so the "priced for part of the group" aside can ring their own
+   * face. Passed down rather than read from `useAuth` for the reason the crew
+   * panel records: a component that renders numbers should not need a session
+   * provider mounted to render them, and every test of this panel would.
+   */
+  myUserId: string | undefined;
+}) {
   const dash = useTripDashboard(tripId);
   // The board has already fetched these, so this costs a cache read rather
   // than a request. The charts need each lane's palette, which the cost lines
@@ -81,7 +93,11 @@ export function CostTally({ tripId }: { tripId: string }) {
           {t("Couldn't load the cost.")}
         </p>
       ) : (
-        <TallyBody d={dash.data} categories={categories.data ?? []} />
+        <TallyBody
+          d={dash.data}
+          categories={categories.data ?? []}
+          myUserId={myUserId}
+        />
       )}
     </section>
   );
@@ -90,9 +106,11 @@ export function CostTally({ tripId }: { tripId: string }) {
 function TallyBody({
   d,
   categories,
+  myUserId,
 }: {
   d: TripDashboardView;
   categories: readonly CategoryView[];
+  myUserId: string | undefined;
 }) {
   const locked = lockedCost(d);
   // The target is per person, so it is read against **this reader's** money —
@@ -155,6 +173,7 @@ function TallyBody({
         <CostComposition
           composition={composition}
           categories={categories}
+          myUserId={myUserId}
           headline={{
             headline: figure(
               composition.charted,

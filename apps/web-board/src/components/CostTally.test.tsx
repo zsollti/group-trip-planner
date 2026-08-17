@@ -102,7 +102,7 @@ function renderTally(
   );
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <CostTally tripId="t1" />
+      <CostTally tripId="t1" myUserId="u-me" />
     </QueryClientProvider>,
   );
 }
@@ -118,6 +118,9 @@ function locked(over: Partial<DashboardLine> = {}): DashboardLine {
     categoryName: "Stay",
     title: `Option ${lineSeq}`,
     kind: "LOCKED",
+    // Whole-group by default: nobody has a participation row on one, so an
+    // empty list is the truthful shape rather than a placeholder.
+    participants: [],
     currency: "EUR",
     group: perPerson * 4,
     perPerson,
@@ -529,6 +532,26 @@ describe("the cost composition", () => {
             title: "Airport taxi",
             perPerson: 10,
             effectiveHeadcount: 3,
+            participants: [
+              {
+                userId: "u-me",
+                displayName: "Ada",
+                avatarUrl: null,
+                joinedAt: "2026-01-01T00:00:00.000Z",
+              },
+              {
+                userId: "u-2",
+                displayName: "Grace",
+                avatarUrl: null,
+                joinedAt: "2026-01-02T00:00:00.000Z",
+              },
+              {
+                userId: "u-3",
+                displayName: "Edsger",
+                avatarUrl: null,
+                joinedAt: "2026-01-03T00:00:00.000Z",
+              },
+            ],
           }),
         ],
       }),
@@ -537,8 +560,84 @@ describe("the cost composition", () => {
     // Ten euros three of five owe cannot join a per-person total everyone is
     // measured by — so it is stated rather than folded in.
     expect(await screen.findByText("Airport taxi")).toBeInTheDocument();
-    expect(screen.getByText(/for 3 members/)).toBeInTheDocument();
     expect(screen.queryByText("Transport")).toBeNull();
+    // Who, not how many. The line used to read "for 3 members"; the question a
+    // reader has in front of an option priced for part of the group is which
+    // part, and whether they are in it.
+    expect(screen.queryByText(/for 3 members/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /3 in — see who/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("rings the reader's own face among the people an option is priced for", async () => {
+    // It replaces a "· yours" that followed the number. Same fact, said where
+    // the eye already is.
+    const { container } = renderTally(
+      dashboard({
+        memberCount: 5,
+        committed: [priced(60)],
+        lines: [
+          locked({ perPerson: 50, effectiveHeadcount: 5 }),
+          locked({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            title: "Airport taxi",
+            perPerson: 10,
+            effectiveHeadcount: 2,
+            viewerOwes: true,
+            participants: [
+              {
+                userId: "u-me",
+                displayName: "Ada",
+                avatarUrl: null,
+                joinedAt: "2026-01-01T00:00:00.000Z",
+              },
+              {
+                userId: "u-2",
+                displayName: "Grace",
+                avatarUrl: null,
+                joinedAt: "2026-01-02T00:00:00.000Z",
+              },
+            ],
+          }),
+        ],
+      }),
+      LANES,
+    );
+    await screen.findByText("Airport taxi");
+    expect(container.querySelectorAll(".lane__voter--mine")).toHaveLength(1);
+  });
+
+  it("rings nobody when the reader is not one of them", async () => {
+    const { container } = renderTally(
+      dashboard({
+        memberCount: 5,
+        committed: [priced(60)],
+        lines: [
+          locked({ perPerson: 50, effectiveHeadcount: 5 }),
+          locked({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            title: "Airport taxi",
+            perPerson: 10,
+            effectiveHeadcount: 2,
+            viewerOwes: false,
+            participants: [
+              {
+                userId: "u-2",
+                displayName: "Grace",
+                avatarUrl: null,
+                joinedAt: "2026-01-02T00:00:00.000Z",
+              },
+            ],
+          }),
+        ],
+      }),
+      LANES,
+    );
+    await screen.findByText("Airport taxi");
+    expect(container.querySelectorAll(".lane__voter--mine")).toHaveLength(0);
   });
 
   it("says nothing at all when no locked money is shared by the group", async () => {

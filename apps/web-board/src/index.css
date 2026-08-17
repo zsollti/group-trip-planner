@@ -2013,6 +2013,17 @@ body {
 .lane__voter + .lane__voter {
   margin-left: -0.4rem;
 }
+/* The reader's own face, in a stack where nothing else says whether they are
+   one of the people it is drawing. On the cost surface it replaces the words
+   "· yours" after the number: the same fact, in the place the eye is already
+   looking. Only rendered where there is no other answer to "am I in" — the
+   option card's own "✓ I'm in" button makes it redundant there. */
+.lane__voter--mine {
+  box-shadow:
+    0 0 0 2px var(--lane-bg),
+    0 0 0 4px var(--board-accent);
+}
+
 /* A vote cast before the option's last material change (FR-23). Faded and
    ringed in the danger hue rather than hidden: it still counts, it just no
    longer means what it meant. The `title` says so in words. */
@@ -4414,12 +4425,13 @@ body {
   color: var(--board-dim);
 }
 
-/* An excluded option the reader is actually in for. The chart states what
-   everyone shares and the target states what you owe; this is the difference
-   between them, so it is worth picking out of the aside. */
-.cost-comp__aside-mine {
-  font-weight: 700;
-  color: var(--board-accent);
+/* The aside's rows carry a face stack now, so they need to lay out as a line
+   of mixed content rather than as a paragraph. */
+.cost-comp__aside-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 
 /* --- The create-trip stepper's progress ------------------------------------

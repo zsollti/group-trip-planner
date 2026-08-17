@@ -40,7 +40,7 @@ export class DashboardService {
     const [rows, rates] = await Promise.all([
       this.prisma.option.findMany({
         where: { deletedAt: null, category: { tripId: ctx.trip.id } },
-        include: dashboardOptionInclude(viewerId),
+        include: dashboardOptionInclude(),
         orderBy: { createdAt: "asc" },
       }),
       this.rates.current(),
@@ -53,6 +53,7 @@ export class DashboardService {
     return toTripDashboardView(
       ctx.trip,
       memberCount,
+      viewerId,
       rows,
       result,
       new Date(),

@@ -59,6 +59,10 @@ function row(o: CostEngineOption): DashboardOptionRow {
     status: o.status,
     amount: o.amount,
     _count: { votes: o.voteCount },
+    // Present and empty rather than absent: the mapper walks this list to name
+    // who an opt-in option is priced for, and a fixture missing it would fail
+    // for a reason that has nothing to do with currency conversion.
+    participants: [],
   } as unknown as DashboardOptionRow;
 }
 
@@ -71,6 +75,7 @@ function view(
   return toTripDashboardView(
     { id: "t1", defaultCurrency, budgetPerPerson: null },
     4,
+    "viewer-1",
     options.map(row),
     result,
     new Date("2026-08-12T10:00:00.000Z"),

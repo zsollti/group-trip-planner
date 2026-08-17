@@ -33,7 +33,7 @@ export function BoardRail({
 }) {
   return (
     <aside className="board__rail">
-      <CostTally tripId={tripId} />
+      <CostTally tripId={tripId} myUserId={myUserId} />
       <CrewPanel
         tripId={tripId}
         myRole={myRole}

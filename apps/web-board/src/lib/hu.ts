@@ -526,7 +526,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "yours: ": "a tiéd: ",
   "{amount} over target, per person": "{amount} a cél felett, fejenként",
   "{amount} per person": "{amount} fejenként",
-  "{amount} per person for {who}": "{amount} fejenként, {who} esetén",
   "{cap} categories is the maximum. Delete one to add another.":
     "Legfeljebb {cap} sáv lehet. Törölj egyet, ha újat szeretnél.",
   "{card} — edit option": "{card} — javaslat szerkesztése",
@@ -567,7 +566,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{percent}% of what is locked": "a rögzített összeg {percent}%-a",
   "{trip} — you're the only member": "{trip} — egyedül te vagy a tagja",
   "· outside the trip’s dates": "· az utazás dátumain kívül",
-  "· yours": "· a tiéd",
   "· {percent}% above it": "· {percent}%-kal fölötte",
   "· 🔕 Email muted": "· 🔕 E-mailek némítva",
   "— exactly {amount}": "— pontosan {amount}",

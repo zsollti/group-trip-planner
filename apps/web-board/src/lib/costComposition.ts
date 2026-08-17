@@ -1,4 +1,8 @@
-import type { DashboardLine, TripDashboardView } from "@gtp/types";
+import type {
+  DashboardLine,
+  OptionParticipantView,
+  TripDashboardView,
+} from "@gtp/types";
 
 /**
  * Where the trip's locked money went, as one set of comparable parts.
@@ -66,6 +70,15 @@ export interface ExcludedCost {
   readonly currency: string;
   /** How many people it was priced for. */
   readonly headcount: number;
+  /**
+   * **Who** they are, so the aside can draw them.
+   *
+   * The line used to say "for 4 members", which is the count answering a
+   * question the reader did not ask. Standing in front of an option they may or
+   * may not be paying for, what they want to know is *who is in* — and the
+   * board already draws people as faces everywhere else it names them.
+   */
+  readonly participants: readonly OptionParticipantView[];
   /** Does the reader pay for this one? It is money they owe that the ring
    *  cannot hold, which is a different sentence from money someone else owes. */
   readonly viewerOwes: boolean;
@@ -176,6 +189,7 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
         perPerson: line.perPerson,
         currency: line.currency,
         headcount: line.effectiveHeadcount,
+        participants: line.participants,
         viewerOwes: line.viewerOwes,
       });
       continue;

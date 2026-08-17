@@ -6,11 +6,12 @@ import type {
 } from "../lib/costComposition";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { CostDonut } from "./CostDonut";
+import { PersonStack } from "./PersonStack";
 import {
   formatApproxMoney as approx,
   formatMoney as money,
 } from "../lib/money";
-import { plural, t, tNode } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 /**
  * The cost composition: the ring, the lanes that make it up, and what it
@@ -32,9 +33,12 @@ export function CostComposition({
   composition,
   categories,
   headline,
+  myUserId,
 }: {
   composition: Composition;
   categories: readonly CategoryView[];
+  /** The reader, so their own face is ringed in the excluded aside. */
+  myUserId: string | undefined;
   /**
    * The per-person figure this surface states once, plus `exact`: the exact
    * per-currency sums behind it when it is approximate. `exact` is a tooltip
@@ -84,7 +88,7 @@ export function CostComposition({
         onActivate={activate}
       />
       <Overshoot composition={composition} />
-      <Excluded composition={composition} />
+      <Excluded composition={composition} myUserId={myUserId} />
       <Uncounted composition={composition} />
     </section>
   );
@@ -253,7 +257,15 @@ function Overshoot({ composition }: { composition: Composition }) {
  * moment you join one of these. Without a mark the two figures look like a
  * contradiction; with one, this aside is the arithmetic between them.
  */
-function Excluded({ composition }: { composition: Composition }) {
+function Excluded({
+  composition,
+  myUserId,
+}: {
+  composition: Composition;
+  /** Whose face to ring — the reader's, when they are one of the people the
+   *  option is priced for. */
+  myUserId: string | undefined;
+}) {
   const { excluded } = composition;
   if (excluded.length === 0) return null;
   return (
@@ -265,13 +277,19 @@ function Excluded({ composition }: { composition: Composition }) {
         {excluded.map((e) => (
           <li key={e.optionId}>
             <span className="cost-comp__aside-name">{e.title}</span>{" "}
-            {tNode("{amount} per person for {who}", {
-              amount: <strong>{money(e.perPerson, e.currency)}</strong>,
-              who: plural(e.headcount, "{n} member", "{n} members"),
-            })}
-            {e.viewerOwes ? (
-              <span className="cost-comp__aside-mine"> {t("· yours")}</span>
-            ) : null}
+            <strong>{money(e.perPerson, e.currency)}</strong> {t("per person")}
+            {/* Faces rather than "for 4 members · yours". The count answered a
+                question nobody standing here asks: what a reader wants of an
+                option priced for part of the group is *who* — and whether that
+                is them — which is what the board draws people as everywhere
+                else it names them. Their own face is ringed, which says
+                "yours" in the place the eye is already looking instead of in a
+                clause after the number. */}
+            <PersonStack
+              people={e.participants}
+              mine={e.viewerOwes ? myUserId : undefined}
+              label={t("{n} in — see who", { n: e.participants.length })}
+            />
           </li>
         ))}
       </ul>
