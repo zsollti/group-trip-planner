@@ -30,13 +30,20 @@ import { t } from "./i18n";
  * `Record<LockDatesRejection, string>` on purpose: a new rejection reason added
  * to the shared union stops compiling here until someone decides how to say it,
  * which is the whole reason to reuse the union rather than copy the checks.
+ *
+ * **A function, not a constant.** The exhaustiveness comes from the return type, so
+ * nothing is lost — and a `t()` call in a module-level object runs once, at import,
+ * which would leave these four sentences in whatever language the bundle first
+ * loaded. `i18n.test.ts` scans for exactly this, and found these.
  */
-const WHY: Record<LockDatesRejection, string> = {
-  NO_DATES: t("Pick both days, or skip this step."),
-  END_BEFORE_START: t("The last day can't come before the first."),
-  PAST: t("That start date has already passed."),
-  OVER_HORIZON: t("That's further ahead than a trip can be planned."),
-};
+function why(): Record<LockDatesRejection, string> {
+  return {
+    NO_DATES: t("Pick both days, or skip this step."),
+    END_BEFORE_START: t("The last day can't come before the first."),
+    PAST: t("That start date has already passed."),
+    OVER_HORIZON: t("That's further ahead than a trip can be planned."),
+  };
+}
 
 /**
  * The problem with this date answer, or null when there is none.
@@ -50,7 +57,7 @@ export function tripDateStepError(
   nowMs: number = Date.now(),
 ): string | null {
   if (!startDay && !endDay) return null;
-  if (!startDay || !endDay) return WHY.NO_DATES;
+  if (!startDay || !endDay) return why().NO_DATES;
 
   const plan = planLockedDates(
     dayToIso(startDay) ?? null,
@@ -58,5 +65,5 @@ export function tripDateStepError(
     nowMs,
     maxTripHorizonDays(),
   );
-  return plan.ok ? null : WHY[plan.reason];
+  return plan.ok ? null : why()[plan.reason];
 }
