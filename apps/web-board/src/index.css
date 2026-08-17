@@ -3112,6 +3112,14 @@ body {
 .menu__item--danger {
   color: var(--board-danger);
 }
+/* A rule above the item, drawn as a border rather than an <hr> element so the
+   list stays a flat run of buttons — see `MenuItem.separated`. */
+.menu__item--separated {
+  margin-top: 0.3rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--lane-line);
+  border-radius: 0 0 8px 8px;
+}
 .menu__item:disabled {
   opacity: 0.5;
   cursor: default;

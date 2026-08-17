@@ -22,7 +22,8 @@ import {
 } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
-import { roleLabel } from "../lib/roles";
+import { Menu, type MenuItem } from "./Menu";
+import { roleChangeLabel, roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
@@ -36,6 +37,18 @@ type Pending =
  * gated by the `canActOn` strictly-lower rule (a Co-organizer sees no controls
  * on the Owner or a peer). The Owner can hand off ownership (with a confirm);
  * non-owners get Leave; blocked people list with an unblock control (FR-12/17).
+ *
+ * **One "⋯" per member, not four controls.** Every row used to carry a role
+ * `<select>` and three buttons (Kick, Block, Make owner), so a five-person trip
+ * rendered twenty controls and the names they belonged to were the least
+ * prominent thing on the row. Worse, "Make owner" repeated on every line for
+ * something a trip does once. They collapse into the same "⋯" the lanes and the
+ * trip header already use: the role choices first, then a rule, then the
+ * destructive three. The row is back to being a list of people.
+ *
+ * The menu offers only the roles the member is **not** — their current one is
+ * already written beside their name, so listing it again would be a menu item
+ * that does nothing.
  */
 export function MemberDialog({
   tripId,
@@ -102,6 +115,55 @@ export function MemberDialog({
   const canLeave = can(myRole, "trip.leave");
   const canTransfer = can(myRole, "trip.transferOwnership");
 
+  /**
+   * The "⋯" for one member: what you can do to them, in the order you are
+   * likely to want it — promote or demote, then remove, block, hand over.
+   *
+   * Each role gets its own sentence rather than "Make {role}" with the name
+   * interpolated: Hungarian puts a case ending on the role for this ("legyen
+   * társszervező"), so a shared frame with a slot in it cannot be translated
+   * correctly for every value.
+   */
+  function memberMenuItems(m: TripMemberView): MenuItem[] {
+    const items: MenuItem[] = assignableRoles
+      .filter((r) => r !== m.role)
+      .map((r) => ({
+        label: roleChangeLabel(r),
+        disabled: changeRole.isPending,
+        onSelect: () => void onChangeRole(m, r),
+      }));
+
+    // Everything below the rule takes someone off the trip or hands it over.
+    // `separated` marks the first of them, so the break moves with the list
+    // rather than being drawn at a fixed index.
+    items.push({
+      label: t("Remove from trip"),
+      danger: true,
+      separated: true,
+      onSelect: () =>
+        setPending({ kind: "kick", userId: m.userId, name: m.displayName }),
+    });
+    items.push({
+      label: t("Block"),
+      danger: true,
+      onSelect: () =>
+        setPending({ kind: "block", userId: m.userId, name: m.displayName }),
+    });
+    if (canTransfer) {
+      items.push({
+        label: t("Make owner"),
+        danger: true,
+        onSelect: () =>
+          setPending({
+            kind: "transfer",
+            userId: m.userId,
+            name: m.displayName,
+          }),
+      });
+    }
+    return items;
+  }
+
   return (
     <Dialog eyebrow="Crew" title={t("Members & roles")} onClose={onClose}>
       <>
@@ -146,66 +208,12 @@ export function MemberDialog({
                     </div>
                     <div className="board__invite-item-actions">
                       {manageable ? (
-                        <>
-                          <select
-                            className="board__select"
-                            aria-label={t("Role for {name}", {
-                              name: m.displayName,
-                            })}
-                            value={m.role}
-                            disabled={changeRole.isPending}
-                            onChange={(e) =>
-                              onChangeRole(m, e.target.value as AssignableRole)
-                            }
-                          >
-                            {assignableRoles.map((r) => (
-                              <option key={r} value={r}>
-                                {roleLabel(r)}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() =>
-                              setPending({
-                                kind: "kick",
-                                userId: m.userId,
-                                name: m.displayName,
-                              })
-                            }
-                          >
-                            {t("Kick")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() =>
-                              setPending({
-                                kind: "block",
-                                userId: m.userId,
-                                name: m.displayName,
-                              })
-                            }
-                          >
-                            {t("Block")}
-                          </Button>
-                          {canTransfer ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              onClick={() =>
-                                setPending({
-                                  kind: "transfer",
-                                  userId: m.userId,
-                                  name: m.displayName,
-                                })
-                              }
-                            >
-                              {t("Make owner")}
-                            </Button>
-                          ) : null}
-                        </>
+                        <Menu
+                          label={t("Actions for {name}", {
+                            name: m.displayName,
+                          })}
+                          items={memberMenuItems(m)}
+                        />
                       ) : null}
                     </div>
                   </li>
@@ -286,22 +294,22 @@ export function MemberDialog({
               </Button>
             </div>
           </div>
-        ) : (
+        ) : canLeave ? (
+          /* Leave is the one action here that is about you rather than about
+             somebody else, so it has nowhere else to live and stays. Close does
+             not: the dialog's own "✕" already does it, and a second one at the
+             bottom made the row of actions look like a choice between two
+             things when only one of them changes anything. */
           <div className="board__dialog-actions">
-            {canLeave ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setPending({ kind: "leave" })}
-              >
-                {t("Leave trip")}
-              </Button>
-            ) : null}
-            <Button type="button" variant="secondary" onClick={onClose}>
-              {t("Close")}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPending({ kind: "leave" })}
+            >
+              {t("Leave trip")}
             </Button>
           </div>
-        )}
+        ) : null}
       </>
     </Dialog>
   );
