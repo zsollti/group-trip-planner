@@ -72,7 +72,7 @@ export function AddCategoryLane({
               checked={!singleChoice}
               onChange={(e) => setSingleChoice(!e.target.checked)}
             />
-            Allow several winners
+            {t("Allow several winners")}
           </label>
           {error ? (
             <p className="board__form-error" role="alert">

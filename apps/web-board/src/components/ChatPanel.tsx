@@ -139,7 +139,10 @@ function MessageRow({
                   : "")
               }
               aria-pressed={myUserId ? g.userIds.includes(myUserId) : false}
-              aria-label={`${g.emoji} ${g.userIds.length}`}
+              aria-label={t("{emoji} {n}", {
+                emoji: g.emoji,
+                n: g.userIds.length,
+              })}
               onClick={() => onToggleReaction(message.id, g.emoji)}
             >
               {g.emoji} {g.userIds.length}
@@ -162,7 +165,7 @@ function MessageRow({
                     key={e}
                     type="button"
                     role="menuitem"
-                    aria-label={`React ${e}`}
+                    aria-label={t("React {emoji}", { emoji: e })}
                     onClick={() => {
                       onToggleReaction(message.id, e);
                       setPicking(false);
@@ -361,11 +364,14 @@ export function ChatPanel({
         className="board__chat-fab"
         aria-expanded={open}
         aria-label={
-          totalUnread > 0 && !open ? `Chat, ${totalUnread} unread` : "Chat"
+          totalUnread > 0 && !open
+            ? t("Chat, {n} unread", { n: totalUnread })
+            : t("Chat")
         }
         onClick={() => (open ? closePanel() : openPanel())}
       >
-        💬 Chat
+        <span aria-hidden="true">💬 </span>
+        {t("Chat")}
         {!open && totalUnread > 0 ? (
           <span className="board__chat-badge" aria-hidden="true">
             {totalUnread}
@@ -451,7 +457,7 @@ export function ChatPanel({
                         {badge > 0 ? (
                           <span
                             className="board__chat-tabbadge"
-                            aria-label={`${badge} unread`}
+                            aria-label={t("{n} unread", { n: badge })}
                           >
                             {badge}
                           </span>

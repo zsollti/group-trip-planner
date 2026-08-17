@@ -69,7 +69,7 @@ export function ImagePicker({
         type="file"
         className="picker__input"
         accept={ACCEPT}
-        aria-label={`${label} — choose a file`}
+        aria-label={t("{label} — choose a file", { label })}
         onChange={(e) => setPending(e.target.files?.[0] ?? null)}
       />
 

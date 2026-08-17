@@ -52,7 +52,8 @@ export function CrewPanel({
   return (
     <section className="crew" aria-label={t("Crew")}>
       <h2 className="crew__head">
-        <span aria-hidden="true">👥 </span>Crew
+        <span aria-hidden="true">👥 </span>
+        {t("Crew")}
         {roster ? <span className="crew__count">{roster.length}</span> : null}
         <button type="button" className="crew__manage" onClick={onManage}>
           {canManage ? "Manage" : "View"}
