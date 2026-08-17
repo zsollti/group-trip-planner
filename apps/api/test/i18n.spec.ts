@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   EMAIL_MESSAGES,
   SERVER_MESSAGES,
+  TRANSLATIONS,
   UNTRANSLATED_MESSAGES,
   interpolate,
   translate,
@@ -304,5 +305,54 @@ describe("the message inventory covers the code", () => {
       );
       assert.equal(new Set(list).size, list.length, "no duplicates");
     }
+  });
+});
+
+/**
+ * Hungarian's coverage of the inventory.
+ *
+ * The dictionary is keyed by English sentences, so the failure mode is silence: a
+ * missing entry falls back to English and nothing complains. That is right at
+ * runtime and useless at review time, which is what this is for.
+ */
+describe("the Hungarian catalogue", () => {
+  const hu = TRANSLATIONS.hu ?? {};
+
+  it("translates every message the API can throw", () => {
+    // `database unreachable` is deliberately left English — see the note in `hu.ts`.
+    const untranslated = SERVER_MESSAGES.filter(
+      (m) => !(m in hu) && m !== "database unreachable",
+    );
+    assert.deepEqual(untranslated, []);
+  });
+
+  it("translates every sentence in the emails", () => {
+    assert.deepEqual(
+      EMAIL_MESSAGES.filter((m) => !(m in hu)),
+      [],
+    );
+  });
+
+  it("keeps every placeholder the English carried", () => {
+    // The one error a translator makes that a reader cannot recover from: drop
+    // `{cap}` and the sentence quietly stops naming the number it is about.
+    const holes = (s: string) => (s.match(/\{[A-Za-z0-9_]+\}/g) ?? []).sort();
+    const wrong: string[] = [];
+    for (const [source, target] of Object.entries(hu)) {
+      if (holes(source).join() !== holes(target).join()) {
+        wrong.push(`${source}  →  ${target}`);
+      }
+    }
+    assert.deepEqual(wrong, []);
+  });
+
+  it("translates into Hungarian rather than echoing the English", () => {
+    // A copy-paste that left the source text in place would satisfy every check
+    // above. Hungarian uses letters English does not; every sentence long enough to
+    // say anything should contain one.
+    const suspicious = Object.entries(hu)
+      .filter(([source, target]) => source.length > 25 && source === target)
+      .map(([source]) => source);
+    assert.deepEqual(suspicious, []);
   });
 });
