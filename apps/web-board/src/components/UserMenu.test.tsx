@@ -28,7 +28,9 @@ vi.mock("@gtp/api-client", async () => {
   return {
     ...actual,
     useAuth: () => ({ user: mockUser, logout: vi.fn() }),
-    useNotifications: () => ({ data: { notifications: [], unreadCount: mockUnread } }),
+    useNotifications: () => ({
+      data: { notifications: [], unreadCount: mockUnread },
+    }),
   };
 });
 
@@ -54,6 +56,7 @@ const ada: AuthUser = {
   emailVerified: true,
   avatarUrl: null,
   isAdmin: false,
+  locale: "en",
 };
 
 describe("UserMenu", () => {

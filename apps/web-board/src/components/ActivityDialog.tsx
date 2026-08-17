@@ -1,5 +1,5 @@
 import { useTripActivity } from "@gtp/api-client";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 import { activityHeadline, type ActivityAction } from "@gtp/types";
 import { Dialog } from "./Dialog";
 
@@ -18,7 +18,7 @@ const ICON: Record<ActivityAction, string> = {
 /** Absolute date + time — a feed's whole job is saying *when*. */
 function when(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString(UI_LOCALE)} ${d.toLocaleTimeString(UI_LOCALE, {
+  return `${d.toLocaleDateString(intlTag())} ${d.toLocaleTimeString(intlTag(), {
     hour: "2-digit",
     minute: "2-digit",
   })}`;
@@ -110,7 +110,6 @@ export function ActivityDialog({
             ) : null}
           </>
         )}
-
       </>
     </Dialog>
   );

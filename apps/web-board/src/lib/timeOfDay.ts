@@ -1,4 +1,4 @@
-import { UI_LOCALE } from "./locale";
+import { intlTag } from "./locale";
 /**
  * Picking a time of day, without a spinner.
  *
@@ -82,7 +82,7 @@ export function timeChoices(current: string): string[] {
  */
 export function formatTimeOfDay(
   value: string,
-  locale: string = UI_LOCALE,
+  locale: string = intlTag(),
 ): string {
   const minutes = toMinutes(value);
   if (minutes === null) return value;

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 import { categoryOptionFields, type CategoryView } from "@gtp/types";
 import { CategoryIcon } from "./CategoryIcon";
 import { calendarDetail } from "../lib/calendarDetail";
@@ -67,12 +67,12 @@ export function TimelineCalendar({
               data-day={day.key}
             >
               <span className="cal__head-dow">
-                {new Date(day.at).toLocaleDateString(UI_LOCALE, {
+                {new Date(day.at).toLocaleDateString(intlTag(), {
                   weekday: "short",
                 })}
               </span>
               <span className="cal__head-day">
-                {new Date(day.at).toLocaleDateString(UI_LOCALE, {
+                {new Date(day.at).toLocaleDateString(intlTag(), {
                   day: "numeric",
                   month: "short",
                 })}
@@ -108,7 +108,7 @@ export function TimelineCalendar({
                 <span className="cal__hour-label">
                   {/* Formatted, not `${h}:00` — a 12-hour locale should read
                       "1 PM", and `Intl` is what knows that. */}
-                  {new Date(2026, 0, 1, h).toLocaleTimeString(UI_LOCALE, {
+                  {new Date(2026, 0, 1, h).toLocaleTimeString(intlTag(), {
                     hour: "numeric",
                   })}
                 </span>
@@ -158,7 +158,7 @@ function TimedBlock({
   const { entry, topMinutes, heightMinutes, lane, laneCount } = placement;
   const proposed = entry.option.status !== "LOCKED";
   const at = (ms: number) =>
-    new Date(ms).toLocaleTimeString(UI_LOCALE, {
+    new Date(ms).toLocaleTimeString(intlTag(), {
       hour: "2-digit",
       minute: "2-digit",
     });

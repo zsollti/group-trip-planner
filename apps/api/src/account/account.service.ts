@@ -202,7 +202,7 @@ export class AccountService {
   }
 
   /**
-   * Rename yourself (post-launch).
+   * Rename yourself, or change the language you read the app in (post-launch).
    *
    * A plain column write, and deliberately nothing more. The display name is
    * denormalized nowhere — every surface that shows it (a proposal's proposer,
@@ -217,7 +217,17 @@ export class AccountService {
   ): Promise<AuthUser> {
     const updated = await this.prisma.user.update({
       where: { id: user.id },
-      data: { displayName: input.displayName },
+      // Spread the fields that were actually sent. Writing `displayName:
+      // input.displayName` unconditionally would set it to `undefined` on a
+      // request that only changed the language — which Prisma reads as "leave it
+      // alone" today, but relies on that reading rather than saying so, and the
+      // same line with a `null`-able column would erase the field instead.
+      data: {
+        ...(input.displayName !== undefined && {
+          displayName: input.displayName,
+        }),
+        ...(input.locale !== undefined && { locale: input.locale }),
+      },
     });
     return toAuthUser(updated, this.env.ADMIN_EMAILS);
   }

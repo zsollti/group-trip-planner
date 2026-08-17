@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localeSchema } from "./locale.js";
 
 /**
  * Auth contract — the first real shared schemas (Phase 0.3).
@@ -66,6 +67,14 @@ export const AuthUser = z.object({
    * whose every request 404s.
    */
   isAdmin: z.boolean(),
+  /**
+   * The language this account reads the app in (post-launch).
+   *
+   * On the session rather than fetched separately, because it is needed to render
+   * the very first screen after sign-in — a language that arrives one request
+   * later would repaint the app in front of the reader.
+   */
+  locale: localeSchema,
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 

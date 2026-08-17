@@ -1,28 +1,95 @@
+import {
+  DEFAULT_LOCALE,
+  intlTagFor,
+  resolveLocale,
+  type Locale,
+} from "@gtp/types";
+
 /**
- * The locale the app's own dates and times are written in.
+ * The language the app is currently written in.
  *
- * Every `toLocaleDateString` / `toLocaleTimeString` here used to pass
- * `undefined`, which means "the reader's browser". For numbers that is right —
- * a separator is a convention, not a language, and a Hungarian reader should
- * see `1 300`. For **dates it is not**, because a date carries words: the same
- * screen rendered "Mon 17 Aug" or "2026. aug. 17., hétfő" depending on the
- * browser, so an English-only interface printed Hungarian weekday and month
- * names next to English labels, and half of a Hungarian reader's screen was
- * still in English anyway. Mixed-language chrome is worse than either language
- * on its own.
+ * This used to be `export const UI_LOCALE = "en-GB"` — one constant, imported by
+ * fourteen files, with a note saying that when the app was really translated this
+ * would become the active language and the single import site was the point. This
+ * is that change.
  *
- * So the app's language decides its dates. `en-GB` rather than `en-US`: the
- * trip's audience is European, day-before-month matches what the calendar grid
- * already draws, and it gives a 24-hour clock, which is what the option form's
- * time list offers.
+ * **Why a module-level variable and not only React context.** Roughly half the
+ * date formatting in the app happens in pure functions — `monthGrid`,
+ * `timeOfDay`, `optionFormat`, and a `when()` helper at the top of four route
+ * files. Threading a locale parameter through all of them would put an argument
+ * on functions whose callers do not otherwise care, and a hook cannot be called
+ * from any of them. So the active language is held here, and read through
+ * {@link intlTag}.
  *
- * **Money deliberately does not use this** — `lib/money` keeps passing
- * `undefined` so grouping and separators follow the reader, which is a
- * numeric convention rather than a word. The currency *code* is language-
- * neutral either way.
+ * That is a mutable global, which is normally a smell. It is not one here for a
+ * specific reason: **a document has exactly one language**. There is no second
+ * reader on the page to disagree with, no request context to confuse it with, and
+ * nothing else in the process. The one real hazard is ordering — a component
+ * formatting a date before the language is known — and that is why
+ * {@link setActiveLocale} is called during the provider's render rather than in
+ * an effect, so it is already correct the first time anything below it renders.
  *
- * When the app is really translated this becomes the active language, and the
- * single import site is the point: one constant to change, not forty call
- * sites to find.
+ * Components should prefer `useLocale()` (see `LocaleProvider`), which
+ * re-renders them when the language changes. `intlTag()` alone does not: it reads
+ * the current value, so a component that only calls it will keep its old dates
+ * until something else re-renders it. That is exactly why the provider sets state
+ * *and* this variable — the state is what repaints the tree.
  */
-export const UI_LOCALE = "en-GB";
+let active: Locale = DEFAULT_LOCALE;
+
+/** Set the app's language. Called by `LocaleProvider`, and by tests. */
+export function setActiveLocale(locale: Locale): void {
+  active = locale;
+}
+
+/** The app's language right now. */
+export function activeLocale(): Locale {
+  return active;
+}
+
+/**
+ * The BCP-47 tag to hand `toLocaleDateString` and friends.
+ *
+ * A function rather than a constant, which is the whole point of the change: an
+ * imported constant is read once when the module loads, so it could never follow
+ * a reader who switched language.
+ */
+export function intlTag(): string {
+  return intlTagFor(active);
+}
+
+/**
+ * The language to start in before the session has loaded.
+ *
+ * Read from `localStorage`, falling back to the browser's own preference. This
+ * matters for the screens *outside* the session — sign-in, register, verify, the
+ * invite-join page — which have no account to read a preference from and would
+ * otherwise always be English for everybody.
+ *
+ * `resolveLocale` does the narrowing, so a stored value from a build that offered
+ * more languages than this one degrades to the default instead of rendering a
+ * language that no longer exists here.
+ */
+export const LOCALE_STORAGE_KEY = "gtp.locale";
+
+export function storedLocale(): Locale {
+  try {
+    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (saved) return resolveLocale(saved);
+  } catch {
+    // A browser with storage disabled is not a broken app, just one that cannot
+    // remember. Fall through to the navigator.
+  }
+  return resolveLocale(
+    typeof navigator === "undefined" ? null : navigator.language,
+  );
+}
+
+/** Remember the reader's language for the next visit, and for the pre-auth screens. */
+export function rememberLocale(locale: Locale): void {
+  try {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Same as above: nothing to do, and nothing worth telling the reader.
+  }
+}

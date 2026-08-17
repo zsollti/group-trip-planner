@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { UI_LOCALE } from "../lib/locale";
+import { intlTag } from "../lib/locale";
 import {
   addMonths,
   cursorFor,
@@ -280,7 +280,7 @@ function RangeGrid({
 
 /** A day in the reader's locale, spelled out. UTC, because it is a day. */
 function longDay(iso: string): string {
-  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(UI_LOCALE, {
+  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(intlTag(), {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -413,7 +413,7 @@ function DayCell({
 
   // The accessible name is the full date; the visible label is a bare number,
   // which on its own says nothing about which month or year it belongs to.
-  const label = new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(UI_LOCALE, {
+  const label = new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(intlTag(), {
     dateStyle: "full",
     timeZone: "UTC",
   });
