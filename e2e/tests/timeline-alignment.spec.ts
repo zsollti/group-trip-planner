@@ -233,7 +233,10 @@ test("the timeline confesses a decision it cannot place", async ({ page }) => {
   await stay
     .getByRole("button", { name: /actions for Somewhere, eventually/i })
     .click();
-  await page.getByRole("button", { name: "Move to Decided" }).click();
+  // Either mode's label — see the note on the helper above.
+  await page
+    .getByRole("button", { name: /^(Move to Decided|Lock card)$/ })
+    .click();
 
   await page.getByRole("link", { name: "Timeline" }).click();
 

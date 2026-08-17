@@ -113,10 +113,30 @@ async function decide(
   ).toBeVisible();
 }
 
-/** Let a lane hold more than one decision at a time. */
+/**
+ * Make sure a lane may hold more than one decision at a time.
+ *
+ * **Idempotent, and that is the point.** This used to click "Allow several
+ * winners" unconditionally, because every lane seeded single-choice. Lanes seed
+ * multi-select now, so that item is not in the menu — it reads "Keep only one
+ * winner" instead — and the unconditional click waited 90 seconds for a button
+ * that would never appear, in a test whose subject is where a decision is drawn
+ * on a grid rather than how its lane decides.
+ *
+ * So it states the precondition and satisfies it only if it has to, and asserts
+ * the postcondition either way. A helper named for what the test needs should be
+ * true when it returns, not merely have clicked something.
+ */
 async function allowSeveral(page: Page, category: string): Promise<void> {
-  await page.getByRole("button", { name: `${category} lane actions` }).click();
-  await page.getByRole("button", { name: "Allow several winners" }).click();
+  const lane = laneNamed(page, category);
+  const mode = lane.locator(".lane__meta");
+  if ((await mode.textContent()) !== "multi-select") {
+    await page
+      .getByRole("button", { name: `${category} lane actions` })
+      .click();
+    await page.getByRole("button", { name: "Allow several winners" }).click();
+  }
+  await expect(mode).toHaveText("multi-select");
 }
 
 async function box(locator: Locator) {
