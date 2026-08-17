@@ -57,6 +57,62 @@ export interface CalendarBand {
   readonly toIndex: number;
   /** Which row of the band it sits in, so overlapping stays never cover. */
   readonly row: number;
+  /**
+   * Where the bar actually begins and ends inside the columns it occupies, as
+   * fractions of the bar's own full width (0–1).
+   *
+   * The bar used to fill every column it touched, and that made it say
+   * something untrue at both ends: a flat booked to 10:00 on the 16th painted
+   * the whole of the 16th, so the calendar showed a bed for a night nobody had
+   * booked — exactly the gap the "no bed booked" heading exists to warn about,
+   * hidden by the bar that caused it. Checking in at 15:00 lied the same way at
+   * the other end.
+   *
+   * Expressed relative to the bar rather than to a day because that is the box
+   * a percentage can resolve against: the bar's wrapper spans whole grid
+   * columns, so a percentage inside it is a fraction of exactly those columns.
+   */
+  readonly leadFraction: number;
+  readonly widthFraction: number;
+}
+
+/** Milliseconds in a day, as the wall clock counts them. */
+const DAY_MS = 86_400_000;
+
+/**
+ * How far through its local day an instant falls, 0–1.
+ *
+ * Computed from the local midnight that starts the day rather than by dividing
+ * the timestamp, so the two days a year that are 23 or 25 hours long still map
+ * onto a full column instead of overflowing or falling short.
+ */
+function fractionThroughDay(ms: number, dayStart: number): number {
+  const through = (ms - dayStart) / DAY_MS;
+  return Math.min(1, Math.max(0, through));
+}
+
+/**
+ * The bar's own start and width, given the columns it spans.
+ *
+ * `columns` is the inclusive column count, so a Fri→Mon stay is 4. A bar that
+ * begins `lead` into its first column and ends `tail` into its last covers
+ * `columns - 1 - lead + tail` columns' worth of width.
+ *
+ * Floored at a slice of one column: a stay from 22:00 to 02:00 is honestly
+ * almost nothing, and an honestly invisible bar is a decision that vanished off
+ * the calendar. The floor is small enough that it never reads as a full day.
+ */
+export function barExtent(
+  columns: number,
+  lead: number,
+  tail: number,
+): { leadFraction: number; widthFraction: number } {
+  if (columns <= 0) return { leadFraction: 0, widthFraction: 1 };
+  const covered = Math.max(columns - 1 - lead + tail, 0.25);
+  return {
+    leadFraction: lead / columns,
+    widthFraction: Math.min(covered / columns, 1 - lead / columns),
+  };
 }
 
 export interface CalendarGrid {
@@ -211,6 +267,23 @@ function assignBandRows(
     const fromIndex = Math.max(0, dayIndex(days, span.firstDay));
     const toIndex = Math.max(fromIndex, dayIndex(days, span.lastDay));
 
+    // The clamps above can move an edge onto a column the span does not
+    // actually begin or end in — a stay that starts before the grid does. Its
+    // partial start is then off-screen, so the visible bar honestly begins at
+    // the edge of the first drawn column.
+    const startClamped = dayIndex(days, span.firstDay) !== fromIndex;
+    const endClamped = dayIndex(days, span.lastDay) !== toIndex;
+    const lead = startClamped
+      ? 0
+      : fractionThroughDay(span.start, days[fromIndex]!.at);
+    const tail = endClamped
+      ? 1
+      : fractionThroughDay(span.end, days[toIndex]!.at);
+
+    // Rows are still packed by whole columns. Two stays that share a column
+    // only because one ends at 10:00 and the next begins at 15:00 could sit on
+    // one row without touching, but a bar's label runs its whole length and
+    // would collide long before the bars did.
     let row = rowEnds.findIndex((end) => end < fromIndex);
     if (row === -1) {
       row = rowEnds.length;
@@ -218,7 +291,13 @@ function assignBandRows(
     } else {
       rowEnds[row] = toIndex;
     }
-    placed.push({ span, fromIndex, toIndex, row });
+    placed.push({
+      span,
+      fromIndex,
+      toIndex,
+      row,
+      ...barExtent(toIndex - fromIndex + 1, lead, tail),
+    });
   }
 
   return placed;

@@ -3782,12 +3782,28 @@ body {
   border-bottom: 1px solid var(--lane-line);
   border-left: 1px solid var(--lane-line);
 }
+/* The slot owns the grid columns; the bar inside it owns how much of them it
+   actually covers (see `barExtent`). The 2px gutter lives here now — on the bar
+   it would have been added to a percentage width and pushed every bar a little
+   past the columns it was measuring itself against. */
+.cal__bar-slot {
+  display: block;
+  min-width: 0;
+  padding: 0 2px;
+}
 .cal__bar {
   display: flex;
   align-items: center;
   gap: 0.3rem;
   min-width: 0;
-  margin: 0 2px;
+  margin: 0;
+  /* A stay from 22:00 to 02:00 covers almost none of the two columns it
+     touches. `barExtent` already floors it at a quarter-column so it cannot
+     vanish; this keeps the label from being clipped to nothing at narrow grid
+     widths, at the cost of a bar that slightly overstates the shortest stays —
+     the honest alternative was one nobody could see or click. */
+  min-width: 3.5rem;
+  max-width: 100%;
   padding: 0.25rem 0.45rem;
   border: 1px solid var(--cat-main);
   border-left: 3px solid var(--cat-main);

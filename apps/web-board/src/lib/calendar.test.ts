@@ -57,16 +57,38 @@ function day(d: number, entries: TimelineEntry[]): TimelineDay {
   };
 }
 
-function span(id: string, firstDay: string, lastDay: string): TimelineSpan {
+/**
+ * A multi-day stay. `hours` is the wall clock it actually runs between — a real
+ * booking is `{ from: 15, to: 10 }`, checked in on the first afternoon and out
+ * on the last morning. Omitted, it covers its days end to end, which is what
+ * every bar used to be assumed to do.
+ */
+function span(
+  id: string,
+  firstDay: string,
+  lastDay: string,
+  hours?: { from: number; to: number },
+): TimelineSpan {
+  const fromIdx = Number(firstDay.replace(/^d/, ""));
+  const toIdx = Number(lastDay.replace(/^d/, ""));
+  const start = Number.isNaN(fromIdx) ? 0 : at(fromIdx, hours?.from ?? 0);
+  const end = Number.isNaN(toIdx)
+    ? 0
+    : hours
+      ? at(toIdx, hours.to)
+      : dayStart(toIdx + 1);
   return {
     option: { id, title: id } as OptionView,
     category,
-    start: 0,
-    end: 0,
+    start,
+    end,
     isPoint: false,
     firstDay,
     lastDay,
-    nights: 1,
+    nights: Math.max(
+      1,
+      (Number.isNaN(toIdx) ? 0 : toIdx) - (Number.isNaN(fromIdx) ? 0 : fromIdx),
+    ),
   };
 }
 
@@ -253,6 +275,72 @@ describe("buildCalendar bands", () => {
     const grid = buildCalendar(days, [span("stray", "nope", "also-nope")]);
     expect(grid.bands[0]!.fromIndex).toBe(0);
     expect(grid.bands[0]!.toIndex).toBeGreaterThanOrEqual(0);
+  });
+});
+
+/**
+ * How much of its columns a bar actually covers.
+ *
+ * The bar used to fill every column it touched, which made the calendar state
+ * something false at both ends: a flat booked to 10:00 on the last day painted
+ * that whole day, so the grid showed a bed for a night nobody had booked — the
+ * exact gap the "no bed booked" heading exists to warn about, hidden by the bar
+ * that caused it.
+ */
+describe("buildCalendar bar extent", () => {
+  const days = [day(0, []), day(1, []), day(2, []), day(3, [])].map((d, i) => ({
+    ...d,
+    key: `d${i}`,
+  }));
+
+  it("fills its columns when the stay covers all of them", () => {
+    const [b] = buildCalendar(days, [span("hotel", "d0", "d3")]).bands;
+    expect(b!.leadFraction).toBe(0);
+    expect(b!.widthFraction).toBe(1);
+  });
+
+  it("checks in on the first afternoon and out on the last morning", () => {
+    // Fri 15:00 → Mon 10:00 over four columns. It should begin a little under a
+    // sixth of the way in and stop well short of the far edge.
+    const [b] = buildCalendar(days, [
+      span("flat", "d0", "d3", { from: 15, to: 10 }),
+    ]).bands;
+    expect(b!.leadFraction).toBeCloseTo(15 / 24 / 4, 5);
+    expect(b!.widthFraction).toBeCloseTo((3 - 15 / 24 + 10 / 24) / 4, 5);
+    // The far edge of the bar lands inside the last column, not past it.
+    expect(b!.leadFraction + b!.widthFraction).toBeLessThan(1);
+    expect(b!.leadFraction + b!.widthFraction).toBeGreaterThan(3 / 4);
+  });
+
+  it("never shrinks a short overnight to nothing", () => {
+    // 22:00 → 02:00 covers almost none of the two columns it touches, and a
+    // decision that is honestly invisible has fallen off the calendar.
+    const [b] = buildCalendar(days, [
+      span("ferry", "d0", "d1", { from: 22, to: 2 }),
+    ]).bands;
+    expect(b!.widthFraction).toBeGreaterThan(0);
+    expect(b!.leadFraction + b!.widthFraction).toBeLessThanOrEqual(1);
+  });
+
+  it("begins at the edge when the stay starts before the grid does", () => {
+    // The clamp puts it in column 0, but it did not start there — so there is
+    // no partial first day to draw, and pretending otherwise would shift the
+    // bar off the day it is actually covering.
+    const [b] = buildCalendar(days, [span("early", "before", "d1")]).bands;
+    expect(b!.fromIndex).toBe(0);
+    expect(b!.leadFraction).toBe(0);
+  });
+
+  it("keeps every bar inside the columns it was given", () => {
+    const bands = buildCalendar(days, [
+      span("a", "d0", "d1", { from: 23, to: 1 }),
+      span("b", "d0", "d3", { from: 15, to: 10 }),
+      span("c", "d2", "d3"),
+    ]).bands;
+    for (const b of bands) {
+      expect(b.leadFraction).toBeGreaterThanOrEqual(0);
+      expect(b.leadFraction + b.widthFraction).toBeLessThanOrEqual(1 + 1e-9);
+    }
   });
 });
 

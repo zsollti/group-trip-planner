@@ -95,6 +95,8 @@ export function TimelineCalendar({
                     fromIndex={band.fromIndex}
                     toIndex={band.toIndex}
                     row={band.row}
+                    leadFraction={band.leadFraction}
+                    widthFraction={band.widthFraction}
                     clashes={timeline.overlapping.has(band.span.option.id)}
                     onOpen={onOpen}
                   />
@@ -219,6 +221,8 @@ function BandBar({
   fromIndex,
   toIndex,
   row,
+  leadFraction,
+  widthFraction,
   clashes,
   onOpen,
 }: {
@@ -226,6 +230,9 @@ function BandBar({
   fromIndex: number;
   toIndex: number;
   row: number;
+  /** Where the bar starts and ends inside its columns — see `CalendarBand`. */
+  leadFraction: number;
+  widthFraction: number;
   clashes: boolean;
   onOpen: (option: TimelineEntry["option"], category: CategoryView) => void;
 }) {
@@ -238,29 +245,43 @@ function BandBar({
   );
 
   return (
-    <button
-      type="button"
-      className={[
-        "cal__bar",
-        proposed ? "cal__bar--proposed" : "",
-        clashes ? "cal__bar--clash" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+    /* Two elements, because a percentage needs the right box to resolve
+       against. The slot spans whole grid columns; the bar inside it is placed
+       as a fraction of the slot, which is exactly a fraction of those columns.
+       Insetting the bar directly with a percentage margin would have measured
+       against the whole band instead, and every bar would have started in a
+       different wrong place depending on how long the trip was. */
+    <div
+      className="cal__bar-slot"
       style={{
-        ...categoryHueStyle(span.category),
         gridColumn: `${fromIndex + 1} / ${toIndex + 2}`,
         gridRow: String(row + 1),
       }}
-      title={dates ? `${span.option.title} · ${dates}` : span.option.title}
-      onClick={() => onOpen(span.option, span.category)}
     >
-      <CategoryIcon category={span.category} size={13} />
-      <span className="cal__bar-title">{span.option.title}</span>
-      <span className="cal__bar-meta">
-        {plural(span.nights, "{n} night", "{n} nights")}
-        {cost ? ` · ${cost}` : ""}
-      </span>
-    </button>
+      <button
+        type="button"
+        className={[
+          "cal__bar",
+          proposed ? "cal__bar--proposed" : "",
+          clashes ? "cal__bar--clash" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={{
+          ...categoryHueStyle(span.category),
+          marginInlineStart: `${leadFraction * 100}%`,
+          width: `${widthFraction * 100}%`,
+        }}
+        title={dates ? `${span.option.title} · ${dates}` : span.option.title}
+        onClick={() => onOpen(span.option, span.category)}
+      >
+        <CategoryIcon category={span.category} size={13} />
+        <span className="cal__bar-title">{span.option.title}</span>
+        <span className="cal__bar-meta">
+          {plural(span.nights, "{n} night", "{n} nights")}
+          {cost ? ` · ${cost}` : ""}
+        </span>
+      </button>
+    </div>
   );
 }
