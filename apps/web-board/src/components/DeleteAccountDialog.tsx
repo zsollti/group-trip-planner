@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
 import { ApiError, useAuth, useDeletionPreview } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 /**
  * Board-paradigm account-deletion surface: a card floating on the canvas. Shows
@@ -51,7 +51,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
           </p>
         ) : preview.isError ? (
           <p className="board__form-error" role="alert">
-            Couldn't load the impact.{" "}
+            {t("Couldn't load the impact.")}{" "}
             <button
               type="button"
               className="board__link-btn"
@@ -74,7 +74,9 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
                 {impact!.transfers.length > 0 ? (
                   <>
                     <p className="board__eyebrow">
-                      Ownership transfers ({impact!.transfers.length})
+                      {t("Ownership transfers ({n})", {
+                        n: impact!.transfers.length,
+                      })}
                     </p>
                     <ul className="board__impact-list">
                       {impact!.transfers.map((t) => (
@@ -89,12 +91,16 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
                 {impact!.deletions.length > 0 ? (
                   <>
                     <p className="board__eyebrow">
-                      Permanently deleted ({impact!.deletions.length})
+                      {t("Permanently deleted ({n})", {
+                        n: impact!.deletions.length,
+                      })}
                     </p>
                     <ul className="board__impact-list">
                       {impact!.deletions.map((d) => (
                         <li key={d.tripId}>
-                          <strong>{d.tripName}</strong> — you're the only member
+                          {tNode("{trip} — you're the only member", {
+                            trip: <strong>{d.tripName}</strong>,
+                          })}
                         </li>
                       ))}
                     </ul>

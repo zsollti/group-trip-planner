@@ -16,7 +16,7 @@ import {
 } from "../lib/timeline";
 import { tripDateForDisplay } from "../lib/tripDate";
 import { ToggleSwitch } from "../components/ToggleSwitch";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /** A trip date, rendered from the calendar day it names rather than its instant. */
 function fmtTripDate(iso: string | null): string {
@@ -112,9 +112,12 @@ export function Timeline() {
             ) : (
               <>{t("Dates not settled ·")}</>
             )}
-            {timeline.placedCount} decision
-            {timeline.placedCount === 1 ? "" : "s"} placed
-            {notPlaced > 0 ? ` · ${notPlaced} not scheduled` : ""}
+            {plural(
+              timeline.placedCount,
+              "{n} decision placed",
+              "{n} decisions placed",
+            )}
+            {notPlaced > 0 ? t(" · {n} not scheduled", { n: notPlaced }) : ""}
           </p>
 
           {/* An overlay rather than a second mode: the itinerary stays what

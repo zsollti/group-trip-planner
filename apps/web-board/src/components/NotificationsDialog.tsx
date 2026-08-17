@@ -11,7 +11,7 @@ import {
   notificationAgo,
   notificationHeadline,
 } from "../lib/notifications";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /**
  * The notification list, opened from the account menu.
@@ -47,7 +47,9 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
     <Dialog eyebrow="Account" title={t("Notifications")} onClose={onClose}>
       {unread > 0 ? (
         <div className="bell__head">
-          <span className="bell__title">{unread} unread</span>
+          <span className="bell__title">
+            {plural(unread, "{n} unread", "{n} unread")}
+          </span>
           <button
             type="button"
             className="board__link-btn"
@@ -65,7 +67,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
         </div>
       ) : list.isError ? (
         <div className="bell__state" role="alert">
-          Couldn&apos;t load notifications.{" "}
+          {t("Couldn't load notifications.")}{" "}
           <button
             type="button"
             className="board__link-btn"

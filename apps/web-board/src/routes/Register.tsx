@@ -6,7 +6,7 @@ import { Button, Field, Input } from "@gtp/ui-primitives";
 import { RegisterInput } from "@gtp/types";
 import { ApiError, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 export function Register() {
   const { register: registerAccount } = useAuth();
@@ -41,8 +41,9 @@ export function Register() {
           <p className="board__eyebrow">{t("Trip Board")}</p>
           <h1 className="board__title">{t("Check your inbox")}</h1>
           <p className="board__muted">
-            We sent a verification link. In local dev it&apos;s printed to the
-            API console — open it, then sign in.
+            {t(
+              "We sent a verification link. In local dev it's printed to the API console — open it, then sign in.",
+            )}
           </p>
           <p className="board__alt">
             <Link to={loginHref}>{t("Back to sign in")}</Link>
@@ -108,7 +109,9 @@ export function Register() {
           </Button>
         </form>
         <p className="board__alt">
-          Already have an account? <Link to={loginHref}>{t("Sign in")}</Link>
+          {tNode("Already have an account? {link}", {
+            link: <Link to={loginHref}>{t("Sign in")}</Link>,
+          })}
         </p>
       </div>
     </div>

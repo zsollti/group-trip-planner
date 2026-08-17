@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { t } from "../lib/i18n";
 
 /** One action in a {@link Menu}. */
 export interface MenuItem {
@@ -118,7 +119,7 @@ export function Menu({
               {item.badge ? (
                 <span
                   className="menu__badge"
-                  aria-label={`${item.badge} unread`}
+                  aria-label={t("{n} unread", { n: item.badge })}
                 >
                   {item.badge}
                 </span>

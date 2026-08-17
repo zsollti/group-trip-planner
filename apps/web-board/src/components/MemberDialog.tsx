@@ -149,7 +149,9 @@ export function MemberDialog({
                         <>
                           <select
                             className="board__select"
-                            aria-label={`Role for ${m.displayName}`}
+                            aria-label={t("Role for {name}", {
+                              name: m.displayName,
+                            })}
                             value={m.role}
                             disabled={changeRole.isPending}
                             onChange={(e) =>

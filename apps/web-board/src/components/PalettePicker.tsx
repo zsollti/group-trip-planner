@@ -46,7 +46,10 @@ export function PalettePicker({
   const isDefault = !category.paletteKey;
 
   return (
-    <Dialog title={`Colour for ${category.name}`} onClose={onClose}>
+    <Dialog
+      title={t("Colour for {lane}", { lane: category.name })}
+      onClose={onClose}
+    >
       <p className="board__dialog-note">
         {t("Everyone on this trip sees the colour you pick.")}
       </p>

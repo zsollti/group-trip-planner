@@ -61,7 +61,10 @@ export function OptionDetail({
       <>
         {locked ? (
           <p className="lane__decided">
-            ✦ Decided{option.lockedByName ? ` · ${option.lockedByName}` : ""}
+            <span aria-hidden="true">✦ </span>
+            {option.lockedByName
+              ? t("Decided · {name}", { name: option.lockedByName })
+              : t("Decided")}
           </p>
         ) : null}
 
@@ -76,7 +79,7 @@ export function OptionDetail({
                 {elsewhere ? (
                   <em className="board__detail-note">
                     {" "}
-                    · outside the trip’s dates
+                    {t("· outside the trip’s dates")}
                   </em>
                 ) : null}
               </dd>

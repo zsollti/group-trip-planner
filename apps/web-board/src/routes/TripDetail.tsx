@@ -29,7 +29,7 @@ import { NotificationToasts } from "../components/NotificationToasts";
 import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -186,7 +186,7 @@ export function TripDetail() {
         <>
           <p className="board__form-error" role="alert">
             {trip.error.status === 404
-              ? "That board doesn't exist or you're not a member."
+              ? t("That board doesn't exist or you're not a member.")
               : "Couldn't load this board."}
           </p>
           <Link className="board__cta" to="/">
@@ -215,10 +215,9 @@ export function TripDetail() {
             />
           ) : null}
           <p className="board__muted">
-            {trip.data.destination ?? "No destination yet"} ·{" "}
+            {trip.data.destination ?? t("No destination yet")} ·{" "}
             {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)} ·{" "}
-            {trip.data.memberCount} member
-            {trip.data.memberCount === 1 ? "" : "s"} ·{" "}
+            {plural(trip.data.memberCount, "{n} member", "{n} members")} ·{" "}
             {trip.data.defaultCurrency}
           </p>
           {trip.data.status === "HISTORY" ? (
@@ -312,7 +311,7 @@ export function TripDetail() {
           {confirmingDelete ? (
             <Dialog
               eyebrow="Delete board"
-              title={`Delete “${trip.data.name}”?`}
+              title={t("Delete “{trip}”?", { trip: trip.data.name })}
               describedById="delete-board-blurb"
               onClose={() => setConfirmingDelete(false)}
             >
