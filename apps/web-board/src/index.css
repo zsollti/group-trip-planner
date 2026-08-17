@@ -34,6 +34,15 @@
   --board-on-danger: #ffffff;
   --board-shadow: 20 40 38;
   --board-scrim: rgba(35, 40, 38, 0.5);
+  /* How tall a working column may get before it keeps its own content to
+     itself and scrolls. A layout token, not a theme one — it is the same
+     number in light and dark, and it exists so the lane row and the itinerary
+     beside the same rail cannot drift apart. They are two views of one trip
+     switched in place, so a page that changed height when you switched would
+     read as the whole screen jumping rather than as its middle being
+     replaced. Viewport-relative, and `dvh` so a phone's retracting address bar
+     never leaves the last row under it. */
+  --board-column-max: 80dvh;
   /* Category colour (see lib/categoryTheme.ts). A category contributes one
      number — its hue — and this scale decides what the theme does with it, so
      light and dark stay legible without either knowing which lane it is. The
@@ -802,8 +811,9 @@ body {
      the screen is, which is the shape that lets you read a lane without losing
      the board. `dvh` rather than `vh` so a phone's retracting address bar
      doesn't leave the last card under it. The rail opposite is capped the same
-     way (`.board__rail`). */
-  max-height: 90dvh;
+     way (`.board__rail`), and the itinerary that replaces this row is capped by
+     the same token (`.tl__scroll`). */
+  max-height: var(--board-column-max);
   overflow-y: auto;
   /* The cards clear the clip comfortably — the lane's 0.85rem padding is inside
      the scrollport, so a card's focus ring has ~13px of room either side. (See
@@ -2841,6 +2851,43 @@ body {
   gap: 1rem;
 }
 
+/* The description, kept and hidden rather than dropped (see `ToggleSwitch`).
+   `position: absolute` so revealing it cannot reflow the row it hangs under —
+   a tooltip that pushes the page around as the pointer crosses it is worse
+   than no tooltip. `:focus-within` as well as `:hover`, or the explanation
+   would exist for exactly the readers who need it least. */
+.board__switch-row--ondemand {
+  position: relative;
+  align-items: center;
+}
+.board__switch-row--ondemand .board__switch-desc {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 5;
+  max-width: 22rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 8px;
+  background: var(--lane-bg);
+  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease,
+    visibility 120ms ease;
+}
+.board__switch-row--ondemand:hover .board__switch-desc,
+.board__switch-row--ondemand:focus-within .board__switch-desc {
+  opacity: 1;
+  visibility: visible;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board__switch-row--ondemand .board__switch-desc {
+    transition: none;
+  }
+}
+
 .board__switch-text {
   display: flex;
   flex-direction: column;
@@ -4125,12 +4172,47 @@ body {
 
 /* The view preference, boxed so it reads as a control rather than as more
    prose under the trip's summary line. */
+/* The itinerary's one strip of chrome: what is on the calendar, and what else
+   could be. One row rather than three stacked lines — the view below is the
+   point, and a caption should not need its own paragraph.
+
+   `align-items: center` and not `baseline`: the switch is a control with real
+   height, and aligning a button's text baseline to a sentence's leaves it
+   sitting low in the row. */
 .tl__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-top: 0.9rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--lane-line);
   border-radius: 12px;
   background: var(--lane-bg);
+}
+.tl__summary {
+  margin: 0;
+}
+/* The switch shrinks to its content here instead of spreading, so the row's
+   two halves sit at its two ends rather than the switch owning the width. */
+.tl__controls .board__switch-row {
+  gap: 0.6rem;
+  align-items: center;
+}
+
+/* Capped on the same token as a lane, and scrolling its own content. Switching
+   Plan → Timeline replaces the middle of the screen; it must not also change
+   how tall the screen is.
+
+   The horizontal padding is not decoration: an `overflow-y` box clips on
+   **both** axes whatever `overflow-x` says, so without room inside the
+   scrollport the focus ring of the leftmost card would be shaved off. (The same
+   trap `.board__dialog-body` was fixed for.) */
+.tl__scroll {
+  max-height: var(--board-column-max);
+  overflow-y: auto;
+  padding-inline: 2px;
 }
 
 /* A proposal: legible enough to spot a clash with, quiet enough that it can
