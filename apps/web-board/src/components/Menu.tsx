@@ -12,6 +12,15 @@ export interface MenuItem {
   badge?: number;
   /** Marks the item as the one currently in effect (the open channel). */
   selected?: boolean;
+  /**
+   * Draw a rule above this item, breaking the list into groups.
+   *
+   * A flag on the item rather than a separator entry in the list, because the
+   * list is `items.map` keyed by label and rendered as buttons — a separator
+   * "item" would need a label it doesn't have, and would have to be skipped by
+   * the focus-first logic. This is the same list, spaced.
+   */
+  separated?: boolean;
 }
 
 /**
@@ -106,7 +115,9 @@ export function Menu({
               ref={i === 0 ? firstItemRef : undefined}
               type="button"
               className={
-                "menu__item" + (item.danger ? " menu__item--danger" : "")
+                "menu__item" +
+                (item.danger ? " menu__item--danger" : "") +
+                (item.separated ? " menu__item--separated" : "")
               }
               disabled={item.disabled}
               aria-current={item.selected ? "true" : undefined}

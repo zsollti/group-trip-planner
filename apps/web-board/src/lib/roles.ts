@@ -1,4 +1,4 @@
-import type { TripRole } from "@gtp/types";
+import type { AssignableRole, TripRole } from "@gtp/types";
 import { t } from "./i18n";
 
 /**
@@ -24,5 +24,27 @@ export function roleLabel(role: TripRole): string {
       return t("Participant");
     case "GUEST":
       return t("Guest");
+  }
+}
+
+/**
+ * "Give this person that role", as a menu item reads it.
+ *
+ * A whole sentence per role rather than `t("Make {role}", { role })`: Hungarian
+ * inflects the role for this construction ("legyen társszervező"), and a frame
+ * with a slot in it can only ever hold the dictionary form. The rule the app
+ * follows everywhere — never assemble a sentence from translated fragments.
+ *
+ * Only the three assignable roles. Ownership is not granted this way; it is
+ * transferred, with a confirmation, and there is exactly one owner.
+ */
+export function roleChangeLabel(role: AssignableRole): string {
+  switch (role) {
+    case "CO_ORGANIZER":
+      return t("Make co-organizer");
+    case "PARTICIPANT":
+      return t("Make participant");
+    case "GUEST":
+      return t("Make guest");
   }
 }
