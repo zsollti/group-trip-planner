@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, type Locale } from "@gtp/types";
+import { HU_EMAIL_MESSAGES, HU_SERVER_MESSAGES } from "./hu.js";
 
 /**
  * Every message this API can put in front of a reader, and where its
@@ -157,11 +158,12 @@ export type MessageCatalogue = Partial<
 /**
  * The translations themselves.
  *
- * Empty: this build offers English only. Hungarian lands here as one object, and
- * that is the whole change on this side — the machinery above and the filter that
- * uses it do not move.
+ * Hungarian is one object per catalogue, and that was the whole change on this side:
+ * neither the renderer above nor the exception filter that calls it moved a line.
  */
-export const TRANSLATIONS: MessageCatalogue = {};
+export const TRANSLATIONS: MessageCatalogue = {
+  hu: { ...HU_SERVER_MESSAGES, ...HU_EMAIL_MESSAGES },
+};
 
 /**
  * Render a message in a reader's language.
