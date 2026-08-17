@@ -88,14 +88,6 @@ function translatedLiterals(): { text: string; file: string }[] {
   return found;
 }
 
-const FAKE = {
-  hu: {
-    "Plan your first trip": "Tervezz egy utat",
-    "{n} members": "{n} tag",
-    "{n} member": "{n} tag",
-  },
-} as const;
-
 describe("translating a message", () => {
   it("returns the source string in the source language, with no lookup", () => {
     // English is never a catalogue entry: translating into it is the identity, and
@@ -106,12 +98,19 @@ describe("translating a message", () => {
   });
 
   it("uses the catalogue for another language", () => {
+    // This asserted the English fallback until the dictionary landed, which is
+    // exactly what it should have done then: an empty catalogue must degrade rather
+    // than blank the screen. It now asserts the translation, and the change of
+    // expectation is the clearest evidence in the suite that Hungarian is live.
     expect(translateUi("Plan your first trip", "hu" as never)).toBe(
-      "Plan your first trip",
+      "Tervezd meg az első utazásod",
     );
-    // …and with a catalogue present, the translation. Driven through the pure
-    // lookup rather than the module state so the test says what it means.
-    expect(FAKE.hu["Plan your first trip"]).toBe("Tervezz egy utat");
+  });
+
+  it("still falls back for a string no catalogue holds", () => {
+    expect(translateUi("nothing has ever said this", "hu" as never)).toBe(
+      "nothing has ever said this",
+    );
   });
 
   it("interpolates values into the pattern", () => {
@@ -222,5 +221,50 @@ describe("no message is frozen at import", () => {
       visit(sf, false);
     }
     expect(frozen).toEqual([]);
+  });
+});
+
+describe("the Hungarian catalogue", () => {
+  const hu = UI_TRANSLATIONS.hu ?? {};
+
+  it("translates every string the board can show", () => {
+    expect(UI_MESSAGES.filter((m) => !(m in hu))).toEqual([]);
+  });
+
+  it("keeps every placeholder the English carried", () => {
+    // The one translator error a reader cannot recover from: drop {n} and the
+    // sentence quietly stops naming the number it is about.
+    const holes = (s: string) => (s.match(/\{[A-Za-z0-9_]+\}/g) ?? []).sort();
+    const wrong = Object.entries(hu)
+      .filter(
+        ([source, target]) => holes(source).join() !== holes(target).join(),
+      )
+      .map(([source]) => source);
+    expect(wrong).toEqual([]);
+  });
+
+  it("does not merely echo the English back", () => {
+    // A copy-paste would satisfy every check above. Proper nouns and symbols are
+    // allowed to match; a whole sentence is not.
+    const echoed = Object.entries(hu)
+      .filter(([source, target]) => source.length > 24 && source === target)
+      .map(([source]) => source);
+    expect(echoed).toEqual([]);
+  });
+
+  it("gives a counted phrase the same wording in both forms", () => {
+    // Hungarian takes no plural after a numeral, so "{n} member" and "{n} members"
+    // must translate to the same thing — and `plural()` is what makes picking
+    // either of them correct rather than arbitrary.
+    const pairs: [string, string][] = [
+      ["{n} member", "{n} members"],
+      ["{n} night", "{n} nights"],
+      ["{n} attempt", "{n} attempts"],
+      ["{n} decision pending", "{n} decisions pending"],
+      ["{n} decision placed", "{n} decisions placed"],
+    ];
+    for (const [one, many] of pairs) {
+      expect(hu[one], `${one} vs ${many}`).toBe(hu[many]);
+    }
   });
 });

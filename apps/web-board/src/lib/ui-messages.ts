@@ -1,4 +1,5 @@
 import type { Locale } from "@gtp/types";
+import { HU_UI_MESSAGES } from "./hu";
 
 /**
  * Every word the board says, and where its translations go.
@@ -499,7 +500,13 @@ export const UI_MESSAGES = [
   "＋ Propose the first option",
 ] as const;
 
-/** A message's translations, per language. Filled in when a dictionary lands. */
+/**
+ * A message's translations, per language.
+ *
+ * One object per language, and English is deliberately absent: translating into the
+ * source language is the identity, and 480 strings mapped to themselves would be 480
+ * chances for the catalogue to disagree with the code.
+ */
 export const UI_TRANSLATIONS: Partial<
   Record<Locale | "hu", Readonly<Record<string, string>>>
-> = {};
+> = { hu: HU_UI_MESSAGES };

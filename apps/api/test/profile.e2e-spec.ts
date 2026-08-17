@@ -205,13 +205,25 @@ describe("Display name (e2e)", () => {
     );
   });
 
+  it("stores a language it has been translated into", async () => {
+    // Hungarian shipped, so this is the happy path now. It was a 400 while the
+    // dictionaries were being written, and that is what kept a half-English screen
+    // unreachable rather than merely unlikely.
+    const u = await makeUser("locale-hu");
+    const res = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ locale: "hu" })
+      .expect(200);
+    assert.equal((res.body as { locale: string }).locale, "hu");
+  });
+
   it("refuses a language it has not been translated into, and an empty patch", async () => {
     const u = await makeUser("locale-bad");
-    // Hungarian is a real language with a known date format in the contract's
-    // tag table — and still not selectable, because this build has no dictionary
-    // for it. A 400 here is what keeps a half-English screen unreachable.
+    // The guard is unchanged and still does its job: a language with no dictionary
+    // is refused, so a reader cannot reach a screen half in their language.
     for (const body of [
-      { locale: "hu" },
+      { locale: "de" },
       { locale: "klingon" },
       { locale: "" },
     ]) {

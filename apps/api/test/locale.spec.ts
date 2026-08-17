@@ -32,32 +32,38 @@ describe("resolveLocale", () => {
   });
 
   it("reads an Accept-Language list in order", () => {
-    // The header's real shape, q-values and all.
-    assert.equal(resolveLocale("hu-HU,hu;q=0.9,en;q=0.8"), "en");
+    // The header's real shape, q-values and all. This asserted `en` while Hungarian
+    // was untranslated — the first entry the build *offered* won, which was the
+    // point of scanning rather than taking `[0]`. With `hu` offered, the reader's
+    // own first choice wins, which is what the scan was always for.
+    assert.equal(resolveLocale("hu-HU,hu;q=0.9,en;q=0.8"), "hu");
     assert.equal(resolveLocale("en-GB,en;q=0.9"), "en");
+    // A language nobody has translated still falls through to the next one.
+    assert.equal(resolveLocale("de-DE,de;q=0.9,hu;q=0.8"), "hu");
   });
 
   it("falls back rather than failing on anything it cannot use", () => {
     // Absent, empty, junk, and a language this build does not offer all mean the
     // same thing: nobody has expressed a preference we can honour. None of them
     // is an error — an unreadable preference is an absent one.
-    for (const input of [null, undefined, "", "  ", "de", "hu", "!!", ",,,"]) {
+    for (const input of [null, undefined, "", "  ", "de", "!!", ",,,"]) {
       assert.equal(resolveLocale(input), DEFAULT_LOCALE, `input: ${input}`);
     }
   });
 
-  it("refuses a language this build has not translated", () => {
-    // The guard that keeps a half-English screen unreachable: the tag table
-    // knows about Hungarian, but `LOCALES` is what the schema validates against,
-    // so it cannot be selected until a dictionary puts it there.
+  it("accepts the languages this build offers, and only those", () => {
+    // This test used to assert that `hu` was **refused**, and that was the guard
+    // that kept a half-English screen unreachable while the dictionaries were
+    // being written: `LOCALES` is what the schema validates against, so a language
+    // could not be selected before it was translated. Hungarian shipped, so the
+    // expectation flipped — which is the cleanest signal in the suite that it did.
     assert.equal(localeSchema.safeParse("en").success, true);
-    assert.equal(localeSchema.safeParse("hu").success, false);
-    assert.ok(!LOCALES.includes("hu" as never));
-    assert.equal(
-      INTL_TAG.hu,
-      "hu-HU",
-      "its formatting is already known, though",
-    );
+    assert.equal(localeSchema.safeParse("hu").success, true);
+    // The guard itself is unchanged, and still refuses anything untranslated.
+    assert.equal(localeSchema.safeParse("de").success, false);
+    assert.equal(localeSchema.safeParse("").success, false);
+    assert.ok(LOCALES.includes("hu"));
+    assert.equal(INTL_TAG.hu, "hu-HU");
   });
 });
 

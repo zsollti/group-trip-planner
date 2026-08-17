@@ -30,11 +30,13 @@ import { z } from "zod";
 /**
  * The languages a reader can choose in this build.
  *
- * One entry today. The plumbing around it is deliberately built for more — the
- * alternative is a second pass that touches every date in the app the day a
- * dictionary arrives.
+ * Hungarian joined the day both dictionaries were complete, and that ordering was
+ * the point: while `LOCALES` held only `en`, the schema refused `hu` on the way in
+ * and the switch offered nothing to pick, so a half-translated screen was
+ * unreachable rather than merely unlikely. Adding an entry here is the *last* step
+ * of translating a language, never the first.
  */
-export const LOCALES = ["en"] as const;
+export const LOCALES = ["en", "hu"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 /** What an account gets when it has never said. */
