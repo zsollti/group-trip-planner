@@ -142,6 +142,7 @@ function mockEmptyFetch() {
 }
 
 const onManageMembers = vi.fn();
+const onInviteMembers = vi.fn();
 
 function renderBoard(myRole: TripRole, frozen = false) {
   return render(
@@ -156,6 +157,7 @@ function renderBoard(myRole: TripRole, frozen = false) {
         tripDates={null}
         onOpenChannel={() => undefined}
         onManageMembers={onManageMembers}
+        onInviteMembers={onInviteMembers}
       />
     </QueryClientProvider>,
   );
@@ -165,6 +167,7 @@ describe("BoardCanvas", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     onManageMembers.mockClear();
+    onInviteMembers.mockClear();
     // Per-browser view preferences (the cost strip's chart form) persist in
     // localStorage; clear it so one test's choice can't decide what the next
     // one renders.
@@ -377,6 +380,28 @@ describe("BoardCanvas", () => {
     expect(within(crew).queryByRole("button", { name: "Manage" })).toBeNull();
   });
 
+  it("invites from the crew panel rather than the trip header", async () => {
+    // Inviting is something you do to the crew, so it lives with the list of
+    // who is already on it — the header had it a screen away.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    fireEvent.click(within(crew).getByRole("button", { name: "Invite" }));
+
+    expect(onInviteMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives a guest no way to invite", async () => {
+    // A Guest can read the crew but not grow it. The button moved; the gate
+    // that used to hide it in the header came with it.
+    mockFetch();
+    renderBoard("GUEST");
+
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    expect(within(crew).queryByRole("button", { name: "Invite" })).toBeNull();
+  });
+
   it("turns an empty lane into a propose CTA that opens the form (Phase 6.4)", async () => {
     mockEmptyFetch();
     renderBoard("PARTICIPANT");
@@ -500,6 +525,7 @@ describe("BoardCanvas", () => {
           tripDates={null}
           onOpenChannel={() => undefined}
           onManageMembers={onManageMembers}
+          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );
@@ -614,6 +640,7 @@ describe("BoardCanvas", () => {
           }}
           onOpenChannel={() => undefined}
           onManageMembers={onManageMembers}
+          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );
@@ -710,6 +737,7 @@ describe("BoardCanvas", () => {
           }}
           onOpenChannel={() => undefined}
           onManageMembers={() => undefined}
+          onInviteMembers={() => undefined}
         />
       </QueryClientProvider>,
     );
@@ -810,6 +838,7 @@ describe("BoardCanvas", () => {
           tripDates={null}
           onOpenChannel={() => undefined}
           onManageMembers={onManageMembers}
+          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );

@@ -109,6 +109,7 @@ export function BoardCanvas({
   tripDates,
   onOpenChannel,
   onManageMembers,
+  onInviteMembers,
 }: {
   tripId: string;
   categories: CategoryView[];
@@ -129,6 +130,9 @@ export function BoardCanvas({
   /** Open the members dialog from the crew panel — the route owns it, so the
    *  board's "⋯" menu and the panel can never open two copies of it. */
   onManageMembers: () => void;
+  /** Open the invite dialog from the crew panel, owned by the route for the
+   *  same reason. */
+  onInviteMembers: () => void;
 }) {
   const catIds = categories.map((c) => c.id);
   const opts = useCategoriesOptions(tripId, catIds);
@@ -300,6 +304,7 @@ export function BoardCanvas({
               myRole={myRole}
               myUserId={myUserId}
               onManage={onManageMembers}
+              onInvite={onInviteMembers}
             />
           </aside>
           <div className="board__canvas" aria-label={t("Category lanes")}>
