@@ -10,7 +10,7 @@ import {
   formatApproxMoney as approx,
   formatMoney as money,
 } from "../lib/money";
-import { t } from "../lib/i18n";
+import { plural, t, tNode } from "../lib/i18n";
 
 /**
  * The cost composition: the ring, the lanes that make it up, and what it
@@ -226,10 +226,14 @@ function Overshoot({ composition }: { composition: Composition }) {
     : money(overspend, currency);
   return (
     <p className="cost-comp__over" role="status">
-      <strong>{amount}</strong> over target, per person
+      {tNode("{amount} over target, per person", {
+        amount: <strong>{amount}</strong>,
+      })}
       <span className="cost-comp__over-pct">
         {" "}
-        · {Math.round(overshare * 100)}% above it
+        {t("· {percent}% above it", {
+          percent: Math.round(overshare * 100),
+        })}
       </span>
     </p>
   );
@@ -261,8 +265,10 @@ function Excluded({ composition }: { composition: Composition }) {
         {excluded.map((e) => (
           <li key={e.optionId}>
             <span className="cost-comp__aside-name">{e.title}</span>{" "}
-            <strong>{money(e.perPerson, e.currency)}</strong> per person for{" "}
-            {e.headcount} {e.headcount === 1 ? "member" : "members"}
+            {tNode("{amount} per person for {who}", {
+              amount: <strong>{money(e.perPerson, e.currency)}</strong>,
+              who: plural(e.headcount, "{n} member", "{n} members"),
+            })}
             {e.viewerOwes ? (
               <span className="cost-comp__aside-mine"> {t("· yours")}</span>
             ) : null}
@@ -279,7 +285,9 @@ function Uncounted({ composition }: { composition: Composition }) {
   if (uncounted.length === 0) return null;
   return (
     <p className="cost-comp__uncounted">
-      {uncounted.join(", ")} not counted — no rate to convert with
+      {t("{currencies} not counted — no rate to convert with", {
+        currencies: uncounted.join(", "),
+      })}
     </p>
   );
 }

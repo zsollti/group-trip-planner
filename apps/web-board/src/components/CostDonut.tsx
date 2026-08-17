@@ -3,6 +3,7 @@ import type { CostComposition, CostSlice } from "../lib/costComposition";
 import { donutArcs, pointOnRing } from "../lib/donutGeometry";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { centreFontRem } from "../lib/donutCentre";
+import { t } from "../lib/i18n";
 
 /**
  * Where the trip's locked money went, as one ring.
@@ -265,7 +266,10 @@ function Centre({
         {label.headline}
       </strong>
       {label.exact ? (
-        <span className="board__sr-only"> — exactly {label.exact}</span>
+        <span className="board__sr-only">
+          {" "}
+          {t("— exactly {amount}", { amount: label.exact })}
+        </span>
       ) : null}
       <span className="cost-donut__caption">{label.caption}</span>
     </div>
@@ -304,14 +308,18 @@ function ActiveCentre({
         {amount}
       </strong>
       <span className="cost-donut__caption">
-        {Math.round(slice.share * 100)}% of what is locked
+        {t("{percent}% of what is locked", {
+          percent: Math.round(slice.share * 100),
+        })}
       </span>
       <ul className="cost-donut__parts">
         {shown.map((part) => (
           <li key={part.label}>{part.label}</li>
         ))}
         {rest > 0 ? (
-          <li className="cost-donut__parts-more">+{rest} more</li>
+          <li className="cost-donut__parts-more">
+            {t("+{n} more", { n: rest })}
+          </li>
         ) : null}
       </ul>
     </div>
