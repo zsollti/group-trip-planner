@@ -5,15 +5,15 @@
 A full-stack web app for planning a trip as a group: propose options
 (accommodation, transport, dates, activities), compare them side by side, gather
 sentiment through **advisory voting**, and record explicit, audited **decisions**
-— with a live per-currency cost picture of what you have committed to and what
-you are heading towards.
+— with a live per-currency picture of what the group has committed to, and a
+calendar view of what it adds up to as a trip.
 
 🔗 **Live demo:** <https://trips.zsoltpinter.dev> ·
 📸 Screens below · 🧭 [Three UIs explored](#three-uis-one-backend--the-design-exploration)
 
 > **Try it without signing up.** A demo account is already a member of a trip
-> that is mid-flight — four decisions locked, the activities vote still running,
-> and chat history to read:
+> that is mid-flight — six decisions locked, the activities vote still running
+> under two of them, and chat history to read:
 >
 > |              |                    |
 > | ------------ | ------------------ |
@@ -75,21 +75,37 @@ always re-scoped to their parent (`{id, tripId}`, `{id, categoryId}`), so a vali
 id from one trip cannot be used against another. A self-maintaining test reads
 Express's own route table and fails if a new route ships without a guard.
 
-### 4. The cost engine is pure, and refuses to convert currencies
+### 4. The cost engine is pure, and never converts a stored amount
 
 [`packages/types/src/cost.ts`](packages/types/src/cost.ts) has no Prisma, no
 Nest, and no clock — every input is passed in. The HTTP endpoint is a thin
 adapter over it, which is what makes it the app's headline unit-test suite.
 
-It draws one distinction that turns out to be the whole point:
-
-- **Committed** — the exact total of options the group has actually decided on.
-- **Projected** — committed _plus the current front-runner_ of every category
-  still open. "If today's front-runners win, here is the bill."
-
 Totals are kept **per currency and never summed across them**. A number produced
 by an invented exchange rate looks authoritative and is wrong; four options in
-three currencies is an honest answer.
+three currencies is an honest answer. A trip that spans currencies is also
+offered one approximate all-in figure _beside_ those exact subtotals — marked
+`≈`, whole units, naming the date of the daily reference snapshot it crossed, and
+absent entirely when the app has no rates feed configured. An option keeps the
+currency it was priced in forever; the conversion happens on read and is never
+stored ([`exchange.ts`](packages/types/src/exchange.ts)).
+
+**The part worth reading is what got taken out.** The engine computes two
+totals — _committed_ (what the group has actually decided on) and _projected_
+(committed plus the front-runner of every category still open, "if today's
+votes win, here is the bill"). The board drew both, as one bar per currency
+split into locked money and a hatched hypothetical.
+
+Every figure in it was defensible and the whole was unreadable: four numbers per
+currency, times up to three currencies, above a per-person target that only
+spoke for one of them. It answered a question nobody asks — "how is our
+Hungarian spend divided between decided and likely?" — while the one everyone
+asks, _what have we committed to?_, was the hardest thing on the panel to find.
+
+So the surface is locked money only. The projection was not deleted; it stopped
+being drawn. Building it, using it, and then measuring it against the question
+it was supposed to answer is the whole of that decision — and a bar whose bulk
+is hypothetical is a good idea that makes the real number harder to read.
 
 ---
 
@@ -145,18 +161,19 @@ choices I reversed, and the ones I deliberately did not make — is in
 
 ## Feature tour
 
-|                          |                                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Trips & roles**        | Owner / Organizer / Traveller / Guest, with a permission matrix that both sides read. Lifecycle: Draft → Active → History, with an expiry job. |
-| **Options & categories** | Drag-ordered category lanes, per-category option fields, single-choice vs multi-select, an undeletable Dates category.                         |
-| **Advisory voting**      | Vote counts, front-runners, staleness when an option changes underneath a vote.                                                                |
-| **Decisions**            | Drag a card to **Decided** — an atomic, audited, category-aware lock.                                                                          |
-| **Cost dashboard**       | Committed vs projected, per currency, per person vs group, with fixed and dynamic headcounts.                                                  |
-| **Real-time**            | Socket.IO chat with @mentions, reactions, unread counts, per-category channels, and a hybrid reconnect that recovers missed messages.          |
-| **Notifications**        | In-app bell plus a queued, deduplicated, retried email pipeline with one-click HMAC unsubscribe and per-trip mute.                             |
-| **Invites**              | Signed invite links that survive a logged-out click through both email/password _and_ Google sign-in.                                          |
-| **Media**                | Cover images and avatars: magic-byte sniffing → `sharp` re-encode (EXIF and GPS gone) → random name → storage behind a driver seam.            |
-| **Account**              | Google OAuth, email verification, GDPR erasure that anonymises in one transaction, transfers owned trips, and purges the uploaded bytes.       |
+|                          |                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Trips & roles**        | Owner / Organizer / Traveller / Guest, with a permission matrix that both sides read. Lifecycle: Draft → Active → History, with an expiry job.                     |
+| **Options & categories** | Drag-ordered category lanes, per-category option fields, single-choice vs multi-select, an undeletable Dates category.                                             |
+| **Advisory voting**      | Vote counts, front-runners, staleness when an option changes underneath a vote.                                                                                    |
+| **Decisions**            | Drag a card to **Decided** — an atomic, audited, category-aware lock.                                                                                              |
+| **Itinerary**            | The same screen with the lanes swapped for a calendar: a day spine, a gutter for the stays that span nights, and an honest list of what nobody has put an hour on. |
+| **Cost dashboard**       | Where the locked money went, as a donut or a stacked bar, per currency, per person vs group, with fixed and dynamic headcounts and an approximate all-in total.    |
+| **Real-time**            | Socket.IO chat with @mentions, reactions, unread counts, per-category channels, and a hybrid reconnect that recovers missed messages.                              |
+| **Notifications**        | In-app bell plus a queued, deduplicated, retried email pipeline with one-click HMAC unsubscribe and per-trip mute.                                                 |
+| **Invites**              | Signed invite links that survive a logged-out click through both email/password _and_ Google sign-in.                                                              |
+| **Media**                | Cover images and avatars: magic-byte sniffing → `sharp` re-encode (EXIF and GPS gone) → random name → storage behind a driver seam.                                |
+| **Account**              | Google OAuth, email verification, GDPR erasure that anonymises in one transaction, transfers owned trips, and purges the uploaded bytes.                           |
 
 ---
 
@@ -260,9 +277,10 @@ Without a `RESEND_API_KEY`, verification and invite links are written to the API
 log instead of being emailed — which is what you want locally.
 
 `demo:seed` builds the public demo trip — five members, fourteen options across
-the built-in categories, four locked decisions, a front-runner in a second
-currency, a stale vote, two chat channels, and two opt-in options the demo
-account is in one of. Most options carry clock times so the itinerary has
+the built-in categories, six locked decisions (two of them in a multi-select
+Activities lane that is still taking votes underneath them), a second currency,
+a stale vote, two chat channels, and two opt-in options the demo account is in
+one of. Most options carry clock times so the itinerary has
 something to draw; three deliberately do not, because the timeline's "not placed"
 list is the honest half of that page. It is re-runnable: it deletes the demo
 user's trips and rebuilds them, so it doubles as the reset for when visitors have
