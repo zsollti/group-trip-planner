@@ -22,7 +22,7 @@ import { useAuth, useHomeDashboard, useReorderTrips } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { UserMenu } from "../components/UserMenu";
-import { plural, t } from "../lib/i18n";
+import { plural, t, tNode } from "../lib/i18n";
 
 const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
@@ -172,10 +172,12 @@ function Onboarding({
       ) : (
         <div className="board__onboard-gate">
           <p className="board__onboard-note">
-            One thing first: starting a board needs a confirmed email address.
-            We've sent a link to <strong>{email ?? "your address"}</strong> —
-            open it and you're set. (Check the spam folder if it's taking its
-            time.)
+            {tNode(
+              "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)",
+              {
+                email: <strong>{email ?? t("your address")}</strong>,
+              },
+            )}
           </p>
           <p className="board__onboard-note">
             {t(
