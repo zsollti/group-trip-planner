@@ -5,8 +5,10 @@ import {
   emailDedupeKey,
   MAX_EMAIL_ATTEMPTS,
   nextRetryDelayMs,
+  resolveLocale,
   SENDING_RECLAIM_MS,
   shouldSendMentionEmail,
+  type Locale,
 } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
@@ -23,6 +25,20 @@ export interface MentionEmailPayload {
   tripName: string;
   actorName: string;
   excerpt: string;
+  /**
+   * The recipient's language, snapshotted with everything else rather than looked
+   * up at send time.
+   *
+   * Consistent with the rest of this payload — the trip name and the excerpt are
+   * snapshots too — and it costs no extra query, since the enqueue path already
+   * reads the row it gates on. The trade is that someone who changes language
+   * while a mention is still queued gets the old one, which is a few seconds of
+   * exposure on a preference they just set for themselves.
+   *
+   * Optional because rows queued before this field existed are still in the
+   * table; those fall back to the source language.
+   */
+  locale?: Locale;
 }
 
 /**
@@ -91,6 +107,7 @@ export class EmailQueueService {
           emailVerified: true,
           emailOnMention: true,
           anonymizedAt: true,
+          locale: true,
           memberships: {
             where: { tripId: input.tripId },
             select: { muted: true },
@@ -98,7 +115,9 @@ export class EmailQueueService {
         },
       });
 
-      const payload: MentionEmailPayload = {
+      // Everything about the *event*, which every recipient shares. The one
+      // per-recipient field — their language — is added per job below.
+      const event = {
         tripId: input.tripId,
         tripName: input.tripName,
         actorName: input.actorName,
@@ -114,17 +133,23 @@ export class EmailQueueService {
             hasAddress: user.anonymizedAt === null && Boolean(user.email),
           }),
         )
-        .map((user) => ({
-          dedupeKey: emailDedupeKey({
+        .map((user) => {
+          const payload: MentionEmailPayload = {
+            ...event,
+            locale: resolveLocale(user.locale),
+          };
+          return {
+            dedupeKey: emailDedupeKey({
+              type: "MENTION" as const,
+              eventId: input.messageId,
+              recipientId: user.id,
+            }),
             type: "MENTION" as const,
-            eventId: input.messageId,
-            recipientId: user.id,
-          }),
-          type: "MENTION" as const,
-          to: user.email,
-          userId: user.id,
-          payload: payload as unknown as Prisma.InputJsonValue,
-        }));
+            to: user.email,
+            userId: user.id,
+            payload: payload as unknown as Prisma.InputJsonValue,
+          };
+        });
       if (jobs.length === 0) return 0;
 
       // skipDuplicates + the UNIQUE dedupeKey is the whole idempotency story:
@@ -209,6 +234,7 @@ export class EmailQueueService {
         actorName: payload.actorName,
         excerpt: payload.excerpt,
         tripId: payload.tripId,
+        locale: payload.locale,
         // Minted per send, so a rotated JWT_SECRET invalidates old links.
         unsubscribeToken: createUnsubscribeToken(
           job.userId ?? "",

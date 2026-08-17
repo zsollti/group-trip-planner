@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
+import { localizedException } from "../i18n/localized-message.js";
 
 /**
  * Validation for the query-string boundary (Phase 7.2).
@@ -33,7 +34,12 @@ export function requireIdParam(
   name: string,
 ): string {
   const parsed = cursorSchema.safeParse(value);
-  if (!parsed.success) throw new BadRequestException(`Invalid ${name}`);
+  if (!parsed.success)
+    throw localizedException(
+      (message) => new BadRequestException(message),
+      "Invalid {name}",
+      { name },
+    );
   return parsed.data;
 }
 

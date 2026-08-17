@@ -22,6 +22,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import type { TripContext } from "../trips/trip-context.js";
 import { toCategoryView } from "./category.mapper.js";
+import { localizedException } from "../i18n/localized-message.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -91,8 +92,10 @@ export class CategoriesService {
     });
     const cap = maxTripCategories();
     if (count >= cap) {
-      throw new ForbiddenException(
-        `This board is at its limit of ${cap} categories. Delete one to add another.`,
+      throw localizedException(
+        (message) => new ForbiddenException(message),
+        "This board is at its limit of {cap} categories. Delete one to add another.",
+        { cap },
       );
     }
 
@@ -158,8 +161,10 @@ export class CategoriesService {
         },
       });
       if (locked > 1) {
-        throw new ConflictException(
-          `“${existing.name}” has ${locked} decided options. Unlock all but one before making it single-choice.`,
+        throw localizedException(
+          (message) => new ConflictException(message),
+          "“{name}” has {locked} decided options. Unlock all but one before making it single-choice.",
+          { name: existing.name, locked },
         );
       }
     }

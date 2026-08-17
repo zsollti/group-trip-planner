@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Inject,
   Post,
@@ -16,6 +17,7 @@ import {
   LoginInput,
   RegisterInput,
   VerifyEmailInput,
+  resolveLocale,
   type AuthUser,
   type LoginResult,
   type RegisterResult,
@@ -55,8 +57,14 @@ export class AuthController {
   @Throttle(REGISTER_THROTTLE)
   register(
     @Body(new ZodValidationPipe(RegisterInput)) body: RegisterInput,
+    // The reader's language, from the browser (or from the board, which sends the
+    // language it is *displaying*). A brand-new account has no stored preference
+    // yet and its verification email is the first thing it ever receives, so this
+    // header is the only signal there is — and it becomes the account's stored
+    // language, which is why every later email can simply read the column.
+    @Headers("accept-language") acceptLanguage?: string,
   ): Promise<RegisterResult> {
-    return this.auth.register(body);
+    return this.auth.register(body, resolveLocale(acceptLanguage));
   }
 
   /**

@@ -14,7 +14,11 @@ import type {
   AdminUserSummary,
   AdminVolume,
 } from "@gtp/types";
-import { CONTRACT_VERSION, SENDING_RECLAIM_MS } from "@gtp/types";
+import {
+  CONTRACT_VERSION,
+  SENDING_RECLAIM_MS,
+  resolveLocale,
+} from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -293,28 +297,26 @@ export class AdminService {
     });
 
     return {
-      users: users.map(
-        (u): AdminUserSummary => ({
-          id: u.id,
-          email: u.email,
-          displayName: u.displayName,
-          emailVerified: u.emailVerified,
-          createdAt: u.createdAt.toISOString(),
-          anonymizedAt: u.anonymizedAt?.toISOString() ?? null,
-          hasPassword: u.passwordHash !== null,
-          tripCount: u._count.memberships,
-          lastSeenAt: u.refreshTokens[0]?.createdAt.toISOString() ?? null,
-          emailJobs: u.emailJobs.map((j) => ({
-            id: j.id,
-            type: j.type,
-            status: j.status,
-            attempts: j.attempts,
-            lastError: j.lastError,
-            sentAt: j.sentAt?.toISOString() ?? null,
-            createdAt: j.createdAt.toISOString(),
-          })),
-        }),
-      ),
+      users: users.map((u): AdminUserSummary => ({
+        id: u.id,
+        email: u.email,
+        displayName: u.displayName,
+        emailVerified: u.emailVerified,
+        createdAt: u.createdAt.toISOString(),
+        anonymizedAt: u.anonymizedAt?.toISOString() ?? null,
+        hasPassword: u.passwordHash !== null,
+        tripCount: u._count.memberships,
+        lastSeenAt: u.refreshTokens[0]?.createdAt.toISOString() ?? null,
+        emailJobs: u.emailJobs.map((j) => ({
+          id: j.id,
+          type: j.type,
+          status: j.status,
+          attempts: j.attempts,
+          lastError: j.lastError,
+          sentAt: j.sentAt?.toISOString() ?? null,
+          createdAt: j.createdAt.toISOString(),
+        })),
+      })),
     };
   }
 
@@ -331,7 +333,12 @@ export class AdminService {
   ): Promise<AdminUserSummary> {
     const user = await this.requireUser(userId);
     const rawToken = await this.tokens.issueEmailVerificationToken(user.id);
-    await this.email.sendVerificationEmail(user.email, rawToken);
+    // The recipient's language, not the operator's — they are the ones reading it.
+    await this.email.sendVerificationEmail(
+      user.email,
+      rawToken,
+      resolveLocale(user.locale),
+    );
     await this.record(actorEmail, "VERIFICATION_RESENT", user.email);
     return this.summaryOf(user.id);
   }

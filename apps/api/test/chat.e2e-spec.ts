@@ -564,6 +564,58 @@ describe("Chat gateway (e2e)", () => {
     assert.equal(since3.body.length, 0);
   });
 
+  it("renders a parameterised error message, values and all", async () => {
+    // The one end-to-end proof that the localizing exception filter is wired up.
+    // This message is a *pattern* — "Invalid {name}" — thrown with its value
+    // beside it rather than baked in, so that a translator has something to
+    // translate. Which means the reader only ever sees a finished sentence if the
+    // filter ran: without it the response body would carry the raw pattern and a
+    // separate `params` object, and the board would print "Invalid {name}".
+    const owner = await makeUser("badanchor");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+
+    const res = await request(app.getHttpServer())
+      .get(
+        `/trips/${trip.id}/channels/${channelId}/messages/since?after=not-an-id`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(400);
+
+    assert.equal((res.body as { message: string }).message, "Invalid after");
+    // Still Nest's own error shape — the filter rewrites the prose and nothing
+    // else, because the status and the error name are protocol rather than words.
+    assert.equal((res.body as { statusCode: number }).statusCode, 400);
+    assert.equal((res.body as { error?: string }).error, "Bad Request");
+  });
+
+  it("answers an English reader exactly as it did before", async () => {
+    // Every exception in the app now passes through a filter that may rewrite its
+    // message. For the source language that has to be the identity — this is the
+    // regression guard for the other 57 messages, which have no translation to
+    // exercise yet and would fail silently if the filter mangled them.
+    //
+    // A *channel* that does not exist, not a trip that does not: a non-member
+    // asking about someone else's trip is answered with Express's own
+    // "Cannot GET /trips/…" so that membership cannot be probed, which makes that
+    // route the one place in the app where the message is deliberately not ours.
+    const owner = await makeUser("englishreader");
+    const trip = await makeTrip(owner.user.id);
+
+    const res = await request(app.getHttpServer())
+      .get(
+        `/trips/${trip.id}/channels/00000000-0000-4000-8000-000000000000/messages`,
+      )
+      .set("Authorization", `Bearer ${owner.token}`)
+      .set("Accept-Language", "en-GB,en;q=0.9")
+      .expect(404);
+    assert.equal(
+      (res.body as { message: string }).message,
+      "Channel not found",
+    );
+    assert.equal((res.body as { error: string }).error, "Not Found");
+  });
+
   it("counts unread from others and clears it on mark-read", async () => {
     const owner = await makeUser("unread-owner");
     const other = await makeUser("unread-other");

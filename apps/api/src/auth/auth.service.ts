@@ -4,11 +4,13 @@ import argon2 from "argon2";
 import type { User } from "@prisma/client";
 import type {
   AuthUser,
+  Locale,
   LoginInput,
   LoginResult,
   RegisterInput,
   RegisterResult,
 } from "@gtp/types";
+import { DEFAULT_LOCALE, resolveLocale } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -51,7 +53,10 @@ export class AuthService {
    * identical whether or not the email already exists, and both branches do the
    * same argon2 work so timing doesn't leak existence either.
    */
-  async register(input: RegisterInput): Promise<RegisterResult> {
+  async register(
+    input: RegisterInput,
+    locale: Locale = DEFAULT_LOCALE,
+  ): Promise<RegisterResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: input.email },
     });
@@ -59,7 +64,13 @@ export class AuthService {
     if (existing) {
       // Equalize timing with the create branch, then nudge the real owner.
       await argon2.hash(input.password, ARGON2_OPTIONS);
-      await this.email.sendAccountExistsNotice(input.email);
+      // The existing account's own language, not the language of whoever
+      // triggered this: the notice goes to the person who owns the address, and
+      // they may not be the one who just typed it into a sign-up form.
+      await this.email.sendAccountExistsNotice(
+        input.email,
+        resolveLocale(existing.locale),
+      );
       return { status: "verification_sent" };
     }
 
@@ -70,10 +81,11 @@ export class AuthService {
         displayName: input.displayName,
         passwordHash,
         emailVerified: false,
+        locale,
       },
     });
     const rawToken = await this.tokens.issueEmailVerificationToken(user.id);
-    await this.email.sendVerificationEmail(user.email, rawToken);
+    await this.email.sendVerificationEmail(user.email, rawToken, locale);
     return { status: "verification_sent" };
   }
 
@@ -166,7 +178,10 @@ export class AuthService {
   async refresh(rawToken: string): Promise<AuthSession> {
     const { user, next } = await this.tokens.rotateRefreshToken(rawToken);
     const accessToken = await this.tokens.signAccessToken(user);
-    return { result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) }, refresh: next };
+    return {
+      result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) },
+      refresh: next,
+    };
   }
 
   async logout(rawToken: string | undefined): Promise<void> {
@@ -176,6 +191,9 @@ export class AuthService {
   private async openSession(user: User): Promise<AuthSession> {
     const accessToken = await this.tokens.signAccessToken(user);
     const refresh = await this.tokens.issueRefreshToken(user.id);
-    return { result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) }, refresh };
+    return {
+      result: { accessToken, user: toAuthUser(user, this.env.ADMIN_EMAILS) },
+      refresh,
+    };
   }
 }
