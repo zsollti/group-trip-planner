@@ -157,7 +157,7 @@ export async function seedDemoTrip(
       name: DEMO_TRIP_NAME,
       destination: "Lisbon, Portugal",
       description:
-        "Five of us, three nights, one long weekend. Flights and the flat are settled — activities are still open.",
+        "Five of us, three nights, one long weekend. Flights, the flat and a couple of the activities are settled — the rest is still being argued about.",
       defaultCurrency: "EUR",
       expiresAt: daysOut(365),
       ownerId: users.demo.id,
@@ -422,12 +422,11 @@ export async function seedDemoTrip(
     ["Airport transfer — pre-booked van", ["mira", "anna", "demo"]],
     ["Alfama apartment — whole flat", ["demo", "mira", "anna", "tomas"]],
     ["Hostel Bairro Alto — private dorm", ["sam"]],
-    // Activities is deliberately left undecided, and its front-runner is the
-    // GBP option. That is what makes projected differ from committed *and*
-    // introduces a second currency into the projection — "if today's
-    // front-runners win, you also owe £240" — which is the pair of behaviours
-    // the cost engine exists to show. The tram walk is kept below it for the
-    // same reason: it must not become the front-runner.
+    // The surf lesson wins its vote and is then locked, so the demo shows the
+    // whole arc in one lane: a vote that ran, the decision it led to, and the
+    // options that are still standing under it. The tram walk stays lightly
+    // voted — an option nobody has rallied behind is as much a part of a real
+    // board as the winner.
     ["Surf lesson — Costa da Caparica", ["demo", "tomas", "sam", "anna"]],
     ["Time Out Market food crawl", ["demo", "sam", "tomas"]],
     ["Sintra day trip", ["mira", "tomas"]],
@@ -446,13 +445,22 @@ export async function seedDemoTrip(
 
   // -------------------------------------------------------------- decisions ---
   // Locked explicitly by an organizer, each with the audit row the real lock
-  // transaction writes. Dates and Accommodation are single-choice; Transport is
-  // multi-select, which is why two transport options can both stand.
+  // transaction writes.
   //
-  // Activities is left with no lock on purpose — a category holding any locked
-  // option stops contributing a front-runner to the projection (see
-  // `packages/types/src/cost.ts`), so locking one here would make projected
-  // identical to committed and hide the distinction entirely.
+  // Every lane here except Dates seeds multi-select (`BUILTIN_CATEGORIES`),
+  // which is what lets Transport hold two decisions — the flight and the van —
+  // and Activities hold two of its five. That used to be a lie the seed told:
+  // it wrote its locks with `prisma.option.update`, straight past the service
+  // that enforces the rule, so it shipped two locked options in a lane the API
+  // would have refused to let anyone lock twice.
+  //
+  // Activities used to carry no lock at all, to keep the cost dashboard's
+  // projected total differing from its committed one — a category holding any
+  // locked option stops contributing a front-runner (`packages/types/src/
+  // cost.ts`). That constraint is gone: the board's cost surface reads locked
+  // money only, and nothing on any screen renders the projection. So the demo
+  // can show what it should have shown all along — a multi-select lane with two
+  // decisions in it and three candidates still standing underneath.
   const decisions: Array<{ title: string; by: CastKey; at: Date }> = [
     { title: "Fri 22 – Mon 25", by: "demo", at: minsAgo(60 * 26) },
     { title: "TAP direct — BUD → LIS", by: "demo", at: minsAgo(60 * 22) },
@@ -466,6 +474,16 @@ export async function seedDemoTrip(
       by: "mira",
       at: minsAgo(60 * 20),
     },
+    // The two that make Activities a decided-but-not-finished lane. The surf
+    // lesson is also the demo's only opt-in decision and its only sterling one,
+    // so locking it puts a second currency and a "priced for part of the group"
+    // line into the committed total rather than leaving both hypothetical.
+    {
+      title: "Surf lesson — Costa da Caparica",
+      by: "mira",
+      at: minsAgo(60 * 3),
+    },
+    { title: "Fado dinner in Alfama", by: "demo", at: minsAgo(60 * 2) },
   ];
   for (const d of decisions) {
     await prisma.option.update({
@@ -601,6 +619,22 @@ export async function seedDemoTrip(
       ch: general.id,
       by: "anna",
       body: "Heads up, Sintra went up to €52. Re-vote if that changes your mind.",
+      ago: 60 * 2,
+    },
+    // The two locks in the Activities lane, said out loud. Appended after the
+    // general thread rather than slotted into it on purpose: the reactions
+    // below index into `messageIds`, and inserting above index 7 would silently
+    // move the 🏄 onto somebody else's line.
+    {
+      ch: general.id,
+      by: "mira",
+      body: "Surf lesson is locked in — four of us are in the water, £48 each.",
+      ago: 60 * 3,
+    },
+    {
+      ch: general.id,
+      by: "demo",
+      body: "And the Fado dinner. Sintra, the tram walk and the market are still open — vote when you get a minute.",
       ago: 60 * 2,
     },
     {
