@@ -40,10 +40,15 @@ function option(over: Partial<CostEngineOption> = {}): CostEngineOption {
 }
 
 /**
- * The stored row behind an engine option. The mapper reads five fields off it
- * (id, categoryId, category.name, title, status) to enrich a line, so that is
- * what this supplies — a full Prisma `Option` here would be forty fields of
- * ceremony to exercise five.
+ * The stored row behind an engine option. The mapper reads six fields off it
+ * (id, categoryId, category.name, title, status, amount) to enrich a line, so
+ * that is what this supplies — a full Prisma `Option` here would be forty fields
+ * of ceremony to exercise six.
+ *
+ * `amount` mirrors the engine option's rather than being omitted: the mapper
+ * asks the row whether the line is priced at all, and a fixture that left the
+ * field out would answer "yes" for an unpriced option — the exact case the
+ * viewer total has to exclude.
  */
 function row(o: CostEngineOption): DashboardOptionRow {
   return {
@@ -52,6 +57,7 @@ function row(o: CostEngineOption): DashboardOptionRow {
     category: { id: o.categoryId, name: `Cat ${o.categoryId}` },
     title: `Option ${o.id}`,
     status: o.status,
+    amount: o.amount,
     _count: { votes: o.voteCount },
   } as unknown as DashboardOptionRow;
 }
@@ -222,5 +228,35 @@ describe("a line's converted figures", () => {
     );
     const fr = v.lines.find((l) => l.kind === "FRONT_RUNNER");
     assert.equal(fr?.converted?.group, 100);
+  });
+});
+
+describe("the viewer's share", () => {
+  it("leaves an unpriced locked option out of the total", () => {
+    // A trip whose only decision was its dates: one locked line, no price. The
+    // engine drops it from `committed`; this total is built in the mapper from
+    // the lines instead, and dropped it nowhere — so the payload still named the
+    // trip's currency in a subtotal of nothing. That figure is what the
+    // per-person verdict reads, which made it a claim that money had been
+    // committed when none had.
+    const v = view([option({ amount: null })], "USD", null);
+    assert.deepEqual(v.committed, [], "the engine's total was already clean");
+    assert.deepEqual(v.viewerCommitted, []);
+    // The line itself survives — it is the breakdown of what is locked, not of
+    // what is owed, and a Dates card has something to show either way.
+    assert.equal(v.lines.length, 1);
+    assert.equal(v.lines[0]!.group, 0);
+  });
+
+  it("still totals the priced options beside it", () => {
+    // The filter's blast radius: the unpriced neighbour goes, the money stays.
+    const v = view(
+      [option({ amount: null }), option({ categoryId: "cat-2", amount: 250 })],
+      "EUR",
+      null,
+    );
+    assert.deepEqual(v.viewerCommitted, [
+      { currency: "EUR", group: 250, perPerson: 62.5 },
+    ]);
   });
 });

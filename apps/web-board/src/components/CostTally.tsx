@@ -111,7 +111,17 @@ function TallyBody({
   //
   // The target still shows if there is one: hiding it until the first price
   // would read as an edit that failed to save.
-  if (locked.parts.length === 0) {
+  //
+  // `nothingLocked` is deliberately wider than "no subtotals". A locked option
+  // priced at **zero** produces a subtotal, and a real one — but it is a
+  // subtotal of nothing, so the branch below would print "0 USD" as a total and
+  // "0 USD per person" beside it, then draw the same zero a third time in the
+  // empty ring underneath. Three statements of nothing, in a panel whose one job
+  // is to say what the trip costs. The ring alone says it.
+  const nothingLocked =
+    locked.parts.length === 0 ||
+    locked.parts.every((p) => p.group === 0 && p.perPerson === 0);
+  if (nothingLocked) {
     return (
       <>
         <div className="cost-comp__chart">

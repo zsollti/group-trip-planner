@@ -88,6 +88,7 @@ export class OptionsService {
     tripId: string,
     ownerId: string,
     dates: { startDate: Date; endDate: Date },
+    tripCurrency: string,
   ): Promise<void> {
     // The `@@unique([tripId, builtinKey])` row seeded moments ago in this same
     // transaction.
@@ -100,10 +101,20 @@ export class OptionsService {
         categoryId: category.id,
         proposerId: ownerId,
         title: SEEDED_DATES_TITLE,
-        // Dates options carry no cost — `categoryOptionFields` hides those
-        // fields on this category, and the cost engine ignores an unpriced
-        // option anyway.
-        currency: "EUR",
+        // The trip's own currency, even though this option is unpriced and
+        // always will be — `categoryOptionFields` hides the cost fields on the
+        // Dates category, so nothing can ever put an amount here.
+        //
+        // It was hardcoded `"EUR"` on the reasoning that an unpriced option
+        // costs nothing, so the code was arbitrary. It was not: the cost engine
+        // aggregated every locked option by currency regardless of price, so a
+        // dollar trip whose only decision was its dates reported a zero **EUR**
+        // subtotal, and the board drew a total and a chart for it. That is fixed
+        // at the root in `computeCostDashboard` (unpriced options no longer
+        // reach the aggregation), and this stops the wrong code being stored in
+        // the first place — a currency on a row is a fact about the trip, and it
+        // should be a true one whether or not anything currently reads it.
+        currency: tripCurrency,
         startsAt: dates.startDate,
         endsAt: dates.endDate,
         status: "LOCKED",

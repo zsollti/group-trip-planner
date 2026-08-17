@@ -134,8 +134,22 @@ export function toTripDashboardView(
   // from the LOCKED lines alone, because that is what the target is read
   // against, and aggregated per currency so it can be converted the same way
   // every other total is.
+  //
+  // Unpriced lines are dropped, exactly as the engine drops them from
+  // `committed` — this total is the same kind of claim and has to be filtered in
+  // the same place, or the bug the engine fix closed simply reappears here. A
+  // trip whose only decision was its dates has one locked line, unpriced, and
+  // aggregating it named the trip's currency in a subtotal of nothing: the
+  // figure the per-person verdict reads, saying money was committed when none
+  // was. `DashboardLine` has no `amount` — a line priced at zero and an unpriced
+  // one both carry `group: 0` — so the price comes from the source row.
   const viewerCommitted = aggregateShare(
-    lines.filter((l) => l.kind === "LOCKED" && l.viewerOwes),
+    lines.filter(
+      (l) =>
+        l.kind === "LOCKED" &&
+        l.viewerOwes &&
+        rowById.get(l.optionId)?.amount !== null,
+    ),
   );
 
   return {

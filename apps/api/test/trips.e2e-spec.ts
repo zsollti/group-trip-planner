@@ -283,6 +283,64 @@ describe("Trips (e2e)", () => {
       assert.equal(new Date(opts.body[0].endsAt).toISOString(), endDate);
     });
 
+    it("seeds the Dates option in the trip's own currency, and costs nothing", async () => {
+      // The reported bug, end to end: a USD trip created with dates showed
+      // "0 EUR" on its cost dashboard. Two causes, one symptom — the seed
+      // hardcoded `currency: "EUR"` because a Dates option is unpriced and the
+      // code looked arbitrary, and the cost engine aggregated every locked
+      // option by currency whether or not it had an amount. So the trip
+      // reported a committed subtotal, of nothing, in a currency it does not
+      // use.
+      const owner = await makeVerifiedUser("dated-usd");
+      const startDate = isoInDays(30);
+      const endDate = isoInDays(37);
+
+      const trip = await http()
+        .post("/trips")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({
+          name: "Demo Trip",
+          defaultCurrency: "USD",
+          startDate,
+          endDate,
+        })
+        .expect(201);
+      assert.equal(trip.body.defaultCurrency, "USD");
+
+      const cats = await http()
+        .get(`/trips/${trip.body.id}/categories`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      const dates = (cats.body as { id: string; builtinKey: string }[]).find(
+        (c) => c.builtinKey === "DATES",
+      )!;
+      const opts = await http()
+        .get(`/trips/${trip.body.id}/categories/${dates.id}/options`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+
+      // The row itself is now true: a currency stored on an option is a fact
+      // about the trip, whether or not anything currently reads it.
+      assert.equal(opts.body[0].currency, "USD");
+      assert.equal(
+        opts.body[0].amount,
+        null,
+        "a Dates option carries no price",
+      );
+
+      // And the dashboard claims no money at all — not a USD zero either. The
+      // one place the trip's currency belongs is the empty state the board draws
+      // from `defaultCurrency`.
+      const view = await http()
+        .get(`/trips/${trip.body.id}/dashboard`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200);
+      assert.equal(view.body.defaultCurrency, "USD");
+      assert.deepEqual(view.body.committed, []);
+      assert.deepEqual(view.body.projected, []);
+      assert.deepEqual(view.body.viewerCommitted, []);
+    });
+
     it("leaves the Dates lane empty when no dates are given", async () => {
       const owner = await makeVerifiedUser("undated");
       const trip = await http()
