@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DISPLAY_NAME_LENGTH,
-  isTruncated,
-  truncateName,
-} from "./truncate";
+import { DISPLAY_NAME_LENGTH, isTruncated, truncateName } from "./truncate";
 
 /**
  * The display rule is "15 characters, then an ellipsis". What's worth pinning is
@@ -40,7 +36,12 @@ describe("truncateName", () => {
   });
 
   it("isTruncated agrees with whether truncateName shortened anything", () => {
-    for (const name of ["", "Stay", "Museums and gal", "Museums and galleries"]) {
+    for (const name of [
+      "",
+      "Stay",
+      "Museums and gal",
+      "Museums and galleries",
+    ]) {
       expect(isTruncated(name)).toBe(truncateName(name) !== name);
     }
   });

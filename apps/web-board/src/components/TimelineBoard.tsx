@@ -17,6 +17,7 @@ import {
   type TimelineEntry,
   type TimelineSpan,
 } from "../lib/timeline";
+import { t } from "../lib/i18n";
 
 /** Clock time of a moment, or the interval it occupies within its day. */
 function timeLabel(entry: TimelineEntry): string {
@@ -109,7 +110,9 @@ function EntryCard({
           </span>
           {span ? <span>{nightsLabel(span.nights)}</span> : null}
           {cost ? <span>{cost}</span> : null}
-          {proposed ? <span className="tl__card-flag">Proposed</span> : null}
+          {proposed ? (
+            <span className="tl__card-flag">{t("Proposed")}</span>
+          ) : null}
           {clashes ? (
             <span className="tl__card-clash">
               Overlaps another {entry.category.name} decision
@@ -197,9 +200,9 @@ export function TimelineBoard({
     <>
       {timeline.axis === "derived" ? (
         <p className="tl__banner" role="status">
-          This trip's dates aren't settled yet, so the days below are drawn from
-          the options themselves and will shift as they change. Lock a date to
-          frame the trip.
+          {t(
+            "This trip's dates aren't settled yet, so the days below are drawn from the options themselves and will shift as they change. Lock a date to frame the trip.",
+          )}
         </p>
       ) : null}
       {timeline.truncated ? (
@@ -244,19 +247,21 @@ export function TimelineBoard({
                   })}
                 </span>
                 {day.outsideTrip ? (
-                  <span className="tl__day-flag">outside the trip's dates</span>
+                  <span className="tl__day-flag">
+                    {t("outside the trip's dates")}
+                  </span>
                 ) : null}
                 {/* On the heading line rather than in a paragraph of its own:
                     given its own row, a free day stood as tall as a busy one
                     and a week with two of them pushed the trip off screen. */}
                 {day.entries.length === 0 ? (
-                  <span className="tl__day-quiet">nothing planned</span>
+                  <span className="tl__day-quiet">{t("nothing planned")}</span>
                 ) : null}
               </h3>
               {/* Above the day's plans, because it is a fact about the night
                   rather than another thing that is happening. */}
               {uncovered.has(day.key) ? (
-                <p className="tl__gap">Nowhere booked for this night</p>
+                <p className="tl__gap">{t("Nowhere booked for this night")}</p>
               ) : null}
               {day.entries.length === 0 ? null : (
                 <div className="tl__day-items">
@@ -322,8 +327,8 @@ export function TimelineBoard({
       {/* Never a silent omission: a page that quietly drew three of eight
           decisions would be read as the whole trip. */}
       {hasTray ? (
-        <section className="tl__tray" aria-label="Not on the timeline">
-          <h2 className="tl__tray-head">Not on the timeline</h2>
+        <section className="tl__tray" aria-label={t("Not on the timeline")}>
+          <h2 className="tl__tray-head">{t("Not on the timeline")}</h2>
           <div className="tl__tray-items">
             {unscheduled.map((entry) => (
               <TrayCard

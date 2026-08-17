@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError, useAuth, useJoinTrip } from "@gtp/api-client";
+import { t } from "../lib/i18n";
 
 /**
  * Invite redemption landing (Phase 1.3). Logged-out arrivals bounce to
@@ -31,7 +32,7 @@ export function Join() {
   if (status === "loading") {
     return (
       <main className="board board--center">
-        <p className="board__muted">Loading…</p>
+        <p className="board__muted">{t("Loading…")}</p>
       </main>
     );
   }
@@ -48,19 +49,19 @@ export function Join() {
   return (
     <main className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">Trip Board</p>
+        <p className="board__eyebrow">{t("Trip Board")}</p>
         {error ? (
           <>
-            <h1 className="board__title">Couldn't join</h1>
+            <h1 className="board__title">{t("Couldn't join")}</h1>
             <p className="board__muted">{error}</p>
             <p className="board__alt">
-              <Link to="/">Back to boards</Link>
+              <Link to="/">{t("Back to boards")}</Link>
             </p>
           </>
         ) : (
           <>
-            <h1 className="board__title">Joining board…</h1>
-            <p className="board__muted">Redeeming your invite.</p>
+            <h1 className="board__title">{t("Joining board…")}</h1>
+            <p className="board__muted">{t("Redeeming your invite.")}</p>
           </>
         )}
       </div>

@@ -7,6 +7,7 @@ import {
 } from "@gtp/api-client";
 import type { NotificationView } from "@gtp/types";
 import { NOTIFICATION_ICON, notificationHeadline } from "../lib/notifications";
+import { t } from "../lib/i18n";
 
 /** How long a live toast stays on screen before dismissing itself. */
 const TOAST_MS = 6000;
@@ -62,7 +63,7 @@ export function NotificationToasts({ socket }: { socket?: LiveSocket | null }) {
       <button
         type="button"
         className="bell__toast-close"
-        aria-label="Dismiss notification"
+        aria-label={t("Dismiss notification")}
         onClick={() => setToast(null)}
       >
         ×

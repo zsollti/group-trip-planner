@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@gtp/ui-primitives";
+import { t } from "../lib/i18n";
 
 /** Mirrors the server's allowlist so the file dialog offers the right filter.
  *  The server still decides — this only saves an obvious round-trip. */
@@ -59,7 +60,7 @@ export function ImagePicker({
         {shown ? (
           <img className="picker__preview" src={shown} alt="" />
         ) : (
-          <span className="picker__empty">No image yet</span>
+          <span className="picker__empty">{t("No image yet")}</span>
         )}
       </div>
 
@@ -98,7 +99,7 @@ export function ImagePicker({
                 if (inputRef.current) inputRef.current.value = "";
               }}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
           </>
         ) : currentUrl && onRemove ? (

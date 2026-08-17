@@ -37,6 +37,7 @@ import { CostTally } from "./CostTally";
 import { CrewPanel } from "./CrewPanel";
 import { costLabel } from "./optionFormat";
 import { truncateName } from "../lib/truncate";
+import { t } from "../lib/i18n";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
 interface DndData {
@@ -262,12 +263,12 @@ export function BoardCanvas({
   }
 
   if (opts.isPending) {
-    return <p className="board__muted">Loading cards…</p>;
+    return <p className="board__muted">{t("Loading cards…")}</p>;
   }
   if (opts.isError) {
     return (
       <p className="board__form-error" role="alert">
-        Couldn't load the cards. Reload the page to try again.
+        {t("Couldn't load the cards. Reload the page to try again.")}
       </p>
     );
   }
@@ -301,7 +302,7 @@ export function BoardCanvas({
               onManage={onManageMembers}
             />
           </aside>
-          <div className="board__canvas" aria-label="Category lanes">
+          <div className="board__canvas" aria-label={t("Category lanes")}>
             <SortableContext
               items={laneIds}
               strategy={horizontalListSortingStrategy}

@@ -78,7 +78,9 @@ describe("centreFontRem", () => {
       // curve takes, at its short end, and small enough not to read as the
       // figure changing size. A lookup table would blow straight past it.
       expect(step, `${n} → ${n + 1} characters jumps`).toBeLessThan(0.15);
-      expect(step, `${n} → ${n + 1} characters grows`).toBeGreaterThanOrEqual(0);
+      expect(step, `${n} → ${n + 1} characters grows`).toBeGreaterThanOrEqual(
+        0,
+      );
     }
   });
 });

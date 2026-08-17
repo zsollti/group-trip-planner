@@ -10,6 +10,7 @@ import {
   formatApproxMoney as approx,
   formatMoney as money,
 } from "../lib/money";
+import { t } from "../lib/i18n";
 
 /**
  * The cost composition: the ring, the lanes that make it up, and what it
@@ -61,7 +62,7 @@ export function CostComposition({
   return (
     <section className="cost-comp">
       <header className="cost-comp__head">
-        <h3 className="cost-comp__title">Where it goes</h3>
+        <h3 className="cost-comp__title">{t("Where it goes")}</h3>
       </header>
 
       <div className="cost-comp__chart">
@@ -135,8 +136,11 @@ function CostLegend({
        */}
       {overspend > 0 ? (
         <li className="cost-comp__row cost-comp__row--over">
-          <span className="cost-comp__swatch cost-comp__swatch--over" aria-hidden="true" />
-          <span className="cost-comp__name">Over budget</span>
+          <span
+            className="cost-comp__swatch cost-comp__swatch--over"
+            aria-hidden="true"
+          />
+          <span className="cost-comp__name">{t("Over budget")}</span>
           <span className="cost-comp__share" />
           <span className="cost-comp__amount">{write(overspend)}</span>
         </li>
@@ -250,7 +254,9 @@ function Excluded({ composition }: { composition: Composition }) {
   if (excluded.length === 0) return null;
   return (
     <div className="cost-comp__aside">
-      <p className="cost-comp__aside-head">Priced for part of the group</p>
+      <p className="cost-comp__aside-head">
+        {t("Priced for part of the group")}
+      </p>
       <ul className="cost-comp__aside-list">
         {excluded.map((e) => (
           <li key={e.optionId}>
@@ -258,7 +264,7 @@ function Excluded({ composition }: { composition: Composition }) {
             <strong>{money(e.perPerson, e.currency)}</strong> per person for{" "}
             {e.headcount} {e.headcount === 1 ? "member" : "members"}
             {e.viewerOwes ? (
-              <span className="cost-comp__aside-mine"> · yours</span>
+              <span className="cost-comp__aside-mine"> {t("· yours")}</span>
             ) : null}
           </li>
         ))}

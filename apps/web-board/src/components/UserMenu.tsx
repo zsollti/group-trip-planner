@@ -48,50 +48,50 @@ export function UserMenu() {
 
   return (
     <>
-    <Menu
-      label={unread > 0 ? `Account menu, ${unread} unread` : "Account menu"}
-      align="right"
-      triggerClassName="board__avatar-trigger"
-      trigger={
-        <span className="board__avatar-wrap">
-          <Avatar
-            name={user?.displayName ?? "?"}
-            userId={user?.id}
-            url={user?.avatarUrl}
-            size={30}
-          />
-          {unread > 0 ? (
-            <span className="board__avatar-dot" aria-hidden="true" />
-          ) : null}
-        </span>
-      }
-      items={[
-        {
-          label: resolved === "dark" ? "☀ Light mode" : "☾ Dark mode",
-          onSelect: toggle,
-        },
-        {
-          label: "Notifications",
-          onSelect: () => setNotificationsOpen(true),
-          badge: unread,
-        },
-        {
-          label: "Settings",
-          onSelect: () => navigate("/settings"),
-        },
-        // Only for accounts this deployment names as operators, and only as a
-        // convenience: hiding the link is not what protects the console. Every
-        // /admin request is checked against the same configuration server-side,
-        // so forcing this open reveals a page that answers 404 to everything.
-        ...(user?.isAdmin
-          ? [{ label: "⚙ Console", onSelect: () => navigate("/admin") }]
-          : []),
-        { label: "Log out", onSelect: () => void logout() },
-      ]}
-    />
-    {notificationsOpen ? (
-      <NotificationsDialog onClose={() => setNotificationsOpen(false)} />
-    ) : null}
+      <Menu
+        label={unread > 0 ? `Account menu, ${unread} unread` : "Account menu"}
+        align="right"
+        triggerClassName="board__avatar-trigger"
+        trigger={
+          <span className="board__avatar-wrap">
+            <Avatar
+              name={user?.displayName ?? "?"}
+              userId={user?.id}
+              url={user?.avatarUrl}
+              size={30}
+            />
+            {unread > 0 ? (
+              <span className="board__avatar-dot" aria-hidden="true" />
+            ) : null}
+          </span>
+        }
+        items={[
+          {
+            label: resolved === "dark" ? "☀ Light mode" : "☾ Dark mode",
+            onSelect: toggle,
+          },
+          {
+            label: "Notifications",
+            onSelect: () => setNotificationsOpen(true),
+            badge: unread,
+          },
+          {
+            label: "Settings",
+            onSelect: () => navigate("/settings"),
+          },
+          // Only for accounts this deployment names as operators, and only as a
+          // convenience: hiding the link is not what protects the console. Every
+          // /admin request is checked against the same configuration server-side,
+          // so forcing this open reveals a page that answers 404 to everything.
+          ...(user?.isAdmin
+            ? [{ label: "⚙ Console", onSelect: () => navigate("/admin") }]
+            : []),
+          { label: "Log out", onSelect: () => void logout() },
+        ]}
+      />
+      {notificationsOpen ? (
+        <NotificationsDialog onClose={() => setNotificationsOpen(false)} />
+      ) : null}
     </>
   );
 }

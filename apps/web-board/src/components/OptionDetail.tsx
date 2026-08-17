@@ -11,6 +11,7 @@ import { Dialog } from "./Dialog";
 import { CategoryIcon } from "./CategoryIcon";
 import { Avatar } from "./Avatar";
 import { categoryHueStyle } from "../lib/categoryTheme";
+import { t } from "../lib/i18n";
 
 /**
  * A read-only "full card" view (Phase 3.5 feedback). A card on the board clamps
@@ -67,7 +68,7 @@ export function OptionDetail({
         <dl className="board__detail">
           {dates ? (
             <>
-              <dt>Dates</dt>
+              <dt>{t("Dates")}</dt>
               <dd>
                 🗓 {dates}
                 {/* The one surface with room to say why, rather than just
@@ -83,19 +84,19 @@ export function OptionDetail({
           ) : null}
           {cost ? (
             <>
-              <dt>Cost</dt>
+              <dt>{t("Cost")}</dt>
               <dd>{cost}</dd>
             </>
           ) : null}
           {option.description ? (
             <>
-              <dt>Notes</dt>
+              <dt>{t("Notes")}</dt>
               <dd className="board__detail-notes">{option.description}</dd>
             </>
           ) : null}
           {option.url ? (
             <>
-              <dt>Link</dt>
+              <dt>{t("Link")}</dt>
               <dd>
                 {/* Rows stored before the scheme was constrained at the
                     boundary can still hold a non-http(s) URL, so the render
@@ -116,12 +117,12 @@ export function OptionDetail({
               </dd>
             </>
           ) : null}
-          <dt>Proposed by</dt>
+          <dt>{t("Proposed by")}</dt>
           <dd>
             {option.proposerName}
             {option.materialChangedAt ? " · edited" : ""}
           </dd>
-          <dt>Votes</dt>
+          <dt>{t("Votes")}</dt>
           <dd>
             {option.voters.length === 0 ? (
               option.voteCount
@@ -142,7 +143,7 @@ export function OptionDetail({
                     <span className="voters__name">{v.displayName}</span>
                     {v.stale ? (
                       <span className="voters__stale">
-                        voted before the last change
+                        {t("voted before the last change")}
                       </span>
                     ) : null}
                   </li>
@@ -151,7 +152,6 @@ export function OptionDetail({
             )}
           </dd>
         </dl>
-
       </>
     </Dialog>
   );

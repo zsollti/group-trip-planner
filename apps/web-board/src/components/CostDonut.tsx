@@ -100,7 +100,9 @@ export function CostDonut({
                 key={keyOf(slice)}
                 className={
                   "cost-donut__wedge" +
-                  (slice.categoryId === null ? " cost-donut__wedge--tail" : "") +
+                  (slice.categoryId === null
+                    ? " cost-donut__wedge--tail"
+                    : "") +
                   (isActive ? " cost-donut__wedge--on" : "") +
                   (dimmed ? " cost-donut__wedge--off" : "")
                 }
@@ -308,7 +310,9 @@ function ActiveCentre({
         {shown.map((part) => (
           <li key={part.label}>{part.label}</li>
         ))}
-        {rest > 0 ? <li className="cost-donut__parts-more">+{rest} more</li> : null}
+        {rest > 0 ? (
+          <li className="cost-donut__parts-more">+{rest} more</li>
+        ) : null}
       </ul>
     </div>
   );

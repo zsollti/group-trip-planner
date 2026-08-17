@@ -100,9 +100,7 @@ export function useFitCount(
     const widths = Array.from(measure.children).map(
       (child) => (child as HTMLElement).offsetWidth,
     );
-    setVisibleCount(
-      fitCount(widths, container.clientWidth, reserveWidth, gap),
-    );
+    setVisibleCount(fitCount(widths, container.clientWidth, reserveWidth, gap));
   }, [reserveWidth, gap]);
 
   useLayoutEffect(() => {

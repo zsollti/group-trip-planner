@@ -29,6 +29,7 @@ import {
 } from "../lib/timeOfDay";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
+import { t } from "../lib/i18n";
 
 /**
  * Board-paradigm propose/edit card. Covers the FR-21 fields — title, url,
@@ -203,7 +204,7 @@ export function OptionForm({
       <form onSubmit={onSubmit} noValidate>
         <div className="board__form-grid">
           <div className="board__form-wide">
-            <Field htmlFor="opt-title" label="Title">
+            <Field htmlFor="opt-title" label={t("Title")}>
               <Input
                 id="opt-title"
                 value={title}
@@ -214,7 +215,7 @@ export function OptionForm({
             </Field>
           </div>
           <div className="board__form-wide">
-            <Field htmlFor="opt-desc" label="Notes (optional)">
+            <Field htmlFor="opt-desc" label={t("Notes (optional)")}>
               <textarea
                 id="opt-desc"
                 data-gtp-input
@@ -227,11 +228,11 @@ export function OptionForm({
           </div>
           {fields.url ? (
             <div className="board__form-wide">
-              <Field htmlFor="opt-url" label="Link (optional)">
+              <Field htmlFor="opt-url" label={t("Link (optional)")}>
                 <Input
                   id="opt-url"
                   type="url"
-                  placeholder="https://…"
+                  placeholder={t("https://…")}
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
@@ -241,7 +242,7 @@ export function OptionForm({
 
           {fields.cost ? (
             <>
-              <Field htmlFor="opt-amount" label="Amount (optional)">
+              <Field htmlFor="opt-amount" label={t("Amount (optional)")}>
                 {/* `text` + `inputMode="decimal"`, not `type="number"`: a
                     number input rejects the separators grouping puts in, so the
                     field would blank itself the moment it was formatted. The
@@ -256,7 +257,7 @@ export function OptionForm({
                   onBlur={(e) => setAmount(regroupAmountInput(e.target.value))}
                 />
               </Field>
-              <Field htmlFor="opt-currency" label="Currency">
+              <Field htmlFor="opt-currency" label={t("Currency")}>
                 <CurrencySelect
                   id="opt-currency"
                   value={currency}
@@ -264,18 +265,18 @@ export function OptionForm({
                 />
               </Field>
 
-              <Field htmlFor="opt-costtype" label="Cost is">
+              <Field htmlFor="opt-costtype" label={t("Cost is")}>
                 <select
                   id="opt-costtype"
                   className="board__select"
                   value={costType}
                   onChange={(e) => setCostType(e.target.value as CostType)}
                 >
-                  <option value="PER_PERSON">Per person</option>
-                  <option value="TOTAL">Total for the group</option>
+                  <option value="PER_PERSON">{t("Per person")}</option>
+                  <option value="TOTAL">{t("Total for the group")}</option>
                 </select>
               </Field>
-              <Field htmlFor="opt-participation" label="Priced for">
+              <Field htmlFor="opt-participation" label={t("Priced for")}>
                 {/* Two named choices rather than a checkbox plus a number. The
                     number was the problem: it claimed how many without saying
                     who, and nothing kept it current. */}
@@ -287,8 +288,10 @@ export function OptionForm({
                     setParticipationMode(e.target.value as ParticipationMode)
                   }
                 >
-                  <option value="WHOLE_GROUP">Everyone on the trip</option>
-                  <option value="OPT_IN">Only whoever's in</option>
+                  <option value="WHOLE_GROUP">
+                    {t("Everyone on the trip")}
+                  </option>
+                  <option value="OPT_IN">{t("Only whoever's in")}</option>
                 </select>
               </Field>
               <div />
@@ -296,9 +299,9 @@ export function OptionForm({
               {participationMode === "OPT_IN" ? (
                 <div className="board__form-wide">
                   <p className="board__field-note">
-                    The card gets an <strong>I'm in</strong> button, and its
-                    cost is split between the people who press it — nobody else
-                    pays for it. Everyone can see who is in.
+                    The card gets an <strong>{t("I'm in")}</strong> button, and
+                    its cost is split between the people who press it — nobody
+                    else pays for it. Everyone can see who is in.
                   </p>
                 </div>
               ) : null}
@@ -321,7 +324,7 @@ export function OptionForm({
                   <div className="board__form-grid">
                     <Field
                       htmlFor="opt-start-time"
-                      label="Start time (optional)"
+                      label={t("Start time (optional)")}
                     >
                       <TimeSelect
                         id="opt-start-time"
@@ -330,7 +333,10 @@ export function OptionForm({
                         emptyLabel="No time"
                       />
                     </Field>
-                    <Field htmlFor="opt-end-time" label="End time (optional)">
+                    <Field
+                      htmlFor="opt-end-time"
+                      label={t("End time (optional)")}
+                    >
                       <TimeSelect
                         id="opt-end-time"
                         value={endTime}

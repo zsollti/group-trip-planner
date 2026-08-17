@@ -19,6 +19,7 @@ import { costLabel, dateRangeLabel } from "./optionFormat";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { CalendarIcon, MoneyIcon } from "./icons";
 import { truncateName } from "../lib/truncate";
+import { t } from "../lib/i18n";
 
 /**
  * One option card (Phase 3.5) — the presentational card shared by the category
@@ -192,7 +193,10 @@ export function OptionCard({
                 — while every near-miss (a red-eye landing the morning after)
                 stays quiet. */}
               {elsewhere ? (
-                <em className="lane__elsewhere"> · outside the trip’s dates</em>
+                <em className="lane__elsewhere">
+                  {" "}
+                  {t("· outside the trip’s dates")}
+                </em>
               ) : null}
             </>,
           )
@@ -217,7 +221,7 @@ export function OptionCard({
           target="_blank"
           rel="noreferrer noopener"
         >
-          Link ↗
+          {t("Link ↗")}
         </a>
       ) : null}
       {/* "by Ada · edited" used to sit here. Who proposed an option is worth

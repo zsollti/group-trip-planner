@@ -22,6 +22,7 @@ import { useAuth, useHomeDashboard, useReorderTrips } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { UserMenu } from "../components/UserMenu";
+import { plural, t } from "../lib/i18n";
 
 const ROLE_LABEL: Record<HomeTripSummary["role"], string> = {
   OWNER: "Owner",
@@ -99,16 +100,22 @@ function BoardTile({ trip }: { trip: HomeTripSummary }) {
       <span className="board__tile-badge">{ROLE_LABEL[trip.role]}</span>
       <span className="board__tile-name">{trip.name}</span>
       <span className="board__tile-meta">
-        {trip.destination ?? "No destination yet"}
+        {trip.destination ?? t("No destination yet")}
       </span>
+      {/* Both forms are whole phrases rather than a stem plus an "s": Hungarian
+          takes no plural after a numeral (`2 tag`, not `2 tagok`), so its
+          "plural" wording is the singular one. `plural` picks per language. */}
       <span className="board__tile-meta">
-        {trip.memberCount} member{trip.memberCount === 1 ? "" : "s"}
+        {plural(trip.memberCount, "{n} member", "{n} members")}
       </span>
       <span className="board__tile-cost">{costLabel(trip.cost)}</span>
       {trip.pendingDecisionCount > 0 ? (
         <span className="board__tile-pending">
-          {trip.pendingDecisionCount} decision
-          {trip.pendingDecisionCount === 1 ? "" : "s"} pending
+          {plural(
+            trip.pendingDecisionCount,
+            "{n} decision pending",
+            "{n} decisions pending",
+          )}
         </span>
       ) : null}
     </Link>
@@ -146,24 +153,20 @@ function Onboarding({
         {verified ? "Let's plan something" : "Almost there"}
       </h2>
       <p className="board__onboard-lead">
-        No boards yet — so here's the idea. A board is one place for one trip,
-        with a lane for each thing you have to agree on: when to go, how to get
-        there, where to sleep, what to do. Anyone can add an option to a lane,
-        everyone votes, and when the group has made its mind up an organiser
-        locks the winner in. It stays at the top of its lane, the cost adds
-        itself up as you go, and nobody has to scroll back through a group chat
-        to remember what was decided.
+        {t(
+          "No boards yet — so here's the idea. A board is one place for one trip, with a lane for each thing you have to agree on: when to go, how to get there, where to sleep, what to do. Anyone can add an option to a lane, everyone votes, and when the group has made its mind up an organiser locks the winner in. It stays at the top of its lane, the cost adds itself up as you go, and nobody has to scroll back through a group chat to remember what was decided.",
+        )}
       </p>
 
       {verified ? (
         <>
           <button type="button" className="board__cta" onClick={onCreate}>
-            Plan your first trip
+            {t("Plan your first trip")}
           </button>
           <p className="board__onboard-note">
-            Takes about a minute. You'll be the owner, and you can bring
-            everyone else in with a single link — no accounts to set up for
-            them, no app to install.
+            {t(
+              "Takes about a minute. You'll be the owner, and you can bring everyone else in with a single link — no accounts to set up for them, no app to install.",
+            )}
           </p>
         </>
       ) : (
@@ -175,9 +178,9 @@ function Onboarding({
             time.)
           </p>
           <p className="board__onboard-note">
-            No need to wait around, though. If someone has already invited you
-            to their board you can join it right now, and propose, vote and chat
-            like everyone else.
+            {t(
+              "No need to wait around, though. If someone has already invited you to their board you can join it right now, and propose, vote and chat like everyone else.",
+            )}
           </p>
         </div>
       )}
@@ -229,14 +232,14 @@ export function Dashboard() {
   return (
     <main className="board board--measure">
       <header className="board__bar">
-        <span className="board__brand">GTP · Trip Board</span>
+        <span className="board__brand">{t("GTP · Trip Board")}</span>
         <div className="board__bar-actions">
           <Button
             type="button"
             variant="primary"
             onClick={() => setCreateOpen(true)}
           >
-            ＋ New board
+            {t("＋ New board")}
           </Button>
           {/* No notification surface of its own here: the list is in the
               account menu, which fetches the count on every page. Live pushes
@@ -245,14 +248,14 @@ export function Dashboard() {
         </div>
       </header>
 
-      <p className="board__eyebrow">Boards</p>
+      <p className="board__eyebrow">{t("Boards")}</p>
       <h1 className="board__title">Welcome, {user?.displayName}</h1>
 
       {dash.isPending ? (
         <div
           className="board__tiles"
           aria-busy="true"
-          aria-label="Loading your boards"
+          aria-label={t("Loading your boards")}
         >
           {[0, 1, 2].map((i) => (
             <div key={i} className="board__skel-tile" />
@@ -266,7 +269,7 @@ export function Dashboard() {
             className="board__link-btn"
             onClick={() => void dash.refetch()}
           >
-            Retry
+            {t("Retry")}
           </button>
         </p>
       ) : list.length === 0 ? (
@@ -286,7 +289,7 @@ export function Dashboard() {
               items={active.map((t) => t.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="board__tiles" aria-label="Your trip boards">
+              <div className="board__tiles" aria-label={t("Your trip boards")}>
                 {active.map((trip) => (
                   <SortableBoardTile key={trip.id} trip={trip} />
                 ))}
@@ -297,8 +300,10 @@ export function Dashboard() {
               not a place you put one, so these keep their own order. */}
           {history.length > 0 ? (
             <>
-              <p className="board__eyebrow board__history-head">History</p>
-              <div className="board__tiles" aria-label="Ended trip boards">
+              <p className="board__eyebrow board__history-head">
+                {t("History")}
+              </p>
+              <div className="board__tiles" aria-label={t("Ended trip boards")}>
                 {history.map((trip) => (
                   <BoardTile key={trip.id} trip={trip} />
                 ))}

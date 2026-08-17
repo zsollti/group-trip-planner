@@ -33,6 +33,7 @@ import { CategoryIcon } from "./CategoryIcon";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { Menu, type MenuItem } from "./Menu";
 import { PalettePicker } from "./PalettePicker";
+import { t } from "../lib/i18n";
 
 /**
  * One proposed option card, made sortable within its lane (Phase 3.5). The drag
@@ -542,7 +543,7 @@ export function CategoryLane({
         <div
           className="lane__confirm"
           role="alertdialog"
-          aria-label="Delete category"
+          aria-label={t("Delete category")}
         >
           <p className="lane__confirm-text">
             Delete “{category.name}” and all its cards? This can’t be undone.
@@ -554,7 +555,7 @@ export function CategoryLane({
               autoFocus
               onClick={() => setConfirmingDelete(false)}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               type="button"
@@ -606,7 +607,7 @@ export function CategoryLane({
         />
       ))}
       {decided.length > 0 && options.length > 0 ? (
-        <p className="lane__alt-head">Also proposed</p>
+        <p className="lane__alt-head">{t("Also proposed")}</p>
       ) : null}
 
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
@@ -623,7 +624,7 @@ export function CategoryLane({
               className="lane__card lane__card--ghost lane__card--cta"
               onClick={() => setProposing(true)}
             >
-              ＋ Propose the first option
+              {t("＋ Propose the first option")}
             </button>
           ) : (
             <div className="lane__card lane__card--ghost">
@@ -672,7 +673,7 @@ export function CategoryLane({
           variant="secondary"
           onClick={() => setProposing(true)}
         >
-          + Add card
+          {t("+ Add card")}
         </Button>
       ) : null}
 

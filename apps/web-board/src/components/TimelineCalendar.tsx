@@ -8,6 +8,7 @@ import { costLabel, dateRangeLabel } from "./optionFormat";
 import { buildCalendar, hourLabels } from "../lib/calendar";
 import type { CalendarPlacement } from "../lib/calendar";
 import type { Timeline, TimelineEntry, TimelineSpan } from "../lib/timeline";
+import { t } from "../lib/i18n";
 
 /**
  * The trip as a week grid — days across, hours down.
@@ -78,14 +79,14 @@ export function TimelineCalendar({
                 })}
               </span>
               {uncovered.has(day.key) ? (
-                <span className="cal__head-gap">no bed booked</span>
+                <span className="cal__head-gap">{t("no bed booked")}</span>
               ) : null}
             </div>
           ))}
 
           {grid.bandRows > 0 ? (
             <>
-              <div className="cal__band-label">Multi-day</div>
+              <div className="cal__band-label">{t("Multi-day")}</div>
               <div className="cal__band">
                 {grid.bands.map((band) => (
                   <BandBar

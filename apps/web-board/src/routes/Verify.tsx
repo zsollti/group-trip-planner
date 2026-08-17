@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@gtp/api-client";
+import { t } from "../lib/i18n";
 
 type VerifyState = "loading" | "success" | "error";
 
@@ -30,24 +31,26 @@ export function Verify() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">Trip Board</p>
+        <p className="board__eyebrow">{t("Trip Board")}</p>
         {state === "loading" ? (
-          <h1 className="board__title">Verifying…</h1>
+          <h1 className="board__title">{t("Verifying…")}</h1>
         ) : state === "success" ? (
           <>
-            <h1 className="board__title">Email verified</h1>
+            <h1 className="board__title">{t("Email verified")}</h1>
             <p className="board__alt">
-              <Link to="/login">Continue to sign in</Link>
+              <Link to="/login">{t("Continue to sign in")}</Link>
             </p>
           </>
         ) : (
           <>
-            <h1 className="board__title">Verification failed</h1>
+            <h1 className="board__title">{t("Verification failed")}</h1>
             <p className="board__muted">
-              This link is invalid or has expired. Sign in to request a new one.
+              {t(
+                "This link is invalid or has expired. Sign in to request a new one.",
+              )}
             </p>
             <p className="board__alt">
-              <Link to="/login">Back to sign in</Link>
+              <Link to="/login">{t("Back to sign in")}</Link>
             </p>
           </>
         )}

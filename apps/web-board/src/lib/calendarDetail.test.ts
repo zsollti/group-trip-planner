@@ -64,7 +64,10 @@ describe("calendarDetail", () => {
     for (let h = 15; h <= 600; h += 15) {
       const d = calendarDetail(h);
       const said = (d.showCost ? 1 : 0) + d.noteLines;
-      expect(said, `${h} minutes said less than a shorter block`).toBeGreaterThanOrEqual(seen);
+      expect(
+        said,
+        `${h} minutes said less than a shorter block`,
+      ).toBeGreaterThanOrEqual(seen);
       seen = said;
     }
   });

@@ -16,6 +16,7 @@ import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { ImagePicker } from "../components/ImagePicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { Button, Field, Input } from "@gtp/ui-primitives";
+import { t } from "../lib/i18n";
 
 /**
  * The account settings page — your picture, your email preferences, and the
@@ -82,25 +83,25 @@ export function Settings() {
     <main className="board board--measure">
       <header className="board__bar">
         <Link className="board__brand board__brand--link" to="/">
-          ‹ Boards
+          {t("‹ Boards")}
         </Link>
         <div className="board__bar-actions">
           <UserMenu />
         </div>
       </header>
 
-      <p className="board__eyebrow">Account</p>
-      <h1 className="board__title">Your settings</h1>
+      <p className="board__eyebrow">{t("Account")}</p>
+      <h1 className="board__title">{t("Your settings")}</h1>
 
       <NameSection />
       <LanguageSection />
 
       <section className="board__panel" aria-labelledby="avatar-heading">
         <h2 className="board__panel-title" id="avatar-heading">
-          Profile picture
+          {t("Profile picture")}
         </h2>
         <ImagePicker
-          label="Your picture"
+          label={t("Your picture")}
           shape="square"
           currentUrl={user?.avatarUrl ?? null}
           busy={setAvatar.isPending || removeAvatar.isPending}
@@ -109,30 +110,31 @@ export function Settings() {
           onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
         />
         <p className="board__panel-note">
-          Shown wherever you appear — the crew list and board chat. Without one,
-          your initials stand in.
+          {t(
+            "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.",
+          )}
         </p>
       </section>
 
       {prefs.isPending ? (
-        <p className="board__muted">Loading your settings…</p>
+        <p className="board__muted">{t("Loading your settings…")}</p>
       ) : prefs.isError ? (
         <>
           <p className="board__form-error" role="alert">
-            Couldn't load your settings.
+            {t("Couldn't load your settings.")}
           </p>
           <button
             type="button"
             className="board__cta"
             onClick={() => void prefs.refetch()}
           >
-            Try again
+            {t("Try again")}
           </button>
         </>
       ) : (
         <section className="board__panel" aria-labelledby="email-prefs-heading">
           <h2 className="board__panel-title" id="email-prefs-heading">
-            Notifications
+            {t("Notifications")}
           </h2>
           {error ? (
             <p className="board__form-error" role="alert">
@@ -140,19 +142,22 @@ export function Settings() {
             </p>
           ) : null}
           <ToggleSwitch
-            label="Email me when I'm @mentioned"
-            description="Someone naming you in a board's chat sends you an email. Turn this off and mentions still show up in the app."
+            label={t("Email me when I'm @mentioned")}
+            description={t(
+              "Someone naming you in a board's chat sends you an email. Turn this off and mentions still show up in the app.",
+            )}
             checked={prefs.data.emailOnMention}
             pending={update.isPending}
             onChange={(next) => void setEmailOnMention(next)}
           />
           <p className="board__panel-note">
-            Account emails — verifying your address, signing in — are always
-            sent, and these settings never affect them.
+            {t(
+              "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.",
+            )}
           </p>
           <p className="board__panel-note">
             To silence a single noisy board, open it and use{" "}
-            <strong>Mute email</strong> in its ⋯ menu.
+            <strong>{t("Mute email")}</strong> in its ⋯ menu.
           </p>
         </section>
       )}
@@ -167,19 +172,19 @@ export function Settings() {
         aria-labelledby="danger-heading"
       >
         <h2 className="board__panel-title" id="danger-heading">
-          Danger zone
+          {t("Danger zone")}
         </h2>
         <p className="board__panel-note">
-          Deleting your account removes your personal data for good. Boards you
-          own pass to another member, or are deleted if you're the only one on
-          them — the next screen names them before anything happens.
+          {t(
+            "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.",
+          )}
         </p>
         <button
           type="button"
           className="board__cta board__cta--danger"
           onClick={() => setDeleteAccountOpen(true)}
         >
-          Delete account…
+          {t("Delete account…")}
         </button>
       </section>
 
@@ -228,7 +233,7 @@ function LanguageSection() {
   return (
     <section className="board__panel" aria-labelledby="language-heading">
       <h2 className="board__panel-title" id="language-heading">
-        Language
+        {t("Language")}
       </h2>
       {error ? (
         <p className="board__form-error" role="alert">
@@ -264,10 +269,9 @@ function LanguageSection() {
       )}
 
       <p className="board__panel-note">
-        Dates and times follow it too — the words in a date are part of the
-        language, so they cannot be left to the browser. Amounts do not: how a
-        number is grouped is a local convention rather than a language, and it
-        keeps following your own.
+        {t(
+          "Dates and times follow it too — the words in a date are part of the language, so they cannot be left to the browser. Amounts do not: how a number is grouped is a local convention rather than a language, and it keeps following your own.",
+        )}
       </p>
     </section>
   );
@@ -316,12 +320,12 @@ function NameSection() {
   return (
     <section className="board__panel" aria-labelledby="name-heading">
       <h2 className="board__panel-title" id="name-heading">
-        Display name
+        {t("Display name")}
       </h2>
       <form className="settings__name" onSubmit={(e) => void onSubmit(e)}>
         <Field
           htmlFor="displayName"
-          label="Your name"
+          label={t("Your name")}
           error={error ?? undefined}
         >
           <Input

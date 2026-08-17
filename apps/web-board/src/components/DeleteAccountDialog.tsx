@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
 import { ApiError, useAuth, useDeletionPreview } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
+import { t } from "../lib/i18n";
 
 /**
  * Board-paradigm account-deletion surface: a card floating on the canvas. Shows
@@ -38,11 +39,15 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Dialog eyebrow="Danger zone" title="Delete your account" onClose={onClose}>
+    <Dialog
+      eyebrow="Danger zone"
+      title={t("Delete your account")}
+      onClose={onClose}
+    >
       <>
         {preview.isPending ? (
           <p className="board__muted" role="status">
-            Checking what this affects…
+            {t("Checking what this affects…")}
           </p>
         ) : preview.isError ? (
           <p className="board__form-error" role="alert">
@@ -52,19 +57,20 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
               className="board__link-btn"
               onClick={() => void preview.refetch()}
             >
-              Retry
+              {t("Retry")}
             </button>
           </p>
         ) : (
           <>
             <p className="board__muted">
-              This permanently deletes your account and personal data. It can't
-              be undone.
+              {t(
+                "This permanently deletes your account and personal data. It can't be undone.",
+              )}
             </p>
             {nothingOwned ? (
-              <p className="board__muted">You don't own any boards.</p>
+              <p className="board__muted">{t("You don't own any boards.")}</p>
             ) : (
-              <div className="board__impact" aria-label="Deletion impact">
+              <div className="board__impact" aria-label={t("Deletion impact")}>
                 {impact!.transfers.length > 0 ? (
                   <>
                     <p className="board__eyebrow">
@@ -103,7 +109,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
             ) : null}
             <div className="board__dialog-actions">
               <Button type="button" variant="secondary" onClick={onClose}>
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="button"

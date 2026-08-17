@@ -116,7 +116,10 @@ export function Menu({
             >
               {item.label}
               {item.badge ? (
-                <span className="menu__badge" aria-label={`${item.badge} unread`}>
+                <span
+                  className="menu__badge"
+                  aria-label={`${item.badge} unread`}
+                >
                   {item.badge}
                 </span>
               ) : null}

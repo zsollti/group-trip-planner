@@ -23,6 +23,7 @@ import {
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { ROLE_LABEL } from "../lib/roles";
+import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
 
@@ -102,23 +103,23 @@ export function MemberDialog({
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   return (
-    <Dialog eyebrow="Crew" title="Members & roles" onClose={onClose}>
+    <Dialog eyebrow="Crew" title={t("Members & roles")} onClose={onClose}>
       <>
         {members.isPending ? (
           <p className="board__muted" role="status">
-            Loading crew…
+            {t("Loading crew…")}
           </p>
         ) : members.isError ? (
           <>
             <p className="board__form-error" role="alert">
-              Couldn't load the member list.
+              {t("Couldn't load the member list.")}
             </p>
             <button
               type="button"
               className="board__cta"
               onClick={() => void members.refetch()}
             >
-              Try again
+              {t("Try again")}
             </button>
           </>
         ) : (
@@ -139,7 +140,7 @@ export function MemberDialog({
                       />
                       <strong>{m.displayName}</strong>
                       {isSelf ? (
-                        <span className="board__muted"> (you)</span>
+                        <span className="board__muted"> {t("(you)")}</span>
                       ) : null}{" "}
                       <span className="board__muted">{ROLE_LABEL[m.role]}</span>
                     </div>
@@ -172,7 +173,7 @@ export function MemberDialog({
                               })
                             }
                           >
-                            Kick
+                            {t("Kick")}
                           </Button>
                           <Button
                             type="button"
@@ -185,7 +186,7 @@ export function MemberDialog({
                               })
                             }
                           >
-                            Block
+                            {t("Block")}
                           </Button>
                           {canTransfer ? (
                             <Button
@@ -199,7 +200,7 @@ export function MemberDialog({
                                 })
                               }
                             >
-                              Make owner
+                              {t("Make owner")}
                             </Button>
                           ) : null}
                         </>
@@ -212,14 +213,14 @@ export function MemberDialog({
 
             {canManage && members.data.blocked.length > 0 ? (
               <div className="board__invite-list">
-                <p className="board__eyebrow">Blocked</p>
+                <p className="board__eyebrow">{t("Blocked")}</p>
                 <ul className="board__invite-items">
                   {members.data.blocked.map((b) => (
                     <li key={b.userId} className="board__invite-item">
                       <div>
                         <strong>{b.displayName}</strong>{" "}
                         <span className="board__muted">
-                          barred from rejoining
+                          {t("barred from rejoining")}
                         </span>
                       </div>
                       <div className="board__invite-item-actions">
@@ -234,7 +235,7 @@ export function MemberDialog({
                               .catch((err) => report(err, "Could not unblock"));
                           }}
                         >
-                          Unblock
+                          {t("Unblock")}
                         </Button>
                       </div>
                     </li>
@@ -268,7 +269,7 @@ export function MemberDialog({
                 variant="secondary"
                 onClick={() => setPending(null)}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button type="button" variant="primary" onClick={onConfirm}>
                 {pending.kind === "leave"
@@ -287,11 +288,11 @@ export function MemberDialog({
                 variant="secondary"
                 onClick={() => setPending({ kind: "leave" })}
               >
-                Leave trip
+                {t("Leave trip")}
               </Button>
             ) : null}
             <Button type="button" variant="secondary" onClick={onClose}>
-              Close
+              {t("Close")}
             </Button>
           </div>
         )}

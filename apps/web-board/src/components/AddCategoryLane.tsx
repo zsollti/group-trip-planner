@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@gtp/ui-primitives";
 import { CATEGORY_NAME_MAX_LENGTH, maxTripCategories } from "@gtp/types";
 import { ApiError, useCreateCategory } from "@gtp/api-client";
+import { t } from "../lib/i18n";
 
 /**
  * The trailing "＋ Add category" lane (Phase 3.5) — replaces the old Categories
@@ -56,8 +57,8 @@ export function AddCategoryLane({
           <input
             data-gtp-input
             autoFocus
-            aria-label="New category name"
-            placeholder="Category name"
+            aria-label={t("New category name")}
+            placeholder={t("Category name")}
             maxLength={CATEGORY_NAME_MAX_LENGTH}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -84,7 +85,7 @@ export function AddCategoryLane({
               variant="secondary"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button type="submit" variant="primary" disabled={create.isPending}>
               {create.isPending ? "Adding…" : "Add"}
@@ -101,7 +102,7 @@ export function AddCategoryLane({
           className="lane__add-btn"
           onClick={() => setOpen(true)}
         >
-          ＋ Add category
+          {t("＋ Add category")}
         </button>
       )}
     </section>

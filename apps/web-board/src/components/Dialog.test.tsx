@@ -105,7 +105,9 @@ describe("Dialog", () => {
     fireEvent.click(screen.getByText("Open"));
     const dialog = screen.getByRole("dialog");
     expect(dialog.querySelector(".board__dialog-body")).not.toBeNull();
-    expect(screen.getByText("First").closest(".board__dialog-body")).not.toBeNull();
+    expect(
+      screen.getByText("First").closest(".board__dialog-body"),
+    ).not.toBeNull();
   });
 
   it("restores focus to whatever opened it", () => {

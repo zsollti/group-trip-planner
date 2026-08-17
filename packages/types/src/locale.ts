@@ -76,6 +76,30 @@ export function intlTagFor(locale: Locale): string {
 }
 
 /**
+ * Substitute `{placeholder}` values into a (possibly translated) pattern.
+ *
+ * Lives in the contract because both sides need exactly this: the API renders
+ * exception messages and email prose with it, and the board renders its own
+ * labels. Two copies of a substitution rule is two chances for a sentence to come
+ * out differently on either side of the wire.
+ *
+ * Deliberately dumb: it replaces the placeholders it is given and leaves anything
+ * else alone. A translation that drops a placeholder loses a value rather than
+ * breaking a page, and one that invents a placeholder shows the brace — both
+ * visible in review, neither fatal at runtime.
+ */
+export function interpolate(
+  pattern: string,
+  params: Readonly<Record<string, string | number>> = {},
+): string {
+  let out = pattern;
+  for (const [key, value] of Object.entries(params)) {
+    out = out.split(`{${key}}`).join(String(value));
+  }
+  return out;
+}
+
+/**
  * Narrow an untrusted language string to one this build offers.
  *
  * Accepts what the three real sources actually send: a stored column (`"en"`), a

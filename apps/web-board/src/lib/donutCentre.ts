@@ -14,7 +14,7 @@
  */
 
 /** The hole's width as a fraction of the donut's box — `(r - t/2) * 2 / size`. */
-export const HOLE_FRACTION = (48 - 16 / 2) * 2 / 120;
+export const HOLE_FRACTION = ((48 - 16 / 2) * 2) / 120;
 
 /**
  * Roughly how wide one character is, as a multiple of the font size.
