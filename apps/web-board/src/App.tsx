@@ -6,7 +6,6 @@ import { Register } from "./routes/Register";
 import { Verify } from "./routes/Verify";
 import { Dashboard } from "./routes/Dashboard";
 import { TripDetail } from "./routes/TripDetail";
-import { Timeline } from "./routes/Timeline";
 import { Join } from "./routes/Join";
 import { Settings } from "./routes/Settings";
 import { Admin } from "./routes/Admin";
@@ -91,13 +90,16 @@ export function App() {
             </RequireAuth>
           }
         />
-        {/* The itinerary. Its own route, not a mode on the board: different
-            question, different frame, and it stays useful on a frozen trip. */}
+        {/* The itinerary — the same screen as the board, with the lanes
+            swapped for the calendar. Still its own URL rather than a piece of
+            component state, so it stays linkable, Back still undoes the switch,
+            and a frozen trip keeps a read-only view of what it turned out to be
+            at the address people already have. */}
         <Route
           path="/trips/:id/timeline"
           element={
             <RequireAuth>
-              <Timeline />
+              <TripDetail view="timeline" />
             </RequireAuth>
           }
         />

@@ -174,8 +174,6 @@ function mockEmptyFetch() {
   );
 }
 
-const onManageMembers = vi.fn();
-const onInviteMembers = vi.fn();
 
 function renderBoard(myRole: TripRole, frozen = false) {
   return render(
@@ -189,8 +187,6 @@ function renderBoard(myRole: TripRole, frozen = false) {
         frozen={frozen}
         tripDates={null}
         onOpenChannel={() => undefined}
-        onManageMembers={onManageMembers}
-        onInviteMembers={onInviteMembers}
       />
     </QueryClientProvider>,
   );
@@ -199,8 +195,6 @@ function renderBoard(myRole: TripRole, frozen = false) {
 describe("BoardCanvas", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    onManageMembers.mockClear();
-    onInviteMembers.mockClear();
     // Per-browser view preferences (the cost strip's chart form) persist in
     // localStorage; clear it so one test's choice can't decide what the next
     // one renders.
@@ -378,53 +372,6 @@ describe("BoardCanvas", () => {
     ).toBeInTheDocument();
   });
 
-  it("names the crew and their roles in the summary band", async () => {
-    // What the band is for now: the lanes below can be read for what the trip
-    // has decided, but not for who is deciding it.
-    mockFetch();
-    renderBoard("OWNER");
-
-    const crew = await screen.findByRole("region", { name: "Crew" });
-    // The panel renders straight away with its loading state, so the region
-    // being present says nothing — wait for the roster itself.
-    expect(await within(crew).findByText(/Ada/)).toBeInTheDocument();
-    expect(within(crew).getByText("Grace")).toBeInTheDocument();
-    expect(within(crew).getByText("Participant")).toBeInTheDocument();
-  });
-
-  it("sends an organizer from the crew panel to the members dialog", async () => {
-    // The panel is read-only by design — roles, kicks and blocks are
-    // consequential and stay behind a deliberate click.
-    mockFetch();
-    renderBoard("OWNER");
-
-    const crew = await screen.findByRole("region", { name: "Crew" });
-    fireEvent.click(within(crew).getByRole("button", { name: "Manage" }));
-
-    expect(onManageMembers).toHaveBeenCalledTimes(1);
-  });
-
-  it("offers a participant a way to see the crew, not to change it", async () => {
-    mockFetch();
-    renderBoard("PARTICIPANT");
-
-    const crew = await screen.findByRole("region", { name: "Crew" });
-    expect(within(crew).getByRole("button", { name: "View" })).toBeVisible();
-    expect(within(crew).queryByRole("button", { name: "Manage" })).toBeNull();
-  });
-
-  it("invites from the crew panel rather than the trip header", async () => {
-    // Inviting is something you do to the crew, so it lives with the list of
-    // who is already on it — the header had it a screen away.
-    mockFetch();
-    renderBoard("OWNER");
-
-    const crew = await screen.findByRole("region", { name: "Crew" });
-    fireEvent.click(within(crew).getByRole("button", { name: "Invite" }));
-
-    expect(onInviteMembers).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps a lane's discussion reachable for a non-organizer", async () => {
     // Discuss moved off its own 💬 button and into the lane's "⋯", which was
     // organizer-only. If the menu had stayed gated, folding the two together
@@ -443,16 +390,6 @@ describe("BoardCanvas", () => {
     expect(
       screen.queryByRole("button", { name: "Delete category" }),
     ).toBeNull();
-  });
-
-  it("gives a guest no way to invite", async () => {
-    // A Guest can read the crew but not grow it. The button moved; the gate
-    // that used to hide it in the header came with it.
-    mockFetch();
-    renderBoard("GUEST");
-
-    const crew = await screen.findByRole("region", { name: "Crew" });
-    expect(within(crew).queryByRole("button", { name: "Invite" })).toBeNull();
   });
 
   it("says a lane is full instead of offering a form the server would refuse", async () => {
@@ -608,8 +545,6 @@ describe("BoardCanvas", () => {
           frozen={false}
           tripDates={null}
           onOpenChannel={() => undefined}
-          onManageMembers={onManageMembers}
-          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );
@@ -723,8 +658,6 @@ describe("BoardCanvas", () => {
             endDate: "2026-09-13T12:00:00.000Z",
           }}
           onOpenChannel={() => undefined}
-          onManageMembers={onManageMembers}
-          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );
@@ -820,8 +753,6 @@ describe("BoardCanvas", () => {
             endDate: "2026-09-13T00:00:00.000Z",
           }}
           onOpenChannel={() => undefined}
-          onManageMembers={() => undefined}
-          onInviteMembers={() => undefined}
         />
       </QueryClientProvider>,
     );
@@ -921,8 +852,6 @@ describe("BoardCanvas", () => {
           frozen={false}
           tripDates={null}
           onOpenChannel={() => undefined}
-          onManageMembers={onManageMembers}
-          onInviteMembers={onInviteMembers}
         />
       </QueryClientProvider>,
     );
