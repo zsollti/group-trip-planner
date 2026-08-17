@@ -1916,28 +1916,6 @@ body {
   flex-shrink: 0;
 }
 /* Per-lane "start discussion" trigger (Phase 4.5) — any member. */
-.lane__discuss {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 0.15rem 0.3rem;
-  border-radius: 6px;
-  filter: grayscale(0.3);
-}
-.lane__discuss:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--board-accent) 10%, transparent);
-  filter: none;
-}
-.lane__discuss:focus-visible {
-  outline: 2px solid var(--board-accent);
-  outline-offset: 1px;
-}
-.lane__discuss:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
 .lane__dates {
   margin: 0;
   font-size: 0.75rem;

@@ -183,7 +183,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Destination: "Úti cél",
   Disable: "Kikapcsolás",
   Disabled: "Kikapcsolva",
-  "Discuss {lane}": "{lane} megbeszélése",
+  Discuss: "Megbeszélés",
   Discussion: "Beszélgetés",
   "Dismiss notification": "Értesítés elvetése",
   "Display name": "Megjelenítendő név",

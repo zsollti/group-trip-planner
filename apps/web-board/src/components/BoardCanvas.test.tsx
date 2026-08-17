@@ -392,6 +392,26 @@ describe("BoardCanvas", () => {
     expect(onInviteMembers).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a lane's discussion reachable for a non-organizer", async () => {
+    // Discuss moved off its own 💬 button and into the lane's "⋯", which was
+    // organizer-only. If the menu had stayed gated, folding the two together
+    // would have taken category chat away from everyone else (FR-29).
+    mockFetch();
+    renderBoard("PARTICIPANT");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    fireEvent.click(
+      within(lane).getByRole("button", { name: "Stay lane actions" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Discuss" })).toBeVisible();
+    // …and nothing a participant would be refused.
+    expect(screen.queryByRole("button", { name: "Change colour" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Delete category" }),
+    ).toBeNull();
+  });
+
   it("gives a guest no way to invite", async () => {
     // A Guest can read the crew but not grow it. The button moved; the gate
     // that used to hide it in the header came with it.
