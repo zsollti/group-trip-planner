@@ -116,14 +116,18 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     ).toHaveAttribute("aria-pressed", "true");
 
     // --- the owner locks the decision --------------------------------------
-    // Every category seeds single-choice now, so the action reads "Move to
-    // Decided"; a lane widened to multi-select offers "Lock card" instead. The
-    // exact label is asserted rather than matched loosely — it is the sentence
-    // that tells an organizer whether locking this will release a sibling.
+    // "Move to Decided" on a single-choice lane, "Lock card" on a multi-select
+    // one — the sentence that tells an organizer whether locking this will
+    // release a sibling. This journey pinned the exact label on the reasoning
+    // that every lane seeded single-choice; that default has since flipped, and
+    // pinning it here made a journey about inviting, joining, proposing and
+    // voting fail over a word in a menu it does not otherwise care about.
     await ownerCard
       .getByRole("button", { name: `Actions for ${optionTitle}` })
       .click();
-    await ownerPage.getByRole("button", { name: "Move to Decided" }).click();
+    await ownerPage
+      .getByRole("button", { name: /^(Move to Decided|Lock card)$/ })
+      .click();
 
     // The decision stays in its lane, now marked settled — the lane is where
     // you see what the group chose *over what*, so a winner that left for a

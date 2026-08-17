@@ -133,7 +133,14 @@ test("a decision is reopened from the settled card's menu", async ({
       name: new RegExp(`actions for ${optionTitle}`, "i"),
     })
     .click();
-  await page.getByRole("button", { name: "Move to Decided" }).click();
+  // A single-choice lane says "Move to Decided", a multi-select one "Lock
+  // card" — the label tells an organizer whether locking this releases a
+  // sibling. Which one Accommodation shows is a seeded default that has now
+  // moved twice, and it is not what this test is about: the subject is the
+  // menu that reopens a decision, and locking is how it gets one to reopen.
+  await page
+    .getByRole("button", { name: /^(Move to Decided|Lock card)$/ })
+    .click();
   await expect(settledCard(stay, optionTitle)).toBeVisible();
 
   // …and back out again, through the one affordance that reopens a decision.
