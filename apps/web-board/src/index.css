@@ -649,9 +649,16 @@ body {
   font-size: 0.72rem;
 }
 /* Pushed to the far edge of the heading row, the same place the lane's "⋯"
-   sits — actions live on the right of a header throughout the board. */
-.crew__manage {
+   sits — actions live on the right of a header throughout the board. The auto
+   margin is on the group, not on the first button: on the button it would push
+   only that one right and leave the next hard against it. */
+.crew__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin-left: auto;
+}
+.crew__action {
   background: none;
   border: none;
   padding: 0.1rem 0.2rem;
@@ -663,10 +670,10 @@ body {
   color: var(--board-accent);
   cursor: pointer;
 }
-.crew__manage:hover {
+.crew__action:hover {
   text-decoration: underline;
 }
-.crew__manage:focus-visible {
+.crew__action:focus-visible {
   outline: 2px solid var(--board-accent);
   outline-offset: 2px;
   border-radius: 4px;

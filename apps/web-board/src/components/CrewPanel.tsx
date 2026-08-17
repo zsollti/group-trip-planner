@@ -27,6 +27,7 @@ export function CrewPanel({
   myRole,
   myUserId,
   onManage,
+  onInvite,
 }: {
   tripId: string;
   myRole: TripRole;
@@ -39,6 +40,12 @@ export function CrewPanel({
   myUserId: string | undefined;
   /** Open the full members dialog — role changes, kick, block, transfer. */
   onManage: () => void;
+  /**
+   * Open the invite dialog. Shown next to Manage rather than in the trip header,
+   * where it used to sit: inviting is something you do *to the crew*, and the
+   * header had it a whole screen away from the list of who is already here.
+   */
+  onInvite: () => void;
 }) {
   const members = useTripMembers(tripId);
   // Read once. The count in the heading and the list below it are the same
@@ -48,6 +55,9 @@ export function CrewPanel({
   // Everyone can see who they are travelling with (the member list is member-
   // scoped, not organizer-scoped); only organizers get the way in to change it.
   const canManage = can(myRole, "member.manage");
+  // Guests can read the crew but cannot grow it, so they get no Invite at all —
+  // the same gate the header button carried before it moved here.
+  const canInvite = can(myRole, "invite.create");
 
   return (
     <section className="crew" aria-label={t("Crew")}>
@@ -55,9 +65,19 @@ export function CrewPanel({
         <span aria-hidden="true">👥 </span>
         {t("Crew")}
         {roster ? <span className="crew__count">{roster.length}</span> : null}
-        <button type="button" className="crew__manage" onClick={onManage}>
-          {canManage ? t("Manage") : t("View")}
-        </button>
+        {/* Invite leads: it is the outward action, and it reads as the answer to
+            the list beside it ("this is the crew — add to it"). Manage stays
+            last, next to the people it acts on. */}
+        <span className="crew__actions">
+          {canInvite ? (
+            <button type="button" className="crew__action" onClick={onInvite}>
+              {t("Invite")}
+            </button>
+          ) : null}
+          <button type="button" className="crew__action" onClick={onManage}>
+            {canManage ? t("Manage") : t("View")}
+          </button>
+        </span>
       </h2>
 
       {members.isPending ? (

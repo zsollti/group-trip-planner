@@ -158,15 +158,9 @@ export function TripDetail() {
               {t("Timeline")}
             </Link>
           ) : null}
-          {trip.data && can(trip.data.role, "invite.create") ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setInviting(true)}
-            >
-              {t("Invite")}
-            </Button>
-          ) : null}
+          {/* Invite used to sit here. It is in the crew panel now, beside the
+              list of who is already on the trip — the header was a screen away
+              from the only thing inviting changes. */}
           {trip.data ? (
             <Menu label={t("Trip menu")} items={tripMenuItems(trip.data)} />
           ) : null}
@@ -258,6 +252,7 @@ export function TripDetail() {
               tripDates={tripDateRange(trip.data)}
               onOpenChannel={setOpenChannelId}
               onManageMembers={() => setManagingMembers(true)}
+              onInviteMembers={() => setInviting(true)}
             />
           )}
 
