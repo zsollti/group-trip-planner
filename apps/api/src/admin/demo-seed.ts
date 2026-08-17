@@ -159,6 +159,14 @@ export async function seedDemoTrip(
       description:
         "Five of us, three nights, one long weekend. Flights, the flat and a couple of the activities are settled — the rest is still being argued about.",
       defaultCurrency: "EUR",
+      // A target, not a limit — nothing is refused for exceeding it. Set on the
+      // demo because the cost panel is half a feature without one: the donut
+      // draws where the money went, and the reading it is *for* is "against
+      // what?". 500 is deliberately a little under what the trip has already
+      // locked, so the first screen shows the over-target state. That is the
+      // half a visitor would otherwise never see — a demo comfortably under
+      // budget draws the same ring with a quieter colour and teaches nothing.
+      budgetPerPerson: "500.00",
       expiresAt: daysOut(365),
       ownerId: users.demo.id,
       memberships: {
