@@ -268,3 +268,74 @@ describe("a non-operator who reaches the page anyway", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("rebuilding the demo trip", () => {
+  const SUMMARY = {
+    tripId: "33333333-3333-4333-8333-333333333333",
+    tripName: "Lisbon — long weekend",
+    email: "demo@example.com",
+    members: 5,
+    options: 14,
+    decisions: 4,
+    messages: 14,
+    removedTrips: 1,
+  };
+
+  function mockWithSeed() {
+    mockApi(HEALTHY, (path) =>
+      path.startsWith("/admin/demo-seed") ? json(SUMMARY, 201) : null,
+    );
+  }
+
+  /** Every POST the console has made, which for this panel should be none. */
+  function posts(): string[] {
+    const fetchMock = globalThis.fetch as unknown as {
+      mock: { calls: [string | URL, RequestInit?][] };
+    };
+    return fetchMock.mock.calls
+      .filter(([, init]) => init?.method === "POST")
+      .map(([url]) => String(url));
+  }
+
+  it("asks before it destroys anything", async () => {
+    // The only destructive button in the app. One click must not be enough —
+    // and "not enough" has to mean no request was sent, not merely that the UI
+    // looked hesitant afterwards.
+    mockWithSeed();
+    renderConsole();
+    await screen.findByText("abcdef1234");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /rebuild the demo trip/i }),
+    );
+    expect(await screen.findByText(/cannot be undone/i)).toBeInTheDocument();
+    expect(posts()).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(screen.queryByText(/cannot be undone/i)).toBeNull();
+    expect(posts()).toEqual([]);
+  });
+
+  it("reports what it replaced, not just that it worked", async () => {
+    // "Done" would leave the operator wondering whether it had run against the
+    // database they meant. The counts and the swept-trip figure are how a
+    // rebuild of the real demo is told from a first build on an empty database.
+    mockWithSeed();
+    renderConsole();
+    await screen.findByText("abcdef1234");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /rebuild the demo trip/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /yes, rebuild it/i }));
+
+    expect(await screen.findByText(/demo rebuilt/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/5 members · 14 options · 4 decisions · 14 messages/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 previous demo trip/)).toBeInTheDocument();
+    expect(posts()).toEqual([
+      expect.stringContaining("/admin/demo-seed"),
+    ] as unknown as string[]);
+  });
+});

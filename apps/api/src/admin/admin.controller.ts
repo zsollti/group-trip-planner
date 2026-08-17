@@ -7,13 +7,16 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { User } from "@prisma/client";
 import type {
   AdminAuditLog,
+  AdminDemoSeed,
   AdminOverview,
   AdminUserLookup,
   AdminUserSummary,
 } from "@gtp/types";
+import { DEMO_SEED_THROTTLE } from "../common/throttle-policy.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { AdminGuard } from "./admin.guard.js";
@@ -61,6 +64,20 @@ export class AdminController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<AdminUserSummary> {
     return this.admin.markVerified(actor.email, id);
+  }
+
+  /**
+   * Rebuild the public demo trip.
+   *
+   * A `POST` with no body: there is nothing to aim it at, because the seed's
+   * scope is the demo account and only the demo account. The tight budget is
+   * against a double-click rather than against abuse — the guards above have
+   * already settled who may be here.
+   */
+  @Post("demo-seed")
+  @Throttle(DEMO_SEED_THROTTLE)
+  reseedDemo(@CurrentUser() actor: User): Promise<AdminDemoSeed> {
+    return this.admin.reseedDemo(actor.email);
   }
 
   /** What operators have done here, newest first. */

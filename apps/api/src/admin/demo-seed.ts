@@ -1,0 +1,690 @@
+import type { PrismaClient, Prisma } from "@prisma/client";
+import { BUILTIN_CATEGORIES } from "@gtp/types";
+import argon2 from "argon2";
+
+/**
+ * The public demo trip — the board a visitor lands in after signing in with the
+ * credentials published in the README.
+ *
+ * Why this exists: a stranger evaluating the app has to register, verify an
+ * email, create a trip and propose options before anything interesting is on
+ * screen. That is several minutes of work to see a board, and most people leave
+ * first. This builds a trip that is already mid-flight, so the product is
+ * legible on the first screen.
+ *
+ * **Re-runnable.** It deletes the demo user's trips and rebuilds them, so it can
+ * be run whenever visitors have edited the demo. Everything hangs off the trip
+ * by cascade, so the delete resets categories, options, votes, channels,
+ * messages and the audit log with it. Real accounts are never touched.
+ *
+ * Two callers, which is why this lives in `src/` rather than in the script that
+ * used to hold it:
+ *
+ *  - `prisma/demo-seed.ts`, the CLI (`pnpm --filter @gtp/api demo:seed`);
+ *  - `AdminService.reseedDemo`, behind the operator console's button.
+ *
+ * Consequences of the second caller, both deliberate:
+ *
+ *  - **No `console.log` and no `process.exit`.** It returns a summary and lets
+ *    the caller decide how to say it — the CLI prints it, the console renders it.
+ *  - **No decorators, and no import that needs compiling.** The CLI runs under
+ *    node's `--experimental-strip-types`, which strips types and refuses
+ *    anything that needs real transformation. A `@Injectable()` here would break
+ *    `pnpm demo:seed` at parse time.
+ *
+ * Dates are computed relative to now, so the trip never drifts into the past.
+ */
+
+export const DEMO_EMAIL = "demo@example.com";
+export const DEMO_PASSWORD = "demo-trip-2026";
+export const DEMO_TRIP_NAME = "Lisbon — long weekend";
+
+/**
+ * example.com is reserved by RFC 2606 and cannot receive mail, so no seeded
+ * address can ever reach a real person even if a notification escapes.
+ */
+const CAST = [
+  { key: "demo", email: DEMO_EMAIL, name: "Demo User", role: "OWNER" },
+  {
+    key: "mira",
+    email: "mira@example.com",
+    name: "Mira Kovács",
+    role: "CO_ORGANIZER",
+  },
+  {
+    key: "tomas",
+    email: "tomas@example.com",
+    name: "Tomáš Novák",
+    role: "PARTICIPANT",
+  },
+  {
+    key: "anna",
+    email: "anna@example.com",
+    name: "Anna Weber",
+    role: "PARTICIPANT",
+  },
+  { key: "sam", email: "sam@example.com", name: "Sam Ellis", role: "GUEST" },
+] as const;
+
+type CastKey = (typeof CAST)[number]["key"];
+
+/** What the seed built, for a caller that has to report it. */
+export interface DemoSeedSummary {
+  tripId: string;
+  tripName: string;
+  /** The address to sign in with — the one fact a reader of this needs. */
+  email: string;
+  members: number;
+  options: number;
+  decisions: number;
+  messages: number;
+  /** Demo trips deleted to make room. Zero on a first run. */
+  removedTrips: number;
+}
+
+/** The nights the trip runs, as offsets from today. */
+const ARRIVE = 67;
+const DEPART = 70;
+
+/** Days from now, at midday UTC — stable regardless of the runner's timezone. */
+function daysOut(days: number): Date {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+/**
+ * A wall-clock time on one of the trip's days, UTC.
+ *
+ * The times exist so the itinerary has something to draw: a decision with no
+ * clock lands in the timeline's "not placed" list, which is honest but shows
+ * none of the alignment the page is for. They are also internally consistent —
+ * the van leaves the airport after the flight lands, the flat is checked into
+ * that afternoon — because a demo whose own hours contradict each other is worse
+ * than one with no hours at all.
+ */
+function at(dayOffset: number, hour: number, minute = 0): Date {
+  const d = new Date();
+  d.setUTCHours(hour, minute, 0, 0);
+  d.setUTCDate(d.getUTCDate() + dayOffset);
+  return d;
+}
+
+/** Minutes before now — used to lay chat and votes out on a believable timeline. */
+function minsAgo(minutes: number): Date {
+  return new Date(Date.now() - minutes * 60_000);
+}
+
+/**
+ * Build (or rebuild) the demo trip.
+ *
+ * Takes the client rather than making one, so the console's request runs on the
+ * app's pool and the CLI can own its own connection lifecycle.
+ */
+export async function seedDemoTrip(
+  prisma: PrismaClient,
+): Promise<DemoSeedSummary> {
+  // ------------------------------------------------------------------ users ---
+  const passwordHash = await argon2.hash(DEMO_PASSWORD, {
+    type: argon2.argon2id,
+  });
+
+  const users = {} as Record<CastKey, { id: string }>;
+  for (const person of CAST) {
+    users[person.key] = await prisma.user.upsert({
+      where: { email: person.email },
+      update: { displayName: person.name, emailVerified: true, passwordHash },
+      create: {
+        email: person.email,
+        displayName: person.name,
+        emailVerified: true,
+        passwordHash,
+      },
+      select: { id: true },
+    });
+  }
+
+  // -------------------------------------------------------- reset & rebuild ---
+  // Cascades from Trip clear categories, options, votes, channels, messages,
+  // reactions, mentions, reads and audit events in one statement.
+  const { count: removedTrips } = await prisma.trip.deleteMany({
+    where: { ownerId: users.demo.id },
+  });
+
+  const trip = await prisma.trip.create({
+    data: {
+      name: DEMO_TRIP_NAME,
+      destination: "Lisbon, Portugal",
+      description:
+        "Five of us, three nights, one long weekend. Flights and the flat are settled — activities are still open.",
+      defaultCurrency: "EUR",
+      expiresAt: daysOut(365),
+      ownerId: users.demo.id,
+      memberships: {
+        create: CAST.map((p) => ({ userId: users[p.key].id, role: p.role })),
+      },
+      categories: {
+        create: BUILTIN_CATEGORIES.map((c) => ({
+          name: c.name,
+          builtinKey: c.builtinKey,
+          singleChoice: c.singleChoice,
+          position: c.position,
+          isBuiltin: true,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  const categories = await prisma.category.findMany({
+    where: { tripId: trip.id },
+    select: { id: true, builtinKey: true },
+  });
+  const cat = (key: string) => {
+    const found = categories.find((c) => c.builtinKey === key);
+    if (!found)
+      throw new Error(`Built-in category ${key} missing from the seed`);
+    return found.id;
+  };
+
+  // ---------------------------------------------------------------- options ---
+  // Prices are plausible for Lisbon. One activity is priced in GBP on purpose:
+  // it makes the cost dashboard show two currencies side by side, which is the
+  // whole point of never summing across them.
+  //
+  // Most options carry clock times; three deliberately do not (Ryanair, the
+  // hostel, the food crawl). A demo where everything is placed never shows the
+  // timeline's "not placed" list, and that list is the honest half of the
+  // feature — a real trip always has a decision nobody has put an hour on yet.
+  type Seed = Omit<
+    Prisma.OptionUncheckedCreateInput,
+    "categoryId" | "proposerId"
+  > & {
+    by: CastKey;
+  };
+
+  const optionSeeds: Array<{ categoryKey: string; options: Seed[] }> = [
+    {
+      categoryKey: "DATES",
+      options: [
+        {
+          title: "Fri 15 – Mon 18",
+          description:
+            "Cheapest flights of the three, but Mira is away until the 16th.",
+          currency: "EUR",
+          position: 0,
+          by: "tomas",
+          startsAt: daysOut(60),
+          endsAt: daysOut(63),
+        },
+        {
+          title: "Fri 22 – Mon 25",
+          description: "Works for everyone. Slightly pricier flights.",
+          currency: "EUR",
+          position: 1,
+          by: "demo",
+          startsAt: daysOut(ARRIVE),
+          endsAt: daysOut(DEPART),
+        },
+        {
+          title: "Fri 5 – Mon 8 (following month)",
+          description: "Warmer, but Sam is back at work.",
+          currency: "EUR",
+          position: 2,
+          by: "anna",
+          startsAt: daysOut(88),
+          endsAt: daysOut(91),
+        },
+      ],
+    },
+    {
+      categoryKey: "TRANSPORT",
+      options: [
+        {
+          title: "TAP direct — BUD → LIS",
+          description: "Direct both ways, 4h05. Hand luggage included.",
+          amount: "212.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 0,
+          by: "demo",
+          // The outbound leg. A return flight is a second decision the group
+          // has not made yet, which is why this is one bar and not two.
+          startsAt: at(ARRIVE, 7, 15),
+          endsAt: at(ARRIVE, 11, 20),
+        },
+        {
+          title: "Ryanair via Madrid",
+          description:
+            "€70 cheaper, but a 3h layover on the way out and a 06:15 departure.",
+          amount: "141.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 1,
+          by: "sam",
+        },
+        {
+          title: "Airport transfer — pre-booked van",
+          description: "One van, both directions, split five ways.",
+          amount: "96.00",
+          currency: "EUR",
+          costType: "TOTAL",
+          position: 2,
+          by: "mira",
+          // After the TAP flight lands, not before it.
+          startsAt: at(ARRIVE, 11, 45),
+          endsAt: at(ARRIVE, 12, 30),
+        },
+      ],
+    },
+    {
+      categoryKey: "ACCOMMODATION",
+      options: [
+        {
+          title: "Alfama apartment — whole flat",
+          description:
+            "Three bedrooms, terrace, 6 min walk to the tram. Three nights, whole place.",
+          amount: "1080.00",
+          currency: "EUR",
+          costType: "TOTAL",
+          position: 0,
+          by: "mira",
+          // Check-in to check-out — the span that covers every night of the
+          // trip, which is what the itinerary's gap check reads.
+          startsAt: at(ARRIVE, 15),
+          endsAt: at(DEPART, 11),
+        },
+        {
+          title: "Hotel Baixa — three twin rooms",
+          description: "Central and simple. Breakfast not included.",
+          amount: "139.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 1,
+          by: "anna",
+          startsAt: at(ARRIVE, 14),
+          endsAt: at(DEPART, 12),
+        },
+        {
+          title: "Hostel Bairro Alto — private dorm",
+          description:
+            "Cheapest by a distance. Loud until 2am, per every review.",
+          amount: "62.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 2,
+          by: "sam",
+        },
+      ],
+    },
+    {
+      categoryKey: "ACTIVITIES",
+      options: [
+        {
+          title: "Sintra day trip",
+          description: "Train from Rossio, Pena Palace tickets booked ahead.",
+          amount: "44.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 0,
+          by: "anna",
+          startsAt: at(ARRIVE + 1, 9),
+          endsAt: at(ARRIVE + 1, 18),
+        },
+        {
+          title: "Surf lesson — Costa da Caparica",
+          description:
+            "Booked through a UK operator, so it prices in sterling. Held for four boards.",
+          amount: "48.00",
+          currency: "GBP",
+          costType: "PER_PERSON",
+          position: 1,
+          by: "tomas",
+          // Priced for whoever is in rather than for the trip: four of the
+          // five want it, which is the case this mode exists for, and it is
+          // what puts an option in the cost chart's "priced for part of the
+          // group" aside.
+          participationMode: "OPT_IN" as const,
+          startsAt: at(ARRIVE + 2, 10),
+          endsAt: at(ARRIVE + 2, 13),
+        },
+        {
+          title: "Tram 28 photo walk — 07:00 start",
+          description:
+            "Empty trams and good light, at the cost of the lie-in. Whoever's up.",
+          amount: "12.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 2,
+          by: "mira",
+          // The second opt-in option, and the one the demo account is **not**
+          // in. With only the surf lesson, signing up was the only state the
+          // board could show; a visitor could see who was in but never the
+          // invitation to join. Two of the five here, neither of them demo.
+          participationMode: "OPT_IN" as const,
+          startsAt: at(ARRIVE + 1, 7),
+          endsAt: at(ARRIVE + 1, 8, 30),
+        },
+        {
+          title: "Fado dinner in Alfama",
+          description: "Set menu. Needs booking two weeks out.",
+          amount: "39.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 3,
+          by: "mira",
+          startsAt: at(ARRIVE + 2, 20),
+          endsAt: at(ARRIVE + 2, 22, 30),
+        },
+        {
+          title: "Time Out Market food crawl",
+          description:
+            "No booking, just turn up hungry. Rough per-head estimate.",
+          amount: "30.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 4,
+          by: "demo",
+        },
+      ],
+    },
+  ];
+
+  const optionIds = new Map<string, string>();
+  for (const group of optionSeeds) {
+    for (const { by, ...data } of group.options) {
+      const created = await prisma.option.create({
+        data: {
+          ...data,
+          categoryId: cat(group.categoryKey),
+          proposerId: users[by].id,
+        },
+        select: { id: true, title: true },
+      });
+      optionIds.set(created.title, created.id);
+    }
+  }
+  const opt = (title: string) => {
+    const id = optionIds.get(title);
+    if (!id) throw new Error(`Option "${title}" was not seeded`);
+    return id;
+  };
+
+  // ------------------------------------------------------------------ votes ---
+  // Advisory only — they never decide anything. Spread so each open category has
+  // a visible front-runner, which is what the projected total is built from.
+  const votes: Array<[string, CastKey[]]> = [
+    ["Fri 22 – Mon 25", ["demo", "mira", "tomas", "anna"]],
+    ["Fri 15 – Mon 18", ["sam"]],
+    ["TAP direct — BUD → LIS", ["demo", "mira", "anna"]],
+    ["Ryanair via Madrid", ["sam", "tomas"]],
+    ["Airport transfer — pre-booked van", ["mira", "anna", "demo"]],
+    ["Alfama apartment — whole flat", ["demo", "mira", "anna", "tomas"]],
+    ["Hostel Bairro Alto — private dorm", ["sam"]],
+    // Activities is deliberately left undecided, and its front-runner is the
+    // GBP option. That is what makes projected differ from committed *and*
+    // introduces a second currency into the projection — "if today's
+    // front-runners win, you also owe £240" — which is the pair of behaviours
+    // the cost engine exists to show. The tram walk is kept below it for the
+    // same reason: it must not become the front-runner.
+    ["Surf lesson — Costa da Caparica", ["demo", "tomas", "sam", "anna"]],
+    ["Time Out Market food crawl", ["demo", "sam", "tomas"]],
+    ["Sintra day trip", ["mira", "tomas"]],
+    ["Fado dinner in Alfama", ["mira", "anna"]],
+    ["Tram 28 photo walk — 07:00 start", ["mira"]],
+  ];
+  for (const [title, voters] of votes) {
+    await prisma.vote.createMany({
+      data: voters.map((v) => ({
+        optionId: opt(title),
+        userId: users[v].id,
+        createdAt: minsAgo(60 * 30),
+      })),
+    });
+  }
+
+  // -------------------------------------------------------------- decisions ---
+  // Locked explicitly by an organizer, each with the audit row the real lock
+  // transaction writes. Dates and Accommodation are single-choice; Transport is
+  // multi-select, which is why two transport options can both stand.
+  //
+  // Activities is left with no lock on purpose — a category holding any locked
+  // option stops contributing a front-runner to the projection (see
+  // `packages/types/src/cost.ts`), so locking one here would make projected
+  // identical to committed and hide the distinction entirely.
+  const decisions: Array<{ title: string; by: CastKey; at: Date }> = [
+    { title: "Fri 22 – Mon 25", by: "demo", at: minsAgo(60 * 26) },
+    { title: "TAP direct — BUD → LIS", by: "demo", at: minsAgo(60 * 22) },
+    {
+      title: "Airport transfer — pre-booked van",
+      by: "mira",
+      at: minsAgo(60 * 21),
+    },
+    {
+      title: "Alfama apartment — whole flat",
+      by: "mira",
+      at: minsAgo(60 * 20),
+    },
+  ];
+  for (const d of decisions) {
+    await prisma.option.update({
+      where: { id: opt(d.title) },
+      data: {
+        status: "LOCKED",
+        lockedById: users[d.by].id,
+        lockedAt: d.at,
+        version: { increment: 1 },
+      },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        tripId: trip.id,
+        actorId: users[d.by].id,
+        action: "OPTION_LOCKED",
+        targetType: "OPTION",
+        targetId: opt(d.title),
+        metadata: { optionTitle: d.title },
+        createdAt: d.at,
+      },
+    });
+  }
+
+  // The Dates lock writes the trip's dates back, exactly as the real one does.
+  await prisma.trip.update({
+    where: { id: trip.id },
+    data: { startDate: daysOut(ARRIVE), endDate: daysOut(DEPART) },
+  });
+
+  // A vote cast before the option materially changed is shown as STALE rather
+  // than silently carried over — the demo needs one so the flag is visible.
+  await prisma.option.update({
+    where: { id: opt("Sintra day trip") },
+    data: {
+      amount: "52.00",
+      description:
+        "Train from Rossio, Pena Palace tickets booked ahead. Price went up in April.",
+      materialChangedAt: minsAgo(60 * 2),
+      version: { increment: 1 },
+    },
+  });
+
+  // ---------------------------------------------------------- participation ---
+  // Who is in for each opt-in option. Four of the five for the surf lesson, so
+  // the board shows three faces and a "+1" and the £48 divides by four rather
+  // than by the trip — and two for the tram walk, chosen so the demo account is
+  // looking at one option it has joined and one it has not.
+  const participation: Array<[string, CastKey[]]> = [
+    ["Surf lesson — Costa da Caparica", ["demo", "tomas", "sam", "anna"]],
+    ["Tram 28 photo walk — 07:00 start", ["mira", "anna"]],
+  ];
+  for (const [title, joiners] of participation) {
+    await prisma.optionParticipant.createMany({
+      data: joiners.map((k) => ({
+        optionId: opt(title),
+        userId: users[k].id,
+        createdAt: minsAgo(60 * 24),
+      })),
+    });
+  }
+
+  // ------------------------------------------------------------------- chat ---
+  const general = await prisma.channel.create({
+    data: { tripId: trip.id, type: "GENERAL" },
+    select: { id: true },
+  });
+  const accommodation = await prisma.channel.create({
+    data: {
+      tripId: trip.id,
+      type: "CATEGORY",
+      categoryId: cat("ACCOMMODATION"),
+    },
+    select: { id: true },
+  });
+
+  const chat: Array<{ ch: string; by: CastKey; body: string; ago: number }> = [
+    {
+      ch: general.id,
+      by: "mira",
+      body: "Right — Lisbon. Everyone put your dates in before Friday please.",
+      ago: 60 * 34,
+    },
+    {
+      ch: general.id,
+      by: "sam",
+      body: "The 15th is much cheaper for flights, worth a look",
+      ago: 60 * 33,
+    },
+    {
+      ch: general.id,
+      by: "mira",
+      body: "I land back on the 16th though, so that one doesn't work for me",
+      ago: 60 * 32,
+    },
+    {
+      ch: general.id,
+      by: "tomas",
+      body: "22nd it is then. Voted.",
+      ago: 60 * 31,
+    },
+    {
+      ch: general.id,
+      by: "demo",
+      body: "Dates locked — 22nd to the 25th. Flights next.",
+      ago: 60 * 26,
+    },
+    {
+      ch: general.id,
+      by: "anna",
+      body: "Direct flight please. The Madrid layover is three hours each way.",
+      ago: 60 * 24,
+    },
+    {
+      ch: general.id,
+      by: "demo",
+      body: "TAP locked, and the van for the airport runs. Activities still open.",
+      ago: 60 * 21,
+    },
+    {
+      ch: general.id,
+      by: "tomas",
+      body: "Surf lesson is winning the activities vote — it's booked in sterling, so it shows as its own total.",
+      ago: 60 * 4,
+    },
+    {
+      ch: general.id,
+      by: "mira",
+      body: "Also putting the 7am tram walk in — I'm going either way, join if you're up.",
+      ago: 60 * 3,
+    },
+    {
+      ch: general.id,
+      by: "anna",
+      body: "Heads up, Sintra went up to €52. Re-vote if that changes your mind.",
+      ago: 60 * 2,
+    },
+    {
+      ch: accommodation.id,
+      by: "mira",
+      body: "The Alfama flat has a terrace and it's cheaper per head than the hotel.",
+      ago: 60 * 23,
+    },
+    {
+      ch: accommodation.id,
+      by: "sam",
+      body: "Hostel is a third of the price…",
+      ago: 60 * 22,
+    },
+    {
+      ch: accommodation.id,
+      by: "anna",
+      body: "…and every review mentions the noise. I'd rather sleep.",
+      ago: 60 * 21,
+    },
+    {
+      ch: accommodation.id,
+      by: "mira",
+      body: "Flat locked. Three bedrooms, we'll sort who's where later.",
+      ago: 60 * 20,
+    },
+  ];
+
+  const messageIds: string[] = [];
+  for (const m of chat) {
+    const created = await prisma.message.create({
+      data: {
+        channelId: m.ch,
+        authorId: users[m.by].id,
+        body: m.body,
+        createdAt: minsAgo(m.ago),
+      },
+      select: { id: true },
+    });
+    messageIds.push(created.id);
+  }
+
+  // A couple of reactions so the chat doesn't look like a transcript. Indexed
+  // from the end for the two in the accommodation channel, so inserting a
+  // message into the general thread cannot silently move them onto another line.
+  const react = (i: number) => messageIds[i]!;
+  await prisma.reaction.createMany({
+    data: [
+      { messageId: react(4), userId: users.anna.id, emoji: "🎉" },
+      { messageId: react(4), userId: users.tomas.id, emoji: "🎉" },
+      { messageId: react(7), userId: users.demo.id, emoji: "🏄" },
+      {
+        messageId: react(messageIds.length - 1),
+        userId: users.demo.id,
+        emoji: "👍",
+      },
+    ],
+  });
+
+  // Everyone except the demo user has caught up, so the demo account lands with
+  // genuine unread badges rather than a cleared-out chat.
+  await prisma.channelRead.createMany({
+    data: CAST.filter((p) => p.key !== "demo").flatMap((p) => [
+      {
+        channelId: general.id,
+        userId: users[p.key].id,
+        lastReadAt: new Date(),
+      },
+      {
+        channelId: accommodation.id,
+        userId: users[p.key].id,
+        lastReadAt: new Date(),
+      },
+    ]),
+  });
+
+  return {
+    tripId: trip.id,
+    tripName: DEMO_TRIP_NAME,
+    email: DEMO_EMAIL,
+    members: CAST.length,
+    options: optionIds.size,
+    decisions: decisions.length,
+    messages: chat.length,
+    removedTrips,
+  };
+}

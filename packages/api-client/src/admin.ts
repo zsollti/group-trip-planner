@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import type {
   AdminAuditLog,
+  AdminDemoSeed,
   AdminOverview,
   AdminUserLookup,
   AdminUserSummary,
@@ -100,4 +101,30 @@ export function useMarkVerified(): UseMutationResult<
   string
 > {
   return useAdminUserAction("verify");
+}
+
+/**
+ * Rebuild the public demo trip.
+ *
+ * Takes no argument — the seed's scope is fixed server-side, and a parameter
+ * here would imply this could be pointed somewhere else.
+ *
+ * Invalidates the whole console: the rebuild writes an audit row, and it moves
+ * the volume counts the overview panel is showing (a demo trip is five accounts
+ * and fourteen options). Leaving those stale after an action that changed them
+ * is how an operator ends up wondering whether the button did anything.
+ */
+export function useRunDemoSeed(): UseMutationResult<
+  AdminDemoSeed,
+  ApiError,
+  void
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<AdminDemoSeed>("/admin/demo-seed", { method: "POST" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.all });
+    },
+  });
 }
