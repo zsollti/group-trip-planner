@@ -18,7 +18,7 @@ import {
   type AllInTotal,
   type LockedCost,
 } from "../lib/costSummary";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /** Write a figure the way its certainty deserves. */
 function figure(
@@ -180,7 +180,7 @@ function TallyBody({
       )}
       {verdict ? <TargetLine v={verdict} personal={personal} /> : null}
       <p className="board__tally-foot">
-        {d.memberCount} member{d.memberCount === 1 ? "" : "s"}
+        {plural(d.memberCount, "{n} member", "{n} members")}
       </p>
     </>
   );
@@ -215,10 +215,15 @@ function Headline({
           {figure(all.group, all.currency, all.approximate)}
         </strong>
         {exact ? (
-          <span className="board__sr-only"> — exactly {exact}</span>
+          <span className="board__sr-only">
+            {" "}
+            {t("— exactly {amount}", { amount: exact })}
+          </span>
         ) : null}
         <span className="board__tally-per">
-          {figure(all.perPerson, all.currency, all.approximate)} per person
+          {t("{amount} per person", {
+            amount: figure(all.perPerson, all.currency, all.approximate),
+          })}
         </span>
       </p>
       {verdict && verdict.spend > 0 ? (
@@ -258,7 +263,9 @@ function Headline({
 function Uncrossed({ all }: { all: AllInTotal }) {
   if (all.missing.length === 0) return null;
   return (
-    <p className="board__tally-rates">{all.missing.join(", ")} not converted</p>
+    <p className="board__tally-rates">
+      {t("{currencies} not converted", { currencies: all.missing.join(", ") })}
+    </p>
   );
 }
 
