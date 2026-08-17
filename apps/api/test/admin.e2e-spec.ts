@@ -209,7 +209,7 @@ describe("Admin console (e2e)", () => {
     };
     assert.equal(body.email, "demo@example.com");
     assert.equal(body.members, 5);
-    assert.equal(body.decisions, 4);
+    assert.equal(body.decisions, 6);
     assert.ok(body.options >= 14, "every seeded option is counted");
 
     const audit = await http()
@@ -227,9 +227,36 @@ describe("Admin console (e2e)", () => {
 
     const options = await prisma.option.findMany({
       where: { category: { tripId: body.tripId } },
-      include: { participants: { select: { userId: true } } },
+      include: {
+        participants: { select: { userId: true } },
+        category: { select: { builtinKey: true, singleChoice: true } },
+      },
     });
     assert.equal(options.length, body.options);
+
+    // A multi-select lane that is decided **and** still open, which is the case
+    // the board's whole layout exists for and the one a demo where every lane
+    // held at most one decision could never show. It is also the case the seed
+    // used to fake: it writes locks with `prisma.option.update`, so before the
+    // lanes seeded multi-select it was producing two locked options in a lane
+    // the API itself refuses to let anyone lock twice.
+    const activities = options.filter(
+      (o) => o.category.builtinKey === "ACTIVITIES",
+    );
+    assert.equal(
+      activities[0]!.category.singleChoice,
+      false,
+      "Activities is multi-select, so two decisions there are legal",
+    );
+    assert.equal(
+      activities.filter((o) => o.status === "LOCKED").length,
+      2,
+      "two activities are decided",
+    );
+    assert.ok(
+      activities.some((o) => o.status === "PROPOSED"),
+      "and the lane is still open underneath them",
+    );
 
     // Times, because the itinerary needs them — and not on everything, because
     // the itinerary's "not placed" list is the honest half of that page and a
