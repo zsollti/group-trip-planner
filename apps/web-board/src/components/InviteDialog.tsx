@@ -14,7 +14,7 @@ import {
   useTripInvites,
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 const ROLE_LABEL: Record<TripRole, string> = {
   OWNER: "Owner",
@@ -112,9 +112,10 @@ export function InviteDialog({
                 onChange={() => setType("GLOBAL")}
               />
               <span>
-                <strong>{t("Global")}</strong> — one reusable link anyone can
-                use to join. One per role; disable it anytime (members who
-                joined stay).
+                {tNode(
+                  "{kind} — one reusable link anyone can use to join. One per role; disable it anytime (members who joined stay).",
+                  { kind: <strong>{t("Global")}</strong> },
+                )}
               </span>
             </label>
             <label className="board__radio">
@@ -125,8 +126,10 @@ export function InviteDialog({
                 onChange={() => setType("PERSONAL")}
               />
               <span>
-                <strong>{t("Personal")}</strong> — a single-use link for one
-                person, optionally emailed. Used up after the first join.
+                {tNode(
+                  "{kind} — a single-use link for one person, optionally emailed. Used up after the first join.",
+                  { kind: <strong>{t("Personal")}</strong> },
+                )}
               </span>
             </label>
           </fieldset>

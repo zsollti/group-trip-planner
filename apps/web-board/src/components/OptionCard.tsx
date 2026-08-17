@@ -169,7 +169,11 @@ export function OptionCard({
             type="button"
             className="lane__field-btn"
             title={option.title}
-            aria-label={`${option.title} — ${editable ? "edit option" : "view details"}`}
+            aria-label={
+              editable
+                ? t("{card} — edit option", { card: option.title })
+                : t("{card} — view details", { card: option.title })
+            }
             onClick={editable ? openEdit : openView}
           >
             {truncateName(option.title)}
@@ -178,7 +182,10 @@ export function OptionCard({
         <div className="lane__card-tools">
           {grip}
           {items.length > 0 ? (
-            <Menu label={`Actions for ${option.title}`} items={items} />
+            <Menu
+              label={t("Actions for {card}", { card: option.title })}
+              items={items}
+            />
           ) : null}
         </div>
       </div>

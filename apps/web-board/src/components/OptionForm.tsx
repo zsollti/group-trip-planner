@@ -29,7 +29,7 @@ import {
 } from "../lib/timeOfDay";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 /**
  * Board-paradigm propose/edit card. Covers the FR-21 fields — title, url,
@@ -299,9 +299,10 @@ export function OptionForm({
               {participationMode === "OPT_IN" ? (
                 <div className="board__form-wide">
                   <p className="board__field-note">
-                    The card gets an <strong>{t("I'm in")}</strong> button, and
-                    its cost is split between the people who press it — nobody
-                    else pays for it. Everyone can see who is in.
+                    {tNode(
+                      "The card gets an {control} button, and its cost is split between the people who press it — nobody else pays for it. Everyone can see who is in.",
+                      { control: <strong>{t("I'm in")}</strong> },
+                    )}
                   </p>
                 </div>
               ) : null}

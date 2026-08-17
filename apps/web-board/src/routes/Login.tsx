@@ -12,7 +12,7 @@ import {
   useAuth,
 } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 export function Login() {
   const { login } = useAuth();
@@ -109,7 +109,9 @@ export function Login() {
           {t("Continue with Google")}
         </Button>
         <p className="board__alt">
-          No account? <Link to={registerHref}>{t("Create one")}</Link>
+          {tNode("No account? {link}", {
+            link: <Link to={registerHref}>{t("Create one")}</Link>,
+          })}
         </p>
       </div>
     </div>

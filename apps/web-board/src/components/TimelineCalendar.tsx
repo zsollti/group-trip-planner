@@ -8,7 +8,7 @@ import { costLabel, dateRangeLabel } from "./optionFormat";
 import { buildCalendar, hourLabels } from "../lib/calendar";
 import type { CalendarPlacement } from "../lib/calendar";
 import type { Timeline, TimelineEntry, TimelineSpan } from "../lib/timeline";
-import { t } from "../lib/i18n";
+import { plural, t } from "../lib/i18n";
 
 /**
  * The trip as a week grid — days across, hours down.
@@ -258,7 +258,7 @@ function BandBar({
       <CategoryIcon category={span.category} size={13} />
       <span className="cal__bar-title">{span.option.title}</span>
       <span className="cal__bar-meta">
-        {span.nights} night{span.nights === 1 ? "" : "s"}
+        {plural(span.nights, "{n} night", "{n} nights")}
         {cost ? ` · ${cost}` : ""}
       </span>
     </button>
