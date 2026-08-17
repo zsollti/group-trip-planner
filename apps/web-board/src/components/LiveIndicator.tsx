@@ -1,4 +1,5 @@
 import type { SocketStatus } from "@gtp/api-client";
+import { t } from "../lib/i18n";
 
 /**
  * Says when the board has **stopped** updating itself — and nothing otherwise.
@@ -29,7 +30,7 @@ export function LiveIndicator({ status }: { status: SocketStatus }) {
       aria-live="polite"
     >
       <span className="board__live-dot" aria-hidden="true" />
-      Offline — not updating
+      {t("Offline — not updating")}
     </span>
   );
 }
