@@ -87,7 +87,9 @@ function SortableOptionCard({
     <button
       type="button"
       className="lane__grip"
-      aria-label={`Drag ${option.title} — reorder or drop on Decided to lock`}
+      aria-label={t("Drag {card} — reorder or drop on Decided to lock", {
+        card: option.title,
+      })}
       {...attributes}
       {...listeners}
     >
@@ -204,8 +206,8 @@ function LaneHeader({
   if (canBeMultiSelect(category)) {
     laneMenuItems.push({
       label: category.singleChoice
-        ? "Allow several winners"
-        : "Keep only one winner",
+        ? t("Allow several winners")
+        : t("Keep only one winner"),
       onSelect: () => void save({ singleChoice: !category.singleChoice }),
       disabled: update.isPending,
     });
@@ -249,7 +251,7 @@ function LaneHeader({
               <input
                 data-gtp-input
                 autoFocus
-                aria-label={`Rename ${category.name}`}
+                aria-label={t("Rename {lane}", { lane: category.name })}
                 maxLength={CATEGORY_NAME_MAX_LENGTH}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -276,7 +278,9 @@ function LaneHeader({
                   type="button"
                   className="lane__title-btn"
                   title={category.name}
-                  aria-label={`${category.name} — rename category`}
+                  aria-label={t("{lane} — rename category", {
+                    lane: category.name,
+                  })}
                   onClick={() => {
                     setDraft(category.name);
                     setEditing(true);
@@ -298,8 +302,8 @@ function LaneHeader({
             <button
               type="button"
               className="lane__discuss"
-              title={`Discuss ${category.name}`}
-              aria-label={`Discuss ${category.name}`}
+              title={t("Discuss {lane}", { lane: category.name })}
+              aria-label={t("Discuss {lane}", { lane: category.name })}
               disabled={discussing}
               onClick={onDiscuss}
             >
@@ -315,7 +319,7 @@ function LaneHeader({
               as any other lane's. */}
             {isOrganizer && laneMenuItems.length > 0 ? (
               <Menu
-                label={`${category.name} lane actions`}
+                label={t("{lane} lane actions", { lane: category.name })}
                 items={laneMenuItems}
               />
             ) : null}
@@ -508,7 +512,7 @@ export function CategoryLane({
     <button
       type="button"
       className="lane__grip lane__grip--lane"
-      aria-label={`Drag to reorder the ${category.name} lane`}
+      aria-label={t("Drag to reorder the {lane} lane", { lane: category.name })}
       {...attributes}
       {...listeners}
     >
@@ -546,7 +550,9 @@ export function CategoryLane({
           aria-label={t("Delete category")}
         >
           <p className="lane__confirm-text">
-            Delete “{category.name}” and all its cards? This can’t be undone.
+            {t("Delete “{lane}” and all its cards? This can’t be undone.", {
+              lane: category.name,
+            })}
           </p>
           <div className="board__dialog-actions">
             <Button
