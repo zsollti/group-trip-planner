@@ -45,7 +45,7 @@ export function AddCategoryLane({
       setOpen(false);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Could not add the category",
+        err instanceof ApiError ? err.message : t("Could not add the category"),
       );
     }
   }
@@ -88,7 +88,7 @@ export function AddCategoryLane({
               {t("Cancel")}
             </Button>
             <Button type="submit" variant="primary" disabled={create.isPending}>
-              {create.isPending ? "Adding…" : "Add"}
+              {create.isPending ? t("Adding…") : t("Add")}
             </Button>
           </div>
         </form>

@@ -15,13 +15,7 @@ import {
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { t, tNode } from "../lib/i18n";
-
-const ROLE_LABEL: Record<TripRole, string> = {
-  OWNER: "Owner",
-  CO_ORGANIZER: "Co-organizer",
-  PARTICIPANT: "Participant",
-  GUEST: "Guest",
-};
+import { roleLabel } from "../lib/roles";
 
 const INVITE_ROLES: InviteRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
 
@@ -29,10 +23,28 @@ function joinUrl(token: string): string {
   return `${window.location.origin}/join/${token}`;
 }
 
-function linkStatus(link: InviteLinkView): string {
+/**
+ * A link's state as a **code**, which the list also branches on. Deliberately not
+ * translated: the moment it is, `linkStatus(link) === "Active"` starts depending on
+ * the reader's language. {@link linkStatusLabel} is the half that is read.
+ */
+type LinkStatus = "Disabled" | "Used" | "Active";
+
+function linkStatus(link: InviteLinkView): LinkStatus {
   if (link.disabledAt) return "Disabled";
   if (link.type === "PERSONAL" && link.consumedAt) return "Used";
   return "Active";
+}
+
+function linkStatusLabel(status: LinkStatus): string {
+  switch (status) {
+    case "Disabled":
+      return t("Disabled");
+    case "Used":
+      return t("Used");
+    case "Active":
+      return t("Active");
+  }
 }
 
 /**
@@ -79,7 +91,7 @@ export function InviteDialog({
       setEmail("");
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Could not create the link",
+        err instanceof ApiError ? err.message : t("Could not create the link"),
       );
     }
   }
@@ -90,7 +102,7 @@ export function InviteDialog({
       setCopiedId(link.id);
       window.setTimeout(() => setCopiedId(null), 1500);
     } catch {
-      setFormError("Couldn't copy — copy the link manually.");
+      setFormError(t("Couldn't copy — copy the link manually."));
     }
   }
 
@@ -143,7 +155,7 @@ export function InviteDialog({
             >
               {allowedRoles.map((r) => (
                 <option key={r} value={r}>
-                  {ROLE_LABEL[r]}
+                  {roleLabel(r)}
                 </option>
               ))}
             </select>
@@ -177,7 +189,7 @@ export function InviteDialog({
               variant="primary"
               disabled={createInvite.isPending}
             >
-              {createInvite.isPending ? "Creating…" : "Create link"}
+              {createInvite.isPending ? t("Creating…") : t("Create link")}
             </Button>
           </div>
         </form>
@@ -212,10 +224,10 @@ export function InviteDialog({
                 return (
                   <li key={link.id} className="board__invite-item">
                     <div>
-                      <strong>{ROLE_LABEL[link.role]}</strong>{" "}
+                      <strong>{roleLabel(link.role)}</strong>{" "}
                       <span className="board__muted">
-                        {link.type === "GLOBAL" ? "Global" : "Personal"} ·{" "}
-                        {linkStatus(link)}
+                        {link.type === "GLOBAL" ? t("Global") : t("Personal")} ·{" "}
+                        {linkStatusLabel(linkStatus(link))}
                         {link.sentToEmail ? ` · ${link.sentToEmail}` : ""}
                       </span>
                     </div>
@@ -227,7 +239,9 @@ export function InviteDialog({
                             variant="secondary"
                             onClick={() => onCopy(link)}
                           >
-                            {copiedId === link.id ? "Copied!" : "Copy link"}
+                            {copiedId === link.id
+                              ? t("Copied!")
+                              : t("Copy link")}
                           </Button>
                           <Button
                             type="button"

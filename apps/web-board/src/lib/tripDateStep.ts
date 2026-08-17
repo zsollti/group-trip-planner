@@ -4,6 +4,7 @@ import {
   type LockDatesRejection,
 } from "@gtp/types";
 import { dayToIso } from "./dateInput";
+import { t } from "./i18n";
 
 /**
  * Whether the create form's date answer is usable, checked as it is given.
@@ -31,10 +32,10 @@ import { dayToIso } from "./dateInput";
  * which is the whole reason to reuse the union rather than copy the checks.
  */
 const WHY: Record<LockDatesRejection, string> = {
-  NO_DATES: "Pick both days, or skip this step.",
-  END_BEFORE_START: "The last day can't come before the first.",
-  PAST: "That start date has already passed.",
-  OVER_HORIZON: "That's further ahead than a trip can be planned.",
+  NO_DATES: t("Pick both days, or skip this step."),
+  END_BEFORE_START: t("The last day can't come before the first."),
+  PAST: t("That start date has already passed."),
+  OVER_HORIZON: t("That's further ahead than a trip can be planned."),
 };
 
 /**

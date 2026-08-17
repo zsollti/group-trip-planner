@@ -88,7 +88,7 @@ export function ImagePicker({
               disabled={busy}
               onClick={() => onSave(pending)}
             >
-              {busy ? "Uploading…" : "Save"}
+              {busy ? t("Uploading…") : t("Save")}
             </Button>
             <Button
               type="button"
@@ -109,7 +109,7 @@ export function ImagePicker({
             disabled={busy}
             onClick={onRemove}
           >
-            {busy ? "Removing…" : "Remove"}
+            {busy ? t("Removing…") : t("Remove")}
           </Button>
         ) : null}
       </div>

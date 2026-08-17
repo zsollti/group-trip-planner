@@ -85,8 +85,8 @@ export function Timeline() {
         <>
           <p className="board__form-error" role="alert">
             {trip.error.status === 404
-              ? "That board doesn't exist or you're not a member."
-              : "Couldn't load this board."}
+              ? t("That board doesn't exist or you're not a member.")
+              : t("Couldn't load this board.")}
           </p>
           <Link className="board__cta" to="/">
             {t("Back to boards")}

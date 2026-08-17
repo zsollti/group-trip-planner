@@ -123,7 +123,7 @@ export function OptionDetail({
           <dt>{t("Proposed by")}</dt>
           <dd>
             {option.proposerName}
-            {option.materialChangedAt ? " · edited" : ""}
+            {option.materialChangedAt ? t(" · edited") : ""}
           </dd>
           <dt>{t("Votes")}</dt>
           <dd>

@@ -61,7 +61,7 @@ export function PalettePicker({
               key={key}
               type="button"
               className={
-                "palette__swatch" + (selected ? " palette__swatch--on" : "")
+                "palette__swatch" + (selected ? t(" palette__swatch--on") : "")
               }
               style={paletteHueStyle(key)}
               // The name carries the state, so a screen reader is never asked

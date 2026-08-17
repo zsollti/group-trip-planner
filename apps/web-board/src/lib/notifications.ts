@@ -1,4 +1,5 @@
 import type { NotificationType, NotificationView } from "@gtp/types";
+import { t } from "./i18n";
 
 /**
  * How a notification reads, shared by the list and the toast.
@@ -19,7 +20,7 @@ export const NOTIFICATION_ICON: Record<NotificationType, string> = {
 
 /** The one-line summary of a notification, in the actor's voice. */
 export function notificationHeadline(n: NotificationView): string {
-  const who = n.actorName ?? "Someone";
+  const who = n.actorName ?? t("Someone");
   switch (n.type) {
     case "OPTION_PROPOSED":
       return `${who} proposed “${n.subject}”`;
@@ -33,7 +34,7 @@ export function notificationHeadline(n: NotificationView): string {
 /** Coarse relative time — precise enough for a list, no date library. */
 export function notificationAgo(iso: string): string {
   const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (secs < 60) return "just now";
+  if (secs < 60) return t("just now");
   const mins = Math.floor(secs / 60);
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);

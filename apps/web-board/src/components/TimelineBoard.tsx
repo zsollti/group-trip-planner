@@ -220,8 +220,12 @@ export function TimelineBoard({
       {days.length === 0 ? (
         <p className="tl__empty">
           {hasTray
-            ? "Nothing here has dates yet. Add dates to a decision and it will appear on the trip's calendar."
-            : "Nothing is decided yet. Lock an option on the board and it lands here."}
+            ? t(
+                "Nothing here has dates yet. Add dates to a decision and it will appear on the trip's calendar.",
+              )
+            : t(
+                "Nothing is decided yet. Lock an option on the board and it lands here.",
+              )}
         </p>
       ) : wide ? (
         <TimelineCalendar timeline={timeline} onOpen={open} />
@@ -357,7 +361,7 @@ export function TimelineBoard({
                     entry.option.startsAt,
                     entry.option.endsAt,
                     categoryOptionFields(entry.category).dateGranularity,
-                  ) ?? "Outside the trip's dates"
+                  ) ?? t("Outside the trip's dates")
                 }
                 onOpen={() =>
                   setViewing({
@@ -370,10 +374,10 @@ export function TimelineBoard({
           </div>
           <p className="tl__tray-hint">
             {unscheduled.length > 0
-              ? "Give these dates and they'll take their place on the trip. "
+              ? t("Give these dates and they'll take their place on the trip. ")
               : ""}
             {elsewhere.length > 0
-              ? "Some of these fall outside the trip's own dates."
+              ? t("Some of these fall outside the trip's own dates.")
               : ""}
           </p>
         </section>

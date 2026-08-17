@@ -107,7 +107,7 @@ export function ActivityDialog({
                 disabled={activity.isFetchingNextPage}
                 onClick={() => void activity.fetchNextPage()}
               >
-                {activity.isFetchingNextPage ? "Loading…" : "Load older"}
+                {activity.isFetchingNextPage ? t("Loading…") : t("Load older")}
               </button>
             ) : null}
           </>

@@ -1,4 +1,5 @@
 import { costScale } from "../lib/costScale";
+import { t } from "../lib/i18n";
 
 /**
  * The cost surface's one chart (`dataviz`): locked spend against the target.
@@ -38,7 +39,7 @@ export function CostBar({ spend, target }: { spend: number; target: number }) {
 
   return (
     <div
-      className={"tally-bar" + (againstTarget ? " tally-bar--target" : "")}
+      className={"tally-bar" + (againstTarget ? t(" tally-bar--target") : "")}
       aria-hidden="true"
     >
       {committedPct > 0 ? (

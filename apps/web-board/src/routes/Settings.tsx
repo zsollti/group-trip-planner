@@ -48,7 +48,7 @@ export function Settings() {
       setAvatarError(
         err instanceof ApiError
           ? err.message
-          : "Couldn't upload that picture. Please try again.",
+          : t("Couldn't upload that picture. Please try again."),
       );
     }
   }
@@ -61,7 +61,7 @@ export function Settings() {
       setAvatarError(
         err instanceof ApiError
           ? err.message
-          : "Couldn't remove your picture. Please try again.",
+          : t("Couldn't remove your picture. Please try again."),
       );
     }
   }
@@ -74,7 +74,7 @@ export function Settings() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Couldn't save that. Please try again.",
+          : t("Couldn't save that. Please try again."),
       );
     }
   }
@@ -227,7 +227,9 @@ function LanguageSection() {
       applyUser(await update.mutateAsync({ locale: next }));
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Couldn't change the language.",
+        err instanceof ApiError
+          ? err.message
+          : t("Couldn't change the language."),
       );
     }
   }
@@ -316,7 +318,7 @@ function NameSection() {
       setSaved(true);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Couldn't save that name.",
+        err instanceof ApiError ? err.message : t("Couldn't save that name."),
       );
     }
   }
@@ -348,13 +350,13 @@ function NameSection() {
           variant="secondary"
           disabled={!dirty || update.isPending}
         >
-          {update.isPending ? "Saving…" : "Save"}
+          {update.isPending ? t("Saving…") : t("Save")}
         </Button>
       </form>
       <p className="board__panel-note">
         {saved
-          ? "Saved. Everyone on your boards sees the new name."
-          : "Shown on everything you propose, vote for and write."}
+          ? t("Saved. Everyone on your boards sees the new name.")
+          : t("Shown on everything you propose, vote for and write.")}
       </p>
     </section>
   );

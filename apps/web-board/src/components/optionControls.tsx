@@ -113,7 +113,7 @@ export function VoteDots({
         hasVoted: option.viewerHasVoted,
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not vote");
+      setError(err instanceof ApiError ? err.message : t("Could not vote"));
     }
   }
 
@@ -137,7 +137,9 @@ export function VoteDots({
           {shown.map((v) => (
             <span
               key={v.userId}
-              className={"lane__voter" + (v.stale ? " lane__voter--stale" : "")}
+              className={
+                "lane__voter" + (v.stale ? t(" lane__voter--stale") : "")
+              }
             >
               <Avatar
                 name={v.displayName}
@@ -162,13 +164,13 @@ export function VoteDots({
           type="button"
           className={
             "lane__vote-btn" +
-            (option.viewerHasVoted ? " lane__vote-btn--on" : "")
+            (option.viewerHasVoted ? t(" lane__vote-btn--on") : "")
           }
           aria-pressed={option.viewerHasVoted}
           disabled={toggle.isPending}
           onClick={onToggle}
         >
-          {option.viewerHasVoted ? "● Voted" : "○ Vote"}
+          {option.viewerHasVoted ? t("● Voted") : t("○ Vote")}
         </button>
       ) : null}
       {error ? (
@@ -268,7 +270,9 @@ export function ParticipantDots({
         isParticipant: option.viewerIsParticipant,
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not change that");
+      setError(
+        err instanceof ApiError ? err.message : t("Could not change that"),
+      );
     }
   }
 
@@ -315,7 +319,7 @@ export function ParticipantDots({
           type="button"
           className={
             "lane__vote-btn lane__in-btn" +
-            (option.viewerIsParticipant ? " lane__vote-btn--on" : "")
+            (option.viewerIsParticipant ? t(" lane__vote-btn--on") : "")
           }
           aria-pressed={option.viewerIsParticipant}
           disabled={toggle.isPending}

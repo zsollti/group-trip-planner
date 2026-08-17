@@ -24,7 +24,9 @@ export function Join() {
       .then((result) => navigate(`/trips/${result.tripId}`, { replace: true }))
       .catch((err) =>
         setError(
-          err instanceof ApiError ? err.message : "Couldn't join this board.",
+          err instanceof ApiError
+            ? err.message
+            : t("Couldn't join this board."),
         ),
       );
   }, [status, token, joinTrip, navigate]);

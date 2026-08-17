@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { OptionView } from "@gtp/types";
 import { ApiError, useUnlockOption } from "@gtp/api-client";
+import { t } from "./i18n";
 
 /**
  * Unlocking a locked option, with the failure it can produce.
@@ -34,7 +35,7 @@ export function useUnlockAction(
           version: option.version,
         });
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Could not unlock");
+        setError(err instanceof ApiError ? err.message : t("Could not unlock"));
       }
     },
   };

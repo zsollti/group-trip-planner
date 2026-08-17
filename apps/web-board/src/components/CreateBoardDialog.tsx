@@ -31,18 +31,37 @@ interface Step {
   readonly required?: boolean;
 }
 
-const STEPS: readonly Step[] = [
-  {
-    id: "name",
-    title: "What's the trip called?",
-    short: "Name",
-    required: true,
-  },
-  { id: "destination", title: "Where are you going?", short: "Destination" },
-  { id: "dates", title: "When?", short: "Dates" },
-  { id: "currency", title: "What are prices quoted in?", short: "Currency" },
-  { id: "budget", title: "A budget per person?", short: "Budget" },
-];
+/**
+ * The steps, built per render rather than held as a module constant.
+ *
+ * The constant version is the one hazard `lib/i18n` warns about: `t()` at module
+ * scope runs once, at import, so the questions would keep the language that was
+ * active when the bundle first loaded while the rest of the dialog followed the
+ * reader. The array is five objects — building it per render costs nothing worth
+ * measuring, and it cannot be wrong.
+ */
+function steps(): readonly Step[] {
+  return [
+    {
+      id: "name",
+      title: t("What's the trip called?"),
+      short: t("Name"),
+      required: true,
+    },
+    {
+      id: "destination",
+      title: t("Where are you going?"),
+      short: t("Destination"),
+    },
+    { id: "dates", title: t("When?"), short: t("Dates") },
+    {
+      id: "currency",
+      title: t("What are prices quoted in?"),
+      short: t("Currency"),
+    },
+    { id: "budget", title: t("A budget per person?"), short: t("Budget") },
+  ];
+}
 
 type StepId = Step["id"];
 
@@ -101,8 +120,9 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   // and this form's submit advances a step rather than submitting the trip.
   const nameField = register("name");
 
-  const step = STEPS[stepIndex]!;
-  const isLast = stepIndex === STEPS.length - 1;
+  const allSteps = steps();
+  const step = allSteps[stepIndex]!;
+  const isLast = stepIndex === allSteps.length - 1;
   // Watched rather than read on render: the Skip/Next label has to follow what
   // is being typed, and `getValues` does not re-render.
   const name = watch("name") ?? "";
@@ -145,7 +165,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
       navigate(`/trips/${trip.id}`);
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Could not create the board",
+        err instanceof ApiError ? err.message : t("Could not create the board"),
       );
     }
   }
@@ -174,19 +194,22 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog
-      eyebrow={`New board · ${stepIndex + 1} of ${STEPS.length}`}
+      eyebrow={t("New board · {step} of {total}", {
+        step: stepIndex + 1,
+        total: allSteps.length,
+      })}
       title={step.title}
       onClose={onClose}
     >
       <form onSubmit={(e) => void onSubmit(e)} noValidate>
         <ol className="steps" aria-label={t("Progress")}>
-          {STEPS.map((s, i) => (
+          {allSteps.map((s, i) => (
             <li
               key={s.id}
               className={
                 "steps__dot" +
-                (i === stepIndex ? " steps__dot--now" : "") +
-                (i < stepIndex ? " steps__dot--done" : "")
+                (i === stepIndex ? t(" steps__dot--now") : "") +
+                (i < stepIndex ? t(" steps__dot--done") : "")
               }
               aria-current={i === stepIndex ? "step" : undefined}
             >
@@ -258,8 +281,12 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
                 board you land on rather than just recording two fields. */}
             <p className="board__field-note">
               {startDay || endDay
-                ? "The Dates lane starts with this already decided — unlock it any time to let the group pick instead."
-                : "Know them already? The Dates lane will start decided. Skip to let the group vote on it."}
+                ? t(
+                    "The Dates lane starts with this already decided — unlock it any time to let the group pick instead.",
+                  )
+                : t(
+                    "Know them already? The Dates lane will start decided. Skip to let the group vote on it.",
+                  )}
             </p>
           </>
         ) : null}
@@ -333,15 +360,15 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             }
           >
             {isSubmitting
-              ? "Creating…"
+              ? t("Creating…")
               : isLast
-                ? "Create board"
+                ? t("Create board")
                 : // Never "Skip" on the question that cannot be skipped — an
                   // empty required field offered exactly that, which is a
                   // promise the next click breaks.
                   step.required || answered(step.id)
-                  ? "Next"
-                  : "Skip"}
+                  ? t("Next")
+                  : t("Skip")}
           </Button>
         </div>
       </form>
