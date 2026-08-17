@@ -90,6 +90,7 @@ function renderComp(over: Partial<Composition> = {}) {
       composition={composition(over)}
       categories={categories}
       headline={headline}
+      myUserId="u-me"
     />,
   );
 }

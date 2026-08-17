@@ -29,32 +29,60 @@ import type { StoredRates } from "../rates/rates.service.js";
  * filtered to their own row, so it costs no extra query and returns at most one
  * row per option rather than the whole list.
  */
-export const dashboardOptionInclude = (viewerId: string) =>
+export const dashboardOptionInclude = () =>
   ({
     category: { select: { id: true, name: true } },
     // Counted in the same statement as the votes, never per row: an OPT_IN
     // option's headcount *is* this number, so the engine needs it for every
     // option it prices.
     _count: { select: { votes: true, participants: true } },
-    participants: { where: { userId: viewerId }, select: { userId: true } },
+    // **The whole list, not just the viewer's row.** It used to be filtered to
+    // the caller, because all anyone asked of it was "do I pay for this?". The
+    // cost surface now draws the people an opt-in option is priced for as
+    // faces, and a face needs a name and a picture. Still one statement and one
+    // join — the same reasoning `optionInclude` records for voters: a round
+    // trip per person to fetch a column the list is about to render would be an
+    // N+1 for one nullable field.
+    participants: {
+      orderBy: { createdAt: "asc" },
+      select: {
+        userId: true,
+        createdAt: true,
+        user: { select: { displayName: true, avatarUrl: true } },
+      },
+    },
   }) as const;
 
 export type DashboardOptionRow = Option & {
   category: { id: string; name: string };
   _count: { votes: number; participants: number };
-  /** The viewer's own participation row, or empty. Never the whole list. */
-  participants: { userId: string }[];
+  /** Everyone who opted in, earliest first. Empty for a whole-group option. */
+  participants: {
+    userId: string;
+    createdAt: Date;
+    user: { displayName: string; avatarUrl: string | null };
+  }[];
 };
 
 /**
  * Does this viewer pay for this option?
  *
- * Whole-group options are everyone's. An opt-in option is only the people who
- * said so — and `participants` here is already filtered to the viewer, so its
- * presence *is* the answer.
+ * Whole-group options are everyone's; an opt-in option is only the people who
+ * said so.
+ *
+ * **Asked by id.** This used to read `participants.length > 0`, which was true
+ * only because the include was filtered to the caller — the list's *emptiness*
+ * was carrying the answer. Widening that include to draw the faces would have
+ * made every opt-in option look like the viewer's the moment anyone joined it,
+ * and the per-person total would have charged them for things they declined.
+ * The question is now asked directly, so the include can hold whatever it needs
+ * to.
  */
-function viewerOwes(row: DashboardOptionRow): boolean {
-  return row.participationMode !== "OPT_IN" || row.participants.length > 0;
+function viewerOwes(row: DashboardOptionRow, viewerId: string): boolean {
+  return (
+    row.participationMode !== "OPT_IN" ||
+    row.participants.some((p) => p.userId === viewerId)
+  );
 }
 
 /** A stored option row → the lean shape the pure cost engine consumes. */
@@ -87,6 +115,8 @@ export function toTripDashboardView(
     budgetPerPerson: { toString(): string } | null;
   },
   memberCount: number,
+  /** Whose dashboard this is — `viewerOwes` and nothing else reads it. */
+  viewerId: string,
   rows: readonly DashboardOptionRow[],
   result: CostDashboard,
   generatedAt: Date,
@@ -113,7 +143,16 @@ export function toTripDashboardView(
       group: cost.group,
       perPerson: cost.perPerson,
       effectiveHeadcount: cost.effectiveHeadcount,
-      viewerOwes: viewerOwes(row),
+      // Empty for a whole-group option, and not by a branch here: nobody has a
+      // participation row on one, so the list is naturally the trip's answer to
+      // "who specifically" — which for everyone is no one in particular.
+      participants: row.participants.map((p) => ({
+        userId: p.userId,
+        displayName: p.user.displayName,
+        avatarUrl: p.user.avatarUrl,
+        joinedAt: p.createdAt.toISOString(),
+      })),
+      viewerOwes: viewerOwes(row, viewerId),
       converted: convertedLine(cost, trip.defaultCurrency, rates),
     };
   };

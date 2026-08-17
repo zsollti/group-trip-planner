@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   can,
-  type OptionParticipantView,
   type OptionView,
   type OptionVoterView,
   type TripRole,
@@ -14,6 +13,7 @@ import {
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
+import { PersonStack } from "./PersonStack";
 import { plural, t } from "../lib/i18n";
 
 /** How many faces fit on a card before the rest become a count. */
@@ -137,9 +137,7 @@ export function VoteDots({
           {shown.map((v) => (
             <span
               key={v.userId}
-              className={
-                "lane__voter" + (v.stale ? " lane__voter--stale" : "")
-              }
+              className={"lane__voter" + (v.stale ? " lane__voter--stale" : "")}
             >
               <Avatar
                 name={v.displayName}
@@ -186,48 +184,6 @@ export function VoteDots({
 }
 
 /**
- * Everyone who is in, as a list you can actually read — the participants'
- * counterpart to {@link VoterList}, and for the same reason: three faces on a
- * card answer "roughly who", and past that only a full list is honest.
- */
-function ParticipantList({
-  participants,
-  onClose,
-}: {
-  participants: OptionParticipantView[];
-  onClose: () => void;
-}) {
-  return (
-    <Dialog
-      eyebrow="Who's in"
-      title={t("{n} in", { n: participants.length })}
-      onClose={onClose}
-    >
-      <>
-        <ul className="voters">
-          {participants.map((p) => (
-            <li key={p.userId} className="voters__item">
-              <Avatar
-                name={p.displayName}
-                userId={p.userId}
-                url={p.avatarUrl}
-                size={28}
-              />
-              <span className="voters__name">{p.displayName}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="board__dialog-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            {t("Close")}
-          </Button>
-        </div>
-      </>
-    </Dialog>
-  );
-}
-
-/**
  * Who is in for an opt-in option, and a toggle to be one of them.
  *
  * Deliberately built as {@link VoteDots}'s twin — same faces, same overflow
@@ -255,12 +211,8 @@ export function ParticipantDots({
 }) {
   const toggle = useToggleParticipation(tripId, category);
   const [error, setError] = useState<string | null>(null);
-  const [listing, setListing] = useState(false);
 
   if (option.participationMode !== "OPT_IN") return null;
-
-  const shown = option.participants.slice(0, SHOWN);
-  const overflow = option.participants.length - shown.length;
 
   async function onToggle() {
     setError(null);
@@ -290,29 +242,13 @@ export function ParticipantDots({
         // state is the question rather than a report of nothing.
         <span className="lane__meta">{t("nobody yet")}</span>
       ) : (
-        <button
-          type="button"
-          className="lane__voters"
-          aria-label={t("{n} in — see who", {
-            n: option.participants.length,
-          })}
-          onClick={() => setListing(true)}
-        >
-          {shown.map((p) => (
-            <span key={p.userId} className="lane__voter">
-              <Avatar
-                name={p.displayName}
-                userId={p.userId}
-                url={p.avatarUrl}
-                size={22}
-                title={p.displayName}
-              />
-            </span>
-          ))}
-          {overflow > 0 ? (
-            <span className="lane__voter-more">+{overflow}</span>
-          ) : null}
-        </button>
+        /* No `mine` here: the "✓ I'm in" button beside this row already
+           answers "am I one of them", and a ring saying it a second time would
+           be the redundancy the cost aside's ring exists to remove. */
+        <PersonStack
+          people={option.participants}
+          label={t("{n} in — see who", { n: option.participants.length })}
+        />
       )}
       {can(myRole, "vote.cast") && !frozen ? (
         <button
@@ -332,12 +268,6 @@ export function ParticipantDots({
         <span className="board__form-error" role="alert">
           {error}
         </span>
-      ) : null}
-      {listing ? (
-        <ParticipantList
-          participants={option.participants}
-          onClose={() => setListing(false)}
-        />
       ) : null}
     </div>
   );

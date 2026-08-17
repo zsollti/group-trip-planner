@@ -37,6 +37,9 @@ function line(over: Partial<DashboardLine> = {}): DashboardLine {
     categoryName: "Stay",
     title: `Option ${seq}`,
     kind: "LOCKED",
+    // Whole-group by default: nobody has a participation row on one, so an
+    // empty list is the truthful shape rather than a placeholder.
+    participants: [],
     currency: "EUR",
     group: perPerson * 4,
     perPerson,
@@ -124,6 +127,27 @@ describe("money everyone owes, and money only some do", () => {
             title: "Airport taxi",
             perPerson: 10,
             effectiveHeadcount: 3,
+            // The people, not just how many: the aside draws them as faces.
+            participants: [
+              {
+                userId: "u-1",
+                displayName: "Ada",
+                avatarUrl: null,
+                joinedAt: "2026-01-01T00:00:00.000Z",
+              },
+              {
+                userId: "u-2",
+                displayName: "Grace",
+                avatarUrl: null,
+                joinedAt: "2026-01-02T00:00:00.000Z",
+              },
+              {
+                userId: "u-3",
+                displayName: "Edsger",
+                avatarUrl: null,
+                joinedAt: "2026-01-03T00:00:00.000Z",
+              },
+            ],
           }),
         ],
       }),
@@ -141,6 +165,26 @@ describe("money everyone owes, and money only some do", () => {
         perPerson: 10,
         currency: "EUR",
         headcount: 3,
+        participants: [
+          {
+            userId: "u-1",
+            displayName: "Ada",
+            avatarUrl: null,
+            joinedAt: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            userId: "u-2",
+            displayName: "Grace",
+            avatarUrl: null,
+            joinedAt: "2026-01-02T00:00:00.000Z",
+          },
+          {
+            userId: "u-3",
+            displayName: "Edsger",
+            avatarUrl: null,
+            joinedAt: "2026-01-03T00:00:00.000Z",
+          },
+        ],
         // Carried through so the aside can mark the reader's own, which is the
         // arithmetic between what the ring charts and what the target says.
         viewerOwes: true,

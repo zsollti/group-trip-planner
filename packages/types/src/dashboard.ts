@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TripRole, TripStatus } from "./trips.js";
+import { OptionParticipantView } from "./votes.js";
 
 /**
  * Per-trip cost dashboard contract (Phase 3.2, SRS §6 / FR-26–27) — the wire
@@ -68,6 +69,18 @@ export const DashboardLine = z.object({
   /** The headcount the cost was computed against — the members who opted in,
    *  or the live member count. */
   effectiveHeadcount: z.number().int().nonnegative(),
+  /**
+   * **Who** the headcount is, for an opt-in option — empty for a whole-group
+   * one, where it would be the trip's entire membership restated per line.
+   *
+   * The cost surface names these options rather than drawing them ("priced for
+   * part of the group"), and a count cannot answer the question a reader
+   * actually has there: not *how many* are in, but *who* — and whether that
+   * includes them. `effectiveHeadcount` was all this line carried, so the
+   * answer was the words "for 4 members", which is a worse version of four
+   * faces the board already knows how to draw.
+   */
+  participants: z.array(OptionParticipantView),
   /**
    * Does the **caller** pay for this line?
    *

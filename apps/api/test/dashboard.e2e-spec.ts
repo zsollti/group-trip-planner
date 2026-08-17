@@ -501,6 +501,28 @@ describe("Trip dashboard (e2e)", () => {
     assert.equal(line(theirs, extra.id).viewerOwes, false);
     // The shared one is everyone's, however they answered the other.
     assert.equal(line(theirs, shared.id).viewerOwes, true);
+
+    // …and names **who**, so the cost surface can draw them rather than say
+    // "for 1 member". The same list reaches both readers: who is in is a fact
+    // about the option, not about who is asking — only `viewerOwes` is the
+    // reader's own answer.
+    //
+    // Note what these two assertions together rule out. `viewerOwes` used to be
+    // computed from this list being non-empty, which worked only because the
+    // query was filtered to the caller. Widening it to carry names would have
+    // made the option look like everyone's the moment one person joined, and
+    // charged the member who declined for it.
+    assert.deepEqual(
+      line(mine, extra.id).participants.map((p) => p.displayName),
+      [owner.user.displayName],
+    );
+    assert.deepEqual(
+      line(theirs, extra.id).participants.map((p) => p.displayName),
+      [owner.user.displayName],
+    );
+    // A whole-group option names nobody: it would be the entire roster,
+    // restated on every line.
+    assert.deepEqual(line(mine, shared.id).participants, []);
   });
 
   it("a member who leaves takes their participation with them", async () => {
