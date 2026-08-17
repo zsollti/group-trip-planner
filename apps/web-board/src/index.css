@@ -2152,6 +2152,15 @@ body {
   text-transform: uppercase;
   color: var(--board-dim);
 }
+/* Stands where the "+ Add card" button would have, so a full lane reads as
+   having reached a limit rather than as having lost a control. Muted, not
+   alarming: full is a state the lane is in, not an error it hit. */
+.lane__full {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--board-dim);
+  text-align: center;
+}
 
 /* Click-to-edit parameters on a card (Phase 3.5): a text button that opens the
  * full edit form; hints editability on hover/focus without adding chrome. */

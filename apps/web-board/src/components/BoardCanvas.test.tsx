@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { maxCategoryOptions } from "@gtp/types";
 import type { CategoryView, OptionView, TripRole } from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { BoardCanvas } from "./BoardCanvas";
@@ -114,6 +115,38 @@ function mockFetch() {
       }
       if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json([proposed, locked]);
+      return json({ message: "not found" }, 404);
+    }),
+  );
+}
+
+/**
+ * Like {@link mockFetch}, but the lane is at the policy cap — and one of the
+ * options is a decision, because the cap counts those too.
+ */
+function mockFullFetch() {
+  const cap = maxCategoryOptions();
+  const full = [
+    locked,
+    ...Array.from({ length: cap - 1 }, (_, i) =>
+      opt({ id: `f${i}`, title: `Candidate ${i}` }),
+    ),
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("/dashboard")) {
+        return json({
+          committed: [],
+          projected: [],
+          viewerCommitted: [],
+          lines: [],
+          memberCount: 2,
+        });
+      }
+      if (u.includes("/members")) return json(MEMBERS);
+      if (u.includes("/options")) return json(full);
       return json({ message: "not found" }, 404);
     }),
   );
@@ -420,6 +453,37 @@ describe("BoardCanvas", () => {
 
     const crew = await screen.findByRole("region", { name: "Crew" });
     expect(within(crew).queryByRole("button", { name: "Invite" })).toBeNull();
+  });
+
+  it("says a lane is full instead of offering a form the server would refuse", async () => {
+    // The cap counts decisions as well as candidates — a locked card is pinned
+    // at the top of the lane taking its room — so this lane is full with seven
+    // proposals and one decision.
+    mockFullFetch();
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(
+      await within(lane).findByText(/Full at 8 options/),
+    ).toBeInTheDocument();
+    // Said rather than silently withheld: the button is gone, but the reason is
+    // standing where it was.
+    expect(
+      within(lane).queryByRole("button", { name: "+ Add card" }),
+    ).toBeNull();
+  });
+
+  it("still offers the form one option below the cap", async () => {
+    // The pair that makes the test above mean something — otherwise a lane that
+    // never offered the button at all would pass it.
+    mockFetch();
+    renderBoard("OWNER");
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    expect(
+      await within(lane).findByRole("button", { name: "+ Add card" }),
+    ).toBeVisible();
+    expect(within(lane).queryByText(/Full at/)).toBeNull();
   });
 
   it("turns an empty lane into a propose CTA that opens the form (Phase 6.4)", async () => {

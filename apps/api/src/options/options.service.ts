@@ -11,6 +11,7 @@ import {
   fallbackExpiresAt,
   hasMaterialChange,
   isTripFrozen,
+  maxCategoryOptions,
   maxTripHorizonDays,
   OPTIONS_CHANGED_EVENT,
   planLockedDates,
@@ -25,6 +26,7 @@ import {
   type UpdateOptionInput,
 } from "@gtp/types";
 import { optionAudit } from "../activity/audit.js";
+import { localizedException } from "../i18n/localized-message.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
@@ -235,6 +237,10 @@ export class OptionsService {
   /**
    * Propose an option (Participant+; the guard already excluded Guest, and
    * proposing is allowed unverified). Active-trip gated.
+   *
+   * Refused once the lane is at the policy-layer cap — resolved via
+   * `maxCategoryOptions`, never a literal, so a subscription tier can raise it
+   * without touching this handler.
    */
   async proposeOption(
     ctx: TripContext,
@@ -243,7 +249,24 @@ export class OptionsService {
     input: CreateOptionInput,
   ): Promise<OptionView> {
     this.assertActive(ctx);
-    await this.requireCategory(ctx, categoryId);
+    const category = await this.requireCategory(ctx, categoryId);
+
+    // Live options only: a soft-deleted row keeps its `position` so the append
+    // below never collides, but it is off the board and must not hold a slot
+    // against the group. Locked ones **do** count — a decision sits pinned at
+    // the top of the lane, taking its room like anything else, and excluding
+    // them would let a multi-select lane grow without end by locking as it went.
+    const held = await this.prisma.option.count({
+      where: { categoryId, deletedAt: null },
+    });
+    const cap = maxCategoryOptions();
+    if (held >= cap) {
+      throw localizedException(
+        (message) => new ForbiddenException(message),
+        "“{name}” is full at {cap} options. Remove one to propose another.",
+        { name: category.name, cap },
+      );
+    }
 
     // Append at the end of the category's current order (Phase 3.5). Soft-deleted
     // rows keep their slot, so max-position+1 never collides with a live option.
