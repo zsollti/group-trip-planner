@@ -315,7 +315,7 @@ function TargetLine({
   const gap = figure(v.gap, v.currency, v.approximate);
   return (
     <p
-      className={"board__budget" + (v.over ? t(" board__budget--over") : "")}
+      className={"board__budget" + (v.over ? " board__budget--over" : "")}
       role="status"
     >
       <span className="board__budget-label">{t("Target")}</span>

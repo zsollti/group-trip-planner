@@ -96,8 +96,8 @@ function MessageRow({
     <li
       className={
         "board__msg" +
-        (message.pending ? t(" board__msg--pending") : "") +
-        (message.failed ? t(" board__msg--failed") : "")
+        (message.pending ? " board__msg--pending" : "") +
+        (message.failed ? " board__msg--failed" : "")
       }
     >
       <div className="board__msg-head">
@@ -135,7 +135,7 @@ function MessageRow({
               className={
                 "board__reaction" +
                 (myUserId && g.userIds.includes(myUserId)
-                  ? t(" board__reaction--on")
+                  ? " board__reaction--on"
                   : "")
               }
               aria-pressed={myUserId ? g.userIds.includes(myUserId) : false}
@@ -449,7 +449,7 @@ export function ChatPanel({
                         title={channelName(c)}
                         className={
                           "board__chat-tab" +
-                          (isActive ? t(" board__chat-tab--active") : "")
+                          (isActive ? " board__chat-tab--active" : "")
                         }
                         onClick={() => selectChannel(c.id)}
                       >

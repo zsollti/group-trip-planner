@@ -208,8 +208,8 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
               key={s.id}
               className={
                 "steps__dot" +
-                (i === stepIndex ? t(" steps__dot--now") : "") +
-                (i < stepIndex ? t(" steps__dot--done") : "")
+                (i === stepIndex ? " steps__dot--now" : "") +
+                (i < stepIndex ? " steps__dot--done" : "")
               }
               aria-current={i === stepIndex ? "step" : undefined}
             >

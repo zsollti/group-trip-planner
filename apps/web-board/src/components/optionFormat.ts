@@ -1,7 +1,6 @@
 import type { OptionDateGranularity, OptionView } from "@gtp/types";
 import { intlTag } from "../lib/locale";
 import { formatMoney } from "../lib/money";
-import { t } from "../lib/i18n";
 
 /**
  * Compact money label for an option card — "€480 total", "45 000 Ft/person".
@@ -13,7 +12,7 @@ import { t } from "../lib/i18n";
  */
 export function costLabel(o: OptionView): string | null {
   if (o.amount == null) return null;
-  const per = o.costType === "PER_PERSON" ? "/person" : t(" total");
+  const per = o.costType === "PER_PERSON" ? "/person" : " total";
   return `${formatMoney(o.amount, o.currency)}${per}`;
 }
 

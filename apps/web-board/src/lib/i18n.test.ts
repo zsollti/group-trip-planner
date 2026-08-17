@@ -170,6 +170,19 @@ describe("the catalogue matches the code", () => {
     expect(new Set(UI_MESSAGES).size).toBe(UI_MESSAGES.length);
   });
 
+  it("holds no CSS class name, however much one looks like a phrase", () => {
+    // 26 of these got in, and neither the type checker nor 432 rendering tests
+    // could see them: `className={"lane__card" + (dragging ? " lane__card--dragging"
+    // : "")}` puts a class fragment in a ternary branch, and " lane__card--dragging"
+    // has a space and letters, which is all "looks like prose" ever meant. `t()`
+    // returned them unchanged so nothing broke — but they were in the catalogue, one
+    // plausible-looking translation away from unstyling the board.
+    const cssish = UI_MESSAGES.filter(
+      (m) => /__|--/.test(m) || /^\s\S+$/.test(m) || m.startsWith("(prefers-"),
+    );
+    expect(cssish).toEqual([]);
+  });
+
   it("carries no translations for the source language", () => {
     expect(UI_TRANSLATIONS.en).toBeUndefined();
   });
