@@ -20,7 +20,7 @@ import type {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { UserMenu } from "../components/UserMenu";
-import { t } from "../lib/i18n";
+import { plural, t, tNode } from "../lib/i18n";
 
 /**
  * The operator's console.
@@ -50,7 +50,9 @@ export function Admin() {
         </div>
       </header>
 
-      <p className="board__eyebrow">Operations · signed in as {user?.email}</p>
+      <p className="board__eyebrow">
+        {t("Operations · signed in as {email}", { email: user?.email ?? "" })}
+      </p>
       <h1 className="board__title">{t("Console")}</h1>
 
       {overview.isPending ? (
@@ -122,10 +124,10 @@ function DemoPanel() {
     >
       <h2 className="admin__panel-title">{t("Demo data")}</h2>
       <p className="admin__note">
-        Deletes the trips owned by <strong>demo@example.com</strong> and
-        rebuilds the published demo board from the seed — five members, fourteen
-        options, four decisions, the chat and the votes. No other account is
-        touched, and the demo password is reset to the one in the README.
+        {tNode(
+          "Deletes the trips owned by {account} and rebuilds the published demo board from the seed — five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.",
+          { account: <strong>demo@example.com</strong> },
+        )}
       </p>
 
       {confirming ? (
@@ -314,8 +316,11 @@ function EmailPanel({ email }: { email: AdminEmail }) {
       />
       {stuck ? (
         <p className="admin__alert" role="alert">
-          {email.stuckSending} job{email.stuckSending === 1 ? "" : "s"} claimed
-          longer ago than the reclaim window — a worker probably died mid-send.
+          {plural(
+            email.stuckSending,
+            "{n} job claimed longer ago than the reclaim window — a worker probably died mid-send.",
+            "{n} jobs claimed longer ago than the reclaim window — a worker probably died mid-send.",
+          )}
         </p>
       ) : null}
       {email.recentFailures.length > 0 ? (
@@ -324,7 +329,7 @@ function EmailPanel({ email }: { email: AdminEmail }) {
             <li key={f.id} className="admin__failure">
               <span className="admin__failure-to">{f.to}</span>
               <span className="admin__failure-meta">
-                {f.type} · {f.attempts} attempt{f.attempts === 1 ? "" : "s"} ·{" "}
+                {f.type} · {plural(f.attempts, "{n} attempt", "{n} attempts")} ·{" "}
                 {ago(f.updatedAt)}
               </span>
               {f.lastError ? (
@@ -411,18 +416,20 @@ function VolumePanel({ volume }: { volume: AdminVolume }) {
       <div
         className="admin__spark"
         role="img"
-        aria-label={`${total} signups in the last 30 days`}
+        aria-label={t("{n} signups in the last 30 days", { n: total })}
       >
         {volume.signups.map((d) => (
           <span
             key={d.date}
             className="admin__spark-bar"
             style={{ height: `${Math.round((d.count / peak) * 100)}%` }}
-            title={`${d.date}: ${d.count}`}
+            title={t("{date}: {count}", { date: d.date, count: d.count })}
           />
         ))}
       </div>
-      <p className="admin__note">{total} signups in the last 30 days</p>
+      <p className="admin__note">
+        {t("{n} signups in the last 30 days", { n: total })}
+      </p>
     </Panel>
   );
 }
@@ -475,7 +482,9 @@ function UserLookup() {
           {t("Couldn't run that lookup.")}
         </p>
       ) : results.data && results.data.users.length === 0 ? (
-        <p className="board__muted">Nobody matches “{query}”.</p>
+        <p className="board__muted">
+          {t("Nobody matches “{query}”.", { query })}
+        </p>
       ) : (
         results.data?.users.map((u) => <UserCard key={u.id} user={u} />)
       )}

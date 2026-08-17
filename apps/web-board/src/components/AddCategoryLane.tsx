@@ -94,7 +94,9 @@ export function AddCategoryLane({
         </form>
       ) : atCap ? (
         <p className="lane__add-cap">
-          {cap} categories is the maximum. Delete one to add another.
+          {t("{cap} categories is the maximum. Delete one to add another.", {
+            cap,
+          })}
         </p>
       ) : (
         <button
