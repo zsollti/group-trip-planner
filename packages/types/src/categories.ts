@@ -100,15 +100,19 @@ export const CategoryView = z.object({
 export type CategoryView = z.infer<typeof CategoryView>;
 
 /**
- * Create a custom category (Organizers). `singleChoice` defaults to **true**:
- * a category is a question, and most questions have one answer. Keeping several
- * winners is the interesting case, so it is the one you opt into — and it can be
- * switched later either way ({@link UpdateCategoryInput}), which is what makes
- * the stricter default the safe one.
+ * Create a custom category (Organizers). `singleChoice` defaults to **false**,
+ * matching the built-ins ({@link BUILTIN_CATEGORIES}): a lane holds the options
+ * a group is weighing, and keeping more than one of them is the ordinary
+ * outcome. A new lane that starts multi-select and is narrowed later reads the
+ * same either way; one that starts single-choice silently refuses the second
+ * decision the organizer tries to lock.
+ *
+ * Still a default rather than a fact — it switches both ways afterwards
+ * ({@link UpdateCategoryInput}).
  */
 export const CreateCategoryInput = z.object({
   name: categoryNameSchema,
-  singleChoice: z.boolean().default(true),
+  singleChoice: z.boolean().default(false),
 });
 export type CreateCategoryInput = z.infer<typeof CreateCategoryInput>;
 
@@ -235,19 +239,25 @@ export interface BuiltinCategorySeed {
 /**
  * The built-in categories every trip is seeded with, in display order (SRS §6).
  *
- * **All seed single-choice.** The `singleChoice` flags used to encode a guess at
- * the domain — Transport and Activities multi-select, on the reading that a trip
- * keeps several legs and many activities. The guess was half right and the shape
- * was wrong: whether a trip wants one flight or a leg each way, one hotel or a
- * different city every third night, is a property of *that* trip, not of the
- * word "Transport". Guessing per category meant guessing wrong for half of them
- * with no way to say so.
+ * **Everything except Dates seeds multi-select.** This has now been each of the
+ * three readings in turn, and the last one is the one use settled.
  *
- * So the seed takes the stricter reading — a category is a question, and a
- * question has an answer — and the trip changes what it needs
- * ({@link UpdateCategoryInput}). Dates is the one that cannot
- * ({@link canBeMultiSelect}): the trip has one date range, and two winners there
- * would have nothing to write back to.
+ * It began as a guess per category (Transport and Activities multi-select, the
+ * rest single). That was rejected as guessing — whether a trip wants one flight
+ * or a leg each way is a property of *that* trip, not of the word "Transport" —
+ * and everything was made single-choice on the argument that a category is a
+ * question and a question has an answer.
+ *
+ * The argument was tidy and the boards disagreed with it. A trip keeps several
+ * activities, several legs, sometimes several places to stay; single-choice is
+ * the exception, and making it the default meant nearly every lane had to be
+ * switched by hand before it could hold what the group actually decided — a
+ * setup step charged to every trip to spare the rare one. The default is the
+ * common case now, and the rare one is the opt-in
+ * ({@link UpdateCategoryInput}).
+ *
+ * Dates is not a default at all but a rule ({@link canBeMultiSelect}): the trip
+ * has one date range, and two winners there would have nothing to write back to.
  *
  * **Budget was retired from the seed.** A lane holds competing options you vote
  * between and lock one of; a budget is a *constraint*, not a candidate. Worse,
@@ -259,23 +269,24 @@ export interface BuiltinCategorySeed {
  * against belongs on the trip, not in a lane.
  */
 export const BUILTIN_CATEGORIES: readonly BuiltinCategorySeed[] = [
+  // The one that cannot be anything else — see `canBeMultiSelect`.
   { builtinKey: "DATES", name: "Dates", singleChoice: true, position: 0 },
   {
     builtinKey: "TRANSPORT",
     name: "Transport",
-    singleChoice: true,
+    singleChoice: false,
     position: 1,
   },
   {
     builtinKey: "ACCOMMODATION",
     name: "Accommodation",
-    singleChoice: true,
+    singleChoice: false,
     position: 2,
   },
   {
     builtinKey: "ACTIVITIES",
     name: "Activities",
-    singleChoice: true,
+    singleChoice: false,
     position: 3,
   },
 ];

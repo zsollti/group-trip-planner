@@ -84,6 +84,36 @@ describe("Locking (e2e)", () => {
     return byKey;
   }
 
+  /**
+   * Narrow a category to single-choice and return it with its bumped version.
+   *
+   * Asked for explicitly rather than picked from the seed. These tests are
+   * about what a single-choice category does, and the seeded default has now
+   * flipped twice — every lane single-choice, then every lane but Dates
+   * multi-select. A test that reads its precondition off a default is a test
+   * that silently changes subject when the default does, which is exactly what
+   * happened here: the three below were written against a single-choice
+   * Accommodation and started failing the moment it stopped being one.
+   */
+  async function narrow(
+    accessToken: string,
+    tripId: string,
+    category: { id: string; version: number },
+    name: string,
+  ) {
+    const res = await http()
+      .patch(`/trips/${tripId}/categories/${category.id}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        name,
+        singleChoice: true,
+        paletteKey: null,
+        version: category.version,
+      })
+      .expect(200);
+    return res.body as { id: string; version: number };
+  }
+
   function optionsUrl(tripId: string, categoryId: string) {
     return `/trips/${tripId}/categories/${categoryId}/options`;
   }
@@ -138,10 +168,18 @@ describe("Locking (e2e)", () => {
     const owner = await makeUser("ms-owner");
     const trip = await createTrip(owner.accessToken, "Multi lock race");
     const cats = await categories(owner.accessToken, trip.id);
-    const transport = cats.TRANSPORT!; // multi-select
-    const opt = await propose(owner.accessToken, trip.id, transport.id, "FR1234");
+    const transport = cats.TRANSPORT!; // seeds multi-select
+    const opt = await propose(
+      owner.accessToken,
+      trip.id,
+      transport.id,
+      "FR1234",
+    );
     const url = `${optionsUrl(trip.id, transport.id)}/${opt.id}/lock`;
-    const body = { optionVersion: opt.version, categoryVersion: transport.version };
+    const body = {
+      optionVersion: opt.version,
+      categoryVersion: transport.version,
+    };
 
     // First lock wins.
     const first = await http()
@@ -170,7 +208,12 @@ describe("Locking (e2e)", () => {
     const owner = await makeUser("sc-owner");
     const trip = await createTrip(owner.accessToken, "Single lock race");
     const cats = await categories(owner.accessToken, trip.id);
-    const stay = cats.ACCOMMODATION!; // single-choice
+    const stay = await narrow(
+      owner.accessToken,
+      trip.id,
+      cats.ACCOMMODATION!,
+      "Accommodation",
+    );
     const a = await propose(owner.accessToken, trip.id, stay.id, "Hotel A");
     const b = await propose(owner.accessToken, trip.id, stay.id, "Hostel B");
 
@@ -211,7 +254,12 @@ describe("Locking (e2e)", () => {
     const trip = await createTrip(owner.accessToken, "Parallel multi");
     const cats = await categories(owner.accessToken, trip.id);
     const transport = cats.TRANSPORT!;
-    const opt = await propose(owner.accessToken, trip.id, transport.id, "Ferry");
+    const opt = await propose(
+      owner.accessToken,
+      trip.id,
+      transport.id,
+      "Ferry",
+    );
     const url = `${optionsUrl(trip.id, transport.id)}/${opt.id}/lock`;
 
     // Five callers all read version 0 and submit at once.
@@ -245,7 +293,12 @@ describe("Locking (e2e)", () => {
     const owner = await makeUser("par-sc-owner");
     const trip = await createTrip(owner.accessToken, "Parallel single");
     const cats = await categories(owner.accessToken, trip.id);
-    const stay = cats.ACCOMMODATION!;
+    const stay = await narrow(
+      owner.accessToken,
+      trip.id,
+      cats.ACCOMMODATION!,
+      "Accommodation",
+    );
     const a = await propose(owner.accessToken, trip.id, stay.id, "Villa A");
     const b = await propose(owner.accessToken, trip.id, stay.id, "Villa B");
 
@@ -279,7 +332,12 @@ describe("Locking (e2e)", () => {
     const owner = await makeUser("disp-owner");
     const trip = await createTrip(owner.accessToken, "Displace");
     let cats = await categories(owner.accessToken, trip.id);
-    const stay = cats.ACCOMMODATION!;
+    const stay = await narrow(
+      owner.accessToken,
+      trip.id,
+      cats.ACCOMMODATION!,
+      "Accommodation",
+    );
     const a = await propose(owner.accessToken, trip.id, stay.id, "Place A");
     const b = await propose(owner.accessToken, trip.id, stay.id, "Place B");
 
@@ -367,9 +425,17 @@ describe("Locking (e2e)", () => {
     ).expect(201);
     const cats = await categories(owner.accessToken, trip.id);
     const transport = cats.TRANSPORT!;
-    const opt = await propose(owner.accessToken, trip.id, transport.id, "Train");
+    const opt = await propose(
+      owner.accessToken,
+      trip.id,
+      transport.id,
+      "Train",
+    );
     const url = `${optionsUrl(trip.id, transport.id)}/${opt.id}/lock`;
-    const body = { optionVersion: opt.version, categoryVersion: transport.version };
+    const body = {
+      optionVersion: opt.version,
+      categoryVersion: transport.version,
+    };
 
     // A Participant cannot lock (decision.lock excludes Participant → 403).
     await http()
