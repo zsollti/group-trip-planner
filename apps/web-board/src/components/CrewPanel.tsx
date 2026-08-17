@@ -2,6 +2,7 @@ import { can, type TripRole } from "@gtp/types";
 import { useTripMembers } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
 import { ROLE_LABEL } from "../lib/roles";
+import { t } from "../lib/i18n";
 
 /**
  * Who is on this trip, at the top of the board.
@@ -49,7 +50,7 @@ export function CrewPanel({
   const canManage = can(myRole, "member.manage");
 
   return (
-    <section className="crew" aria-label="Crew">
+    <section className="crew" aria-label={t("Crew")}>
       <h2 className="crew__head">
         <span aria-hidden="true">👥 </span>Crew
         {roster ? <span className="crew__count">{roster.length}</span> : null}
@@ -60,19 +61,19 @@ export function CrewPanel({
 
       {members.isPending ? (
         <p className="board__muted" role="status">
-          Loading crew…
+          {t("Loading crew…")}
         </p>
       ) : members.isError ? (
         <>
           <p className="board__form-error" role="alert">
-            Couldn't load the crew.
+            {t("Couldn't load the crew.")}
           </p>
           <button
             type="button"
             className="board__cta"
             onClick={() => void members.refetch()}
           >
-            Try again
+            {t("Try again")}
           </button>
         </>
       ) : (
@@ -89,7 +90,7 @@ export function CrewPanel({
                 <span className="crew__name">
                   {m.displayName}
                   {m.userId === myUserId ? (
-                    <span className="board__muted"> (you)</span>
+                    <span className="board__muted"> {t("(you)")}</span>
                   ) : null}
                 </span>
                 {/* The role is the "maybe" in the ask, and it earns its place:

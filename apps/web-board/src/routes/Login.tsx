@@ -12,6 +12,7 @@ import {
   useAuth,
 } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
+import { t } from "../lib/i18n";
 
 export function Login() {
   const { login } = useAuth();
@@ -49,16 +50,21 @@ export function Login() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">Trip Board</p>
-        <h1 className="board__title">Sign in</h1>
+        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <h1 className="board__title">{t("Sign in")}</h1>
         {oauthFailed ? (
           <p className="board__form-error" role="alert">
-            Google sign-in didn't complete. Your browser may be blocking cookies
-            set by the API — try again, or sign in with your email and password.
+            {t(
+              "Google sign-in didn't complete. Your browser may be blocking cookies set by the API — try again, or sign in with your email and password.",
+            )}
           </p>
         ) : null}
         <form onSubmit={onSubmit} noValidate>
-          <Field htmlFor="email" label="Email" error={errors.email?.message}>
+          <Field
+            htmlFor="email"
+            label={t("Email")}
+            error={errors.email?.message}
+          >
             <Input
               id="email"
               type="email"
@@ -70,7 +76,7 @@ export function Login() {
           </Field>
           <Field
             htmlFor="password"
-            label="Password"
+            label={t("Password")}
             error={errors.password?.message}
           >
             <Input
@@ -91,7 +97,7 @@ export function Login() {
           </Button>
         </form>
         <div className="board__auth-divider" aria-hidden="true">
-          <span>or</span>
+          <span>{t("or")}</span>
         </div>
         <Button
           type="button"
@@ -100,10 +106,10 @@ export function Login() {
             window.location.href = googleSignInUrl(next);
           }}
         >
-          Continue with Google
+          {t("Continue with Google")}
         </Button>
         <p className="board__alt">
-          No account? <Link to={registerHref}>Create one</Link>
+          No account? <Link to={registerHref}>{t("Create one")}</Link>
         </p>
       </div>
     </div>

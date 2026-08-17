@@ -14,6 +14,7 @@ import {
   useTripInvites,
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
+import { t } from "../lib/i18n";
 
 const ROLE_LABEL: Record<TripRole, string> = {
   OWNER: "Owner",
@@ -96,13 +97,13 @@ export function InviteDialog({
   return (
     <Dialog
       eyebrow="Invite"
-      title="Invite people to this board"
+      title={t("Invite people to this board")}
       onClose={onClose}
     >
       <>
         <form onSubmit={onCreate} noValidate>
           <fieldset className="board__radio-group">
-            <legend className="board__field-label">Link type</legend>
+            <legend className="board__field-label">{t("Link type")}</legend>
             <label className="board__radio">
               <input
                 type="radio"
@@ -111,9 +112,9 @@ export function InviteDialog({
                 onChange={() => setType("GLOBAL")}
               />
               <span>
-                <strong>Global</strong> — one reusable link anyone can use to
-                join. One per role; disable it anytime (members who joined
-                stay).
+                <strong>{t("Global")}</strong> — one reusable link anyone can
+                use to join. One per role; disable it anytime (members who
+                joined stay).
               </span>
             </label>
             <label className="board__radio">
@@ -124,13 +125,13 @@ export function InviteDialog({
                 onChange={() => setType("PERSONAL")}
               />
               <span>
-                <strong>Personal</strong> — a single-use link for one person,
-                optionally emailed. Used up after the first join.
+                <strong>{t("Personal")}</strong> — a single-use link for one
+                person, optionally emailed. Used up after the first join.
               </span>
             </label>
           </fieldset>
 
-          <Field htmlFor="invite-role" label="Role granted">
+          <Field htmlFor="invite-role" label={t("Role granted")}>
             <select
               id="invite-role"
               className="board__select"
@@ -148,13 +149,13 @@ export function InviteDialog({
           {type === "PERSONAL" ? (
             <Field
               htmlFor="invite-email"
-              label="Email (optional)"
+              label={t("Email (optional)")}
               hint="We'll email the link. It stays unbound — anyone who gets it can use it."
             >
               <Input
                 id="invite-email"
                 type="email"
-                placeholder="friend@example.com"
+                placeholder={t("friend@example.com")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -179,26 +180,28 @@ export function InviteDialog({
         </form>
 
         <div className="board__invite-list">
-          <p className="board__eyebrow">Existing links</p>
+          <p className="board__eyebrow">{t("Existing links")}</p>
           {invites.isPending ? (
             <p className="board__muted" role="status">
-              Loading links…
+              {t("Loading links…")}
             </p>
           ) : invites.isError ? (
             <>
               <p className="board__form-error" role="alert">
-                Couldn't load invite links.
+                {t("Couldn't load invite links.")}
               </p>
               <button
                 type="button"
                 className="board__cta"
                 onClick={() => void invites.refetch()}
               >
-                Try again
+                {t("Try again")}
               </button>
             </>
           ) : invites.data.length === 0 ? (
-            <p className="board__muted">No links yet. Create one above.</p>
+            <p className="board__muted">
+              {t("No links yet. Create one above.")}
+            </p>
           ) : (
             <ul className="board__invite-items">
               {invites.data.map((link) => {
@@ -229,7 +232,7 @@ export function InviteDialog({
                             disabled={disableInvite.isPending}
                             onClick={() => disableInvite.mutate(link.id)}
                           >
-                            Disable
+                            {t("Disable")}
                           </Button>
                         </>
                       ) : null}

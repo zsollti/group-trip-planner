@@ -19,6 +19,7 @@ import { Avatar } from "./Avatar";
 import { Menu } from "./Menu";
 import { partitionByFit, useFitCount } from "../lib/fitTabs";
 import { truncateName } from "../lib/truncate";
+import { t } from "../lib/i18n";
 
 /**
  * Width the "＋N" overflow trigger claims in the switcher row, and the flex gap
@@ -82,7 +83,7 @@ function MessageRow({
   if (message.deleted) {
     return (
       <li className="board__msg board__msg--tombstone">
-        <span className="board__msg-body">message deleted</span>
+        <span className="board__msg-body">{t("message deleted")}</span>
       </li>
     );
   }
@@ -114,7 +115,7 @@ function MessageRow({
           <button
             type="button"
             className="board__msg-del"
-            aria-label="Delete message"
+            aria-label={t("Delete message")}
             onClick={() => onDelete(message.id)}
           >
             ×
@@ -148,7 +149,7 @@ function MessageRow({
             <button
               type="button"
               className="board__reaction-addbtn"
-              aria-label="Add reaction"
+              aria-label={t("Add reaction")}
               aria-expanded={picking}
               onClick={() => setPicking((p) => !p)}
             >
@@ -372,7 +373,11 @@ export function ChatPanel({
         ) : null}
       </button>
       {open ? (
-        <section className="board__chat" role="dialog" aria-label="Trip chat">
+        <section
+          className="board__chat"
+          role="dialog"
+          aria-label={t("Trip chat")}
+        >
           <header className="board__chat-head">
             <strong
               title={activeChannel ? channelName(activeChannel) : undefined}
@@ -382,7 +387,7 @@ export function ChatPanel({
             <button
               type="button"
               className="board__chat-close"
-              aria-label="Close chat"
+              aria-label={t("Close chat")}
               onClick={closePanel}
             >
               ×
@@ -417,7 +422,7 @@ export function ChatPanel({
               <div
                 className="board__chat-tabs"
                 role="group"
-                aria-label="Channels"
+                aria-label={t("Channels")}
                 ref={fit.containerRef}
               >
                 {/* The chips clip, the overflow menu must not. Only this inner
@@ -491,19 +496,19 @@ export function ChatPanel({
           <div className="board__chat-log" ref={logRef}>
             {chat.status === "loading" ? (
               <p className="board__muted" role="status">
-                Loading messages…
+                {t("Loading messages…")}
               </p>
             ) : chat.status === "error" ? (
               <>
                 <p className="board__form-error" role="alert">
-                  Couldn't load chat.
+                  {t("Couldn't load chat.")}
                 </p>
                 <button
                   type="button"
                   className="board__chat-older"
                   onClick={chat.reload}
                 >
-                  Try again
+                  {t("Try again")}
                 </button>
               </>
             ) : (
@@ -520,8 +525,9 @@ export function ChatPanel({
                 ) : null}
                 {chat.messages.length === 0 ? (
                   <p className="board__muted">
-                    No messages yet. Say hello — or @mention someone to pull
-                    them in.
+                    {t(
+                      "No messages yet. Say hello — or @mention someone to pull them in.",
+                    )}
                   </p>
                 ) : (
                   <ul className="board__msg-list">
@@ -563,8 +569,8 @@ export function ChatPanel({
               data-gtp-input
               className="board__chat-input"
               rows={2}
-              placeholder="Message the group… @ to mention"
-              aria-label="Message"
+              placeholder={t("Message the group… @ to mention")}
+              aria-label={t("Message")}
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
@@ -584,7 +590,7 @@ export function ChatPanel({
               }}
             />
             <Button type="submit" variant="primary" disabled={!draft.trim()}>
-              Send
+              {t("Send")}
             </Button>
           </form>
         </section>

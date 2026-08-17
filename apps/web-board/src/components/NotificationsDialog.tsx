@@ -11,6 +11,7 @@ import {
   notificationAgo,
   notificationHeadline,
 } from "../lib/notifications";
+import { t } from "../lib/i18n";
 
 /**
  * The notification list, opened from the account menu.
@@ -43,7 +44,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Dialog eyebrow="Account" title="Notifications" onClose={onClose}>
+    <Dialog eyebrow="Account" title={t("Notifications")} onClose={onClose}>
       {unread > 0 ? (
         <div className="bell__head">
           <span className="bell__title">{unread} unread</span>
@@ -53,14 +54,14 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
             onClick={() => markAllRead.mutate()}
             disabled={markAllRead.isPending}
           >
-            Mark all read
+            {t("Mark all read")}
           </button>
         </div>
       ) : null}
 
       {list.isPending ? (
         <div className="bell__state" aria-busy="true">
-          Loading…
+          {t("Loading…")}
         </div>
       ) : list.isError ? (
         <div className="bell__state" role="alert">
@@ -70,12 +71,12 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
             className="board__link-btn"
             onClick={() => void list.refetch()}
           >
-            Retry
+            {t("Retry")}
           </button>
         </div>
       ) : notifications.length === 0 ? (
         <div className="bell__state">
-          Nothing yet. Proposals, decisions and mentions land here.
+          {t("Nothing yet. Proposals, decisions and mentions land here.")}
         </div>
       ) : (
         <ul className="bell__list">

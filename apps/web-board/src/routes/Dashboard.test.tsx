@@ -86,7 +86,9 @@ describe("Dashboard ordering", () => {
     expect(
       screen.getByRole("button", { name: "Reorder Alps" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reorder Last year" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Reorder Last year" }),
+    ).toBeNull();
   });
 
   it("keeps the grip outside the link it sits on", () => {

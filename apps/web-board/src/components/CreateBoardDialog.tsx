@@ -12,6 +12,7 @@ import { DateRangeField } from "./DateRangeField";
 import { parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
 import { tripDateStepError } from "../lib/tripDateStep";
+import { t } from "../lib/i18n";
 
 /**
  * The questions, in the order a trip is actually decided.
@@ -178,7 +179,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
       onClose={onClose}
     >
       <form onSubmit={(e) => void onSubmit(e)} noValidate>
-        <ol className="steps" aria-label="Progress">
+        <ol className="steps" aria-label={t("Progress")}>
           {STEPS.map((s, i) => (
             <li
               key={s.id}
@@ -198,10 +199,14 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             answer they have not been shown. The values live above, so going
             back and forth loses nothing. */}
         {step.id === "name" ? (
-          <Field htmlFor="name" label="Trip name" error={errors.name?.message}>
+          <Field
+            htmlFor="name"
+            label={t("Trip name")}
+            error={errors.name?.message}
+          >
             <Input
               id="name"
-              placeholder="Lisbon 2026"
+              placeholder={t("Lisbon 2026")}
               autoFocus
               invalid={Boolean(errors.name)}
               {...nameField}
@@ -216,13 +221,13 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
         {step.id === "destination" ? (
           <Field
             htmlFor="destination"
-            label="Destination"
+            label={t("Destination")}
             error={errors.destination?.message}
             hint="A city, a country, or nothing at all — it can be added later."
           >
             <Input
               id="destination"
-              placeholder="Lisbon, Portugal"
+              placeholder={t("Lisbon, Portugal")}
               autoFocus
               invalid={Boolean(errors.destination)}
               {...register("destination")}
@@ -262,7 +267,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
         {step.id === "currency" ? (
           <Field
             htmlFor="defaultCurrency"
-            label="Default currency"
+            label={t("Default currency")}
             error={errors.defaultCurrency?.message}
             hint="What prices here are quoted in. An option can still be priced in another."
           >
@@ -277,7 +282,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
         {step.id === "budget" ? (
           <Field
             htmlFor="budgetPerPerson"
-            label="Budget per person"
+            label={t("Budget per person")}
             hint="A target to read the total against — nothing is blocked for going over."
           >
             <Input
@@ -314,7 +319,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
               variant="secondary"
               onClick={() => setStepIndex((i) => i - 1)}
             >
-              Back
+              {t("Back")}
             </Button>
           ) : null}
           {/* Disabled while the dates cannot be used, rather than merely
@@ -323,7 +328,9 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
           <Button
             type="submit"
             variant="primary"
-            disabled={isSubmitting || (step.id === "dates" && dateError !== null)}
+            disabled={
+              isSubmitting || (step.id === "dates" && dateError !== null)
+            }
           >
             {isSubmitting
               ? "Creating…"

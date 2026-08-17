@@ -186,18 +186,8 @@ export function translate(
 /**
  * Substitute `{placeholder}` values into a (possibly translated) pattern.
  *
- * Deliberately dumb: it replaces the placeholders it is given and leaves anything
- * else alone. A translation that drops a placeholder loses a number rather than
- * breaking a page, and one that invents a placeholder shows the brace — both
- * visible in review, neither fatal at runtime.
+ * Re-exported from the contract rather than implemented here: the board renders
+ * its own labels with the same rule, and two copies of a substitution rule is two
+ * chances for a sentence to come out differently on either side of the wire.
  */
-export function interpolate(
-  pattern: string,
-  params: Readonly<Record<string, string | number>> = {},
-): string {
-  let out = pattern;
-  for (const [key, value] of Object.entries(params)) {
-    out = out.split(`{${key}}`).join(String(value));
-  }
-  return out;
-}
+export { interpolate } from "@gtp/types";

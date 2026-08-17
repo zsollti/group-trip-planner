@@ -16,6 +16,7 @@ import {
 } from "../lib/timeline";
 import { tripDateForDisplay } from "../lib/tripDate";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { t } from "../lib/i18n";
 
 /** A trip date, rendered from the calendar day it names rather than its instant. */
 function fmtTripDate(iso: string | null): string {
@@ -71,7 +72,7 @@ export function Timeline() {
           className="board__brand board__brand--link"
           to={id ? `/trips/${id}` : "/"}
         >
-          ‹ Board
+          {t("‹ Board")}
         </Link>
         <div className="board__bar-actions">
           <UserMenu />
@@ -79,7 +80,7 @@ export function Timeline() {
       </header>
 
       {trip.isPending || categories.isPending ? (
-        <p className="board__muted">Loading timeline…</p>
+        <p className="board__muted">{t("Loading timeline…")}</p>
       ) : trip.isError ? (
         <>
           <p className="board__form-error" role="alert">
@@ -88,19 +89,19 @@ export function Timeline() {
               : "Couldn't load this board."}
           </p>
           <Link className="board__cta" to="/">
-            Back to boards
+            {t("Back to boards")}
           </Link>
         </>
       ) : categories.isError ? (
         <p className="board__form-error" role="alert">
-          Couldn't load the category lanes.
+          {t("Couldn't load the category lanes.")}
         </p>
       ) : (
         /* The measure lives on `.board--measure` above, shared with the other
            reading surfaces — it began here as a timeline-private idea, which is
            exactly why the page looked like an accident next to the rest. */
         <>
-          <p className="board__eyebrow">Timeline</p>
+          <p className="board__eyebrow">{t("Timeline")}</p>
           <h1 className="board__title">{trip.data.name}</h1>
           <p className="board__muted">
             {tripDates ? (
@@ -109,7 +110,7 @@ export function Timeline() {
                 {fmtTripDate(trip.data.endDate)} ·{" "}
               </>
             ) : (
-              <>Dates not settled · </>
+              <>{t("Dates not settled ·")}</>
             )}
             {timeline.placedCount} decision
             {timeline.placedCount === 1 ? "" : "s"} placed
@@ -123,18 +124,22 @@ export function Timeline() {
             <ToggleSwitch
               checked={showProposals}
               onChange={setShowProposals}
-              label="Show proposals"
-              description="Draw the options still being decided, under the ones that are settled."
+              label={t("Show proposals")}
+              description={t(
+                "Draw the options still being decided, under the ones that are settled.",
+              )}
             />
           </div>
 
           {opts.isPending ? (
             <p className="board__muted" role="status">
-              Loading decisions…
+              {t("Loading decisions…")}
             </p>
           ) : opts.isError ? (
             <p className="board__form-error" role="alert">
-              Couldn't load the trip's decisions. Reload the page to try again.
+              {t(
+                "Couldn't load the trip's decisions. Reload the page to try again.",
+              )}
             </p>
           ) : (
             <TimelineBoard timeline={timeline} tripDates={tripDates} />

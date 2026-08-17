@@ -14,6 +14,7 @@ import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
 import { onAmountInput } from "../lib/amountField";
+import { t } from "../lib/i18n";
 
 /**
  * Board-paradigm edit surface: a floating card pre-filled from the trip,
@@ -100,13 +101,18 @@ export function EditBoardDialog({
   });
 
   return (
-    <Dialog eyebrow="Edit board" title="Edit trip details" onClose={onClose}>
+    <Dialog
+      eyebrow="Edit board"
+      title={t("Edit trip details")}
+      onClose={onClose}
+    >
       <>
         {conflict ? (
           <div>
             <p className="board__form-error" role="alert">
-              This board changed since you opened it. Reload to see the latest,
-              then re-apply your edit.
+              {t(
+                "This board changed since you opened it. Reload to see the latest, then re-apply your edit.",
+              )}
             </p>
             <div className="board__dialog-actions">
               <Button
@@ -114,7 +120,7 @@ export function EditBoardDialog({
                 variant="primary"
                 onClick={() => window.location.reload()}
               >
-                Reload
+                {t("Reload")}
               </Button>
             </div>
           </div>
@@ -122,7 +128,7 @@ export function EditBoardDialog({
           <form onSubmit={onSubmit} noValidate>
             <Field
               htmlFor="name"
-              label="Trip name"
+              label={t("Trip name")}
               error={errors.name?.message}
             >
               <Input
@@ -133,7 +139,7 @@ export function EditBoardDialog({
             </Field>
             <Field
               htmlFor="destination"
-              label="Destination"
+              label={t("Destination")}
               error={errors.destination?.message}
               hint="Optional."
             >
@@ -145,7 +151,7 @@ export function EditBoardDialog({
             </Field>
             <Field
               htmlFor="defaultCurrency"
-              label="Default currency"
+              label={t("Default currency")}
               error={errors.defaultCurrency?.message}
               hint="What prices on this board are quoted in."
             >
@@ -161,7 +167,7 @@ export function EditBoardDialog({
             </Field>
             <Field
               htmlFor="budgetPerPerson"
-              label="Budget per person"
+              label={t("Budget per person")}
               hint="Optional. A target to read the total against — nothing is blocked for going over. Clear it to remove the target."
             >
               <Input
@@ -188,7 +194,7 @@ export function EditBoardDialog({
                 applies on its own, so it carries no `version` and can't trip
                 the optimistic-concurrency check the text fields live under. */}
             <ImagePicker
-              label="Cover image"
+              label={t("Cover image")}
               shape="wide"
               currentUrl={trip.coverImageUrl}
               busy={setCover.isPending || removeCover.isPending}

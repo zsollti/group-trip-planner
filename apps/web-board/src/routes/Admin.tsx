@@ -20,6 +20,7 @@ import type {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { UserMenu } from "../components/UserMenu";
+import { t } from "../lib/i18n";
 
 /**
  * The operator's console.
@@ -42,7 +43,7 @@ export function Admin() {
     <main className="board">
       <header className="board__bar">
         <Link className="board__brand board__brand--link" to="/">
-          ‹ Boards
+          {t("‹ Boards")}
         </Link>
         <div className="board__bar-actions">
           <UserMenu />
@@ -50,11 +51,11 @@ export function Admin() {
       </header>
 
       <p className="board__eyebrow">Operations · signed in as {user?.email}</p>
-      <h1 className="board__title">Console</h1>
+      <h1 className="board__title">{t("Console")}</h1>
 
       {overview.isPending ? (
         <p className="board__muted" role="status">
-          Reading the deployment…
+          {t("Reading the deployment…")}
         </p>
       ) : overview.isError ? (
         <p className="board__form-error" role="alert">
@@ -115,10 +116,13 @@ function DemoPanel() {
   }
 
   return (
-    <section className="admin__panel admin__panel--wide" aria-label="Demo data">
-      <h2 className="admin__panel-title">Demo data</h2>
+    <section
+      className="admin__panel admin__panel--wide"
+      aria-label={t("Demo data")}
+    >
+      <h2 className="admin__panel-title">{t("Demo data")}</h2>
       <p className="admin__note">
-        Deletes the trips owned by <strong>demo@example.com</strong> and
+        Deletes the trips owned by <strong>{t("demo@example.com")}</strong> and
         rebuilds the published demo board from the seed — five members, fourteen
         options, four decisions, the chat and the votes. No other account is
         touched, and the demo password is reset to the one in the README.
@@ -127,19 +131,20 @@ function DemoPanel() {
       {confirming ? (
         <>
           <p className="admin__alert" role="alert">
-            This throws away whatever visitors have done to the demo, and cannot
-            be undone.
+            {t(
+              "This throws away whatever visitors have done to the demo, and cannot be undone.",
+            )}
           </p>
           <div className="admin__actions">
             <Button type="button" onClick={() => void run()}>
-              Yes, rebuild it
+              {t("Yes, rebuild it")}
             </Button>
             <Button
               type="button"
               variant="ghost"
               onClick={() => setConfirming(false)}
             >
-              Cancel
+              {t("Cancel")}
             </Button>
           </div>
         </>
@@ -159,16 +164,16 @@ function DemoPanel() {
       {result ? (
         <div>
           <p className="admin__done" role="status">
-            Demo rebuilt.
+            {t("Demo rebuilt.")}
           </p>
-          <Row label="Trip" value={result.tripName} />
-          <Row label="Board id" value={result.tripId} />
+          <Row label={t("Trip")} value={result.tripName} />
+          <Row label={t("Board id")} value={result.tripId} />
           <Row
-            label="Contents"
+            label={t("Contents")}
             value={`${result.members} members · ${result.options} options · ${result.decisions} decisions · ${result.messages} messages`}
           />
           <Row
-            label="Replaced"
+            label={t("Replaced")}
             value={
               result.removedTrips === 0
                 ? "nothing — there was no demo trip here"
@@ -259,16 +264,16 @@ function SystemPanel({
   refreshing: boolean;
 }) {
   return (
-    <Panel title="This deployment">
-      <Row label="Environment" value={system.environment} />
+    <Panel title={t("This deployment")}>
+      <Row label={t("Environment")} value={system.environment} />
       <Row
-        label="Commit"
+        label={t("Commit")}
         value={system.commit ? system.commit.slice(0, 10) : "unstamped"}
       />
-      <Row label="Contract" value={system.contractVersion} />
-      <Row label="Node" value={system.nodeVersion} />
+      <Row label={t("Contract")} value={system.contractVersion} />
+      <Row label={t("Node")} value={system.nodeVersion} />
       <Row
-        label="Up since"
+        label={t("Up since")}
         value={`${when(system.startedAt)} (${ago(system.startedAt)})`}
       />
       <Button
@@ -293,17 +298,17 @@ function SystemPanel({
 function EmailPanel({ email }: { email: AdminEmail }) {
   const stuck = email.stuckSending > 0;
   return (
-    <Panel title="Email queue" tone={stuck ? "warn" : undefined}>
+    <Panel title={t("Email queue")} tone={stuck ? "warn" : undefined}>
       {!email.configured ? (
         <p className="admin__note">
-          No provider key set — mail is logged to the console, not sent.
+          {t("No provider key set — mail is logged to the console, not sent.")}
         </p>
       ) : null}
-      <Row label="Pending" value={email.pending} />
-      <Row label="Sending" value={email.sending} />
-      <Row label="Sent" value={email.sent} />
+      <Row label={t("Pending")} value={email.pending} />
+      <Row label={t("Sending")} value={email.sending} />
+      <Row label={t("Sent")} value={email.sent} />
       <Row
-        label="Failed"
+        label={t("Failed")}
         value={email.failed}
         tone={email.failed > 0 ? "warn" : undefined}
       />
@@ -347,26 +352,28 @@ function RatesPanel({ rates }: { rates: AdminRates }) {
     (rates.fetchedAt === null ||
       Date.now() - new Date(rates.fetchedAt).getTime() > 4 * 24 * 3600_000);
   return (
-    <Panel title="Exchange rates" tone={stale ? "warn" : undefined}>
+    <Panel title={t("Exchange rates")} tone={stale ? "warn" : undefined}>
       {!rates.configured ? (
         <p className="admin__note">
-          No feed configured — conversion is off, and every dashboard reports
-          exact per-currency figures only. This is a valid deployment.
+          {t(
+            "No feed configured — conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.",
+          )}
         </p>
       ) : (
         <>
-          <Row label="Currencies" value={rates.currencies} />
-          <Row label="Published" value={rates.asOf ?? "—"} />
+          <Row label={t("Currencies")} value={rates.currencies} />
+          <Row label={t("Published")} value={rates.asOf ?? "—"} />
           <Row
-            label="Fetched"
+            label={t("Fetched")}
             value={`${when(rates.fetchedAt)} (${ago(rates.fetchedAt)})`}
             tone={stale ? "warn" : "good"}
           />
-          <Row label="Source" value={rates.source ?? "—"} />
+          <Row label={t("Source")} value={rates.source ?? "—"} />
           {stale ? (
             <p className="admin__alert" role="alert">
-              A feed is configured but the snapshot has not refreshed in days.
-              Every ≈ total in the app is being computed from it.
+              {t(
+                "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.",
+              )}
             </p>
           ) : null}
         </>
@@ -387,18 +394,18 @@ function VolumePanel({ volume }: { volume: AdminVolume }) {
   const peak = Math.max(1, ...volume.signups.map((d) => d.count));
   const total = volume.signups.reduce((sum, d) => sum + d.count, 0);
   return (
-    <Panel title="Volume">
+    <Panel title={t("Volume")}>
       <Row
-        label="Users"
+        label={t("Users")}
         value={`${volume.users} (${volume.verifiedUsers} verified)`}
       />
       <Row
-        label="Trips"
+        label={t("Trips")}
         value={`${volume.trips} (${volume.activeTrips} active)`}
       />
-      <Row label="Options" value={volume.options} />
-      <Row label="Messages" value={volume.messages} />
-      <Row label="Uploads" value={bytes(volume.uploadBytes)} />
+      <Row label={t("Options")} value={volume.options} />
+      <Row label={t("Messages")} value={volume.messages} />
+      <Row label={t("Uploads")} value={bytes(volume.uploadBytes)} />
       {/* Zero-filled server-side, so a quiet month draws as a quiet month
           rather than as a dense one with fewer bars. */}
       <div
@@ -440,32 +447,32 @@ function UserLookup() {
   return (
     <section
       className="admin__panel admin__panel--wide"
-      aria-label="Find a user"
+      aria-label={t("Find a user")}
     >
-      <h2 className="admin__panel-title">Find a user</h2>
+      <h2 className="admin__panel-title">{t("Find a user")}</h2>
       <form className="admin__search" onSubmit={onSubmit}>
         <label className="board__sr-only" htmlFor="admin-q">
-          Email, name, or user id
+          {t("Email, name, or user id")}
         </label>
         <input
           id="admin-q"
           className="board__input"
           value={input}
-          placeholder="email, name, or user id"
+          placeholder={t("email, name, or user id")}
           onChange={(e) => setInput(e.target.value)}
         />
         <Button type="submit" variant="secondary">
-          Find
+          {t("Find")}
         </Button>
       </form>
 
       {query && results.isPending ? (
         <p className="board__muted" role="status">
-          Looking…
+          {t("Looking…")}
         </p>
       ) : results.isError ? (
         <p className="board__form-error" role="alert">
-          Couldn't run that lookup.
+          {t("Couldn't run that lookup.")}
         </p>
       ) : results.data && results.data.users.length === 0 ? (
         <p className="board__muted">Nobody matches “{query}”.</p>
@@ -506,19 +513,23 @@ function UserCard({ user }: { user: AdminUserSummary }) {
         <strong>{user.displayName}</strong>
         <span className="admin__user-email">{user.email}</span>
         {user.emailVerified ? (
-          <span className="admin__badge admin__badge--good">Verified</span>
+          <span className="admin__badge admin__badge--good">
+            {t("Verified")}
+          </span>
         ) : (
-          <span className="admin__badge admin__badge--warn">Unverified</span>
+          <span className="admin__badge admin__badge--warn">
+            {t("Unverified")}
+          </span>
         )}
         {user.anonymizedAt ? (
-          <span className="admin__badge">Anonymized</span>
+          <span className="admin__badge">{t("Anonymized")}</span>
         ) : null}
       </header>
-      <Row label="Signed up" value={when(user.createdAt)} />
-      <Row label="Last seen" value={ago(user.lastSeenAt)} />
-      <Row label="Trips" value={user.tripCount} />
+      <Row label={t("Signed up")} value={when(user.createdAt)} />
+      <Row label={t("Last seen")} value={ago(user.lastSeenAt)} />
+      <Row label={t("Trips")} value={user.tripCount} />
       <Row
-        label="Sign-in"
+        label={t("Sign-in")}
         value={user.hasPassword ? "password" : "Google only"}
       />
 
@@ -536,7 +547,9 @@ function UserCard({ user }: { user: AdminUserSummary }) {
           ))}
         </ul>
       ) : (
-        <p className="admin__note">No mail has been queued for this account.</p>
+        <p className="admin__note">
+          {t("No mail has been queued for this account.")}
+        </p>
       )}
 
       {!user.emailVerified ? (
@@ -547,7 +560,7 @@ function UserCard({ user }: { user: AdminUserSummary }) {
             disabled={busy}
             onClick={() => void run("resend")}
           >
-            Resend verification
+            {t("Resend verification")}
           </Button>
           <Button
             type="button"
@@ -555,7 +568,7 @@ function UserCard({ user }: { user: AdminUserSummary }) {
             disabled={busy}
             onClick={() => void run("verify")}
           >
-            Mark verified
+            {t("Mark verified")}
           </Button>
         </div>
       ) : null}
@@ -581,16 +594,16 @@ function AuditPanel() {
   return (
     <section
       className="admin__panel admin__panel--wide"
-      aria-label="Operator log"
+      aria-label={t("Operator log")}
     >
-      <h2 className="admin__panel-title">Operator log</h2>
+      <h2 className="admin__panel-title">{t("Operator log")}</h2>
       {audit.isPending ? (
         <p className="board__muted" role="status">
-          Loading…
+          {t("Loading…")}
         </p>
       ) : entries.length === 0 ? (
         <p className="board__muted">
-          Nothing has been done from this console yet.
+          {t("Nothing has been done from this console yet.")}
         </p>
       ) : (
         <ul className="admin__list">

@@ -7,6 +7,7 @@ import {
   paletteLabel,
   type CategoryIdentity,
 } from "../lib/categoryTheme";
+import { t } from "../lib/i18n";
 
 /**
  * Repaint a lane: the eight palettes, and the way back to the default.
@@ -47,9 +48,9 @@ export function PalettePicker({
   return (
     <Dialog title={`Colour for ${category.name}`} onClose={onClose}>
       <p className="board__dialog-note">
-        Everyone on this trip sees the colour you pick.
+        {t("Everyone on this trip sees the colour you pick.")}
       </p>
-      <div className="palette" role="group" aria-label="Palettes">
+      <div className="palette" role="group" aria-label={t("Palettes")}>
         {PALETTE_KEYS.map((key) => {
           const selected = key === current;
           return (
@@ -86,7 +87,7 @@ export function PalettePicker({
           disabled={busy}
           onClick={() => onPick(null)}
         >
-          Back to this lane’s own colour
+          {t("Back to this lane’s own colour")}
         </button>
       )}
       {error ? (

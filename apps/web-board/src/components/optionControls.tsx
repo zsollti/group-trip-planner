@@ -14,6 +14,7 @@ import {
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
+import { t } from "../lib/i18n";
 
 /** How many faces fit on a card before the rest become a count. */
 const SHOWN = 3;
@@ -48,7 +49,7 @@ function VoterList({
               <span className="voters__name">{v.displayName}</span>
               {v.stale ? (
                 <span className="voters__stale">
-                  voted before the last change
+                  {t("voted before the last change")}
                 </span>
               ) : null}
             </li>
@@ -58,7 +59,7 @@ function VoterList({
             close control, and a dialog a mouse cannot dismiss is a trap. */}
         <div className="board__dialog-actions">
           <Button type="button" variant="primary" onClick={onClose}>
-            Close
+            {t("Close")}
           </Button>
         </div>
       </>
@@ -115,7 +116,7 @@ export function VoteDots({
   return (
     <div className="lane__vote">
       {option.voters.length === 0 ? (
-        <span className="lane__meta">no votes</span>
+        <span className="lane__meta">{t("no votes")}</span>
       ) : (
         // One accessible name for the whole stack: read face by face it would
         // announce three names and then a number, which is not what it means.
@@ -208,7 +209,7 @@ function ParticipantList({
         </ul>
         <div className="board__dialog-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Close
+            {t("Close")}
           </Button>
         </div>
       </>
@@ -270,12 +271,12 @@ export function ParticipantDots({
           The button text distinguishes them once you read it; this says so
           before you do. */}
       <span className="lane__in-label" aria-hidden="true">
-        in
+        {t("in")}
       </span>
       {option.participants.length === 0 ? (
         // Not "no participants": the point of the card is to ask, so the empty
         // state is the question rather than a report of nothing.
-        <span className="lane__meta">nobody yet</span>
+        <span className="lane__meta">{t("nobody yet")}</span>
       ) : (
         <button
           type="button"

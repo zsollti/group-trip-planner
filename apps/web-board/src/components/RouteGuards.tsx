@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { OAUTH_RETURN_MARKER, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
+import { t } from "../lib/i18n";
 
 /** Canvas-style splash while the silent refresh resolves on load. */
 function BoardSplash() {
   return (
     <div className="board board--center">
-      <p className="board__eyebrow">Trip Board</p>
-      <p className="board__muted">Loading your boards…</p>
+      <p className="board__eyebrow">{t("Trip Board")}</p>
+      <p className="board__muted">{t("Loading your boards…")}</p>
     </div>
   );
 }

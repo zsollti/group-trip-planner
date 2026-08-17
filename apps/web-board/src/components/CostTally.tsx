@@ -18,6 +18,7 @@ import {
   type AllInTotal,
   type LockedCost,
 } from "../lib/costSummary";
+import { t } from "../lib/i18n";
 
 /** Write a figure the way its certainty deserves. */
 function figure(
@@ -72,12 +73,12 @@ export function CostTally({ tripId }: { tripId: string }) {
   const categories = useTripCategories(tripId);
 
   return (
-    <section className="board__cost-strip" aria-label="Cost">
+    <section className="board__cost-strip" aria-label={t("Cost")}>
       {dash.isPending ? (
-        <p className="board__tally-muted">Counting…</p>
+        <p className="board__tally-muted">{t("Counting…")}</p>
       ) : dash.isError ? (
         <p className="board__tally-muted" role="alert">
-          Couldn't load the cost.
+          {t("Couldn't load the cost.")}
         </p>
       ) : (
         <TallyBody d={dash.data} categories={categories.data ?? []} />
@@ -133,7 +134,7 @@ function TallyBody({
           />
         </div>
         <p className="board__tally-muted">
-          Lock a priced option to start the tally.
+          {t("Lock a priced option to start the tally.")}
         </p>
         {verdict ? <TargetLine v={verdict} personal={false} /> : null}
       </>
@@ -276,7 +277,7 @@ function SplitTotals({ locked }: { locked: LockedCost }) {
           </strong>
         ))}
       </p>
-      <p className="board__tally-rates">no rate to add these up with</p>
+      <p className="board__tally-rates">{t("no rate to add these up with")}</p>
     </div>
   );
 }
@@ -310,9 +311,9 @@ function TargetLine({
       className={"board__budget" + (v.over ? " board__budget--over" : "")}
       role="status"
     >
-      <span className="board__budget-label">Target</span>
+      <span className="board__budget-label">{t("Target")}</span>
       <strong>{money(v.target, v.currency)}</strong>
-      <span className="board__budget-per">/person</span>
+      <span className="board__budget-per">{t("/person")}</span>
       <span className="board__budget-verdict">
         {personal ? "yours: " : ""}
         {gap} {v.over ? "over" : "to spare"}

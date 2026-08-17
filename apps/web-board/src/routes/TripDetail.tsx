@@ -29,6 +29,7 @@ import { NotificationToasts } from "../components/NotificationToasts";
 import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
+import { t } from "../lib/i18n";
 
 const ROLE_LABEL: Record<TripDetailData["role"], string> = {
   OWNER: "Owner",
@@ -144,7 +145,7 @@ export function TripDetail() {
        */}
       <header className="board__bar" data-socket-status={tripSocket.status}>
         <Link className="board__brand board__brand--link" to="/">
-          ‹ Boards
+          {t("‹ Boards")}
         </Link>
         <div className="board__bar-actions">
           {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
@@ -160,7 +161,7 @@ export function TripDetail() {
               className="board__timeline-link"
               to={`/trips/${trip.data.id}/timeline`}
             >
-              Timeline
+              {t("Timeline")}
             </Link>
           ) : null}
           {trip.data && can(trip.data.role, "invite.create") ? (
@@ -169,18 +170,18 @@ export function TripDetail() {
               variant="secondary"
               onClick={() => setInviting(true)}
             >
-              Invite
+              {t("Invite")}
             </Button>
           ) : null}
           {trip.data ? (
-            <Menu label="Trip menu" items={tripMenuItems(trip.data)} />
+            <Menu label={t("Trip menu")} items={tripMenuItems(trip.data)} />
           ) : null}
           <UserMenu />
         </div>
       </header>
 
       {trip.isPending ? (
-        <p className="board__muted">Loading board…</p>
+        <p className="board__muted">{t("Loading board…")}</p>
       ) : trip.isError ? (
         <>
           <p className="board__form-error" role="alert">
@@ -189,7 +190,7 @@ export function TripDetail() {
               : "Couldn't load this board."}
           </p>
           <Link className="board__cta" to="/">
-            Back to boards
+            {t("Back to boards")}
           </Link>
         </>
       ) : (
@@ -200,7 +201,7 @@ export function TripDetail() {
             {/* Muting is invisible by nature — say so, or people forget they
                 did it and wonder why the inbox is quiet (Phase 5.3). */}
             {trip.data.viewerMuted ? (
-              <span className="board__mutedflag"> · 🔕 Email muted</span>
+              <span className="board__mutedflag"> {t("· 🔕 Email muted")}</span>
             ) : null}
           </p>
           <h1 className="board__title">{trip.data.name}</h1>
@@ -222,8 +223,9 @@ export function TripDetail() {
           </p>
           {trip.data.status === "HISTORY" ? (
             <p className="board__frozen" role="status">
-              This board has ended — it's now read-only. Proposing, dot-voting,
-              and locking are closed.
+              {t(
+                "This board has ended — it's now read-only. Proposing, dot-voting, and locking are closed.",
+              )}
             </p>
           ) : null}
 
@@ -235,21 +237,21 @@ export function TripDetail() {
 
           {categories.isPending ? (
             <p className="board__muted" role="status">
-              Loading lanes…
+              {t("Loading lanes…")}
             </p>
           ) : categories.isError ? (
             /* Was a muted line with no way out: the lanes ARE the board, so a
                failure here empties the screen. Announce it and offer a retry. */
             <>
               <p className="board__form-error" role="alert">
-                Couldn't load the category lanes.
+                {t("Couldn't load the category lanes.")}
               </p>
               <button
                 type="button"
                 className="board__cta"
                 onClick={() => void categories.refetch()}
               >
-                Try again
+                {t("Try again")}
               </button>
             </>
           ) : (
@@ -315,8 +317,9 @@ export function TripDetail() {
               onClose={() => setConfirmingDelete(false)}
             >
               <p className="board__muted" id="delete-board-blurb">
-                This permanently removes the board and its membership for
-                everyone. This can't be undone.
+                {t(
+                  "This permanently removes the board and its membership for everyone. This can't be undone.",
+                )}
               </p>
               <div className="board__dialog-actions">
                 <Button
@@ -324,7 +327,7 @@ export function TripDetail() {
                   variant="secondary"
                   onClick={() => setConfirmingDelete(false)}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </Button>
                 <Button
                   type="button"

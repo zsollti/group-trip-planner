@@ -2,6 +2,7 @@ import { useTripActivity } from "@gtp/api-client";
 import { intlTag } from "../lib/locale";
 import { activityHeadline, type ActivityAction } from "@gtp/types";
 import { Dialog } from "./Dialog";
+import { t } from "../lib/i18n";
 
 /** A glyph per action — a quick visual scan of what kind of event a line is. */
 const ICON: Record<ActivityAction, string> = {
@@ -54,29 +55,30 @@ export function ActivityDialog({
   const events = activity.data?.pages.flatMap((p) => p.events) ?? [];
 
   return (
-    <Dialog eyebrow="History" title="Activity" onClose={onClose}>
+    <Dialog eyebrow="History" title={t("Activity")} onClose={onClose}>
       <>
         {activity.isPending ? (
           <p className="board__muted" role="status">
-            Loading activity…
+            {t("Loading activity…")}
           </p>
         ) : activity.isError ? (
           <>
             <p className="board__form-error" role="alert">
-              Couldn't load this board's activity.
+              {t("Couldn't load this board's activity.")}
             </p>
             <button
               type="button"
               className="board__cta"
               onClick={() => void activity.refetch()}
             >
-              Try again
+              {t("Try again")}
             </button>
           </>
         ) : events.length === 0 ? (
           <p className="board__muted">
-            Nothing has happened here yet. Locked decisions, role changes, and
-            departures will show up on this list.
+            {t(
+              "Nothing has happened here yet. Locked decisions, role changes, and departures will show up on this list.",
+            )}
           </p>
         ) : (
           <>

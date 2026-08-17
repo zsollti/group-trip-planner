@@ -6,6 +6,7 @@ import { Button, Field, Input } from "@gtp/ui-primitives";
 import { RegisterInput } from "@gtp/types";
 import { ApiError, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
+import { t } from "../lib/i18n";
 
 export function Register() {
   const { register: registerAccount } = useAuth();
@@ -37,14 +38,14 @@ export function Register() {
     return (
       <div className="board board--center">
         <div className="board__auth">
-          <p className="board__eyebrow">Trip Board</p>
-          <h1 className="board__title">Check your inbox</h1>
+          <p className="board__eyebrow">{t("Trip Board")}</p>
+          <h1 className="board__title">{t("Check your inbox")}</h1>
           <p className="board__muted">
             We sent a verification link. In local dev it&apos;s printed to the
             API console — open it, then sign in.
           </p>
           <p className="board__alt">
-            <Link to={loginHref}>Back to sign in</Link>
+            <Link to={loginHref}>{t("Back to sign in")}</Link>
           </p>
         </div>
       </div>
@@ -54,12 +55,12 @@ export function Register() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">Trip Board</p>
-        <h1 className="board__title">Create account</h1>
+        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <h1 className="board__title">{t("Create account")}</h1>
         <form onSubmit={onSubmit} noValidate>
           <Field
             htmlFor="displayName"
-            label="Display name"
+            label={t("Display name")}
             error={errors.displayName?.message}
           >
             <Input
@@ -70,7 +71,11 @@ export function Register() {
               {...register("displayName")}
             />
           </Field>
-          <Field htmlFor="email" label="Email" error={errors.email?.message}>
+          <Field
+            htmlFor="email"
+            label={t("Email")}
+            error={errors.email?.message}
+          >
             <Input
               id="email"
               type="email"
@@ -81,7 +86,7 @@ export function Register() {
           </Field>
           <Field
             htmlFor="password"
-            label="Password"
+            label={t("Password")}
             error={errors.password?.message}
             hint="At least 8 characters."
           >
@@ -103,7 +108,7 @@ export function Register() {
           </Button>
         </form>
         <p className="board__alt">
-          Already have an account? <Link to={loginHref}>Sign in</Link>
+          Already have an account? <Link to={loginHref}>{t("Sign in")}</Link>
         </p>
       </div>
     </div>

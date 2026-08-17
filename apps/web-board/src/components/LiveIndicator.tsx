@@ -23,7 +23,11 @@ import type { SocketStatus } from "@gtp/api-client";
 export function LiveIndicator({ status }: { status: SocketStatus }) {
   if (status !== "error") return null;
   return (
-    <span className="board__live board__live--error" role="status" aria-live="polite">
+    <span
+      className="board__live board__live--error"
+      role="status"
+      aria-live="polite"
+    >
       <span className="board__live-dot" aria-hidden="true" />
       Offline — not updating
     </span>

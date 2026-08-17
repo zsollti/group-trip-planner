@@ -1,5 +1,6 @@
 import { forwardRef, type SelectHTMLAttributes } from "react";
 import { currencyChoices } from "@gtp/types";
+import { t } from "../lib/i18n";
 
 /**
  * Pick a currency, instead of typing three letters and hoping.
@@ -46,14 +47,14 @@ export const CurrencySelect = forwardRef<
         .join(" ")}
       {...rest0}
     >
-      <optgroup label="Common">
+      <optgroup label={t("Common")}>
         {common.map((c) => (
           <option key={c.code} value={c.code}>
             {c.code} — {c.name}
           </option>
         ))}
       </optgroup>
-      <optgroup label="All currencies">
+      <optgroup label={t("All currencies")}>
         {rest.map((c) => (
           <option key={c.code} value={c.code}>
             {c.code} — {c.name}

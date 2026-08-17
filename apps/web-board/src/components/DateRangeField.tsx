@@ -16,6 +16,7 @@ import {
   type GridKey,
   type MonthCursor,
 } from "../lib/monthGrid";
+import { t } from "../lib/i18n";
 
 /** A start/end pair of calendar days, either end possibly unset. */
 export interface DayRange {
@@ -203,7 +204,7 @@ function RangeGrid({
         <button
           type="button"
           className="drange__step"
-          aria-label="Previous month"
+          aria-label={t("Previous month")}
           onClick={() => onCursor(addMonths(cursor, -1))}
         >
           ‹
@@ -216,7 +217,7 @@ function RangeGrid({
         <button
           type="button"
           className="drange__step"
-          aria-label="Next month"
+          aria-label={t("Next month")}
           onClick={() => onCursor(addMonths(cursor, 1))}
         >
           ›
@@ -257,14 +258,16 @@ function RangeGrid({
               ) : null}
             </>
           ) : (
-            <span className="drange__chosen--empty">No dates chosen</span>
+            <span className="drange__chosen--empty">
+              {t("No dates chosen")}
+            </span>
           )}
         </p>
         {/* Without the inputs there is no way to blank a range you set by
             mistake — every tap sets something. */}
         {onClear ? (
           <button type="button" className="drange__clear" onClick={onClear}>
-            Clear
+            {t("Clear")}
           </button>
         ) : null}
       </div>

@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { t } from "../lib/i18n";
 
 /** Focusable descendants, in DOM order, skipping anything disabled or hidden. */
 function focusablesIn(root: HTMLElement): HTMLElement[] {
@@ -184,7 +185,7 @@ export function Dialog({
         <button
           type="button"
           className="board__dialog-x"
-          aria-label="Close"
+          aria-label={t("Close")}
           onClick={onClose}
         >
           <span aria-hidden="true">×</span>

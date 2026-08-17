@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { t } from "../lib/i18n";
 
 /**
  * The unsubscribe landing (Phase 5.3). The API applies the change and redirects
@@ -16,35 +17,37 @@ export function Unsubscribed() {
   return (
     <main className="board board--center">
       <section className="board__auth" aria-labelledby="unsub-heading">
-        <p className="board__eyebrow">Group Trip Planner</p>
+        <p className="board__eyebrow">{t("Group Trip Planner")}</p>
         {invalid ? (
           <>
             <h1 className="board__title" id="unsub-heading">
-              That link didn't work
+              {t("That link didn't work")}
             </h1>
             <p className="board__muted">
-              It may have been mistyped or truncated by your mail app. Nothing
-              changed — you can turn mention emails off from notification
-              settings instead.
+              {t(
+                "It may have been mistyped or truncated by your mail app. Nothing changed — you can turn mention emails off from notification settings instead.",
+              )}
             </p>
           </>
         ) : (
           <>
             <h1 className="board__title" id="unsub-heading">
-              You're unsubscribed
+              {t("You're unsubscribed")}
             </h1>
             <p className="board__muted">
-              We won't email you when someone @mentions you. You'll still see
-              mentions in the app, and account emails — verifying your address,
-              signing in — are unaffected.
+              {t(
+                "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails — verifying your address, signing in — are unaffected.",
+              )}
             </p>
             <p className="board__muted">
-              Changed your mind? Turn it back on in notification settings.
+              {t(
+                "Changed your mind? Turn it back on in notification settings.",
+              )}
             </p>
           </>
         )}
         <Link className="board__cta" to="/settings">
-          Notification settings
+          {t("Notification settings")}
         </Link>
       </section>
     </main>
