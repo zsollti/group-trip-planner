@@ -33,8 +33,6 @@ import {
 } from "@gtp/api-client";
 import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
-import { CostTally } from "./CostTally";
-import { CrewPanel } from "./CrewPanel";
 import { costLabel } from "./optionFormat";
 import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
@@ -70,8 +68,13 @@ const pointerFirst: CollisionDetection = (args) => {
 /**
  * The board canvas (Phase 3.5). Lifts every category's options to one place so it
  * can split them into **proposed** and **locked** cards, then lays them out as a
- * horizontal, scroll-snapping row of lanes beside the reference rail (what the
- * trip costs, and who is on it).
+ * horizontal, scroll-snapping row of lanes.
+ *
+ * **The lanes and nothing else.** It used to render the reference rail beside
+ * them too. The rail outlived that arrangement: Plan and Timeline are two views
+ * of one trip and the rail belongs to both, so it moved up to the route
+ * ({@link BoardRail}) and this became one of two things that can fill the space
+ * next to it.
  *
  * It owns the single `DndContext` for the whole board (organizers, active trip
  * only). Three gestures, all reusing existing endpoints — no new server action:
@@ -108,8 +111,6 @@ export function BoardCanvas({
   frozen,
   tripDates,
   onOpenChannel,
-  onManageMembers,
-  onInviteMembers,
 }: {
   tripId: string;
   categories: CategoryView[];
@@ -127,12 +128,6 @@ export function BoardCanvas({
   tripDates: TripDateRange | null;
   /** Open the chat panel on a category's discussion channel (Phase 4.5). */
   onOpenChannel: (channelId: string) => void;
-  /** Open the members dialog from the crew panel — the route owns it, so the
-   *  board's "⋯" menu and the panel can never open two copies of it. */
-  onManageMembers: () => void;
-  /** Open the invite dialog from the crew panel, owned by the route for the
-   *  same reason. */
-  onInviteMembers: () => void;
 }) {
   const catIds = categories.map((c) => c.id);
   const opts = useCategoriesOptions(tripId, catIds);
@@ -288,59 +283,39 @@ export function BoardCanvas({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDragging(null)}
       >
-        <div className="board__layout">
-          {/* What this trip costs, and who is on it — the two things the lanes
-            beside them cannot tell you by being read. The Decided rail used to
-            sit here and it was the third copy of every decision; the lane that
-            answered the question already pins its answer at the top.
-
-            A column rather than a band across the top: both are reference
-            material you consult *while* working the lanes, and a band pushed
-            the lanes themselves below the fold on a laptop. */}
-          <aside className="board__rail">
-            <CostTally tripId={tripId} />
-            <CrewPanel
-              tripId={tripId}
-              myRole={myRole}
-              myUserId={myUserId}
-              onManage={onManageMembers}
-              onInvite={onInviteMembers}
-            />
-          </aside>
-          <div className="board__canvas" aria-label={t("Category lanes")}>
-            <SortableContext
-              items={laneIds}
-              strategy={horizontalListSortingStrategy}
-            >
-              {categories.map((category) => (
-                <CategoryLane
-                  key={category.id}
-                  tripId={tripId}
-                  category={category}
-                  options={proposedByCategory[category.id] ?? []}
-                  decided={decidedByCategory[category.id] ?? []}
-                  defaultCurrency={defaultCurrency}
-                  myRole={myRole}
-                  myUserId={myUserId}
-                  frozen={frozen}
-                  tripDates={tripDates}
-                  dndEnabled={dndEnabled}
-                  // Only the lane the card came from offers to decide it: the
-                  // lock endpoint is category-scoped and a card cannot change
-                  // lanes, so any other lane's target would be a promise the
-                  // board could not keep.
-                  decideTarget={dragging?.categoryId === category.id}
-                  onOpenChannel={onOpenChannel}
-                />
-              ))}
-            </SortableContext>
-            {can(myRole, "category.manage") && !frozen ? (
-              <AddCategoryLane
+        <div className="board__canvas" aria-label={t("Category lanes")}>
+          <SortableContext
+            items={laneIds}
+            strategy={horizontalListSortingStrategy}
+          >
+            {categories.map((category) => (
+              <CategoryLane
+                key={category.id}
                 tripId={tripId}
-                categoryCount={categories.length}
+                category={category}
+                options={proposedByCategory[category.id] ?? []}
+                decided={decidedByCategory[category.id] ?? []}
+                defaultCurrency={defaultCurrency}
+                myRole={myRole}
+                myUserId={myUserId}
+                frozen={frozen}
+                tripDates={tripDates}
+                dndEnabled={dndEnabled}
+                // Only the lane the card came from offers to decide it: the
+                // lock endpoint is category-scoped and a card cannot change
+                // lanes, so any other lane's target would be a promise the
+                // board could not keep.
+                decideTarget={dragging?.categoryId === category.id}
+                onOpenChannel={onOpenChannel}
               />
-            ) : null}
-          </div>
+            ))}
+          </SortableContext>
+          {can(myRole, "category.manage") && !frozen ? (
+            <AddCategoryLane
+              tripId={tripId}
+              categoryCount={categories.length}
+            />
+          ) : null}
         </div>
         {/* Deliberately a plain preview and not an `OptionCard`: the card in
             hand is not interactive, and mounting a second copy of one would

@@ -22,6 +22,9 @@ import { InviteDialog } from "../components/InviteDialog";
 import { MemberDialog } from "../components/MemberDialog";
 import { ActivityDialog } from "../components/ActivityDialog";
 import { BoardCanvas } from "../components/BoardCanvas";
+import { BoardRail } from "../components/BoardRail";
+import { TimelineCanvas } from "../components/TimelineCanvas";
+import { ViewToggle, type TripView } from "../components/ViewToggle";
 import { Menu, type MenuItem } from "../components/Menu";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
@@ -44,10 +47,24 @@ function fmtDate(iso: string | null): string {
 }
 
 /**
- * A single trip board shell (Phase 1.1). Shows the trip identity + a preview of
- * the category lanes; proposing, dot-voting and drag-to-Decided arrive later.
+ * A trip, in one of its two views.
+ *
+ * **The itinerary is no longer a separate page.** It was its own route with its
+ * own header, its own title and its own way back, and that was the problem: the
+ * two answer questions about the same trip, and moving between them felt like
+ * leaving. They now share everything above the working surface — the header,
+ * the name and dates, the rail of what it costs and who is on it — and the
+ * Plan/Timeline switch replaces only the part that differs. Which is exactly
+ * what a reader means by "show me this trip on a calendar".
+ *
+ * It stays two routes ({@link ViewToggle} explains why), so this renders both:
+ * `/trips/:id` is Plan, `/trips/:id/timeline` is Timeline, and the only thing
+ * that changes between them is what fills the space next to the rail.
+ *
+ * The chat panel is mounted in both, deliberately. A discussion is about the
+ * trip, not about how you happen to be looking at it.
  */
-export function TripDetail() {
+export function TripDetail({ view = "plan" }: { view?: TripView }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -148,16 +165,6 @@ export function TripDetail() {
               trip the user belongs to, not just this one (Phase 5.1,
               decision 1). */}
           <NotificationToasts socket={tripSocket.socket} />
-          {/* Every member, and deliberately not role-gated: reading what the
-              trip turned out to be is not an organizer's privilege. */}
-          {trip.data ? (
-            <Link
-              className="board__timeline-link"
-              to={`/trips/${trip.data.id}/timeline`}
-            >
-              {t("Timeline")}
-            </Link>
-          ) : null}
           {/* Invite used to sit here. It is in the crew panel now, beside the
               list of who is already on the trip — the header was a screen away
               from the only thing inviting changes. */}
@@ -222,6 +229,13 @@ export function TripDetail() {
             </p>
           ) : null}
 
+          {/* Directly above what it changes, rather than up in the header bar
+              where the Timeline link used to be. The header holds actions *on*
+              the trip — invite, edit, delete, the account — and this is not one
+              of those: it decides what the reader is looking at, so it sits at
+              the top of the thing it decides. */}
+          <ViewToggle tripId={trip.data.id} view={view} />
+
           {categories.isPending ? (
             <p className="board__muted" role="status">
               {t("Loading lanes…")}
@@ -242,18 +256,33 @@ export function TripDetail() {
               </button>
             </>
           ) : (
-            <BoardCanvas
-              tripId={trip.data.id}
-              categories={categories.data}
-              defaultCurrency={trip.data.defaultCurrency}
-              myRole={trip.data.role}
-              myUserId={user?.id}
-              frozen={trip.data.status === "HISTORY"}
-              tripDates={tripDateRange(trip.data)}
-              onOpenChannel={setOpenChannelId}
-              onManageMembers={() => setManagingMembers(true)}
-              onInviteMembers={() => setInviting(true)}
-            />
+            <div className="board__layout">
+              <BoardRail
+                tripId={trip.data.id}
+                myRole={trip.data.role}
+                myUserId={user?.id}
+                onManageMembers={() => setManagingMembers(true)}
+                onInviteMembers={() => setInviting(true)}
+              />
+              {view === "timeline" ? (
+                <TimelineCanvas
+                  tripId={trip.data.id}
+                  categories={categories.data}
+                  tripDates={tripDateRange(trip.data)}
+                />
+              ) : (
+                <BoardCanvas
+                  tripId={trip.data.id}
+                  categories={categories.data}
+                  defaultCurrency={trip.data.defaultCurrency}
+                  myRole={trip.data.role}
+                  myUserId={user?.id}
+                  frozen={trip.data.status === "HISTORY"}
+                  tripDates={tripDateRange(trip.data)}
+                  onOpenChannel={setOpenChannelId}
+                />
+              )}
+            </div>
           )}
 
           {editing ? (

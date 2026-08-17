@@ -4227,24 +4227,52 @@ body {
 
 /* Reading what the trip turned out to be is not an organizer's privilege, so
    this sits with the shared bar actions rather than the role-gated ones. */
-.board__timeline-link {
-  display: inline-block;
-  padding: 0.5rem 0.85rem;
+/* Plan / Timeline. One bordered track holding two links, so it reads as one
+   control with a position rather than as two buttons that happen to be next to
+   each other — the difference between "which view?" and "go somewhere".
+
+   The links carry the padding rather than the track, so the whole of each half
+   is a hit target down to its edge. */
+.viewtoggle {
+  display: inline-flex;
+  margin: 0 0 1rem;
+  padding: 0.2rem;
   border: 1px solid var(--lane-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--lane-bg);
-  color: var(--board-fg);
+}
+.viewtoggle__option {
+  padding: 0.4rem 1.1rem;
+  border-radius: 8px;
+  color: var(--board-dim);
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
 }
-.board__timeline-link:hover {
-  border-color: var(--board-accent);
+.viewtoggle__option:hover {
   color: var(--board-accent);
 }
-.board__timeline-link:focus-visible {
+/* The current view, filled. `aria-current` rather than a class: the attribute
+   that tells a screen reader where it is is the same fact the eye needs, and
+   two sources for one state is how they come to disagree. */
+.viewtoggle__option[aria-current="page"] {
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+}
+.viewtoggle__option:focus-visible {
   outline: 2px solid var(--board-accent);
   outline-offset: 2px;
+}
+
+/* The itinerary in its half of the layout. It kept its own reading measure from
+   when it was a page of its own — beside the rail it has a column instead, and
+   a second cap inside that would strand it against the left edge on a wide
+   screen. */
+.board__timeline {
+  min-width: 0;
+}
+.tl__summary {
+  margin: 0 0 0.25rem;
 }
 
 /* On a phone the viewport already constrains the measure, so the gutter
