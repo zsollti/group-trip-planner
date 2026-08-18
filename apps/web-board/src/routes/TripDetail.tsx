@@ -5,6 +5,7 @@ import {
   ApiError,
   useBoardLiveSync,
   useDeleteTrip,
+  useLeaveTrip,
   useSetTripMute,
   useTrip,
   useTripCategories,
@@ -70,12 +71,14 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
   const { user } = useAuth();
   const trip = useTrip(id);
   const deleteTrip = useDeleteTrip(id ?? "");
+  const leaveTrip = useLeaveTrip(id ?? "");
   const setMute = useSetTripMute(id ?? "");
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [managingMembers, setManagingMembers] = useState(false);
   const [viewingActivity, setViewingActivity] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // A channel a lane's "Discuss" action asked the chat panel to open (null = idle).
   const [openChannelId, setOpenChannelId] = useState<string | null>(null);
@@ -94,6 +97,28 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
     } catch (err) {
       setActionError(
         err instanceof ApiError ? err.message : t("Could not delete the board"),
+      );
+    }
+  }
+
+  /**
+   * Take yourself off this trip (FR-17).
+   *
+   * Confirmed rather than done on the click, and the confirmation is the reason
+   * this is worth its own dialog: leaving is irreversible from the leaver's side
+   * — the board disappears from their list and only somebody still on it can
+   * hand it back — while looking, in a menu, exactly like the reversible things
+   * above it.
+   */
+  async function onLeave() {
+    setActionError(null);
+    try {
+      await leaveTrip.mutateAsync();
+      navigate("/");
+    } catch (err) {
+      setConfirmingLeave(false);
+      setActionError(
+        err instanceof ApiError ? err.message : t("Could not leave this trip"),
       );
     }
   }
@@ -130,6 +155,20 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
     ];
     if (can(role, "trip.edit")) {
       items.push({ label: t("Edit trip"), onSelect: () => setEditing(true) });
+    }
+    // Leaving lived at the foot of the crew dialog, which is a list of *other*
+    // people — so the one row about the reader was the one row that was not a
+    // person. It belongs with the other things you can do to this trip, and
+    // being here puts it next to the only action it can be confused with
+    // (Delete), where the difference between "I'm out" and "it's gone for
+    // everyone" is stated by two adjacent labels rather than by a screen apart.
+    if (can(role, "trip.leave")) {
+      items.push({
+        label: t("Leave trip"),
+        onSelect: () => setConfirmingLeave(true),
+        separated: true,
+        danger: true,
+      });
     }
     if (can(role, "trip.delete")) {
       items.push({
@@ -325,6 +364,36 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
             requestChannelId={openChannelId}
             onRequestHandled={() => setOpenChannelId(null)}
           />
+
+          {confirmingLeave ? (
+            <Dialog
+              eyebrow="Leave trip"
+              title={t("Leave “{trip}”?", { trip: trip.data.name })}
+              describedById="leave-board-blurb"
+              onClose={() => setConfirmingLeave(false)}
+            >
+              <p className="board__muted" id="leave-board-blurb">
+                {t("Leave this trip? You'll lose access unless re-invited.")}
+              </p>
+              <div className="board__dialog-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setConfirmingLeave(false)}
+                >
+                  {t("Cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={leaveTrip.isPending}
+                  onClick={onLeave}
+                >
+                  {leaveTrip.isPending ? t("Leaving…") : t("Leave trip")}
+                </Button>
+              </div>
+            </Dialog>
+          ) : null}
 
           {confirmingDelete ? (
             <Dialog

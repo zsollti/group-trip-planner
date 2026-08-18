@@ -166,16 +166,26 @@ describe("MemberDialog", () => {
     ).toBeNull();
   });
 
-  it("closes with the dialog's own ✕, and keeps Leave for a member", async () => {
+  it("closes with the dialog's own ✕ and nothing else", async () => {
     mockFetch();
     const { container } = renderDialog("PARTICIPANT");
 
     await screen.findByText("Grace Hopper");
-    // One way out, not two: the second Close at the foot of the card read as a
-    // choice next to Leave, when only one of them changes anything.
+    // One way out, not two.
     const dialog = within(container.querySelector("[role=dialog]")!);
     expect(dialog.queryByRole("button", { name: "Close" })).not.toBeNull();
     expect(dialog.getAllByRole("button", { name: "Close" })).toHaveLength(1);
-    expect(dialog.getByRole("button", { name: "Leave trip" })).toBeVisible();
+  });
+
+  it("does not offer leaving — that is an action on the trip, not on the crew", async () => {
+    mockFetch();
+    renderDialog("PARTICIPANT");
+
+    // A member is exactly the role that *can* leave, so its absence here has to
+    // be asserted against a rendered roster rather than against a pending one:
+    // waiting for a name first is what makes this a statement about the finished
+    // dialog. Leaving now lives in the trip's own "⋯" (see `TripDetail`).
+    await screen.findByText("Grace Hopper");
+    expect(screen.queryByRole("button", { name: "Leave trip" })).toBeNull();
   });
 });

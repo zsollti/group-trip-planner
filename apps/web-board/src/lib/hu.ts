@@ -101,6 +101,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Could not delete the category": "A sávot nem sikerült törölni",
   "Could not delete your account. Try again.":
     "A fiókodat nem sikerült törölni. Próbáld újra.",
+  "Could not leave this trip": "Nem sikerült kilépni erről az utazásról",
   "Could not lock": "Nem sikerült rögzíteni",
   "Could not open the discussion": "A beszélgetést nem sikerült megnyitni",
   "Could not save changes": "A módosításokat nem sikerült elmenteni",
@@ -242,6 +243,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Leave this trip? You'll lose access unless re-invited.":
     "Kilépsz erről az utazásról? Új meghívó nélkül elveszíted a hozzáférést.",
   "Leave trip": "Kilépés az utazásból",
+  "Leave “{trip}”?": "Kilépsz a(z) „{trip}” utazásból?",
+  "Leaving…": "Kilépés…",
   "Let's plan something": "Tervezzünk valamit",
   Link: "Link",
   "Link (optional)": "Link (nem kötelező)",
