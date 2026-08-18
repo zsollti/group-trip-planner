@@ -364,7 +364,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Priced for part of the group": "A csapat egy részére szóló ár",
   "Profile picture": "Profilkép",
   Progress: "Állapot",
-  Propose: "Javaslom",
   "Propose an option": "Javaslat beküldése",
   "Propose option": "Javaslat beküldése",
   Proposed: "Javasolva",

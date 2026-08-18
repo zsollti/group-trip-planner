@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { t } from "../lib/i18n";
 
 /** Focusable descendants, in DOM order, skipping anything disabled or hidden. */
@@ -56,10 +57,25 @@ function focusablesIn(root: HTMLElement): HTMLElement[] {
  * Backdrop clicks deliberately do NOT dismiss: these dialogs hold half-typed
  * forms, and a stray click behind the card losing that work was a real
  * complaint (settled in the winner-polish pass and kept here).
+ *
+ * **Rendered into `document.body`, not where it is written.** A `position:
+ * fixed` element is positioned against the viewport *unless* it has an ancestor
+ * carrying a `transform`, `filter` or `perspective` — any of which silently
+ * makes that ancestor the containing block instead. "Cover the page" then
+ * quietly becomes "cover this div", and the modal is trapped inside, and
+ * clipped by, the very layout it was supposed to cover.
+ *
+ * Not hypothetical: the option form is written inside a category lane, and the
+ * moment the Plan/Timeline swap gained a `transform` animation on the wrapper
+ * around the lanes, every dialog on the board opened *inside the lane row*. A
+ * portal is the fix that keeps working — the alternative is a standing rule
+ * that no ancestor of any dialog may ever be transformed, which is a rule
+ * nobody can check and everybody will eventually break.
  */
 export function Dialog({
   title,
   eyebrow,
+  quietTitle,
   onClose,
   children,
   size,
@@ -70,6 +86,22 @@ export function Dialog({
   title: ReactNode;
   /** Optional small label above the heading. */
   eyebrow?: ReactNode;
+  /**
+   * Keep the heading as the accessible name, but take it off the screen.
+   *
+   * For a dialog whose own fields already say what it is: the option form opens
+   * on a field labelled "Title" under a heading reading "Propose an option",
+   * which is a line of chrome restating the button that was just pressed — and
+   * on the tallest card the board has, the two lines it costs are the two the
+   * form most needs.
+   *
+   * Deliberately *hidden*, never removed. `aria-labelledby` points at this
+   * heading, and a dialog with no accessible name is one a screen reader
+   * announces as nothing at all. This is the one case where the visible and the
+   * announced versions may differ, and it is exactly the case the pattern is
+   * for: the information is redundant on screen and load-bearing off it.
+   */
+  quietTitle?: boolean;
   onClose: () => void;
   children: ReactNode;
   /** `tall` scrolls a long list; `wide` is the two-column option form. */
@@ -145,7 +177,7 @@ export function Dialog({
     }
   }
 
-  return (
+  return createPortal(
     <div className="board__backdrop" role="presentation">
       <div
         ref={cardRef}
@@ -164,9 +196,19 @@ export function Dialog({
          * hundreds of pixels below the fold, so "close this" meant "scroll to
          * the end of the history first".
          */}
-        <div className="board__dialog-head">
-          {eyebrow ? <p className="board__eyebrow">{eyebrow}</p> : null}
-          <h2 className="board__title" id={titleId}>
+        <div
+          className={
+            "board__dialog-head" +
+            (quietTitle ? " board__dialog-head--quiet" : "")
+          }
+        >
+          {eyebrow && !quietTitle ? (
+            <p className="board__eyebrow">{eyebrow}</p>
+          ) : null}
+          <h2
+            className={quietTitle ? "board__sr-only" : "board__title"}
+            id={titleId}
+          >
             {title}
           </h2>
         </div>
@@ -191,6 +233,7 @@ export function Dialog({
           <span aria-hidden="true">×</span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

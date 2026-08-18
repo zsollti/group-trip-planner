@@ -168,11 +168,17 @@ describe("MemberDialog", () => {
 
   it("closes with the dialog's own ✕ and nothing else", async () => {
     mockFetch();
-    const { container } = renderDialog("PARTICIPANT");
+    renderDialog("PARTICIPANT");
 
     await screen.findByText("Grace Hopper");
     // One way out, not two.
-    const dialog = within(container.querySelector("[role=dialog]")!);
+    //
+    // Queried off the document rather than off the render's `container`: the
+    // dialog is portalled into `document.body`, so it is not a descendant of
+    // the tree it was written in. That is the whole point of the portal — see
+    // `Dialog` — and a test that reached through `container` would be asserting
+    // on the layout the modal deliberately escaped.
+    const dialog = within(document.querySelector("[role=dialog]")!);
     expect(dialog.queryByRole("button", { name: "Close" })).not.toBeNull();
     expect(dialog.getAllByRole("button", { name: "Close" })).toHaveLength(1);
   });
