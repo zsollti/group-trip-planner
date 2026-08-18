@@ -303,24 +303,45 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                 onManageMembers={() => setManagingMembers(true)}
                 onInviteMembers={() => setInviting(true)}
               />
-              {view === "timeline" ? (
-                <TimelineCanvas
-                  tripId={trip.data.id}
-                  categories={categories.data}
-                  tripDates={tripDateRange(trip.data)}
-                />
-              ) : (
-                <BoardCanvas
-                  tripId={trip.data.id}
-                  categories={categories.data}
-                  defaultCurrency={trip.data.defaultCurrency}
-                  myRole={trip.data.role}
-                  myUserId={user?.id}
-                  frozen={trip.data.status === "HISTORY"}
-                  tripDates={tripDateRange(trip.data)}
-                  onOpenChannel={setOpenChannelId}
-                />
-              )}
+              {/*
+               * The half of the page the switch replaces, wrapped so it can be
+               * *seen* being replaced.
+               *
+               * `key={view}` is what makes the animation run: without it React
+               * keeps this div across the switch, and a CSS animation attached
+               * to an element that was never re-created plays exactly once, on
+               * the first load, and never again. Keyed, the outgoing view is
+               * torn down and the incoming one enters — which is what the
+               * Plan/Timeline control has claimed since the two pages were
+               * fused into one screen, and the only part of the claim the eye
+               * could not previously check.
+               *
+               * The direction is read off the view rather than off which view
+               * came before: Plan is the left segment of the toggle and
+               * Timeline the right one, so each always enters from its own
+               * side. Deriving it from the previous view would have made
+               * arriving at a URL directly look different from switching to it.
+               */}
+              <div className="board__view" data-view={view} key={view}>
+                {view === "timeline" ? (
+                  <TimelineCanvas
+                    tripId={trip.data.id}
+                    categories={categories.data}
+                    tripDates={tripDateRange(trip.data)}
+                  />
+                ) : (
+                  <BoardCanvas
+                    tripId={trip.data.id}
+                    categories={categories.data}
+                    defaultCurrency={trip.data.defaultCurrency}
+                    myRole={trip.data.role}
+                    myUserId={user?.id}
+                    frozen={trip.data.status === "HISTORY"}
+                    tripDates={tripDateRange(trip.data)}
+                    onOpenChannel={setOpenChannelId}
+                  />
+                )}
+              </div>
             </div>
           )}
 

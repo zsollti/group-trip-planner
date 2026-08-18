@@ -30,7 +30,24 @@ export function ViewToggle({
   view: TripView;
 }) {
   return (
-    <nav className="viewtoggle" aria-label={t("Trip view")}>
+    <nav className="viewtoggle" data-view={view} aria-label={t("Trip view")}>
+      {/*
+       * The filled pill, as one element that slides rather than a background
+       * that jumps between two.
+       *
+       * It has to be its own node for that: a `background` on whichever link is
+       * current cannot be transitioned, because the thing that changes is
+       * *which element* has it. Given one element and a `transform`, the switch
+       * becomes the motion a segmented control has always implied — and the
+       * motion is what says the two views are one surface being swapped, which
+       * is exactly the claim this control makes and could not previously back
+       * up.
+       *
+       * `aria-hidden`, and driven off `data-view` rather than off a class: the
+       * state a screen reader reads is still `aria-current` on the link itself,
+       * so there is one source of truth and this is decoration over it.
+       */}
+      <span className="viewtoggle__thumb" aria-hidden="true" />
       <Link
         className="viewtoggle__option"
         to={`/trips/${tripId}`}

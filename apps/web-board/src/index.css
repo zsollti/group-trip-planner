@@ -568,6 +568,49 @@ body {
   margin-bottom: 1rem;
 }
 
+/* The working half of the layout — whichever of the two views is on.
+ *
+ * `min-width: 0` for the same reason the lane track has `minmax(0, 1fr)`: this
+ * is the grid item that holds a horizontally scrolling row, and a grid item's
+ * automatic minimum is its content, so without this the lanes set the width of
+ * the page instead of scrolling inside it.
+ *
+ * The entrance is short and small on purpose. It is there to say "this part was
+ * replaced, the rest was not" — the header, the title and the rail beside it do
+ * not move — so it has to be over before it becomes a thing you wait for.
+ * Each view enters from its own side of the switch above it. */
+.board__view {
+  min-width: 0;
+  animation: view-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.board__view[data-view="plan"] {
+  --view-from: -1.25rem;
+}
+.board__view[data-view="timeline"] {
+  --view-from: 1.25rem;
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--view-from, 0));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Motion is the message here, not the content: with it suppressed the swap is
+   instant, which is exactly what it was before. */
+@media (prefers-reduced-motion: reduce) {
+  .board__view {
+    animation: none;
+  }
+  .viewtoggle__thumb,
+  .viewtoggle__option {
+    transition: none;
+  }
+}
+
 /* One column below the breakpoint, in source order: cost, crew, then lanes. */
 .board__rail {
   display: grid;
@@ -4403,7 +4446,12 @@ body {
    The links carry the padding rather than the track, so the whole of each half
    is a hit target down to its edge. */
 .viewtoggle {
-  display: inline-flex;
+  position: relative;
+  /* Two equal columns rather than two intrinsic ones. The thumb below is half
+     the track and slides by its own width, which is only true of the label it
+     is under if "Plan" and "Timeline" occupy the same space. */
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
   margin: 0 0 1rem;
   padding: 0.2rem;
   border: 1px solid var(--lane-line);
@@ -4411,26 +4459,49 @@ body {
   background: var(--lane-bg);
 }
 .viewtoggle__option {
+  /* Above the thumb, which is painted behind both labels. */
+  position: relative;
+  z-index: 1;
   padding: 0.4rem 1.1rem;
   border-radius: 8px;
   color: var(--board-dim);
   font-size: 0.85rem;
   font-weight: 600;
+  text-align: center;
   text-decoration: none;
+  transition: color 180ms ease;
 }
 .viewtoggle__option:hover {
   color: var(--board-accent);
 }
-/* The current view, filled. `aria-current` rather than a class: the attribute
-   that tells a screen reader where it is is the same fact the eye needs, and
-   two sources for one state is how they come to disagree. */
+/* The current view. `aria-current` rather than a class: the attribute that tells
+   a screen reader where it is is the same fact the eye needs, and two sources
+   for one state is how they come to disagree. Only the ink is set here — the
+   fill under it belongs to the thumb. */
 .viewtoggle__option[aria-current="page"] {
-  background: var(--board-accent);
+  color: var(--board-on-accent);
+}
+.viewtoggle__option[aria-current="page"]:hover {
   color: var(--board-on-accent);
 }
 .viewtoggle__option:focus-visible {
   outline: 2px solid var(--board-accent);
   outline-offset: 2px;
+}
+/* The fill, as one element that moves. Inset to the track's padding so it sits
+   exactly where each label's box is. */
+.viewtoggle__thumb {
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  left: 0.2rem;
+  width: calc(50% - 0.2rem);
+  border-radius: 8px;
+  background: var(--board-accent);
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.viewtoggle[data-view="timeline"] .viewtoggle__thumb {
+  transform: translateX(100%);
 }
 
 /* The itinerary in its half of the layout. It kept its own reading measure from
