@@ -98,17 +98,21 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
           restore-keys: playwright-${{ runner.os }}-
 
-      # Split from the download on purpose, and the reason is the bug that made
-      # this necessary: `--with-deps` shells out to `apt-get`, which can wait on
-      # a lock forever — a run sat on this step for over an hour and blocked a
-      # merge. On its own with a timeout, a stalled apt fails in five minutes and
-      # says so, instead of looking like a slow test suite.
-      - name: Install Chromium's system libraries
-        timeout-minutes: 5
-        run: pnpm --filter @gtp/e2e exec playwright install-deps chromium
-
-      # Kept as its own step so a browser that fails to download is obviously
-      # not a failing test. Skipped entirely on a cache hit.
+      # Just the browser. **No `--with-deps`**, and that is the fix rather than a
+      # shortcut.
+      #
+      # `--with-deps` is what hung: a run sat on it for over an hour, and the log
+      # says exactly why. Every shared library Chromium needs was already
+      # "the newest version" — the runner image ships them — so the only packages
+      # apt had to fetch were 21 MB of CJK, Cyrillic and emoji **fonts**, coming
+      # down from a degraded Ubuntu mirror at about 60 KB/s. Playwright installs
+      # those so screenshots of non-Latin text render; this repo takes no
+      # screenshots by rule, and every journey is Latin.
+      #
+      # So the step is gone, along with three minutes and the whole failure mode.
+      # If a future runner image does drop a library, Chromium fails to launch and
+      # says so loudly in the next step — which is a better signal than a silent
+      # 21 MB download on every run.
       - name: Install Playwright browser
         if: steps.pw-cache.outputs.cache-hit != 'true'
         timeout-minutes: 8
