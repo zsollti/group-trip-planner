@@ -38,6 +38,19 @@ import argon2 from "argon2";
 export const DEMO_EMAIL = "demo@example.com";
 export const DEMO_PASSWORD = "demo-trip-2026";
 export const DEMO_TRIP_NAME = "Lisbon — long weekend";
+/**
+ * The trip that already happened.
+ *
+ * A demo account with one active board shows exactly half the product: History
+ * is a real state a trip ends in — read-only, still browsable, still holding
+ * what it cost — and a visitor could only reach it by waiting a year or editing
+ * a date. So the demo owns a second board, a year behind, already ended.
+ *
+ * Deliberately smaller than the Lisbon one. Its job is to be *finished*, which
+ * means every lane decided and nothing left arguing; a second board with the
+ * same amount of open business in it would just be two of the same screen.
+ */
+export const DEMO_HISTORY_TRIP_NAME = "Tallinn — Christmas market";
 
 /**
  * example.com is reserved by RFC 2606 and cannot receive mail, so no seeded
@@ -91,6 +104,26 @@ function daysOut(days: number): Date {
   const d = new Date();
   d.setUTCHours(12, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+/**
+ * The December that is always behind us: last year's.
+ *
+ * The active trip is built from offsets so it never drifts into the past. The
+ * history trip needs the opposite *and* one more thing offsets cannot give it:
+ * a season. "Tallinn — Christmas market" dated to some Tuesday in August is the
+ * kind of detail that quietly tells a visitor the whole board is fake, and 372
+ * days ago is a different month every year the demo is re-seeded.
+ *
+ * Last year's December is past whatever the date is today — in January it is
+ * thirteen months back, in November twenty-three — so this is in the past by
+ * construction, and it is December every time.
+ */
+function lastDecember(day: number, hour = 12, minute = 0): Date {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() - 1, 11, day);
+  d.setUTCHours(hour, minute, 0, 0);
   return d;
 }
 
@@ -749,14 +782,339 @@ export async function seedDemoTrip(
     ]),
   });
 
+  const past = await seedHistoryTrip(prisma, users);
+
   return {
     tripId: trip.id,
+    // The *active* board, because this is what a caller points a visitor at and
+    // an ended trip is not where anyone should start. The history trip is
+    // reported only in the totals below — the summary's shape is a published
+    // contract (`AdminDemoSeed`) and a second name in it would be a bump for a
+    // line nobody reads twice.
     tripName: DEMO_TRIP_NAME,
     email: DEMO_EMAIL,
     members: CAST.length,
-    options: optionIds.size,
-    decisions: decisions.length,
-    messages: chat.length,
+    options: optionIds.size + past.options,
+    decisions: decisions.length + past.decisions,
+    messages: chat.length + past.messages,
     removedTrips,
+  };
+}
+
+/**
+ * The trip the group already took, a year ago.
+ *
+ * Built after the active one and owned by the same account, so the same
+ * `deleteMany` at the top of `seedDemoTrip` clears both on a re-seed — there is
+ * no second reset to keep in step, and no way for one to survive the other.
+ *
+ * **Everything in it is decided, and its dates are behind us.** Those two facts
+ * are the whole feature: `status: "HISTORY"` with an `expiresAt` in the past is
+ * exactly the state the hourly lifecycle job leaves a trip in when it ends, so
+ * this is the real thing rather than a board wearing a badge. The job is
+ * idempotent over it — it only moves `ACTIVE` rows — so nothing flips it back.
+ *
+ * It reuses the cast rather than inventing five more people, which is also
+ * truer: the same group that is going to Lisbon went to Tallinn last winter,
+ * and a visitor recognises the faces between the two boards.
+ */
+async function seedHistoryTrip(
+  prisma: PrismaClient,
+  users: Record<CastKey, { id: string }>,
+): Promise<{ options: number; decisions: number; messages: number }> {
+  // Four days in the middle of last December. The weekday is whatever that
+  // year gave — the titles say the dates rather than naming a day, so they
+  // cannot come out contradicting the calendar the timeline draws.
+  const ARRIVED = lastDecember(12);
+  const LEFT = lastDecember(15);
+  /** A clock time on one of those four days. */
+  const on = (day: number, hour: number, minute = 0) =>
+    lastDecember(day, hour, minute);
+  /** How the votes, locks and chat are spread out before the trip. */
+  const before = (days: number) => lastDecember(12 - days);
+
+  const trip = await prisma.trip.create({
+    data: {
+      name: DEMO_HISTORY_TRIP_NAME,
+      destination: "Tallinn, Estonia",
+      description:
+        "Last winter's one. Three nights, a lot of mulled wine, and the flights were the cheapest we have ever found. Ended — the board is read-only now.",
+      defaultCurrency: "EUR",
+      // Under what it cost, on purpose. A finished trip that came in over its
+      // target is the more interesting of the two readings, and it is the one
+      // the active board cannot show without being edited into the past: the
+      // cost panel's over-budget band and its red row need a trip that is done.
+      budgetPerPerson: "300.00",
+      startDate: ARRIVED,
+      endDate: LEFT,
+      // Expired, and marked as such. The status column is what every list and
+      // dashboard reads; the date is what makes that status honest.
+      expiresAt: lastDecember(16),
+      status: "HISTORY",
+      ownerId: users.demo.id,
+      memberships: {
+        create: CAST.map((p) => ({ userId: users[p.key].id, role: p.role })),
+      },
+      categories: {
+        create: BUILTIN_CATEGORIES.map((c) => ({
+          name: c.name,
+          builtinKey: c.builtinKey,
+          singleChoice: c.singleChoice,
+          position: c.position,
+          isBuiltin: true,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  const categories = await prisma.category.findMany({
+    where: { tripId: trip.id },
+    select: { id: true, builtinKey: true },
+  });
+  const cat = (key: string) => {
+    const found = categories.find((c) => c.builtinKey === key);
+    if (!found)
+      throw new Error(`Built-in category ${key} missing from the history seed`);
+    return found.id;
+  };
+
+  type PastSeed = Omit<
+    Prisma.OptionUncheckedCreateInput,
+    "categoryId" | "proposerId"
+  > & { by: CastKey };
+
+  const seeds: Array<{ categoryKey: string; options: PastSeed[] }> = [
+    {
+      categoryKey: "DATES",
+      options: [
+        {
+          title: "12 – 15 December",
+          description:
+            "The weekend the markets opened. This is the one we did.",
+          currency: "EUR",
+          position: 0,
+          by: "demo",
+          startsAt: ARRIVED,
+          endsAt: LEFT,
+        },
+        {
+          // One that lost, so the finished board still shows that a choice was
+          // made rather than that there was only ever one answer.
+          title: "19 – 22 December",
+          description: "Too close to Christmas — half of us had family things.",
+          currency: "EUR",
+          position: 1,
+          by: "sam",
+          startsAt: lastDecember(19),
+          endsAt: lastDecember(22),
+        },
+      ],
+    },
+    {
+      categoryKey: "TRANSPORT",
+      options: [
+        {
+          title: "Wizz Air — BUD → TLL",
+          description: "Out Friday lunchtime. Cabin bag only, no seat picked.",
+          amount: "94.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 0,
+          by: "demo",
+          startsAt: on(12, 11, 30),
+          endsAt: on(12, 14, 55),
+        },
+        {
+          title: "Wizz Air — TLL → BUD",
+          description: "Home Monday evening, same fare.",
+          amount: "94.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 1,
+          by: "demo",
+          startsAt: on(15, 19, 10),
+          endsAt: on(15, 22, 30),
+        },
+      ],
+    },
+    {
+      categoryKey: "ACCOMMODATION",
+      options: [
+        {
+          title: "Old Town apartment — Vene street",
+          description:
+            "Two bedrooms and a sofa bed, four minutes from the square.",
+          amount: "540.00",
+          currency: "EUR",
+          // Priced for the whole booking, not per head — the other half of the
+          // cost model, and the finished board is a good place to show it since
+          // the figure is final.
+          costType: "TOTAL",
+          position: 0,
+          by: "mira",
+          startsAt: on(12, 15),
+          endsAt: on(15, 11),
+        },
+      ],
+    },
+    {
+      categoryKey: "ACTIVITIES",
+      options: [
+        {
+          title: "Christmas market — Raekoja plats",
+          description: "Free to wander. Mulled wine is extra and unavoidable.",
+          amount: "18.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 0,
+          by: "anna",
+          startsAt: on(12, 17, 30),
+          endsAt: on(12, 21),
+        },
+        {
+          title: "Seaplane Harbour museum",
+          description: "The submarine is worth the ticket on its own.",
+          amount: "20.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 1,
+          by: "tomas",
+          startsAt: on(13, 10),
+          endsAt: on(13, 13),
+        },
+      ],
+    },
+  ];
+
+  const ids = new Map<string, string>();
+  for (const group of seeds) {
+    for (const { by, ...data } of group.options) {
+      const created = await prisma.option.create({
+        data: {
+          ...data,
+          categoryId: cat(group.categoryKey),
+          proposerId: users[by].id,
+        },
+        select: { id: true, title: true },
+      });
+      ids.set(created.title, created.id);
+    }
+  }
+  const opt = (title: string) => {
+    const id = ids.get(title);
+    if (!id) throw new Error(`History option "${title}" was not seeded`);
+    return id;
+  };
+
+  // Votes, cast while it was still being decided — a year ago, like everything
+  // else here. A finished board with no votes on it reads as one person's
+  // itinerary rather than as a group's.
+  const votes: Array<[string, CastKey[]]> = [
+    ["12 – 15 December", ["demo", "mira", "tomas", "anna"]],
+    ["19 – 22 December", ["sam"]],
+    ["Wizz Air — BUD → TLL", ["demo", "mira", "sam"]],
+    ["Old Town apartment — Vene street", ["demo", "mira", "anna", "tomas"]],
+    ["Christmas market — Raekoja plats", ["mira", "anna", "sam"]],
+    ["Seaplane Harbour museum", ["tomas", "demo"]],
+  ];
+  for (const [title, voters] of votes) {
+    await prisma.vote.createMany({
+      data: voters.map((v) => ({
+        optionId: opt(title),
+        userId: users[v].id,
+        createdAt: before(20),
+      })),
+    });
+  }
+
+  // Everything the group settled on. All of it, because that is what "this trip
+  // happened" means — the losing date option above is the only thing left
+  // standing, and it is standing as the road not taken.
+  const decided: Array<{ title: string; by: CastKey; ago: number }> = [
+    { title: "12 – 15 December", by: "demo", ago: 18 },
+    { title: "Wizz Air — BUD → TLL", by: "demo", ago: 15 },
+    { title: "Wizz Air — TLL → BUD", by: "demo", ago: 15 },
+    { title: "Old Town apartment — Vene street", by: "mira", ago: 12 },
+    { title: "Christmas market — Raekoja plats", by: "mira", ago: 9 },
+    { title: "Seaplane Harbour museum", by: "tomas", ago: 6 },
+  ];
+  for (const d of decided) {
+    await prisma.option.update({
+      where: { id: opt(d.title) },
+      data: {
+        status: "LOCKED",
+        lockedById: users[d.by].id,
+        lockedAt: before(d.ago),
+        version: { increment: 1 },
+      },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        tripId: trip.id,
+        actorId: users[d.by].id,
+        action: "OPTION_LOCKED",
+        targetType: "OPTION",
+        targetId: opt(d.title),
+        metadata: { optionTitle: d.title },
+        createdAt: before(d.ago),
+      },
+    });
+  }
+
+  const general = await prisma.channel.create({
+    data: { tripId: trip.id, type: "GENERAL" },
+    select: { id: true },
+  });
+
+  const chat: Array<{ by: CastKey; body: string; ago: number }> = [
+    {
+      by: "mira",
+      body: "Flights are €94 return. Booking tonight unless anyone objects.",
+      ago: 16,
+    },
+    {
+      by: "anna",
+      body: "The apartment sleeps five and it's on the square. Sold.",
+      ago: 13,
+    },
+    {
+      by: "demo",
+      body: "That's everything locked. See you at the airport.",
+      ago: 5,
+    },
+    {
+      // Written after they got home, which is what makes the board feel ended
+      // rather than merely expired.
+      by: "tomas",
+      body: "Home. Cold, expensive, worth it — the submarine especially.",
+      ago: -4,
+    },
+  ];
+  for (const m of chat) {
+    await prisma.message.create({
+      data: {
+        channelId: general.id,
+        authorId: users[m.by].id,
+        body: m.body,
+        createdAt: before(m.ago),
+      },
+    });
+  }
+
+  // Read by everyone, the demo account included: an ended trip should not greet
+  // a visitor with unread badges on a conversation that finished a year ago.
+  await prisma.channelRead.createMany({
+    data: CAST.map((p) => ({
+      channelId: general.id,
+      userId: users[p.key].id,
+      lastReadAt: lastDecember(16),
+    })),
+  });
+
+  return {
+    options: ids.size,
+    decisions: decided.length,
+    messages: chat.length,
   };
 }
