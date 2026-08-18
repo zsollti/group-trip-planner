@@ -93,6 +93,22 @@ export function DateRangeField({
     cursorFor(value.start || highlight?.start || null),
   );
   const [hovered, setHovered] = useState<string | null>(null);
+  /*
+   * Today, as the first day anything here may be.
+   *
+   * Every range this control produces is in the future by the rules the server
+   * already enforces: a trip is created with dates ahead of now, and locking a
+   * Dates option is refused outright when its start has passed. A grid that
+   * offers yesterday is offering something that will be turned down, which is
+   * this board's own standing rule about affordances (`docs/ui-audit.md` §3) —
+   * and the reader finds out after filling the form rather than while pointing
+   * at the day.
+   *
+   * Computed once per mount rather than per render: a component that is open
+   * across midnight is not worth a timer, and re-deriving it on every keystroke
+   * would let the boundary move under a half-finished selection.
+   */
+  const [today] = useState(todayIso);
 
   const start = value.start || null;
   const end = value.end || null;
@@ -109,6 +125,10 @@ export function DateRangeField({
   const takeFocus = useRef(false);
 
   function pick(iso: string) {
+    // The grid draws past days as unavailable; this is what makes that true
+    // rather than a colour. Keyboard and pointer land here alike, so there is
+    // one rule and not two.
+    if (iso < today) return;
     const next = nextSelection(iso, start, end);
     onChange({ start: next.start, end: next.end ?? "" });
     setHovered(null);
@@ -148,6 +168,7 @@ export function DateRangeField({
         hovered={hovered}
         onHover={setHovered}
         onPick={pick}
+        min={today}
         focused={focused}
         onFocused={setFocused}
         takeFocus={takeFocus}
@@ -188,6 +209,7 @@ function RangeGrid({
   highlight,
   highlightLabel,
   onClear,
+  min,
 }: {
   idPrefix: string;
   cursor: MonthCursor;
@@ -203,6 +225,8 @@ function RangeGrid({
   highlight: DayRange | null;
   highlightLabel?: string;
   onClear?: () => void;
+  /** The first day that may be chosen; anything before it is drawn unavailable. */
+  min: string;
 }) {
   const next = addMonths(cursor, 1);
   return (
@@ -250,6 +274,7 @@ function RangeGrid({
             onFocused={onFocused}
             takeFocus={takeFocus}
             highlight={highlight}
+            min={min}
           />
         ))}
       </div>
@@ -293,6 +318,24 @@ function RangeGrid({
   );
 }
 
+/**
+ * Today, as the grid writes days.
+ *
+ * The grid's days are UTC-midnight ISO strings, but "today" is a fact about the
+ * *reader's* calendar — so this reads local getters and re-expresses the result
+ * in the grid's convention. `isoDay(new Date())` would have been shorter and
+ * wrong twice a day: it takes UTC parts of a local instant, so at 20:00 in New
+ * York it already says tomorrow, and today would be the first day the calendar
+ * refused to let anyone pick. (The same class of bug as reading a `@db.Date`
+ * with local getters, in the other direction.)
+ */
+function todayIso(): string {
+  const now = new Date();
+  return isoDay(
+    new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())),
+  );
+}
+
 /** A day in the reader's locale, spelled out. UTC, because it is a day. */
 function longDay(iso: string): string {
   return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(intlTag(), {
@@ -316,6 +359,7 @@ function Month({
   onFocused,
   takeFocus,
   highlight,
+  min,
 }: {
   idPrefix: string;
   cursor: MonthCursor;
@@ -330,6 +374,8 @@ function Month({
   onFocused: (iso: string) => void;
   takeFocus: React.MutableRefObject<boolean>;
   highlight: DayRange | null;
+  /** The first choosable day — see the note on `today` in `DateRangeField`. */
+  min: string;
 }) {
   const days = monthGrid(cursor);
   const weekdays = weekdayLabels();
@@ -391,6 +437,7 @@ function Month({
                   takeFocus={takeFocus}
                   onHover={onHover}
                   onPick={onPick}
+                  past={day.iso < min}
                 />
               ),
             )}
@@ -420,6 +467,7 @@ function DayCell({
   takeFocus,
   onHover,
   onPick,
+  past,
 }: {
   idPrefix: string;
   iso: string;
@@ -427,6 +475,8 @@ function DayCell({
   inMonth: boolean;
   role: DayRole;
   inTrip: boolean;
+  /** Before the first choosable day: drawn dimmed and refusing to be picked. */
+  past: boolean;
   focused: boolean;
   onFocused: (iso: string) => void;
   takeFocus: React.MutableRefObject<boolean>;
@@ -449,6 +499,7 @@ function DayCell({
     inMonth ? "" : "drange__day--outside",
     role === "none" ? "" : `drange__day--${role}`,
     inTrip ? "drange__day--trip" : "",
+    past ? "drange__day--past" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -473,6 +524,17 @@ function DayCell({
         // another layer can address a specific day by.
         data-day={iso}
         aria-label={label}
+        /*
+         * `aria-disabled`, not `disabled`.
+         *
+         * A real `disabled` button cannot take focus, and this grid moves focus
+         * programmatically with a roving tabindex — arrow into a past day and
+         * the `.focus()` call would silently do nothing, stranding the reader
+         * with no focus anywhere in the document. Marked-up-as-unavailable keeps
+         * the cell reachable and announced, and `pick` is where the refusal
+         * actually lives.
+         */
+        aria-disabled={past || undefined}
         aria-pressed={role === "start" || role === "end" || role === "single"}
         // Roving: exactly one cell is in the tab order at a time.
         tabIndex={focused ? 0 : -1}

@@ -182,6 +182,52 @@ describe("DateRangeField", () => {
     expect(value()).toBe("2026-08-31|2026-09-02");
   });
 
+  it("refuses a day that has already been, and says so before the tap", () => {
+    /*
+     * Relative to the machine's own clock, deliberately. Every other date in
+     * this file is a literal from the month it was written in, which works only
+     * while that month is one of the two the grid opens on — and this rule is
+     * *about* the clock, so a literal would pin the assertion to the wrong
+     * thing entirely.
+     *
+     * The grid opens on today's month, so yesterday is on screen except on the
+     * 1st, when it belongs to the month before and is not drawn. Skipped there
+     * rather than paged back to: what is being checked is the rule, and the
+     * rule has a cell to point at on 30 days in 31.
+     */
+    const now = new Date();
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate(),
+      ).padStart(2, "0")}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (yesterday.getMonth() !== now.getMonth()) return;
+
+    render(<Harness />);
+    const cell = day(iso(yesterday));
+    // Marked up as unavailable rather than `disabled`: the grid moves focus
+    // programmatically, and a disabled button cannot receive it.
+    expect(cell).toHaveAttribute("aria-disabled", "true");
+    expect(cell.className).toContain("drange__day--past");
+
+    fireEvent.click(cell);
+    expect(value()).toBe("|");
+  });
+
+  it("still lets today be the first day of a trip", () => {
+    // The boundary, and the one it is easy to get wrong by a day — which is
+    // what reading UTC parts off a local instant would do every evening west
+    // of Greenwich.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    render(<Harness />);
+    expect(day(today)).not.toHaveAttribute("aria-disabled");
+    fireEvent.click(day(today));
+    expect(value()).toBe(`${today}|`);
+  });
+
   it("is one tab stop, not eighty-four", () => {
     // A roving tabindex. Without it, deleting the inputs would have replaced
     // two controls with a tab trap six weeks long.

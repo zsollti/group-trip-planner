@@ -232,9 +232,13 @@ describe("CreateBoardDialog dates", () => {
 
     expect(screen.getByText(/the group vote on it/i)).toBeInTheDocument();
 
-    const first = document.querySelector<HTMLButtonElement>(
-      ".drange__day[data-day]",
-    )!;
+    // The first day the calendar will actually accept. It used to be simply
+    // the first cell in the grid, which is a day in the month before and is
+    // now drawn as past — the click was refused and this test was asserting
+    // on copy that never appeared.
+    const first = [
+      ...document.querySelectorAll<HTMLButtonElement>(".drange__day[data-day]"),
+    ].find((el) => !el.hasAttribute("aria-disabled"))!;
     fireEvent.click(first);
 
     expect(screen.getByText(/unlock it any time/i)).toBeInTheDocument();

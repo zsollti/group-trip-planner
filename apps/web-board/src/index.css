@@ -2170,6 +2170,21 @@ body {
   color: var(--board-dim);
   opacity: 0.65;
 }
+/* A day that has already been. Struck through rather than merely faded: the
+   grid already uses fading for "belongs to the month next door", which is a
+   day you *can* pick, and two different meanings sharing one appearance is
+   how a reader learns to trust neither. `cursor: default` because there is
+   nothing to press, and the hover shading below is suppressed for the same
+   reason — a day that lights up under the pointer is promising something. */
+.drange__day--past {
+  color: var(--board-dim);
+  opacity: 0.45;
+  text-decoration: line-through;
+  cursor: default;
+}
+.drange__day--past:hover {
+  background: none;
+}
 /* The trip's own span, behind everything — a backdrop, not a selection, so it
    reads as context even under a chosen day. */
 .drange__day--trip {
@@ -4748,17 +4763,23 @@ button.cost-comp__row-btn:hover,
   }
 }
 
-/* Capped on the same token as a lane, and scrolling its own content. Switching
-   Plan → Timeline replaces the middle of the screen; it must not also change
-   how tall the screen is.
-
-   The horizontal padding is not decoration: an `overflow-y` box clips on
-   **both** axes whatever `overflow-x` says, so without room inside the
-   scrollport the focus ring of the leftmost card would be shaved off. (The same
-   trap `.board__dialog-body` was fixed for.) */
+/* The itinerary, at whatever height it needs.
+ *
+ * It used to be capped on the lane row's own token and scroll inside itself, so
+ * that switching Plan → Timeline replaced the middle of the screen without
+ * changing how tall the screen was. That symmetry cost more than it bought: a
+ * calendar is read by running your eye down a day, and a second scrollbar
+ * beside the page's own means the reader has to work out which one moves the
+ * thing they are looking at — usually by moving the wrong one first.
+ *
+ * The lane row keeps its cap, and it should: lanes are columns you work *in*,
+ * side by side, and a lane that grows past the window pushes the four beside it
+ * off the bottom. The itinerary is one object. It gets as tall as the trip is
+ * and the page scrolls, which is the scrollbar a reader already knows about.
+ *
+ * The horizontal padding stays: it is what gives the leftmost card's focus ring
+ * room, and it costs nothing now that nothing here clips. */
 .tl__scroll {
-  max-height: var(--board-column-max);
-  overflow-y: auto;
   padding-inline: 2px;
 }
 
