@@ -223,3 +223,71 @@ describe("reading one lane", () => {
     expect(centre.textContent).not.toMatch(/60\s*%/);
   });
 });
+
+describe("marking a wedge with its lane's own glyph", () => {
+  it("draws one per wedge that has the room", () => {
+    const { container } = renderComp();
+    // Two lanes, 60/40 — both comfortably longer than a glyph, so both are
+    // marked. The mark is the same drawing the lane header wears, which is what
+    // lets the eye cross from the chart to the board without a legend.
+    expect(container.querySelectorAll(".cost-donut__mark")).toHaveLength(2);
+  });
+
+  it("leaves a sliver unmarked rather than cramming one in", () => {
+    const { container } = renderComp({
+      slices: [
+        {
+          categoryId: "c1",
+          label: "Stay",
+          amount: 495,
+          share: 0.99,
+          parts: [{ label: "Beach House", amount: 495 }],
+        },
+        {
+          categoryId: "c2",
+          label: "Travel",
+          amount: 5,
+          share: 0.01,
+          parts: [{ label: "Bus", amount: 5 }],
+        },
+      ],
+    });
+    // A 1% wedge is about 3 units of a 300-unit ring: a 12-unit glyph on it
+    // would overlap both its neighbours and say nothing the list beside it does
+    // not already say in words.
+    expect(container.querySelectorAll(".cost-donut__mark")).toHaveLength(1);
+  });
+
+  it("dims the marks of the lanes not being read", () => {
+    const { container } = renderComp();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
+
+    // Or a glyph floats at full strength over a faded band, which reads as the
+    // chart having two selections.
+    expect(container.querySelectorAll(".cost-donut__mark--off")).toHaveLength(
+      1,
+    );
+  });
+
+  it("never marks the folded tail, which is not a lane", () => {
+    const { container } = renderComp({
+      slices: [
+        {
+          categoryId: "c1",
+          label: "Stay",
+          amount: 300,
+          share: 0.6,
+          parts: [{ label: "Beach House", amount: 300 }],
+        },
+        {
+          categoryId: null,
+          label: "Everything else",
+          amount: 200,
+          share: 0.4,
+          parts: [{ label: "Bits", amount: 200 }],
+        },
+      ],
+    });
+    expect(container.querySelectorAll(".cost-donut__mark")).toHaveLength(1);
+  });
+});
