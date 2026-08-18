@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Input } from "@gtp/ui-primitives";
 import { placeLabel, usePlaceSearch } from "@gtp/api-client";
 import { PLACE_QUERY_MIN_LENGTH, type PlaceView } from "@gtp/types";
-import { t } from "../lib/i18n";
+import { t, tNode } from "../lib/i18n";
 
 /**
  * Where the trip is going: a field that suggests, and still accepts anything.
@@ -221,6 +221,28 @@ export function DestinationField({
               </button>
             </li>
           ))}
+          {/*
+           * The attribution, at the point of use.
+           *
+           * CC BY 4.0 makes this a condition of having the data at all, not a
+           * courtesy — and the licence asks for it "in any reasonable manner for
+           * the medium", which for a search feature means where the search
+           * results are. One quiet line under the list rather than a page nobody
+           * opens: it is present exactly when the data is.
+           */}
+          <li className="destfield__credit">
+            {tNode("Place names from {source}, CC BY 4.0", {
+              source: (
+                <a
+                  href="https://www.geonames.org/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GeoNames
+                </a>
+              ),
+            })}
+          </li>
         </ul>
       ) : null}
     </div>

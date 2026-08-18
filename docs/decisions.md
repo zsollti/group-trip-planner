@@ -338,6 +338,66 @@ always did.
 
 ---
 
+## The destination is chosen from a list, and still accepts anything
+
+The destination was free text, and a string cannot tell the form which currency
+to default to, cannot tell the itinerary which clock a trip runs on, and cannot
+be told apart from the same words typed differently. So there is a gazetteer
+behind the field now — and the field is still a text input.
+
+**Free text is the design, not the fallback.** A group going to "Dad's cabin", to
+"the Dolomites", or to a village of four hundred people is not a case to be
+handled; it is a normal trip. So the field suggests and never insists, and
+`Trip.destination` remains exactly the string a reader typed or chose. What
+choosing adds is a `destinationPlaceId` beside it.
+
+**~74,000 places, not 4.8 million.** GeoNames' full dump is every named
+populated place on earth, which is mostly hamlets nobody plans a trip to. The
+`cities5000` cut — anywhere over five thousand people — plus every first-level
+region and every country covers "Tuscany" and "Portugal" as well as "Lisbon",
+and comes to a 2.6 MB gzipped file in the repo.
+
+**Committed, not fetched.** The dataset is built by a script run by hand about
+once a year (`places:fetch`) and read from disk by the seeder. A deploy that had
+to reach download.geonames.org would fail when somebody else's server did, and
+the test suite would need a network. It is the same reasoning as the exchange
+rates being optional: a feature that depends on a third party at runtime is a
+feature that is down when they are.
+
+**No Postgres extensions.** `unaccent` and `pg_trgm` are both the natural tools
+for this and both need `CREATE EXTENSION`, which is a privilege this app should
+not demand of whatever database it is pointed at. Accents are folded in the
+seeder instead, in JavaScript, into a `searchText` column; a generated `tsvector`
+over that column with a GIN index answers word-prefix queries — so "york" finds
+New York, which a `startsWith` index never would. The cost is that "lisbonn"
+finds nothing, and that is an acceptable cost: people do not misspell the first
+four letters of a place they are choosing from a list.
+
+**Ranking is a multiplier, and the two cases either side of it are the test.**
+Bands of relevance first — exact name, then prefix, then the rest — was the
+obvious design, and the full dataset shows it is wrong: "york" answers with York
+in England, Pennsylvania, South Carolina and Nebraska and never reaches New York.
+Pure population is wrong the other way, answering "bath" with Bathinda. An exact
+name multiplied by fifty holds both.
+
+**The trip copies the timezone; nothing reads it yet.** The itinerary still draws
+an option's hours in the _reader's_ zone, so a 07:15 tram in Lisbon shows as
+08:15 in Budapest. Fixing that needs the trip to know its own clock, and a trip
+cannot know retroactively — so the column is written from the first day the
+picker exists, and the rendering change is a separate decision for later. Copied
+rather than joined, for the same reason `defaultCurrency` is a column: once a
+trip is planned around a clock, that clock is the trip's own data and must not
+change because a re-seed corrected a row underneath it.
+
+**Attribution.** The data is © GeoNames and licensed CC BY 4.0. Attribution is a
+condition of having it, not a courtesy, and the licence asks for it "in any
+reasonable manner for the medium" — which for a search feature means where the
+results are. So it is a line under the suggestion list, present exactly when the
+data is, rather than a credits page nobody opens. Also in the README, the schema,
+and here.
+
+---
+
 ## Things I deliberately did not build
 
 - **Currency conversion.** Covered in the README. The short version is that a

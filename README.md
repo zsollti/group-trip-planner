@@ -316,3 +316,12 @@ volume that uploads depend on, backups, monitoring and teardown — is in
 ## License
 
 All rights reserved.
+
+### Third-party data
+
+Place names, coordinates, timezones and country currencies come from
+[GeoNames](https://www.geonames.org/), licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The subset the app
+uses — populated places over 5,000 people, first-level regions and countries — is
+committed under `apps/api/prisma/data/` and rebuilt by
+`pnpm --filter @gtp/api places:fetch`.
