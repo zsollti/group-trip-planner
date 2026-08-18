@@ -229,31 +229,59 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
         </>
       ) : (
         <>
-          <p className="board__eyebrow">
-            {trip.data.status === "HISTORY" ? t("History") : t("Active")} ·{" "}
-            {roleLabel(trip.data.role)}
-            {/* Muting is invisible by nature — say so, or people forget they
-                did it and wonder why the inbox is quiet (Phase 5.3). */}
-            {trip.data.viewerMuted ? (
-              <span className="board__mutedflag"> {t("· 🔕 Email muted")}</span>
+          {/*
+           * Everything the trip says about itself, in two rows instead of four.
+           *
+           * The status, the name, the facts and the view switch were four
+           * stacked blocks, each with its own margins, and between them they
+           * pushed the working surface — the entire point of the page — a long
+           * way down a laptop screen. Nothing here is dropped, because all of it
+           * is worth having; it is folded instead.
+           *
+           * Row one is the name with the switch at the far end of it. The switch
+           * has always belonged next to what it changes rather than up in the
+           * page bar (the bar holds actions *on* the trip; this decides what you
+           * are looking at) — and "next to" turns out to include beside, which
+           * costs no row at all.
+           *
+           * Row two is one sentence: what this board is to you, then what it is.
+           * They were two lines for no better reason than that they are two
+           * kinds of fact, and the eyebrow keeps its own voice inside the line.
+           */}
+          <div className="triphead">
+            <div className="triphead__top">
+              <h1 className="board__title triphead__name">{trip.data.name}</h1>
+              <ViewToggle tripId={trip.data.id} view={view} />
+            </div>
+            {/* Decorative: the trip's name and destination are right here in
+                text, so the cover adds atmosphere, not information. */}
+            {trip.data.coverImageUrl ? (
+              <img
+                className="board__cover"
+                src={trip.data.coverImageUrl}
+                alt=""
+              />
             ) : null}
-          </p>
-          <h1 className="board__title">{trip.data.name}</h1>
-          {/* Decorative: the trip's name and destination are right here in
-              text, so the cover adds atmosphere, not information. */}
-          {trip.data.coverImageUrl ? (
-            <img
-              className="board__cover"
-              src={trip.data.coverImageUrl}
-              alt=""
-            />
-          ) : null}
-          <p className="board__muted">
-            {trip.data.destination ?? t("No destination yet")} ·{" "}
-            {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)} ·{" "}
-            {plural(trip.data.memberCount, "{n} member", "{n} members")} ·{" "}
-            {trip.data.defaultCurrency}
-          </p>
+            <p className="triphead__meta">
+              <span className="board__eyebrow triphead__status">
+                {trip.data.status === "HISTORY" ? t("History") : t("Active")} ·{" "}
+                {roleLabel(trip.data.role)}
+              </span>
+              <span className="triphead__facts">
+                {trip.data.destination ?? t("No destination yet")} ·{" "}
+                {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)} ·{" "}
+                {plural(trip.data.memberCount, "{n} member", "{n} members")} ·{" "}
+                {trip.data.defaultCurrency}
+              </span>
+              {/* Muting is invisible by nature — say so, or people forget they
+                  did it and wonder why the inbox is quiet (Phase 5.3). */}
+              {trip.data.viewerMuted ? (
+                <span className="board__mutedflag">
+                  {t("· 🔕 Email muted")}
+                </span>
+              ) : null}
+            </p>
+          </div>
           {trip.data.status === "HISTORY" ? (
             <p className="board__frozen" role="status">
               {t(
@@ -267,13 +295,6 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
               {actionError}
             </p>
           ) : null}
-
-          {/* Directly above what it changes, rather than up in the header bar
-              where the Timeline link used to be. The header holds actions *on*
-              the trip — invite, edit, delete, the account — and this is not one
-              of those: it decides what the reader is looking at, so it sits at
-              the top of the thing it decides. */}
-          <ViewToggle tripId={trip.data.id} view={view} />
 
           {categories.isPending ? (
             <p className="board__muted" role="status">

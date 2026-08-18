@@ -298,7 +298,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  /* Chrome, and chrome does not need a gap the size of a paragraph under it.
+     This was 1.5rem, which on the trip page was the first of four gaps between
+     the top of the window and anything you can actually work on. */
+  margin-bottom: 1rem;
   gap: 1rem;
 }
 
@@ -499,7 +502,10 @@ body {
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--lane-line);
-  margin: 0.75rem 0;
+  /* Inside the header band, between the name and the facts. Its own margins are
+     the band's spacing now, so they are symmetrical and small — the band below
+     supplies the gap to the board. */
+  margin: 0.6rem 0 0;
 }
 
 .picker {
@@ -581,6 +587,60 @@ body {
   display: grid;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+/* --- The trip's own header -------------------------------------------------
+ *
+ * Four stacked blocks became two rows. Status, name, facts and the view switch
+ * each had their own line and their own margins, and together they pushed the
+ * working surface — the reason the page exists — a long way down a laptop
+ * screen. None of it is dropped: it is folded.
+ *
+ * The switch sits at the end of the name's row rather than under it. It has
+ * always belonged beside what it changes, and beside costs no row.
+ */
+.triphead {
+  margin-bottom: 0.85rem;
+}
+.triphead__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+/* The title's own margins are what stacked things apart; in a row it needs
+   none, and the row's `align-items` does the vertical work. */
+.triphead__name {
+  margin: 0;
+  min-width: 0;
+}
+/* The switch loses its bottom margin here — it is no longer the thing above
+   the board, it is the thing beside the name. */
+.triphead__top .viewtoggle {
+  margin: 0;
+  flex: none;
+}
+/* One sentence made of two voices: what this board is to you, then what it is.
+   `flex` with a wrap rather than plain inline text, so on a narrow screen the
+   facts drop below the status instead of breaking mid-clause. */
+.triphead__meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0.35rem 0 0;
+  color: var(--board-dim);
+  line-height: 1.5;
+}
+/* The eyebrow keeps its accent and its caps inside the line — it is a different
+   kind of fact from the ones after it, and losing that distinction was the one
+   real cost of folding the two rows together. */
+.triphead__status {
+  flex: none;
+}
+.triphead__facts {
+  min-width: 0;
 }
 
 /* The working half of the layout — whichever of the two views is on.
