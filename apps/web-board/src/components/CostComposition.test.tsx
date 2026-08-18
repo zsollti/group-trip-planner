@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { CategoryView } from "@gtp/types";
 import type { CostComposition as Composition } from "../lib/costComposition";
 import { CostComposition } from "./CostComposition";
+import { formatMoney } from "../lib/money";
 
 /**
  * The cost composition: the ring, the breakdown, and what they say together.
@@ -191,5 +192,34 @@ describe("reading one lane", () => {
     renderComp();
     expect(screen.getByText("€500")).toBeInTheDocument();
     expect(screen.getByText("per person")).toBeInTheDocument();
+  });
+
+  it("states the lane and its money, and no longer its share of the ring", () => {
+    renderComp();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
+
+    // The share was the one line in the hole the reader had not asked for: the
+    // wedge in front of them already *is* the share, drawn, and the same
+    // percentage is on the row being hovered. Three lines of the same fact left
+    // no room for the two that are only here — which lane, and what it cost.
+    // Scoped to the hole: the amount is in the legend row too, and this is a
+    // claim about what the middle of the ring says.
+    //
+    // The figure comes from `formatMoney`, not from a literal. `Intl` is asked
+    // for the *runtime's* locale, so the same 300 EUR is "300 EUR" on a
+    // Hungarian machine and "€300" on CI — a literal here passes locally and
+    // fails in CI, which is precisely how it failed. What this test claims is
+    // that the hole states the slice's own amount; how the reader's locale
+    // writes it is `money.test.ts`'s business.
+    //
+    // The space has to be normalized as well, because `Intl` separates the
+    // amount from the code with U+00A0 and Testing Library collapses whitespace
+    // in the DOM text but not in the string you hand it — so the raw formatter
+    // output never matches its own rendering.
+    const written = formatMoney(300, "EUR").replace(/\s/g, " ");
+    const centre = document.querySelector(".cost-donut__centre--active")!;
+    expect(within(centre as HTMLElement).getByText(written)).toBeVisible();
+    expect(within(centre as HTMLElement).getByText("Stay")).toBeVisible();
+    expect(centre.textContent).not.toMatch(/60\s*%/);
   });
 });

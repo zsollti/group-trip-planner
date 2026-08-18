@@ -482,7 +482,6 @@ export const UI_MESSAGES = [
   "{n} vote — see who",
   "{n} voted",
   "{n} votes — see who",
-  "{percent}% of what is locked",
   "{trip} — you're the only member",
   "· outside the trip’s dates",
   "· {percent}% above it",
