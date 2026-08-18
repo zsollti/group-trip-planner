@@ -242,7 +242,10 @@ body {
 
 .board {
   min-height: 100vh;
-  padding: 1.25rem 1.5rem 2rem;
+  /* The page's own gutter, as a token because the measured column below has to
+     subtract it — see `.board__measure`. The mobile reflow narrows it. */
+  --board-gutter: 1.5rem;
+  padding: 1.25rem var(--board-gutter) 2rem;
 }
 
 /**
@@ -265,11 +268,23 @@ body {
  * with the pages either side of it, which was the whole reason for doing this.
  * One width, or the consistency is not real.
  *
- * The measure includes the page's own bar, so the back link starts on the same
- * edge as the heading under it.
+ * **The bar is not in the measure.** It used to be — the cap sat on the `<main>`
+ * itself, so the back link started on the same edge as the heading under it —
+ * and the cost of that was a page bar that stopped short of the window on two
+ * pages and spanned it on the third. A bar is chrome: it belongs to the window
+ * it is pinned to, and the account menu at its right end should be in the same
+ * place whichever page you are on, which is the one thing a per-page width can
+ * never give it. So the cap moved off `<main>` and onto this wrapper, which
+ * holds everything *except* the bar.
+ *
+ * The subtraction is what keeps the reading column exactly where it was: the
+ * old cap was on a padded, `border-box` element, so 60rem of `<main>` was
+ * 60rem minus two gutters of content. Written out rather than baked into a new
+ * number so the mobile reflow, which narrows the gutter, still lands in the
+ * same place.
  */
-.board--measure {
-  max-width: 60rem;
+.board__measure {
+  max-width: calc(60rem - 2 * var(--board-gutter));
   margin-inline: auto;
 }
 
@@ -2885,7 +2900,8 @@ body {
  * horizontal scroll — the lanes scroll inside their own overflow container. */
 @media (max-width: 640px) {
   .board {
-    padding: 1rem 0.9rem 1.75rem;
+    --board-gutter: 0.9rem;
+    padding: 1rem var(--board-gutter) 1.75rem;
   }
   .board__bar,
   .board__bar-actions {

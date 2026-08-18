@@ -80,7 +80,7 @@ export function Settings() {
   }
 
   return (
-    <main className="board board--measure">
+    <main className="board">
       <header className="board__bar">
         <Link className="board__brand board__brand--link" to="/">
           {t("‹ Boards")}
@@ -90,109 +90,116 @@ export function Settings() {
         </div>
       </header>
 
-      <p className="board__eyebrow">{t("Account")}</p>
-      <h1 className="board__title">{t("Your settings")}</h1>
+      {/* The measure, off the <main> so the bar above it spans the window
+          on every page alike — see `.board__measure`. */}
+      <div className="board__measure">
+        <p className="board__eyebrow">{t("Account")}</p>
+        <h1 className="board__title">{t("Your settings")}</h1>
 
-      <NameSection />
-      <LanguageSection />
+        <NameSection />
+        <LanguageSection />
 
-      <section className="board__panel" aria-labelledby="avatar-heading">
-        <h2 className="board__panel-title" id="avatar-heading">
-          {t("Profile picture")}
-        </h2>
-        <ImagePicker
-          label={t("Your picture")}
-          shape="square"
-          currentUrl={user?.avatarUrl ?? null}
-          busy={setAvatar.isPending || removeAvatar.isPending}
-          error={avatarError}
-          onSave={(file) => void saveAvatar(file)}
-          onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
-        />
-        <p className="board__panel-note">
-          {t(
-            "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.",
-          )}
-        </p>
-      </section>
-
-      {prefs.isPending ? (
-        <p className="board__muted">{t("Loading your settings…")}</p>
-      ) : prefs.isError ? (
-        <>
-          <p className="board__form-error" role="alert">
-            {t("Couldn't load your settings.")}
-          </p>
-          <button
-            type="button"
-            className="board__cta"
-            onClick={() => void prefs.refetch()}
-          >
-            {t("Try again")}
-          </button>
-        </>
-      ) : (
-        <section className="board__panel" aria-labelledby="email-prefs-heading">
-          <h2 className="board__panel-title" id="email-prefs-heading">
-            {t("Notifications")}
+        <section className="board__panel" aria-labelledby="avatar-heading">
+          <h2 className="board__panel-title" id="avatar-heading">
+            {t("Profile picture")}
           </h2>
-          {error ? (
-            <p className="board__form-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <ToggleSwitch
-            label={t("Email me when I'm @mentioned")}
-            description={t(
-              "Someone naming you in a board's chat sends you an email. Turn this off and mentions still show up in the app.",
-            )}
-            checked={prefs.data.emailOnMention}
-            pending={update.isPending}
-            onChange={(next) => void setEmailOnMention(next)}
+          <ImagePicker
+            label={t("Your picture")}
+            shape="square"
+            currentUrl={user?.avatarUrl ?? null}
+            busy={setAvatar.isPending || removeAvatar.isPending}
+            error={avatarError}
+            onSave={(file) => void saveAvatar(file)}
+            onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
           />
           <p className="board__panel-note">
             {t(
-              "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.",
-            )}
-          </p>
-          <p className="board__panel-note">
-            {tNode(
-              "To silence a single noisy board, open it and use {control} in its ⋯ menu.",
-              { control: <strong>{t("Mute email")}</strong> },
+              "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.",
             )}
           </p>
         </section>
-      )}
 
-      {/* Deliberately last, and deliberately not in the header menu it used to
+        {prefs.isPending ? (
+          <p className="board__muted">{t("Loading your settings…")}</p>
+        ) : prefs.isError ? (
+          <>
+            <p className="board__form-error" role="alert">
+              {t("Couldn't load your settings.")}
+            </p>
+            <button
+              type="button"
+              className="board__cta"
+              onClick={() => void prefs.refetch()}
+            >
+              {t("Try again")}
+            </button>
+          </>
+        ) : (
+          <section
+            className="board__panel"
+            aria-labelledby="email-prefs-heading"
+          >
+            <h2 className="board__panel-title" id="email-prefs-heading">
+              {t("Notifications")}
+            </h2>
+            {error ? (
+              <p className="board__form-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <ToggleSwitch
+              label={t("Email me when I'm @mentioned")}
+              description={t(
+                "Someone naming you in a board's chat sends you an email. Turn this off and mentions still show up in the app.",
+              )}
+              checked={prefs.data.emailOnMention}
+              pending={update.isPending}
+              onChange={(next) => void setEmailOnMention(next)}
+            />
+            <p className="board__panel-note">
+              {t(
+                "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.",
+              )}
+            </p>
+            <p className="board__panel-note">
+              {tNode(
+                "To silence a single noisy board, open it and use {control} in its ⋯ menu.",
+                { control: <strong>{t("Mute email")}</strong> },
+              )}
+            </p>
+          </section>
+        )}
+
+        {/* Deliberately last, and deliberately not in the header menu it used to
           live in: an account is deleted at most once, and the control for it
           does not belong one slip of the pointer away from "Log out". Outside
           the preferences branch above, so a failed preferences load cannot take
           it down with it. */}
-      <section
-        className="board__panel board__panel--danger"
-        aria-labelledby="danger-heading"
-      >
-        <h2 className="board__panel-title" id="danger-heading">
-          {t("Danger zone")}
-        </h2>
-        <p className="board__panel-note">
-          {t(
-            "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.",
-          )}
-        </p>
-        <button
-          type="button"
-          className="board__cta board__cta--danger"
-          onClick={() => setDeleteAccountOpen(true)}
+        <section
+          className="board__panel board__panel--danger"
+          aria-labelledby="danger-heading"
         >
-          {t("Delete account…")}
-        </button>
-      </section>
+          <h2 className="board__panel-title" id="danger-heading">
+            {t("Danger zone")}
+          </h2>
+          <p className="board__panel-note">
+            {t(
+              "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.",
+            )}
+          </p>
+          <button
+            type="button"
+            className="board__cta board__cta--danger"
+            onClick={() => setDeleteAccountOpen(true)}
+          >
+            {t("Delete account…")}
+          </button>
+        </section>
 
-      {deleteAccountOpen ? (
-        <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
-      ) : null}
+        {deleteAccountOpen ? (
+          <DeleteAccountDialog onClose={() => setDeleteAccountOpen(false)} />
+        ) : null}
+      </div>
     </main>
   );
 }

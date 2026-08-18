@@ -226,7 +226,7 @@ export function Dashboard() {
   }
 
   return (
-    <main className="board board--measure">
+    <main className="board">
       <header className="board__bar">
         <span className="board__brand">{t("GTP · Trip Board")}</span>
         <div className="board__bar-actions">
@@ -244,76 +244,87 @@ export function Dashboard() {
         </div>
       </header>
 
-      <p className="board__eyebrow">{t("Boards")}</p>
-      <h1 className="board__title">
-        {t("Welcome, {name}", { name: user?.displayName ?? "" })}
-      </h1>
+      {/* Everything except the bar. The measure lives here rather than
+          on the <main> so the page bar can span the window like the trip
+          board's does — see `.board__measure`. */}
+      <div className="board__measure">
+        <p className="board__eyebrow">{t("Boards")}</p>
+        <h1 className="board__title">
+          {t("Welcome, {name}", { name: user?.displayName ?? "" })}
+        </h1>
 
-      {dash.isPending ? (
-        <div
-          className="board__tiles"
-          aria-busy="true"
-          aria-label={t("Loading your boards")}
-        >
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="board__skel-tile" />
-          ))}
-        </div>
-      ) : dash.isError ? (
-        <p className="board__form-error" role="alert">
-          {t("Couldn't load your boards.")}{" "}
-          <button
-            type="button"
-            className="board__link-btn"
-            onClick={() => void dash.refetch()}
+        {dash.isPending ? (
+          <div
+            className="board__tiles"
+            aria-busy="true"
+            aria-label={t("Loading your boards")}
           >
-            {t("Retry")}
-          </button>
-        </p>
-      ) : list.length === 0 ? (
-        <Onboarding
-          verified={user?.emailVerified ?? false}
-          email={user?.email}
-          onCreate={() => setCreateOpen(true)}
-        />
-      ) : (
-        <>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={active.map((t) => t.id)}
-              strategy={rectSortingStrategy}
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="board__skel-tile" />
+            ))}
+          </div>
+        ) : dash.isError ? (
+          <p className="board__form-error" role="alert">
+            {t("Couldn't load your boards.")}{" "}
+            <button
+              type="button"
+              className="board__link-btn"
+              onClick={() => void dash.refetch()}
             >
-              <div className="board__tiles" aria-label={t("Your trip boards")}>
-                {active.map((trip) => (
-                  <SortableBoardTile key={trip.id} trip={trip} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-          {/* History is not arrangeable: it is what a trip becomes when it ends,
+              {t("Retry")}
+            </button>
+          </p>
+        ) : list.length === 0 ? (
+          <Onboarding
+            verified={user?.emailVerified ?? false}
+            email={user?.email}
+            onCreate={() => setCreateOpen(true)}
+          />
+        ) : (
+          <>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={onDragEnd}
+            >
+              <SortableContext
+                items={active.map((t) => t.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div
+                  className="board__tiles"
+                  aria-label={t("Your trip boards")}
+                >
+                  {active.map((trip) => (
+                    <SortableBoardTile key={trip.id} trip={trip} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            {/* History is not arrangeable: it is what a trip becomes when it ends,
               not a place you put one, so these keep their own order. */}
-          {history.length > 0 ? (
-            <>
-              <p className="board__eyebrow board__history-head">
-                {t("History")}
-              </p>
-              <div className="board__tiles" aria-label={t("Ended trip boards")}>
-                {history.map((trip) => (
-                  <BoardTile key={trip.id} trip={trip} />
-                ))}
-              </div>
-            </>
-          ) : null}
-        </>
-      )}
+            {history.length > 0 ? (
+              <>
+                <p className="board__eyebrow board__history-head">
+                  {t("History")}
+                </p>
+                <div
+                  className="board__tiles"
+                  aria-label={t("Ended trip boards")}
+                >
+                  {history.map((trip) => (
+                    <BoardTile key={trip.id} trip={trip} />
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </>
+        )}
 
-      {createOpen ? (
-        <CreateBoardDialog onClose={() => setCreateOpen(false)} />
-      ) : null}
+        {createOpen ? (
+          <CreateBoardDialog onClose={() => setCreateOpen(false)} />
+        ) : null}
+      </div>
     </main>
   );
 }
