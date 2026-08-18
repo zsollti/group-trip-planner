@@ -96,12 +96,22 @@ export async function createBoard(
   // Typed rather than chosen from the list, which is the case worth exercising
   // here: a destination the gazetteer never saw still has to make a trip.
   await page.getByLabel("Destination").fill("Lisbon, Portugal");
-  // Escape, in case it did see it. The suggestion list is absolutely positioned
-  // over whatever is under the field — including this step's own button — so on
-  // a database where `places:seed` has run, the click below would land on a
-  // suggestion instead of on Next. CI never seeds it and a developer's machine
-  // usually has, which is the worst possible polarity for a flake.
-  await page.getByLabel("Destination").press("Escape");
+  /*
+   * Dismiss the suggestion list, if this database has one to offer.
+   *
+   * It is absolutely positioned over whatever is under the field — including
+   * this step's own button — so where `places:seed` has run, the click below
+   * would land on a suggestion instead of on Next. CI never seeds it and a
+   * developer's machine usually has, which is the worst polarity a flake can
+   * have.
+   *
+   * **By clicking the heading, not by pressing Escape.** Escape was the first
+   * attempt and it closed the entire dialog: the field only swallows Escape
+   * while its list is open, and with no list the key travels up to the modal,
+   * which is exactly what a modal should do with it. A click outside the field
+   * closes the list when there is one and does nothing at all when there is not.
+   */
+  await page.getByRole("dialog").getByRole("heading").first().click();
   await onward.click();
 
   if (dates) {
