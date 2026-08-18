@@ -174,6 +174,7 @@ export const AdminAuditAction = z.enum([
   "VERIFICATION_RESENT",
   "USER_MARKED_VERIFIED",
   "DEMO_RESEEDED",
+  "PLACES_SEEDED",
 ]);
 export type AdminAuditAction = z.infer<typeof AdminAuditAction>;
 
@@ -219,3 +220,24 @@ export const AdminDemoSeed = z.object({
   removedTrips: z.number().int(),
 });
 export type AdminDemoSeed = z.infer<typeof AdminDemoSeed>;
+
+/**
+ * What loading the gazetteer produced.
+ *
+ * The one thing a new environment needs doing by hand, moved off the command
+ * line: the place table is empty until somebody loads it, and until then the
+ * destination field silently offers no suggestions. Silently is the problem —
+ * nothing is broken, so nothing complains, and the feature is simply absent.
+ *
+ * Counts rather than a boolean, because "it ran" is not the question. An
+ * operator wants to know it loaded *the* dataset and not an empty file, and
+ * seventy-odd thousand against two hundred and fifty is a shape you recognise
+ * at a glance.
+ */
+export const AdminPlacesSeed = z.object({
+  countries: z.number().int(),
+  places: z.number().int(),
+  regions: z.number().int(),
+  nations: z.number().int(),
+});
+export type AdminPlacesSeed = z.infer<typeof AdminPlacesSeed>;

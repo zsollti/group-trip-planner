@@ -8,6 +8,7 @@ import {
 import type {
   AdminAuditLog,
   AdminDemoSeed,
+  AdminPlacesSeed,
   AdminOverview,
   AdminUserLookup,
   AdminUserSummary,
@@ -121,6 +122,32 @@ export function useRunDemoSeed(): UseMutationResult<
   return useMutation({
     mutationFn: () =>
       apiFetch<AdminDemoSeed>("/admin/demo-seed", { method: "POST" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.all });
+    },
+  });
+}
+
+/**
+ * Load the place gazetteer into this environment.
+ *
+ * The console's slowest action by a distance — tens of thousands of rows in
+ * chunked inserts — so the caller is expected to show it working rather than
+ * assume it is instant.
+ *
+ * Invalidates the console like the demo seed does: it writes an audit row, and
+ * an operator who cannot see that the thing they pressed was recorded will press
+ * it again.
+ */
+export function useRunPlacesSeed(): UseMutationResult<
+  AdminPlacesSeed,
+  ApiError,
+  void
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<AdminPlacesSeed>("/admin/places-seed", { method: "POST" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: adminKeys.all });
     },

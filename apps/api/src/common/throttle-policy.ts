@@ -142,6 +142,19 @@ export const INVITE_CREATE_THROTTLE: Budget = {
  */
 export const DEMO_SEED_THROTTLE: Budget = { default: { limit: 3, ttl: hour } };
 
+/**
+ * Loading the gazetteer, which is a once-per-environment job.
+ *
+ * Tighter than the demo seed and for a different reason. That one is cheap and
+ * gets re-run whenever a visitor has scribbled on the demo; this rewrites
+ * seventy-four thousand rows and there is no reason to want it twice in an hour
+ * — so the budget is against the impatient second click on a request that takes
+ * a while, which is the only way this gets called twice.
+ */
+export const PLACES_SEED_THROTTLE: Budget = {
+  default: { limit: 2, ttl: hour },
+};
+
 /* -------------------------------------------------------------------------- */
 /* Socket events (per user, enforced in the gateway)                          */
 /* -------------------------------------------------------------------------- */

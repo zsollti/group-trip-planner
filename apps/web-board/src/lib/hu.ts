@@ -592,4 +592,13 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Start typing to search, or write anywhere you like.":
     "Kezdj írni a kereséshez, vagy írj be bármit.",
   "Place names from {source}, CC BY 4.0": "Helynévadatok: {source}, CC BY 4.0",
+  "Place list": "Helyek listája",
+  "Loads the destination suggestions — every populated place over 5,000 people, every region and every country — from the dataset shipped with this build. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.":
+    "Betölti az úticél-javaslatokat — minden 5000 főnél nagyobb települést, minden régiót és országot — a buildéel szállított adathalmazból. Környezetenként egyszer kell; semmi más nem használja és semmi nem függ tőle, így újra futtatni is biztonságos. Amíg le nem fut, az új utazás űrlap úticél mezője nem kínál semmit.",
+  "Loading places…": "Helyek betöltése…",
+  "Load the place list": "Helyek listájának betöltése",
+  "Writing tens of thousands of rows — this takes a few seconds.":
+    "Tízezernyi sor írása — ez elég néhány másodpercet vesz igénybe.",
+  "Places loaded.": "A helyek betöltődtek.",
+  Places: "Helyek",
 };
