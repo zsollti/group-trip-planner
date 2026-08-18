@@ -782,21 +782,27 @@ export async function seedDemoTrip(
     ]),
   });
 
-  const past = await seedHistoryTrip(prisma, users);
+  await seedHistoryTrip(prisma, users);
 
+  /*
+   * The summary describes the **active** board, and only it.
+   *
+   * That is the trip a caller points a visitor at — an ended one is not where
+   * anybody should start — and the counts have to describe the same trip the id
+   * names, or they are figures about nothing in particular. Folding the history
+   * trip's options in was tried and is wrong for exactly that reason: the
+   * console would have reported twenty-two options on a board that has fifteen.
+   * That the second board exists shows up on the next run instead, as a
+   * `removedTrips` of two.
+   */
   return {
     tripId: trip.id,
-    // The *active* board, because this is what a caller points a visitor at and
-    // an ended trip is not where anyone should start. The history trip is
-    // reported only in the totals below — the summary's shape is a published
-    // contract (`AdminDemoSeed`) and a second name in it would be a bump for a
-    // line nobody reads twice.
     tripName: DEMO_TRIP_NAME,
     email: DEMO_EMAIL,
     members: CAST.length,
-    options: optionIds.size + past.options,
-    decisions: decisions.length + past.decisions,
-    messages: chat.length + past.messages,
+    options: optionIds.size,
+    decisions: decisions.length,
+    messages: chat.length,
     removedTrips,
   };
 }
@@ -821,7 +827,7 @@ export async function seedDemoTrip(
 async function seedHistoryTrip(
   prisma: PrismaClient,
   users: Record<CastKey, { id: string }>,
-): Promise<{ options: number; decisions: number; messages: number }> {
+): Promise<void> {
   // Four days in the middle of last December. The weekday is whatever that
   // year gave — the titles say the dates rather than naming a day, so they
   // cannot come out contradicting the calendar the timeline draws.
@@ -1111,10 +1117,4 @@ async function seedHistoryTrip(
       lastReadAt: lastDecember(16),
     })),
   });
-
-  return {
-    options: ids.size,
-    decisions: decided.length,
-    messages: chat.length,
-  };
 }
