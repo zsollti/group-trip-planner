@@ -112,6 +112,10 @@ export function OptionForm({
   const [endDay, setEndDay] = useState(initialEnd.day);
   const [endTime, setEndTime] = useState(initialEnd.time || DEFAULT_END_TIME);
   const [error, setError] = useState<string | null>(null);
+  // Whether a submit has been turned away for an empty required field. Set on
+  // the attempt rather than while typing: a form that goes red before you have
+  // finished filling it in is scolding you for not having got there yet.
+  const [missing, setMissing] = useState(false);
 
   function setDays(next: { start: string; end: string }) {
     setStartDay(next.start);
@@ -155,6 +159,21 @@ export function OptionForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    /*
+     * Say what is missing, rather than refusing to be pressed.
+     *
+     * The button used to be `disabled` while the title was empty, which is the
+     * tidy-looking version of this and the unhelpful one: a control that cannot
+     * be pressed gives the reader nothing to act on and no reason, and on a
+     * form this tall the empty field is often scrolled out of sight. Pressing
+     * it now names the problem in the place the eye already is — directly above
+     * the button — and points back at the asterisk that marked it all along.
+     */
+    if (!title.trim()) {
+      setMissing(true);
+      return;
+    }
+    setMissing(false);
     const body = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -208,7 +227,7 @@ export function OptionForm({
       <form onSubmit={onSubmit} noValidate>
         <div className="board__form-grid">
           <div className="board__form-wide">
-            <Field htmlFor="opt-title" label={t("Title")}>
+            <Field htmlFor="opt-title" label={t("Title")} required>
               <Input
                 id="opt-title"
                 value={title}
@@ -219,7 +238,7 @@ export function OptionForm({
             </Field>
           </div>
           <div className="board__form-wide">
-            <Field htmlFor="opt-desc" label={t("Notes (optional)")}>
+            <Field htmlFor="opt-desc" label={t("Notes")}>
               <textarea
                 id="opt-desc"
                 data-gtp-input
@@ -232,7 +251,7 @@ export function OptionForm({
           </div>
           {fields.url ? (
             <div className="board__form-wide">
-              <Field htmlFor="opt-url" label={t("Link (optional)")}>
+              <Field htmlFor="opt-url" label={t("Link")}>
                 <Input
                   id="opt-url"
                   type="url"
@@ -246,7 +265,7 @@ export function OptionForm({
 
           {fields.cost ? (
             <>
-              <Field htmlFor="opt-amount" label={t("Amount (optional)")}>
+              <Field htmlFor="opt-amount" label={t("Amount")}>
                 {/* `text` + `inputMode="decimal"`, not `type="number"`: a
                     number input rejects the separators grouping puts in, so the
                     field would blank itself the moment it was formatted. The
@@ -316,7 +335,7 @@ export function OptionForm({
           <div className="board__form-wide">
             <DateRangeField
               idPrefix="opt"
-              legend="When (optional)"
+              legend={t("When")}
               value={{ start: startDay, end: endDay }}
               onChange={setDays}
               highlight={tripRange}
@@ -327,10 +346,7 @@ export function OptionForm({
               extra={
                 fields.dateGranularity === "minute" ? (
                   <div className="board__form-grid">
-                    <Field
-                      htmlFor="opt-start-time"
-                      label={t("Start time (optional)")}
-                    >
+                    <Field htmlFor="opt-start-time" label={t("Start time")}>
                       <TimeSelect
                         id="opt-start-time"
                         value={startTime}
@@ -338,10 +354,7 @@ export function OptionForm({
                         emptyLabel="No time"
                       />
                     </Field>
-                    <Field
-                      htmlFor="opt-end-time"
-                      label={t("End time (optional)")}
-                    >
+                    <Field htmlFor="opt-end-time" label={t("End time")}>
                       <TimeSelect
                         id="opt-end-time"
                         value={endTime}
@@ -356,6 +369,11 @@ export function OptionForm({
           </div>
         </div>
 
+        {missing ? (
+          <p className="board__form-error" role="alert">
+            {t("Fill in the fields marked with *")}
+          </p>
+        ) : null}
         {error ? (
           <p className="board__form-error" role="alert">
             {error}
@@ -369,11 +387,7 @@ export function OptionForm({
          * pair sat directly beside "Propose option".
          */}
         <div className="board__dialog-actions">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={pending || !title.trim()}
-          >
+          <Button type="submit" variant="primary" disabled={pending}>
             {pending
               ? t("Saving…")
               : isEdit
