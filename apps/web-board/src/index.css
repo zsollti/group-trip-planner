@@ -460,6 +460,44 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
 }
+/* The required marker. In the danger colour because that is the one thing on
+   this board that means "this will stop you", and it is the same red the
+   message under the form uses to name the field it belongs to — one colour,
+   one meaning, two places. Decoration: `required` on the control is what
+   actually carries the fact. */
+[data-gtp-required] {
+  color: var(--board-danger);
+}
+
+/* An amount field with its currency printed inside it — see `MoneyInput`.
+ *
+ * The code is laid over the input's right end rather than sitting beside it, so
+ * the field keeps its full width in the form grid and the unit reads as part of
+ * the figure. `pointer-events: none` because the input is what you click: a
+ * three-letter target that swallowed the click at the end of the number would
+ * be a small, invisible dead zone exactly where people aim to correct a digit.
+ * The input's own right padding is what keeps a long number from running under
+ * it. */
+.moneyfield {
+  position: relative;
+  display: flex;
+}
+.moneyfield [data-gtp-input] {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 3.4rem;
+}
+.moneyfield__unit {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--board-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 
 [data-gtp-input] {
   background: var(--board-bg);
@@ -645,11 +683,51 @@ body {
   padding: 0 0.5rem;
 }
 
-.picker__input {
-  display: block;
+/* The label that stands in for the browser's own file button — see
+   `ImagePicker`. Dressed as this app's secondary button, because that is what
+   it is: a thing you press that opens something, next to the primary that
+   commits. */
+.picker__choose {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--board-accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--board-accent);
   font-size: 0.85rem;
-  color: var(--board-dim);
-  max-width: 100%;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.picker__choose:hover {
+  background: color-mix(in srgb, var(--board-accent) 12%, transparent);
+}
+/* The ring belongs here rather than on the input, which is clipped to nothing
+   and cannot show one. */
+.picker__choose:focus-within {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker__choose {
+    transition: none;
+  }
+}
+/* Clipped, not removed: `display: none` would take the input out of the focus
+   order and out of the accessibility tree, and this control has to stay a real
+   file input. */
+.picker__file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .picker__actions {
@@ -1622,12 +1700,31 @@ body {
   position: relative;
   width: min(26rem, 92vw);
   max-height: 86vh;
-  /* A column so the heading holds its place and only the body scrolls. The
-     card itself must NOT scroll: the close button is positioned against it,
-     and an absolutely-positioned child of a scrolling box scrolls away with
-     the content — which is the bug this whole arrangement exists to avoid. */
-  display: flex;
-  flex-direction: column;
+  /*
+   * A two-column, two-row grid: the heading and the close button share the top
+   * row, and the body has the whole of the second to scroll in.
+   *
+   * It was a flex column with the ✕ **positioned over** it, which put the
+   * button squarely on top of the body's scrollbar: the bar is drawn at the
+   * body's right edge, which is a couple of dozen pixels in from the card's,
+   * and the ✕ is thirty pixels wide starting thirteen pixels in. They always
+   * overlapped; it only *looked* broken once a dialog was long enough to
+   * scroll, which the option form always is.
+   *
+   * No amount of nudging fixes that — any button in that corner sits over that
+   * bar — so the button stops floating and takes a cell. The card itself still
+   * must not scroll (`overflow: hidden` below), because a scrolling card takes
+   * its own corner controls with it, which is the bug this arrangement has
+   * always existed to avoid.
+   *
+   * The ✕ stays **last in the DOM** and is placed by the grid rather than by
+   * source order — see the note in `Dialog.tsx`. Initial focus is "the first
+   * focusable thing in the card", so a close button written first would quietly
+   * steal the cursor from the first field of every form in the app.
+   */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--lane-bg);
   border: 1px solid var(--lane-line);
@@ -1636,28 +1733,26 @@ body {
   box-shadow: 0 20px 50px rgb(var(--board-shadow) / 0.25);
 }
 .board__dialog-head {
-  flex: none;
-  /* Room for the close button, so a long title wraps before it reaches it
-     instead of running underneath. */
-  padding-right: 2rem;
+  grid-column: 1;
+  grid-row: 1;
+  /* A little air before the ✕ in the next cell, so a long title has somewhere
+     to wrap rather than running right up against it. */
+  padding-right: 0.75rem;
 }
-/* A head that holds only a screen-reader heading still occupies its padding and
-   its child's margins, which is a band of nothing where the form should start.
-   The close button keeps its corner regardless — it is positioned against the
-   card, not against this. */
+/* A head that holds only a screen-reader heading is an empty cell; the row is
+   then as tall as the ✕ beside it, which is the least a corner control can
+   cost. The body starts underneath it either way — that is the point of the
+   grid, and it is why this no longer needs a rule pushing the first field clear
+   of a floating button. */
 .board__dialog-head--quiet {
   padding-right: 0;
 }
-/* The first field then needs the room the heading would have taken from the
-   close button, or its label runs under the ✕. */
-.board__dialog-head--quiet + .board__dialog-body {
-  padding-top: 0.75rem;
-}
 .board__dialog-body {
-  /* `min-height: 0` because a flex item's automatic minimum is its content:
+  grid-column: 1 / -1;
+  grid-row: 2;
+  /* `min-height: 0` because a grid item's automatic minimum is its content:
      without it the body refuses to shrink, the card grows past its max-height,
      and nothing scrolls at all. */
-  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   /* Room for the focus ring, which is painted OUTSIDE the input's box.
@@ -1672,12 +1767,13 @@ body {
   padding-inline: 4px;
   margin-inline: -4px;
 }
-/* The way out of every dialog, in the corner people already look for it.
-   Sits over the card's own padding rather than taking a row of its own. */
+/* The way out of every dialog, in the corner people already look for it — now
+   in a cell of the card's grid beside the heading, rather than floating over
+   whatever happens to be under it. See `.board__dialog`. */
 .board__dialog-x {
-  position: absolute;
-  top: 0.85rem;
-  right: 0.85rem;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
   display: grid;
   place-items: center;
   width: 1.9rem;

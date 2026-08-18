@@ -12,8 +12,8 @@ import {
 import { ImagePicker } from "./ImagePicker";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
-import { formatAmount, parseAmount, regroupAmountInput } from "../lib/money";
-import { onAmountInput } from "../lib/amountField";
+import { MoneyInput } from "./MoneyInput";
+import { formatAmount, parseAmount } from "../lib/money";
 import { t } from "../lib/i18n";
 
 /**
@@ -34,6 +34,17 @@ export function EditBoardDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
+  /*
+   * The cover, staged rather than applied.
+   *
+   * It used to commit itself the moment you pressed its own Save, which left
+   * this panel with two buttons doing different halves of "edit this trip" —
+   * and the one labelled "Save changes" was the one that did *not* save the
+   * image. Both intents are held here now and spent by the single submit
+   * below: a file to upload, or a decision to clear what is there.
+   */
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverCleared, setCoverCleared] = useState(false);
   // Outside the resolver, like the create dialog's copy: the field shows a
   // grouped string and the contract wants a number. Seeded already grouped, so
   // the number you set does not come back looking like a different one.
@@ -41,34 +52,36 @@ export function EditBoardDialog({
     trip.budgetPerPerson === null ? "" : formatAmount(trip.budgetPerPerson),
   );
 
-  async function saveCover(file: File) {
+  /**
+   * Apply whatever the reader did to the cover, if anything.
+   *
+   * Separate from the trip's own update because the two are different requests
+   * with different failure modes — the image endpoint has its own size and type
+   * rules, and its own rate limit — and reporting them in one place would make
+   * "that file is too large" look like a problem with the trip's name. Returns
+   * whether it got through, so the caller knows not to close on a failure.
+   */
+  async function applyCover(): Promise<boolean> {
     setCoverError(null);
     try {
-      await setCover.mutateAsync(file);
+      if (coverFile) await setCover.mutateAsync(coverFile);
+      else if (coverCleared) await removeCover.mutateAsync();
+      return true;
     } catch (err) {
       setCoverError(
         err instanceof ApiError
           ? err.message
-          : t("Couldn't upload that cover. Please try again."),
+          : coverFile
+            ? t("Couldn't upload that cover. Please try again.")
+            : t("Couldn't remove the cover. Please try again."),
       );
-    }
-  }
-
-  async function clearCover() {
-    setCoverError(null);
-    try {
-      await removeCover.mutateAsync();
-    } catch (err) {
-      setCoverError(
-        err instanceof ApiError
-          ? err.message
-          : t("Couldn't remove the cover. Please try again."),
-      );
+      return false;
     }
   }
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<UpdateTripInput>({
     resolver: zodResolver(UpdateTripInput),
@@ -88,6 +101,11 @@ export function EditBoardDialog({
         ...data,
         budgetPerPerson: parseAmount(budget) ?? undefined,
       });
+      // The trip's own fields first, because they are the ones under the
+      // version check: a 409 here means somebody else edited the board, and
+      // uploading an image before finding that out would leave a cover applied
+      // to a trip whose text edit was refused.
+      if (!(await applyCover())) return;
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -170,15 +188,39 @@ export function EditBoardDialog({
               label={t("Budget per person")}
               hint="Optional. A target to read the total against — nothing is blocked for going over. Clear it to remove the target."
             >
-              <Input
+              {/* Read off the live select above rather than off the trip, so
+                  changing the currency and the budget in one visit never leaves
+                  the figure marked with the code it used to be in. */}
+              <MoneyInput
                 id="budgetPerPerson"
-                type="text"
-                inputMode="decimal"
+                currency={watch("defaultCurrency") ?? trip.defaultCurrency}
                 value={budget}
-                onChange={(e) => onAmountInput(e, setBudget)}
-                onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
+                onChange={setBudget}
               />
             </Field>
+
+            {/* Inside the panel's own save cycle now — it stages a pick and the
+                one button below spends it. It was a picker with a Save of its
+                own sitting *under* the form's Save, so the panel had two
+                buttons and the one that said "Save changes" saved everything
+                except the image directly above it. */}
+            <ImagePicker
+              label={t("Cover image")}
+              shape="wide"
+              currentUrl={trip.coverImageUrl}
+              removed={coverCleared}
+              busy={setCover.isPending || removeCover.isPending}
+              error={coverError}
+              onPick={(file) => {
+                setCoverFile(file);
+                // Picking after clearing is a change of mind, not both.
+                if (file) setCoverCleared(false);
+              }}
+              onRemove={
+                trip.coverImageUrl ? () => setCoverCleared(true) : undefined
+              }
+            />
+
             {formError ? (
               <p className="board__form-error" role="alert">
                 {formError}
@@ -189,21 +231,6 @@ export function EditBoardDialog({
                 {isSubmitting ? t("Saving…") : t("Save changes")}
               </Button>
             </div>
-
-            {/* Outside the form's save cycle on purpose: the cover uploads and
-                applies on its own, so it carries no `version` and can't trip
-                the optimistic-concurrency check the text fields live under. */}
-            <ImagePicker
-              label={t("Cover image")}
-              shape="wide"
-              currentUrl={trip.coverImageUrl}
-              busy={setCover.isPending || removeCover.isPending}
-              error={coverError}
-              onSave={(file) => void saveCover(file)}
-              onRemove={
-                trip.coverImageUrl ? () => void clearCover() : undefined
-              }
-            />
           </form>
         )}
       </>

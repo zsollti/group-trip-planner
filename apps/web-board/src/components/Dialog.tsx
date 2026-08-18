@@ -214,7 +214,9 @@ export function Dialog({
         </div>
         <div className="board__dialog-body">{children}</div>
         {/*
-         * Last in the DOM on purpose, though it is drawn top-right.
+         * Last in the DOM on purpose, though it is drawn top-right — the card's
+         * grid puts it in the heading's row (see `.board__dialog`), so source
+         * order and screen position are deliberately different here.
          *
          * Initial focus is "the first focusable thing in the card", which is
          * how a dialog that opens on a form puts the cursor in its first

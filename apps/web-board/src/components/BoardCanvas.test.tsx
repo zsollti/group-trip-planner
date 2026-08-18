@@ -174,7 +174,6 @@ function mockEmptyFetch() {
   );
 }
 
-
 function renderBoard(myRole: TripRole, frozen = false) {
   return render(
     <QueryClientProvider client={createQueryClient()}>

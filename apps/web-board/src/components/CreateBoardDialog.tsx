@@ -7,10 +7,10 @@ import { CreateTripInput } from "@gtp/types";
 import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
+import { MoneyInput } from "./MoneyInput";
 import { dayToIso } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
-import { parseAmount, regroupAmountInput } from "../lib/money";
-import { onAmountInput } from "../lib/amountField";
+import { parseAmount } from "../lib/money";
 import { tripDateStepError } from "../lib/tripDateStep";
 import { t } from "../lib/i18n";
 
@@ -312,14 +312,16 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             label={t("Budget per person")}
             hint="A target to read the total against — nothing is blocked for going over."
           >
-            <Input
+            <MoneyInput
               id="budgetPerPerson"
-              type="text"
-              inputMode="decimal"
               autoFocus
+              // The step before this one is the currency, so the answer is
+              // always already given by the time this is asked — and read off
+              // the live form value, not the default, or a trip in forints
+              // would ask for its budget marked EUR.
+              currency={watch("defaultCurrency") ?? "EUR"}
               value={budget}
-              onChange={(e) => onAmountInput(e, setBudget)}
-              onBlur={(e) => setBudget(regroupAmountInput(e.target.value))}
+              onChange={setBudget}
             />
           </Field>
         ) : null}
