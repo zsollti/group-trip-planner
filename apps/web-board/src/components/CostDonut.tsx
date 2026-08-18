@@ -1,7 +1,8 @@
-import type { CategoryView } from "@gtp/types";
+import type { CategoryBuiltinKey, CategoryView } from "@gtp/types";
 import type { CostComposition, CostSlice } from "../lib/costComposition";
 import { donutArcs, pointOnRing } from "../lib/donutGeometry";
-import { categoryHueStyleById } from "../lib/categoryTheme";
+import { categoryHueStyleById, categoryIconKey } from "../lib/categoryTheme";
+import { CATEGORY_ICON_PATHS } from "../lib/categoryIconPaths";
 import { centreFontRem } from "../lib/donutCentre";
 import { t } from "../lib/i18n";
 
@@ -43,6 +44,24 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const GAP = 2.5;
 /** The over-budget band sits outside the ring, clear of the wedges it measures. */
 const OVER_RADIUS = RADIUS + THICKNESS / 2 + 3.5;
+/**
+ * How big a lane's mark is drawn on its own wedge, in the ring's own units.
+ *
+ * Comfortably inside {@link THICKNESS} so the glyph sits *in* the band rather
+ * than straddling its edges, which is what would make it read as a sticker
+ * dropped on the chart instead of part of it.
+ */
+const MARK = 12;
+/**
+ * The shortest wedge that still gets its mark.
+ *
+ * "Enough space" measured along the arc, not by share, because a share is a
+ * fraction and the thing that has to fit is a length. A wedge shorter than the
+ * glyph plus a little air renders it touching both its neighbours, and three
+ * marks crammed into a tenth of the ring is noise where the list beside it is
+ * already saying the same thing in words.
+ */
+const MARK_MIN_ARC = MARK + 6;
 
 export function CostDonut({
   composition,
@@ -134,6 +153,35 @@ export function CostDonut({
             <OverBudgetBand from={targetMark} />
           ) : null}
         </g>
+        {/*
+         * Each lane's own mark, on its own wedge.
+         *
+         * Outside the rotated group, like {@link TargetTick}: `pointOnRing`
+         * already puts zero at twelve o'clock, so a glyph placed by it inside
+         * the group would be turned a further quarter-turn onto its side.
+         *
+         * Decoration, and only ever that — it is `aria-hidden` with the rest of
+         * the ring, and the wedge it marks is already named in the list beside
+         * the chart. A wedge too short to hold one loses nothing.
+         */}
+        {slices.map((slice, i) => {
+          if (slice.categoryId === null) return null;
+          if (arcs[i]!.length < MARK_MIN_ARC) return null;
+          const category = categories.find((c) => c.id === slice.categoryId);
+          if (!category) return null;
+          // The arc's own start, back in fractions of the circle — the wedges
+          // advance by their full share, so `start / circumference` is exactly
+          // how much of the ring came before this one.
+          const mid = arcs[i]!.start / CIRCUMFERENCE + slice.share / 2;
+          return (
+            <WedgeMark
+              key={keyOf(slice)}
+              at={mid}
+              category={category}
+              dimmed={activeId != null && keyOf(slice) !== activeId}
+            />
+          );
+        })}
         {targetMark !== null && overspend > 0 ? (
           <TargetTick at={targetMark} />
         ) : null}
@@ -195,6 +243,42 @@ export function EmptyCostDonut({
 /** One stable key per slice; the tail has no category id to use. */
 function keyOf(slice: CostSlice): string {
   return slice.categoryId ?? "tail";
+}
+
+/**
+ * One category's glyph, centred on its wedge.
+ *
+ * The paths are {@link CATEGORY_ICON_PATHS} rather than a `<CategoryIcon>`,
+ * because that component is an `<svg>` of its own and this has to be a group
+ * inside the chart's. Same drawing either way — which is the point of keeping
+ * one set of paths: the mark on the ring is the mark on the lane header.
+ *
+ * White, not the lane's ink. Every wedge is a saturated field of its own hue,
+ * and a per-hue foreground would need eight contrast checks that the token
+ * contract does not make; white clears every one of the eight in both themes,
+ * because the fill under it is `--cat-main` in either. This is also the only
+ * place on the board where something is drawn *on* a category's colour, which
+ * is why it is a shape and never a word.
+ */
+function WedgeMark({
+  at,
+  category,
+  dimmed,
+}: {
+  at: number;
+  category: { readonly builtinKey: CategoryBuiltinKey | null };
+  dimmed: boolean;
+}) {
+  const { x, y } = pointOnRing(at, RADIUS, CENTRE);
+  const scale = MARK / 24;
+  return (
+    <g
+      className={"cost-donut__mark" + (dimmed ? " cost-donut__mark--off" : "")}
+      transform={`translate(${x - MARK / 2} ${y - MARK / 2}) scale(${scale})`}
+    >
+      {CATEGORY_ICON_PATHS[categoryIconKey(category)]}
+    </g>
+  );
 }
 
 /**

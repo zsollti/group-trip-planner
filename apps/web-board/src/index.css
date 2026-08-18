@@ -2534,6 +2534,34 @@ body {
   stroke-width: 5;
   stroke-linecap: round;
 }
+/* A lane's own glyph, on its own wedge.
+   White rather than `--cat-ink`: the wedge under it is `--cat-main` at full
+   strength in either theme, and white is the one foreground that clears every
+   one of the eight hues without the token contract having to make eight new
+   promises. Stroked a touch heavier than the 1.8 the icons carry elsewhere,
+   because this one is drawn at half size on a coloured field.
+   `pointer-events: none` so the mark never intercepts the hover that belongs to
+   the wedge it is sitting on — the ring would go dead exactly where a reader
+   aims. */
+.cost-donut__mark {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+/* Dimmed with the wedge it marks, or it would float over a faded band. */
+.cost-donut__mark--off {
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cost-donut__mark {
+    transition: none;
+  }
+}
+
 /* Where the budget ran out. Short, and outside the fills — the previous rule
    crossed the middle of a saturated wedge, which is the one place a 2px red
    line disappears. */
