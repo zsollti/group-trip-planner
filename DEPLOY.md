@@ -84,32 +84,32 @@ Two things worth knowing before you need them:
 
 ### `api`
 
-| Variable          | Value                                | Why                                                                                             |
-| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`    | `${{Postgres.DATABASE_URL}}`         | Reference variable — tracks the Postgres service over the private net.                          |
-| `JWT_SECRET`      | _(the `openssl rand -hex 32` value)_ | Required. Production **rejects** the `.env.example` placeholder.                                |
-| `NODE_ENV`        | `production`                         | Baked into the image too; set it so the production checks are on.                               |
+| Variable          | Value                                | Why                                                                                                                                               |
+| ----------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`    | `${{Postgres.DATABASE_URL}}`         | Reference variable — tracks the Postgres service over the private net.                                                                            |
+| `JWT_SECRET`      | _(the `openssl rand -hex 32` value)_ | Required. Production **rejects** the `.env.example` placeholder.                                                                                  |
+| `NODE_ENV`        | `production`                         | Baked into the image too; set it so the production checks are on.                                                                                 |
 | `COOKIE_SAMESITE` | `lax`                                | `lax` **only** if the api is a subdomain of the web app's domain (§5, "Same-site API domain"). `none` otherwise — which breaks sign-in on mobile. |
-| `COOKIE_SECURE`   | `true`                               | A `SameSite=None` cookie without `Secure` is dropped by every browser.                          |
-| `CORS_ORIGINS`    | `https://<web-board domain>`         | The origin allowlist. Production **refuses to boot** on a non-https one.                        |
-| `WEB_APP_URL`     | `https://<web-board domain>`         | Where verification / unsubscribe links land in the SPA.                                         |
-| `API_PUBLIC_URL`  | `https://<api domain>`               | Unsubscribe links are clicked from a mail client with no session, so they hit the API directly. |
-| `UPLOAD_DIR`      | `/data/uploads`                      | **Must be absolute, on the volume from §4.** See the warning there.                             |
+| `COOKIE_SECURE`   | `true`                               | A `SameSite=None` cookie without `Secure` is dropped by every browser.                                                                            |
+| `CORS_ORIGINS`    | `https://<web-board domain>`         | The origin allowlist. Production **refuses to boot** on a non-https one.                                                                          |
+| `WEB_APP_URL`     | `https://<web-board domain>`         | Where verification / unsubscribe links land in the SPA.                                                                                           |
+| `API_PUBLIC_URL`  | `https://<api domain>`               | Unsubscribe links are clicked from a mail client with no session, so they hit the API directly.                                                   |
+| `UPLOAD_DIR`      | `/data/uploads`                      | **Must be absolute, on the volume from §4.** See the warning there.                                                                               |
 
 Optional but wanted in a real deployment:
 
-| Variable               | Value                                       | Effect                                                                       |
-| ---------------------- | ------------------------------------------- | ---------------------------------------------------------------------------- |
-| `RESEND_API_KEY`       | _(Resend key)_                              | Sends real email. Without it, verification links are written to the logs.    |
-| `EMAIL_FROM`           | `Trips <no-reply@your-domain>`              | Needs a domain verified with Resend; the default sender is Resend's sandbox. |
-| `SENTRY_DSN`           | _(project DSN)_                             | Turns on error reporting. Unset = the SDK is never initialised.              |
-| `SENTRY_ENVIRONMENT`   | `production`                                | Separates real events from a local reproduction.                             |
-| `SENTRY_RELEASE`       | _(commit sha)_                              | Links a stack trace to source. Optional; events still group without it.      |
-| `GOOGLE_CLIENT_ID`     | _(OAuth client id)_                         | All **three** are needed, or `GET /auth/google` 404s and the button is off.  |
-| `GOOGLE_CLIENT_SECRET` | _(OAuth client secret)_                     |                                                                              |
-| `GOOGLE_CALLBACK_URL`  | `https://<api domain>/auth/google/callback` | Must match the Google console entry **byte for byte**.                       |
-| `EXCHANGE_RATES_URL`   | `https://api.frankfurter.app/latest?from=EUR` | Turns on the approximate all-in total. **Unset = no fetching at all**: the rate table stays empty, every dashboard reports `converted: null`, and the cost strip is the per-currency one it has always been. No API key; ECB reference rates, ~30 currencies. |
-| `ADMIN_EMAILS`         | _(your address)_                            | Who may open the operator console at `/admin`. Comma-separated, case-insensitive. **Unset = the console is off** and every `/admin` route answers 404 to everyone — deliberately, since it reads across every account. Granting or revoking is a variable change and a restart, never a migration. |
+| Variable               | Value                                         | Effect                                                                                                                                                                                                                                                                                             |
+| ---------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`       | _(Resend key)_                                | Sends real email. Without it, verification links are written to the logs.                                                                                                                                                                                                                          |
+| `EMAIL_FROM`           | `Trips <no-reply@your-domain>`                | Needs a domain verified with Resend; the default sender is Resend's sandbox.                                                                                                                                                                                                                       |
+| `SENTRY_DSN`           | _(project DSN)_                               | Turns on error reporting. Unset = the SDK is never initialised.                                                                                                                                                                                                                                    |
+| `SENTRY_ENVIRONMENT`   | `production`                                  | Separates real events from a local reproduction.                                                                                                                                                                                                                                                   |
+| `SENTRY_RELEASE`       | _(commit sha)_                                | Links a stack trace to source. Optional; events still group without it.                                                                                                                                                                                                                            |
+| `GOOGLE_CLIENT_ID`     | _(OAuth client id)_                           | All **three** are needed, or `GET /auth/google` 404s and the button is off.                                                                                                                                                                                                                        |
+| `GOOGLE_CLIENT_SECRET` | _(OAuth client secret)_                       |                                                                                                                                                                                                                                                                                                    |
+| `GOOGLE_CALLBACK_URL`  | `https://<api domain>/auth/google/callback`   | Must match the Google console entry **byte for byte**.                                                                                                                                                                                                                                             |
+| `EXCHANGE_RATES_URL`   | `https://api.frankfurter.app/latest?from=EUR` | Turns on the approximate all-in total. **Unset = no fetching at all**: the rate table stays empty, every dashboard reports `converted: null`, and the cost strip is the per-currency one it has always been. No API key; ECB reference rates, ~30 currencies.                                      |
+| `ADMIN_EMAILS`         | _(your address)_                              | Who may open the operator console at `/admin`. Comma-separated, case-insensitive. **Unset = the console is off** and every `/admin` route answers 404 to everyone — deliberately, since it reads across every account. Granting or revoking is a variable change and a restart, never a migration. |
 
 ### `web-board`
 
@@ -179,7 +179,7 @@ easy to misdiagnose.
 
 Put both on one registrable domain and the cookie is same-site, `Lax` is enough,
 and no browser has an opinion about it. The two hosts are still different
-*origins*, so CORS is still required and unchanged.
+_origins_, so CORS is still required and unchanged.
 
 1. `api` service → **Settings → Networking → Custom Domain** → `api.<your domain>`;
    add the CNAME it gives you at your DNS provider.
@@ -270,6 +270,34 @@ Every migration up to 2026-08-15 was additive. The participants change
 accepted the window knowingly, on an app with no live traffic. Do not treat that
 as the precedent.
 
+### Loading the place list
+
+The destination field on the create-trip form suggests real places. They come
+from a **seeded table** — ~74,000 rows built from GeoNames — and like the demo
+seed it is not run by a deploy. Unlike the demo seed, it only has to be run
+**once per environment**, and again only when a newer dataset is committed.
+
+```bash
+railway ssh --service api
+# the image's WORKDIR is /app/apps/api
+pnpm places:seed
+```
+
+It reads `prisma/data/places.tsv.gz`, which is in the repo and therefore in the
+image; nothing reaches the network. It is idempotent — rows are keyed by
+GeoNames' own ids — so running it twice is running it once.
+
+**If you skip it, nothing breaks.** The endpoint matches nothing, the field
+offers no suggestions, and a destination typed into it is saved exactly as it was
+before this existed. That is the degraded state, and it is deliberate: a
+gazetteer that has not loaded should not be able to stop anybody planning a trip.
+
+To rebuild the dataset from a newer GeoNames dump — worth doing about once a
+year — run `pnpm --filter @gtp/api places:fetch` **locally**, commit the changed
+`prisma/data/`, and re-run `places:seed` after the deploy. The fetch script is
+the only thing in this repo that talks to download.geonames.org, and it never
+runs in CI or in production.
+
 ### Seeding (and resetting) the public demo trip
 
 The README publishes credentials for a demo account so a visitor can see a
@@ -279,7 +307,7 @@ populated board without registering. That data comes from the demo seed, which i
 Run it deliberately, one of three ways.
 
 **From the operator console (preferred).** Sign in as an address listed in
-`ADMIN_EMAILS`, open **/admin**, and use *Demo data → Rebuild the demo trip*. It
+`ADMIN_EMAILS`, open **/admin**, and use _Demo data → Rebuild the demo trip_. It
 asks once before it does anything, then reports what it built and how many demo
 trips it replaced, and writes a `DEMO_RESEEDED` row into the operator log naming
 you.
@@ -300,11 +328,11 @@ railway ssh --service api
 pnpm demo:seed
 ```
 
-**From your machine (fallback).** `railway run` will *not* work here: it injects
+**From your machine (fallback).** `railway run` will _not_ work here: it injects
 the service's variables into a local process, and `DATABASE_URL` points at
 `*.railway.internal`, which does not resolve outside Railway. Use the Postgres
 service's **public** URL instead — Railway exposes it as `DATABASE_PUBLIC_URL`
-(Postgres service → *Variables*):
+(Postgres service → _Variables_):
 
 ```bash
 DATABASE_URL="<DATABASE_PUBLIC_URL>" pnpm --filter @gtp/api demo:seed
@@ -359,7 +387,7 @@ where it acts as a gate: if the API is not answering, the newer frontend is not
 shipped against it.
 
 **Each deploy is verified by outcome, not by the CLI's exit code.**
-`railway up --ci` streams build logs and exits non-zero when *the stream* dies,
+`railway up --ci` streams build logs and exits non-zero when _the stream_ dies,
 which says nothing about whether the build succeeded. On 2026-08-10 that
 happened repeatedly on both services: the upload was accepted, a build id was
 returned, the dashboard showed **Success**, the site served the new bundle — and
@@ -367,7 +395,7 @@ the command still reported failure. Retrying was tried first and was the wrong
 instrument: the exit code is not flaky, it is wrong, so three attempts just
 produced three identical deployments and failed anyway.
 
-So `.github/scripts/railway-up.sh` treats *that specific* failure as
+So `.github/scripts/railway-up.sh` treats _that specific_ failure as
 "submitted, unverified" and lets the checks decide, while any other non-zero
 exit stays fatal. The checks are:
 

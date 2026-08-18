@@ -546,6 +546,19 @@ body {
   letter-spacing: 0.04em;
   color: var(--board-accent);
 }
+/* The licence credit. Quiet, and separated by a rule so it reads as a footnote
+   to the list rather than as the last suggestion in it — which is what a line of
+   text in a listbox otherwise looks like. */
+.destfield__credit {
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.5rem 0.1rem;
+  border-top: 1px solid var(--lane-line);
+  font-size: 0.68rem;
+  color: var(--board-dim);
+}
+.destfield__credit a {
+  color: inherit;
+}
 
 /* An amount field with its currency printed inside it — see `MoneyInput`.
  *

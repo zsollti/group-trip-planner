@@ -591,4 +591,5 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Nincs találat — beírhatod magad is.",
   "Start typing to search, or write anywhere you like.":
     "Kezdj írni a kereséshez, vagy írj be bármit.",
+  "Place names from {source}, CC BY 4.0": "Helynévadatok: {source}, CC BY 4.0",
 };

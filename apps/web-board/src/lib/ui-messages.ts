@@ -303,6 +303,7 @@ export const UI_MESSAGES = [
   "Personal",
   "Pick a start, then an end",
   "Pick both days, or skip this step.",
+  "Place names from {source}, CC BY 4.0",
   "Plan",
   "Plan your first trip",
   "Previous month",
