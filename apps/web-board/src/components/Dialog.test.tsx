@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -154,5 +157,41 @@ describe("Dialog", () => {
     // Closing hands focus back, so a keyboard user resumes where they were
     // instead of being dropped at the top of the document.
     expect(document.activeElement).toBe(trigger);
+  });
+});
+
+/**
+ * The portal's cost, guarded where it is actually paid: the stylesheet.
+ *
+ * Rendering into `document.body` is what stops a transformed ancestor from
+ * capturing a fixed backdrop — and it also takes every dialog out of the
+ * `<main class="board">` it is written in. Any rule that reached its content
+ * through a `.board` ancestor therefore stopped matching, silently: the shared
+ * form primitives were scoped that way, and the option form and the edit-trip
+ * dialog came back wearing the browser's default controls. jsdom applies no
+ * stylesheet, so no rendering test can see this; the file itself can.
+ *
+ * Written against the whole sheet rather than the known offenders, so the next
+ * `.board [data-gtp-…]` somebody adds fails here instead of shipping.
+ */
+describe("the stylesheet's side of the portal", () => {
+  it("styles the form primitives without a .board ancestor", () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "index.css"),
+      "utf8",
+    );
+    // Selectors only: a `.board` inside a comment is prose, not a rule.
+    const selectors = css
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("}")
+      .map((block) => block.split("{")[0] ?? "")
+      .flatMap((s) => s.split(","))
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const scoped = selectors.filter(
+      (s) => /data-gtp-/.test(s) && /(^|[\s>+~])\.board(\s|$)/.test(s),
+    );
+    expect(scoped).toEqual([]);
   });
 });

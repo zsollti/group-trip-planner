@@ -392,20 +392,30 @@ body {
   border: 1px solid color-mix(in srgb, var(--board-accent) 30%, transparent);
 }
 
-/* --- Shared form primitives, themed for the Board --- */
-.board [data-gtp-field] {
+/* --- Shared form primitives, themed for the Board ---------------------------
+ *
+ * **Not scoped under `.board`, deliberately.** They were, and it was invisible
+ * until dialogs learned to render into `document.body`: a portal puts the card
+ * outside the `<main class="board">` it is written in, so every `Input`,
+ * `Field` and `Button` inside a modal lost its theme in one commit and came
+ * back as the browser's own controls. The prefix was never buying anything —
+ * every route on this app is a `.board` — while quietly making the styles
+ * depend on where in the tree a component happens to be mounted, which is the
+ * one thing a primitive must not care about. The `data-gtp-*` attributes are
+ * already the scope: nothing else in the app has them. */
+[data-gtp-field] {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   margin-bottom: 1rem;
 }
 
-.board [data-gtp-label] {
+[data-gtp-label] {
   font-size: 0.85rem;
   font-weight: 600;
 }
 
-.board [data-gtp-input] {
+[data-gtp-input] {
   background: var(--board-bg);
   border: 1px solid var(--lane-line);
   border-radius: 10px;
@@ -414,28 +424,28 @@ body {
   font: inherit;
 }
 
-.board [data-gtp-input]:focus-visible {
+[data-gtp-input]:focus-visible {
   outline: 2px solid var(--board-accent);
   outline-offset: 1px;
 }
 
-.board [data-gtp-input][data-invalid] {
+[data-gtp-input][data-invalid] {
   border-color: var(--board-danger);
 }
 
-.board [data-gtp-field-error] {
+[data-gtp-field-error] {
   color: var(--board-danger);
   font-size: 0.75rem;
   margin: 0;
 }
 
-.board [data-gtp-field-hint] {
+[data-gtp-field-hint] {
   color: var(--board-dim);
   font-size: 0.75rem;
   margin: 0;
 }
 
-.board [data-gtp-button] {
+[data-gtp-button] {
   background: var(--board-accent);
   color: var(--board-on-accent);
   border: none;
@@ -452,13 +462,13 @@ body {
   margin-top: 0.35rem;
 }
 
-.board [data-gtp-button][data-variant="secondary"] {
+[data-gtp-button][data-variant="secondary"] {
   background: transparent;
   color: var(--board-accent);
   border: 1px solid var(--board-accent);
 }
 
-.board [data-gtp-button]:disabled {
+[data-gtp-button]:disabled {
   opacity: 0.6;
   cursor: default;
 }
@@ -1954,7 +1964,7 @@ body {
   box-shadow: inset 0 0 0 1px
     color-mix(in srgb, var(--board-accent) 35%, transparent);
 }
-.board textarea[data-gtp-input] {
+textarea[data-gtp-input] {
   width: 100%;
   resize: vertical;
   min-height: 4.75rem;
@@ -3051,7 +3061,7 @@ body {
     scroll-snap-align: start;
   }
   /* Comfortable touch targets (≥44px) for the primary controls. */
-  .board [data-gtp-button],
+  [data-gtp-button],
   .board__cta {
     min-height: 44px;
   }
@@ -3245,7 +3255,7 @@ body {
 
 /* --- A11y floor + four-states polish (Phase 3.5) --------------------------- */
 /* Visible keyboard focus on every interactive control (not just inputs/grips). */
-.board [data-gtp-button]:focus-visible,
+[data-gtp-button]:focus-visible,
 .board__cta:focus-visible,
 .board__link-btn:focus-visible,
 .board__switch:focus-visible,
