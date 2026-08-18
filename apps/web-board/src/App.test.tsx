@@ -281,6 +281,83 @@ describe("web-board auth flow", () => {
     });
   });
 
+  it("leaves a trip from the trip menu, behind a confirmation", async () => {
+    // Leaving moved out of the crew dialog and into the trip's own "⋯", next to
+    // Delete. That neighbourhood is the reason the confirmation matters: two
+    // adjacent destructive labels, one of which takes the board away from
+    // everybody. So this asserts both halves — that the menu item alone sends
+    // nothing, and that confirming does.
+    setAccessToken("access-token");
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        calls.push(`${init?.method ?? "GET"} ${u.replace(/^.*\/\/[^/]+/, "")}`);
+        if (u.endsWith("/auth/refresh")) {
+          return json({
+            accessToken: "access-token",
+            user: {
+              id: "u1",
+              email: "ada@example.com",
+              displayName: "Ada",
+              emailVerified: true,
+            },
+          });
+        }
+        if (u.endsWith("/members/leave")) return json({});
+        if (u.includes("/notifications"))
+          return json({ notifications: [], unreadCount: 0, nextCursor: null });
+        if (u.includes("/members")) return json({ members: [], blocked: [] });
+        if (u.includes("/dashboard"))
+          return json({
+            committed: [],
+            projected: [],
+            viewerCommitted: [],
+            lines: [],
+            memberCount: 1,
+          });
+        if (u.includes("/categories")) return json([]);
+        if (u.includes("/trips/t1")) {
+          return json({
+            id: "t1",
+            name: "Lisbon 2026",
+            description: null,
+            destination: null,
+            coverImageUrl: null,
+            defaultCurrency: "EUR",
+            startDate: null,
+            endDate: null,
+            status: "ACTIVE",
+            // A participant: the role that may leave and may not delete.
+            role: "PARTICIPANT",
+            memberCount: 3,
+            viewerMuted: false,
+            version: 1,
+          });
+        }
+        return json({ message: "not found" }, 404);
+      }),
+    );
+
+    renderAt("/trips/t1");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Trip menu" }));
+    // Plain buttons in a popover, not an ARIA menu widget — see `Menu`.
+    fireEvent.click(await screen.findByRole("button", { name: "Leave trip" }));
+
+    // The menu item opens the question; it does not answer it.
+    expect(calls.some((c) => c.includes("/members/leave"))).toBe(false);
+    expect(
+      await screen.findByText(/you'll lose access unless re-invited/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave trip" }));
+    await waitFor(() =>
+      expect(calls).toContain("POST /trips/t1/members/leave"),
+    );
+  });
+
   it("toggles the mention-email preference from settings (Phase 5.3)", async () => {
     setAccessToken("access-token");
     const patched: unknown[] = [];

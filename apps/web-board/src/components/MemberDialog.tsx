@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@gtp/ui-primitives";
 import {
   ROLE_RANK,
@@ -15,7 +14,6 @@ import {
   useBlockMember,
   useChangeMemberRole,
   useKickMember,
-  useLeaveTrip,
   useTransferOwnership,
   useTripMembers,
   useUnblockMember,
@@ -28,9 +26,11 @@ import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
 
-type Pending =
-  | { kind: "kick" | "block" | "transfer"; userId: string; name: string }
-  | { kind: "leave" };
+type Pending = {
+  kind: "kick" | "block" | "transfer";
+  userId: string;
+  name: string;
+};
 
 /**
  * Board-paradigm crew dialog: a floating card listing members with role controls
@@ -49,6 +49,14 @@ type Pending =
  * The menu offers only the roles the member is **not** — their current one is
  * already written beside their name, so listing it again would be a menu item
  * that does nothing.
+ *
+ * **Leaving is not here**, though it used to be, at the foot of the card. It was
+ * the one control on this surface that was about the reader rather than about
+ * somebody else, which is precisely the argument against it: this dialog answers
+ * "who is on the trip, and what may I do to them". Walking away from the trip is
+ * an action *on the trip*, and every one of those lives in the trip's own "⋯" —
+ * where it also sits next to the only thing it can be confused with, Delete. See
+ * `TripDetail`.
  */
 export function MemberDialog({
   tripId,
@@ -60,14 +68,12 @@ export function MemberDialog({
   onClose: () => void;
 }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const members = useTripMembers(tripId);
   const changeRole = useChangeMemberRole(tripId);
   const kick = useKickMember(tripId);
   const block = useBlockMember(tripId);
   const unblock = useUnblockMember(tripId);
   const transfer = useTransferOwnership(tripId);
-  const leave = useLeaveTrip(tripId);
 
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,10 +106,6 @@ export function MemberDialog({
         setPending(null);
         onClose();
         return;
-      } else if (pending?.kind === "leave") {
-        await leave.mutateAsync();
-        navigate("/");
-        return;
       }
       setPending(null);
     } catch (err) {
@@ -112,7 +114,6 @@ export function MemberDialog({
   }
 
   const canManage = can(myRole, "member.manage");
-  const canLeave = can(myRole, "trip.leave");
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   /**
@@ -271,11 +272,7 @@ export function MemberDialog({
                 ? `Remove ${pending.name}? They can rejoin via a live link.`
                 : pending.kind === "block"
                   ? `Block ${pending.name}? They're removed and barred from rejoining.`
-                  : pending.kind === "transfer"
-                    ? `Make ${pending.name} the owner? You'll become a co-organizer.`
-                    : t(
-                        "Leave this trip? You'll lose access unless re-invited.",
-                      )}
+                  : `Make ${pending.name} the owner? You'll become a co-organizer.`}
             </p>
             <div className="board__dialog-actions">
               <Button
@@ -286,28 +283,11 @@ export function MemberDialog({
                 {t("Cancel")}
               </Button>
               <Button type="button" variant="primary" onClick={onConfirm}>
-                {pending.kind === "leave"
-                  ? t("Leave trip")
-                  : pending.kind === "transfer"
-                    ? t("Transfer ownership")
-                    : t("Confirm")}
+                {pending.kind === "transfer"
+                  ? t("Transfer ownership")
+                  : t("Confirm")}
               </Button>
             </div>
-          </div>
-        ) : canLeave ? (
-          /* Leave is the one action here that is about you rather than about
-             somebody else, so it has nowhere else to live and stays. Close does
-             not: the dialog's own "✕" already does it, and a second one at the
-             bottom made the row of actions look like a choice between two
-             things when only one of them changes anything. */
-          <div className="board__dialog-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setPending({ kind: "leave" })}
-            >
-              {t("Leave trip")}
-            </Button>
           </div>
         ) : null}
       </>
