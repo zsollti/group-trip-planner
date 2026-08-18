@@ -17,7 +17,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Button } from "@gtp/ui-primitives";
 import { useAuth, useHomeDashboard, useReorderTrips } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
@@ -132,6 +131,32 @@ function BoardTile({ trip }: { trip: HomeTripSummary }) {
  * app already works for them: joining an invite, proposing, voting and chatting
  * all deliberately skip the verified-email gate.
  */
+/**
+ * The empty frame at the end of the wall that becomes the next trip.
+ *
+ * This was a filled "＋ New board" button in the page bar, which put the single
+ * most important action on the page as far from the boards as the layout
+ * allowed, dressed as chrome, next to the account menu. A wall of tiles has an
+ * obvious place for "and one more": the next slot in the wall. It is the same
+ * move the board itself already makes with "＋ Add category" at the end of the
+ * lane row, and the same dress — dashed, unfilled, the shape of the thing it
+ * will become rather than a control that talks about it.
+ *
+ * It keeps the old label verbatim. The words were never the problem, and the
+ * e2e journeys reach creation by them.
+ */
+function NewBoardTile({ onCreate }: { onCreate: () => void }) {
+  return (
+    <button
+      type="button"
+      className="board__tile board__tile--add"
+      onClick={onCreate}
+    >
+      {t("＋ New board")}
+    </button>
+  );
+}
+
 function Onboarding({
   verified,
   email,
@@ -230,14 +255,12 @@ export function Dashboard() {
       <header className="board__bar">
         <span className="board__brand">{t("GTP · Trip Board")}</span>
         <div className="board__bar-actions">
-          <Button
-            type="button"
-            variant="primary"
-            onClick={() => setCreateOpen(true)}
-          >
-            {t("＋ New board")}
-          </Button>
-          {/* No notification surface of its own here: the list is in the
+          {/* Creating a board used to be a filled button up here. It is a ghost
+              tile at the end of the wall now — see {@link NewBoardTile} — so
+              the bar is chrome only: who you are, and nothing you do to the
+              boards below it.
+
+              No notification surface of its own here either: the list is in the
               account menu, which fetches the count on every page. Live pushes
               need an open trip screen, so there is no socket to toast from. */}
           <UserMenu />
@@ -298,6 +321,10 @@ export function Dashboard() {
                   {active.map((trip) => (
                     <SortableBoardTile key={trip.id} trip={trip} />
                   ))}
+                  {/* Last in the grid, and outside the SortableContext's items,
+                      so it is never a drag handle or a drop target — it sits in
+                      the row without joining the arrangement. */}
+                  <NewBoardTile onCreate={() => setCreateOpen(true)} />
                 </div>
               </SortableContext>
             </DndContext>

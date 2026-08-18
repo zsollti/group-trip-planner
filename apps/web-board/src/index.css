@@ -1504,6 +1504,49 @@ body {
   border-color: var(--board-accent);
 }
 
+/* The empty frame at the end of the wall — see `NewBoardTile`.
+ *
+ * A tile, not a button that happens to be tile-sized: it takes `.board__tile`
+ * and undoes exactly the three things that say "this one is a trip" — the fill,
+ * the solid edge and the shadow it floats on. What is left is the outline of a
+ * tile, which is precisely what it is offering to make. Same dress as
+ * `＋ Add category` at the end of the lane row, because it is the same idea in
+ * the other layout.
+ *
+ * `place-items: center` because it has one line in it rather than a stack of
+ * facts, and centring is what keeps it from reading as a trip whose name failed
+ * to load. */
+.board__tile--add {
+  display: grid;
+  place-items: center;
+  min-height: 6.5rem;
+  background: none;
+  border: 2px dashed var(--lane-line);
+  box-shadow: none;
+  color: var(--board-dim);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.board__tile--add:hover {
+  color: var(--board-accent);
+  border-color: var(--board-accent);
+  background: color-mix(in srgb, var(--board-accent) 8%, transparent);
+}
+.board__tile--add:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .board__tile--add {
+    transition: none;
+  }
+}
+
 /* Owner / Co-org / Participant / Guest, in the tile's top corner — where the
    drag grip was later put on top of it, so "Participant" ran under the ⠿ and
    came out "Participan⠿". The grip keeps the corner: it is the same gesture in

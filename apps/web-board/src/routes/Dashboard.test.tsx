@@ -109,3 +109,26 @@ describe("Dashboard ordering", () => {
     );
   });
 });
+
+describe("the way to a new board", () => {
+  it("is a tile at the end of the wall, and not a button in the bar", () => {
+    // It was a filled button beside the account menu — the most important
+    // action on the page, as far from the boards as the layout allowed and
+    // dressed as chrome. The claim here is only about *where* it is, because
+    // that is the whole of the change and the part a tidy-up would undo.
+    renderDashboard();
+    const create = screen.getByRole("button", { name: "＋ New board" });
+    expect(create.closest("header")).toBeNull();
+    expect(create).toHaveClass("board__tile--add");
+  });
+
+  it("takes no part in the arrangement", () => {
+    // Inside the tiles grid but outside the sortable items: an empty frame
+    // that could be dragged, or dropped onto, would reorder into a position
+    // the server has no id for.
+    renderDashboard();
+    expect(
+      screen.queryByRole("button", { name: /Reorder .*New board/ }),
+    ).toBeNull();
+  });
+});
