@@ -243,7 +243,12 @@ function RemainingRow({
   onActivate: (key: string | undefined) => void;
 }) {
   return (
-    <li className={"cost-comp__row" + (active ? " cost-comp__row--on" : "")}>
+    <li
+      className={
+        "cost-comp__row cost-comp__row--left" +
+        (active ? " cost-comp__row--on" : "")
+      }
+    >
       <button
         type="button"
         className="cost-comp__row-btn"
