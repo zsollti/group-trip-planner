@@ -162,11 +162,20 @@ export async function seedDemoTrip(
       // A target, not a limit — nothing is refused for exceeding it. Set on the
       // demo because the cost panel is half a feature without one: the donut
       // draws where the money went, and the reading it is *for* is "against
-      // what?". 500 is deliberately a little under what the trip has already
-      // locked, so the first screen shows the over-target state. That is the
-      // half a visitor would otherwise never see — a demo comfortably under
-      // budget draws the same ring with a quieter colour and teaches nothing.
-      budgetPerPerson: "500.00",
+      // what?".
+      //
+      // **520 is chosen to sit between the two answers**, because the verdict is
+      // per *viewer* and the demo should show both halves of that:
+      //
+      //   what everyone pays  106 + 106 + 96/5 + 1080/5 + 39  =  486.20 EUR
+      //   plus the surf lesson, for the four who joined it     ≈  +56 EUR
+      //
+      // So a member who is only in for what the whole group agreed lands
+      // comfortably under the target, and the same board tells the demo account
+      // — who is in the water — that it is over. That difference is the entire
+      // point of pricing an option for whoever's in, and a single target either
+      // side of both figures would have shown one state to everybody.
+      budgetPerPerson: "520.00",
       expiresAt: daysOut(365),
       ownerId: users.demo.id,
       memberships: {
@@ -251,25 +260,44 @@ export async function seedDemoTrip(
       options: [
         {
           title: "TAP direct — BUD → LIS",
-          description: "Direct both ways, 4h05. Hand luggage included.",
-          amount: "212.00",
+          description:
+            "Out on the Friday morning, 4h05. Hand luggage included.",
+          amount: "106.00",
           currency: "EUR",
           costType: "PER_PERSON",
           position: 0,
           by: "demo",
-          // The outbound leg. A return flight is a second decision the group
-          // has not made yet, which is why this is one bar and not two.
           startsAt: at(ARRIVE, 7, 15),
           endsAt: at(ARRIVE, 11, 20),
         },
         {
-          title: "Ryanair via Madrid",
-          description:
-            "€70 cheaper, but a 3h layover on the way out and a 06:15 departure.",
-          amount: "141.00",
+          // The way home, and the reason it is its own option rather than a
+          // second date on the outbound one: an option is one span, so a trip
+          // whose flight out and flight back are the same row can only ever
+          // draw the going. The last day was the one day of the demo with
+          // nothing on it, which read as a group that never left.
+          //
+          // Two legs at 106 rather than one booking at 212 — the money is
+          // unchanged, which is the point: this exists to give the timeline its
+          // last-day bar, not to make the trip more expensive.
+          title: "TAP direct — LIS → BUD",
+          description: "Home on the Monday evening. Same fare, same bag.",
+          amount: "106.00",
           currency: "EUR",
           costType: "PER_PERSON",
           position: 1,
+          by: "demo",
+          startsAt: at(DEPART, 17, 40),
+          endsAt: at(DEPART, 21, 45),
+        },
+        {
+          title: "Ryanair via Madrid",
+          description:
+            "€71 cheaper for the pair, but a 3h layover on the way out and a 06:15 departure.",
+          amount: "141.00",
+          currency: "EUR",
+          costType: "PER_PERSON",
+          position: 2,
           by: "sam",
         },
         {
@@ -278,7 +306,7 @@ export async function seedDemoTrip(
           amount: "96.00",
           currency: "EUR",
           costType: "TOTAL",
-          position: 2,
+          position: 3,
           by: "mira",
           // After the TAP flight lands, not before it.
           startsAt: at(ARRIVE, 11, 45),
@@ -426,6 +454,7 @@ export async function seedDemoTrip(
     ["Fri 22 – Mon 25", ["demo", "mira", "tomas", "anna"]],
     ["Fri 15 – Mon 18", ["sam"]],
     ["TAP direct — BUD → LIS", ["demo", "mira", "anna"]],
+    ["TAP direct — LIS → BUD", ["demo", "mira", "anna"]],
     ["Ryanair via Madrid", ["sam", "tomas"]],
     ["Airport transfer — pre-booked van", ["mira", "anna", "demo"]],
     ["Alfama apartment — whole flat", ["demo", "mira", "anna", "tomas"]],
@@ -456,11 +485,11 @@ export async function seedDemoTrip(
   // transaction writes.
   //
   // Every lane here except Dates seeds multi-select (`BUILTIN_CATEGORIES`),
-  // which is what lets Transport hold two decisions — the flight and the van —
-  // and Activities hold two of its five. That used to be a lie the seed told:
-  // it wrote its locks with `prisma.option.update`, straight past the service
-  // that enforces the rule, so it shipped two locked options in a lane the API
-  // would have refused to let anyone lock twice.
+  // which is what lets Transport hold three decisions — both flight legs and
+  // the van — and Activities hold two of its five. That used to be a lie the
+  // seed told: it wrote its locks with `prisma.option.update`, straight past the
+  // service that enforces the rule, so it shipped two locked options in a lane
+  // the API would have refused to let anyone lock twice.
   //
   // Activities used to carry no lock at all, to keep the cost dashboard's
   // projected total differing from its committed one — a category holding any
@@ -472,6 +501,7 @@ export async function seedDemoTrip(
   const decisions: Array<{ title: string; by: CastKey; at: Date }> = [
     { title: "Fri 22 – Mon 25", by: "demo", at: minsAgo(60 * 26) },
     { title: "TAP direct — BUD → LIS", by: "demo", at: minsAgo(60 * 22) },
+    { title: "TAP direct — LIS → BUD", by: "demo", at: minsAgo(60 * 22) },
     {
       title: "Airport transfer — pre-booked van",
       by: "mira",
@@ -608,7 +638,7 @@ export async function seedDemoTrip(
     {
       ch: general.id,
       by: "demo",
-      body: "TAP locked, and the van for the airport runs. Activities still open.",
+      body: "Both TAP legs locked — out Friday morning, back Monday evening — and the van for the airport runs. Activities still open.",
       ago: 60 * 21,
     },
     {

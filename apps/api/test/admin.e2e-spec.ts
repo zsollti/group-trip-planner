@@ -209,8 +209,8 @@ describe("Admin console (e2e)", () => {
     };
     assert.equal(body.email, "demo@example.com");
     assert.equal(body.members, 5);
-    assert.equal(body.decisions, 6);
-    assert.ok(body.options >= 14, "every seeded option is counted");
+    assert.equal(body.decisions, 7);
+    assert.ok(body.options >= 15, "every seeded option is counted");
 
     const audit = await http()
       .get("/admin/audit")
@@ -269,6 +269,26 @@ describe("Admin console (e2e)", () => {
     assert.ok(
       options.some((o) => o.startsAt === null),
       "and at least one cannot, so the unscheduled list is demonstrated",
+    );
+
+    // The way home, on the last day. A trip whose transport all happens on the
+    // arrival day reads as a group that never left, and the demo's last day was
+    // the one day of it with nothing on it at all. Asserted against the trip's
+    // own end date rather than against a title, so renaming the flight does not
+    // quietly delete the case.
+    const trip = await prisma.trip.findUniqueOrThrow({
+      where: { id: body.tripId },
+      select: { endDate: true },
+    });
+    const lastDay = trip.endDate!.toISOString().slice(0, 10);
+    assert.ok(
+      options.some(
+        (o) =>
+          o.status === "LOCKED" &&
+          o.startsAt !== null &&
+          o.startsAt.toISOString().slice(0, 10) === lastDay,
+      ),
+      "something settled gets the group home on the last day",
     );
 
     // Both sides of "I'm in": one opt-in option the demo account joined, and one
