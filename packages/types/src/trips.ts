@@ -104,6 +104,17 @@ export const CreateTripInput = z
     name: tripNameSchema,
     description: optionalText(2000),
     destination: optionalText(120),
+    /**
+     * The place the destination was chosen from, when it was chosen from the
+     * list rather than typed.
+     *
+     * Optional beside `destination`, never instead of it: the display string
+     * stays free text so a group going somewhere the gazetteer has never heard
+     * of is not turned away. The server reads the timezone, the coordinates and
+     * the country's currency out of its own table from this id — a client that
+     * could send its own timezone for a place could send a wrong one.
+     */
+    destinationPlaceId: z.number().int().optional(),
     defaultCurrency: currencySchema,
     budgetPerPerson: optionalBudget,
     startDate: optionalDateTime,
@@ -144,6 +155,10 @@ export const UpdateTripInput = z.object({
   name: tripNameSchema,
   description: optionalText(2000),
   destination: optionalText(120),
+  /** See `CreateTripInput`. Omitted leaves whatever the trip already resolved
+   *  to; sending it with a typed destination is how a choice is replaced by a
+   *  string, and the server clears the copied facts when it happens. */
+  destinationPlaceId: z.number().int().nullable().optional(),
   defaultCurrency: currencySchema,
   /** Omitted clears it — this is a replace, and a target you emptied is gone. */
   budgetPerPerson: optionalBudget,
@@ -175,6 +190,19 @@ export const TripDetail = z.object({
   name: z.string(),
   description: z.string().nullable(),
   destination: z.string().nullable(),
+  /**
+   * What the destination resolved to, when it resolved to anywhere.
+   *
+   * Null on every trip whose destination was typed, which includes every trip
+   * created before the picker existed. Nothing on the board reads the timezone
+   * yet — the itinerary still draws an option's hours in the reader's own zone —
+   * but the trip knows its clock from the day it was made, which is the half of
+   * that fix that cannot be retrofitted.
+   */
+  destinationPlaceId: z.number().int().nullable(),
+  destinationTimezone: z.string().nullable(),
+  destinationLat: z.number().nullable(),
+  destinationLon: z.number().nullable(),
   coverImageUrl: z.string().nullable(),
   defaultCurrency: z.string(),
   /** The per-person spending target, in `defaultCurrency`. Null = none set. */

@@ -10,6 +10,7 @@ import { GlobalThrottlerGuard } from "./common/per-user-throttle.js";
 import { sentryEnabled } from "./observability/instrument.js";
 import { ScheduleModule } from "@nestjs/schedule";
 import { RatesModule } from "./rates/rates.module.js";
+import { PlacesModule } from "./places/places.module.js";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { AdminModule } from "./admin/admin.module.js";
@@ -78,6 +79,7 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     CategoriesModule,
     OptionsModule,
     RatesModule,
+    PlacesModule,
     DashboardModule,
     LifecycleModule,
     ChatModule,

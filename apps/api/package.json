@@ -22,6 +22,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
     "demo:seed": "node --experimental-strip-types --env-file-if-exists=.env prisma/demo-seed.ts",
+    "places:fetch": "node --experimental-strip-types prisma/places-fetch.ts",
+    "places:seed": "node --experimental-strip-types --env-file-if-exists=.env prisma/places-seed.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
