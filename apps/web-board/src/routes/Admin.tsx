@@ -10,9 +10,11 @@ import {
   useMarkVerified,
   useResendVerification,
   useRunDemoSeed,
+  useRunPlacesSeed,
 } from "@gtp/api-client";
 import type {
   AdminDemoSeed,
+  AdminPlacesSeed,
   AdminEmail,
   AdminRates,
   AdminUserSummary,
@@ -80,8 +82,99 @@ export function Admin() {
 
       <UserLookup />
       <DemoPanel />
+      <PlacesPanel />
       <AuditPanel />
     </main>
+  );
+}
+
+/**
+ * Loading the gazetteer, which is the one step a new environment needs by hand.
+ *
+ * It exists here for the reason the demo panel does, only more so: the CLI route
+ * meant a `railway ssh` and a remembered command for something that has to happen
+ * exactly once, and whose absence is **silent**. Nothing breaks without it — the
+ * destination field just offers no suggestions, which reads as a feature that was
+ * never built rather than a table that was never filled.
+ *
+ * No confirmation step, unlike the demo rebuild. There is nothing to lose: it
+ * writes one reference table that no trip has a foreign key into, and a trip that
+ * resolved to a place already keeps its own copy of the clock and coordinates it
+ * took. The worst a stray click costs is a few seconds.
+ *
+ * It does say it is working, though. This is the slowest thing on the page by an
+ * order of magnitude, and a button that looks inert for eight seconds is a button
+ * people press twice.
+ */
+function PlacesPanel() {
+  const seed = useRunPlacesSeed();
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AdminPlacesSeed | null>(null);
+
+  async function run() {
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await seed.mutateAsync());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("That didn't work."));
+    }
+  }
+
+  return (
+    <section
+      className="admin__panel admin__panel--wide"
+      aria-label={t("Place list")}
+    >
+      <h2 className="admin__panel-title">{t("Place list")}</h2>
+      <p className="admin__note">
+        {t(
+          "Loads the destination suggestions — every populated place over 5,000 people, every region and every country — from the dataset shipped with this build. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.",
+        )}
+      </p>
+
+      <div className="admin__actions">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={seed.isPending}
+          onClick={() => void run()}
+        >
+          {seed.isPending ? t("Loading places…") : t("Load the place list")}
+        </Button>
+      </div>
+      {/* Said out loud, because the button being disabled is not an explanation
+          and this takes long enough to look stuck. */}
+      {seed.isPending ? (
+        <p className="admin__note" role="status">
+          {t("Writing tens of thousands of rows — this takes a few seconds.")}
+        </p>
+      ) : null}
+
+      {result ? (
+        <div>
+          <p className="admin__done" role="status">
+            {t("Places loaded.")}
+          </p>
+          {/* The shape of the answer is the check: seventy-odd thousand against
+              two hundred and fifty is what a loaded dataset looks like, and it
+              is how an operator tells a real load from an empty file. */}
+          <Row
+            label={t("Places")}
+            value={`${result.places - result.regions - result.nations} cities · ${result.regions} regions · ${result.nations} countries`}
+          />
+          <Row
+            label={t("Currencies")}
+            value={`${result.countries} countries`}
+          />
+        </div>
+      ) : null}
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </section>
   );
 }
 

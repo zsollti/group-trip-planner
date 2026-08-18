@@ -277,14 +277,29 @@ from a **seeded table** — ~74,000 rows built from GeoNames — and like the de
 seed it is not run by a deploy. Unlike the demo seed, it only has to be run
 **once per environment**, and again only when a newer dataset is committed.
 
+**From the operator console (preferred).** Sign in as an address listed in
+`ADMIN_EMAILS`, open **/admin**, and use _Place list → Load the place list_. It
+takes a few seconds and says so while it works, then reports what it loaded —
+seventy-odd thousand places against two hundred and fifty countries is the shape
+of a real load, and it is how you tell that from an empty file. It writes a
+`PLACES_SEEDED` row into the operator log naming you.
+
+No confirmation step, unlike the demo rebuild, because there is nothing to lose:
+it writes one reference table that no trip has a foreign key into, and a trip
+that resolved to a place already keeps its own copy of what it took.
+
+**Or from the CLI**, when the console is not available — the API is up but the
+web app is not, or `ADMIN_EMAILS` is unset:
+
 ```bash
 railway ssh --service api
 # the image's WORKDIR is /app/apps/api
 pnpm places:seed
 ```
 
-It reads `prisma/data/places.tsv.gz`, which is in the repo and therefore in the
-image; nothing reaches the network. It is idempotent — rows are keyed by
+Both run the same `src/places/places-seed.ts`. It reads
+`prisma/data/places.tsv.gz`, which is in the repo and therefore in the image;
+nothing reaches the network. It is idempotent — rows are keyed by
 GeoNames' own ids — so running it twice is running it once.
 
 **If you skip it, nothing breaks.** The endpoint matches nothing, the field

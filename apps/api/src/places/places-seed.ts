@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
@@ -33,11 +33,35 @@ import type { Prisma, PrismaClient } from "@prisma/client";
  * Data © GeoNames, CC BY 4.0.
  */
 
-/** No decorators and no compiled imports: the CLI runs under `--experimental-strip-types`. */
-const DATA_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../prisma/data",
-);
+/**
+ * Where the committed dataset lives, found by walking up rather than counted.
+ *
+ * This module is executed from three different depths and a fixed `../../` is
+ * only right for two of them: `src/places/` when the CLI runs it under
+ * `--experimental-strip-types`, `dist/places/` in the production image, and
+ * `dist-test/src/places/` under the test build — which is one level deeper,
+ * because that build keeps the `src` prefix. The relative path was written for
+ * the first two and failed on the third with an ENOENT for a file that is
+ * plainly there.
+ *
+ * So it looks for the directory instead of asserting where it is, and stopping
+ * at the first hit means a fourth layout costs nothing.
+ *
+ * No decorators and no compiled imports anywhere in this file: the CLI runs it
+ * under `--experimental-strip-types`, which strips types and refuses anything
+ * needing real transformation.
+ */
+function findDataDir(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let up = 0; up < 5; up += 1) {
+    const candidate = join(dir, "prisma", "data");
+    if (existsSync(join(candidate, "countries.tsv"))) return candidate;
+    dir = dirname(dir);
+  }
+  throw new Error(
+    "Could not find prisma/data — is the dataset committed and copied into the build?",
+  );
+}
 
 export interface PlacesSeedSummary {
   countries: number;
@@ -95,7 +119,10 @@ export async function seedPlaces(
   prisma: PrismaClient,
 ): Promise<PlacesSeedSummary> {
   // ------------------------------------------------------------- countries ---
-  const countryLines = readFileSync(join(DATA_DIR, "countries.tsv"), "utf8")
+  const countryLines = readFileSync(
+    join(findDataDir(), "countries.tsv"),
+    "utf8",
+  )
     .split("\n")
     .slice(1)
     .filter((l) => l.trim() !== "");
@@ -114,7 +141,7 @@ export async function seedPlaces(
 
   // ---------------------------------------------------------------- places ---
   const text = gunzipSync(
-    readFileSync(join(DATA_DIR, "places.tsv.gz")),
+    readFileSync(join(findDataDir(), "places.tsv.gz")),
   ).toString("utf8");
   const lines = text.split("\n");
   const header = lines[0]!.split("\t");

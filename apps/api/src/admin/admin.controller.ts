@@ -12,11 +12,15 @@ import type { User } from "@prisma/client";
 import type {
   AdminAuditLog,
   AdminDemoSeed,
+  AdminPlacesSeed,
   AdminOverview,
   AdminUserLookup,
   AdminUserSummary,
 } from "@gtp/types";
-import { DEMO_SEED_THROTTLE } from "../common/throttle-policy.js";
+import {
+  DEMO_SEED_THROTTLE,
+  PLACES_SEED_THROTTLE,
+} from "../common/throttle-policy.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
 import { AdminGuard } from "./admin.guard.js";
@@ -78,6 +82,21 @@ export class AdminController {
   @Throttle(DEMO_SEED_THROTTLE)
   reseedDemo(@CurrentUser() actor: User): Promise<AdminDemoSeed> {
     return this.admin.reseedDemo(actor.email);
+  }
+
+  /**
+   * Load the place gazetteer.
+   *
+   * A `POST` with no body, like the demo seed, and for the same reason: there is
+   * nothing to aim it at. It reads a file that ships in the image and writes one
+   * reference table, so it is the least dangerous destructive-sounding button on
+   * this page — nothing references a place row, and a trip that resolved to one
+   * keeps its own copy of what it needed.
+   */
+  @Post("places-seed")
+  @Throttle(PLACES_SEED_THROTTLE)
+  seedPlaces(@CurrentUser() actor: User): Promise<AdminPlacesSeed> {
+    return this.admin.seedPlaces(actor.email);
   }
 
   /** What operators have done here, newest first. */

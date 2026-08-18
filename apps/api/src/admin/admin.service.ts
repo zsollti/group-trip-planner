@@ -6,6 +6,7 @@ import type {
   AdminAuditAction,
   AdminAuditLog,
   AdminDemoSeed,
+  AdminPlacesSeed,
   AdminEmail,
   AdminOverview,
   AdminRates,
@@ -25,6 +26,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { EmailService } from "../email/email.service.js";
 import { TokenService } from "../auth/token.service.js";
 import { seedDemoTrip } from "./demo-seed.js";
+import { seedPlaces } from "../places/places-seed.js";
 
 /** How many days of signup history the sparkline covers. */
 const SIGNUP_DAYS = 30;
@@ -380,6 +382,30 @@ export class AdminService {
   async reseedDemo(actorEmail: string): Promise<AdminDemoSeed> {
     const summary = await seedDemoTrip(this.prisma);
     await this.record(actorEmail, "DEMO_RESEEDED", summary.email);
+    return summary;
+  }
+
+  /**
+   * Load the place gazetteer from the dataset shipped in the image.
+   *
+   * Here rather than only on the command line because the alternative was a
+   * `railway ssh` and a remembered incantation for a step that has to happen
+   * exactly once per environment — and whose absence is *silent*. Nothing breaks
+   * without it: the destination field simply offers no suggestions, which looks
+   * like a feature that was never built rather than a table that was never
+   * loaded.
+   *
+   * **It reads a file, not the network.** `prisma/data/places.tsv.gz` is copied
+   * into the image, so this cannot fail because download.geonames.org is having
+   * a bad day, and it cannot import anything the repo has not seen.
+   *
+   * Slower than everything else on this console — tens of thousands of rows in
+   * chunked inserts, a handful of seconds — which is why the console shows it
+   * working rather than pretending it is instant.
+   */
+  async seedPlaces(actorEmail: string): Promise<AdminPlacesSeed> {
+    const summary = await seedPlaces(this.prisma);
+    await this.record(actorEmail, "PLACES_SEEDED", `${summary.places} places`);
     return summary;
   }
 

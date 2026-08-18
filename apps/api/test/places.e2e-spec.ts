@@ -9,7 +9,7 @@ import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
 import { TokenService } from "../src/auth/token.service.js";
-import { foldForSearch } from "../src/places/places-seed.js";
+import { foldForSearch, seedPlaces } from "../src/places/places-seed.js";
 
 /**
  * The destination gazetteer (real DB).
@@ -286,5 +286,53 @@ describe("Places (e2e)", () => {
     assert.equal(trip.destination, "Dad's cabin");
     assert.equal(trip.destinationPlaceId, null);
     assert.equal(trip.destinationTimezone, null);
+  });
+
+  /*
+   * The real dataset, loaded — and deliberately the **last** test in this file.
+   *
+   * `seedPlaces` empties the table before rewriting it, so this cannot live in a
+   * file of its own: node runs test files in parallel, and a wipe landing
+   * between another file's fixture insert and its assertions would be a flake
+   * with no obvious cause. Within one file the tests are sequential, so putting
+   * it last is what makes it safe.
+   *
+   * The seeder rather than the console route. The route is three lines that
+   * delegate here and record an audit row, and the half worth pinning is this
+   * one: that the committed dataset is present in the build and parses into the
+   * shape the search expects. If `prisma/data/` ever falls out of the image or
+   * the columns drift, this is what says so — the route would just return zeros.
+   * Who may press the button is covered by the console's own route sweep.
+   */
+  it("loads the dataset that ships with the build", async () => {
+    const summary = await seedPlaces(prisma);
+
+    // Shapes rather than exact counts: a newer GeoNames dump moves every one of
+    // these numbers and none of that is a regression. What would be a
+    // regression is an empty file, a missing one, or a parse that silently
+    // produced nothing.
+    assert.ok(summary.places > 50_000, `only ${summary.places} places`);
+    assert.ok(summary.regions > 3_000, `only ${summary.regions} regions`);
+    assert.ok(summary.nations > 200, `only ${summary.nations} countries`);
+    // Every country that has a GeoNames id becomes a place as well as a
+    // currency row, and a few territories have no id — so one is a subset of
+    // the other, never the reverse. A `nations` above `countries` would mean a
+    // place pointing at a country the join cannot resolve.
+    assert.ok(summary.nations <= summary.countries);
+
+    // And the search works against it, which is the only thing any of this is
+    // for. Lisbon is a safe probe: it is in every cut of the dataset and it is
+    // the example the app's own placeholder uses.
+    const found = (await search("lisbon")).places;
+    assert.ok(
+      found.some((p) => p.name === "Lisbon" && p.countryCode === "PT"),
+      found.map((p) => `${p.name} (${p.countryCode})`).join(", "),
+    );
+    // The currency the create form defaults from, read through the join.
+    assert.equal(
+      found.find((p) => p.name === "Lisbon" && p.countryCode === "PT")
+        ?.currencyCode,
+      "EUR",
+    );
   });
 });

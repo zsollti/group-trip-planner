@@ -58,6 +58,7 @@ export {
   useResendVerification,
   useMarkVerified,
   useRunDemoSeed,
+  useRunPlacesSeed,
 } from "./admin.js";
 export {
   accountKeys,
