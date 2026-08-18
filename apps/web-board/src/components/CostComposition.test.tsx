@@ -58,17 +58,12 @@ function composition(over: Partial<Composition> = {}): Composition {
         label: "Stay",
         amount: 300,
         share: 0.6,
-        parts: [
-          { label: "Beach House", amount: 220 },
-          { label: "Airport hotel", amount: 80 },
-        ],
       },
       {
         categoryId: "c2",
         label: "Travel",
         amount: 200,
         share: 0.4,
-        parts: [{ label: "Ryanair FR1234", amount: 200 }],
       },
     ],
     charted: 500,
@@ -138,14 +133,40 @@ describe("the overshoot is said, not just drawn", () => {
   });
 });
 
+/**
+ * The middle of the ring while a part is being read, or null when nothing is.
+ *
+ * Every claim below is scoped to it, because every word in there also appears
+ * in the legend beside it — "Stay" is a row as well as a wedge — and an
+ * unscoped query would pass on the row while the hole said nothing at all.
+ */
+function hole(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".cost-donut__centre--active");
+}
+
 describe("reading one lane", () => {
-  it("names the options a lane's money went on", () => {
+  it("names the lane and states its money", () => {
     renderComp();
-    // The question the ring raises and cannot answer.
     fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
 
-    expect(screen.getByText("Beach House")).toBeInTheDocument();
-    expect(screen.getByText("Airport hotel")).toBeInTheDocument();
+    // Not a literal: `Intl` is asked for the runtime's locale, so 300 EUR is
+    // "300 EUR" on a Hungarian machine and "€300" on CI — and the space it puts
+    // between them is U+00A0, which Testing Library collapses in the DOM but
+    // not in the string handed to it.
+    const written = formatMoney(300, "EUR").replace(/\s/g, " ");
+    expect(within(hole()!).getByText("Stay")).toBeVisible();
+    expect(within(hole()!).getByText(written)).toBeVisible();
+  });
+
+  it("says nothing about the decisions behind the figure", () => {
+    // The hole used to name them — three at most, with the rest counted — and
+    // the hole is the wrong size for a list: 0.56rem titles inside 78px,
+    // appearing and vanishing under the pointer. The lane on the board is where
+    // those decisions are read. Asserted as "two lines", so re-adding any third
+    // thing to the middle of the ring has to come past this test.
+    renderComp();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
+    expect(hole()!.children).toHaveLength(2);
   });
 
   it("works from the keyboard, since the ring itself is decoration", () => {
@@ -153,27 +174,27 @@ describe("reading one lane", () => {
     // The chart is aria-hidden, so if focus did not do this it would be a
     // mouse-only feature wearing an affordance.
     fireEvent.focus(screen.getByRole("button", { name: /Travel/ }));
-    expect(screen.getByText("Ryanair FR1234")).toBeInTheDocument();
+    expect(within(hole()!).getByText("Travel")).toBeVisible();
   });
 
   it("shows one lane at a time", () => {
     renderComp();
     fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
-    expect(screen.getByText("Beach House")).toBeInTheDocument();
+    expect(within(hole()!).getByText("Stay")).toBeVisible();
 
     fireEvent.mouseEnter(screen.getByRole("button", { name: /Travel/ }));
-    expect(screen.queryByText("Beach House")).toBeNull();
-    expect(screen.getByText("Ryanair FR1234")).toBeInTheDocument();
+    expect(within(hole()!).queryByText("Stay")).toBeNull();
+    expect(within(hole()!).getByText("Travel")).toBeVisible();
   });
 
   it("puts the lane back when the reader leaves", () => {
     renderComp();
     const stay = screen.getByRole("button", { name: /Stay/ });
     fireEvent.mouseEnter(stay);
-    expect(screen.getByText("Beach House")).toBeInTheDocument();
+    expect(hole()).not.toBeNull();
 
     fireEvent.mouseLeave(stay);
-    expect(screen.queryByText("Beach House")).toBeNull();
+    expect(hole()).toBeNull();
     // And the trip's own figure is back in the hole.
     expect(screen.getByText("€500")).toBeInTheDocument();
   });
@@ -195,33 +216,13 @@ describe("reading one lane", () => {
     expect(screen.getByText("per person")).toBeInTheDocument();
   });
 
-  it("states the lane and its money, and no longer its share of the ring", () => {
+  it("does not put the wedge's share in the hole", () => {
+    // The share was the first line trimmed out of the middle of the ring: the
+    // wedge in front of the reader already *is* the share, drawn, and the same
+    // percentage is printed on the row being hovered.
     renderComp();
     fireEvent.mouseEnter(screen.getByRole("button", { name: /Stay/ }));
-
-    // The share was the one line in the hole the reader had not asked for: the
-    // wedge in front of them already *is* the share, drawn, and the same
-    // percentage is on the row being hovered. Three lines of the same fact left
-    // no room for the two that are only here — which lane, and what it cost.
-    // Scoped to the hole: the amount is in the legend row too, and this is a
-    // claim about what the middle of the ring says.
-    //
-    // The figure comes from `formatMoney`, not from a literal. `Intl` is asked
-    // for the *runtime's* locale, so the same 300 EUR is "300 EUR" on a
-    // Hungarian machine and "€300" on CI — a literal here passes locally and
-    // fails in CI, which is precisely how it failed. What this test claims is
-    // that the hole states the slice's own amount; how the reader's locale
-    // writes it is `money.test.ts`'s business.
-    //
-    // The space has to be normalized as well, because `Intl` separates the
-    // amount from the code with U+00A0 and Testing Library collapses whitespace
-    // in the DOM text but not in the string you hand it — so the raw formatter
-    // output never matches its own rendering.
-    const written = formatMoney(300, "EUR").replace(/\s/g, " ");
-    const centre = document.querySelector(".cost-donut__centre--active")!;
-    expect(within(centre as HTMLElement).getByText(written)).toBeVisible();
-    expect(within(centre as HTMLElement).getByText("Stay")).toBeVisible();
-    expect(centre.textContent).not.toMatch(/60\s*%/);
+    expect(hole()!.textContent).not.toMatch(/60\s*%/);
   });
 });
 
@@ -241,14 +242,12 @@ describe("the money still inside the target", () => {
         label: "Stay",
         amount: 300,
         share: 0.375,
-        parts: [{ label: "Beach House", amount: 300 }],
       },
       {
         categoryId: "c2",
         label: "Travel",
         amount: 200,
         share: 0.25,
-        parts: [{ label: "Ryanair FR1234", amount: 200 }],
       },
     ],
   };
@@ -302,10 +301,13 @@ describe("the money still inside the target", () => {
 
   it("marks the arc, but not when it is too thin to hold a glyph", () => {
     const { container } = renderComp(underTarget);
-    // Three marks: two lanes and the remainder.
+    // Three marks: two lanes and the remainder — and the remainder's is one of
+    // them rather than a special case. It used to carry `--quiet`, which drew
+    // it in the dim ink because the grey arc under it was too pale to hold
+    // white. The arc is darker now, so the ring's marks are one set.
     expect(container.querySelectorAll(".cost-donut__mark")).toHaveLength(3);
     expect(container.querySelectorAll(".cost-donut__mark--quiet")).toHaveLength(
-      1,
+      0,
     );
 
     const sliver = renderComp({
@@ -337,14 +339,12 @@ describe("marking a wedge with its lane's own glyph", () => {
           label: "Stay",
           amount: 495,
           share: 0.99,
-          parts: [{ label: "Beach House", amount: 495 }],
         },
         {
           categoryId: "c2",
           label: "Travel",
           amount: 5,
           share: 0.01,
-          parts: [{ label: "Bus", amount: 5 }],
         },
       ],
     });
@@ -373,14 +373,12 @@ describe("marking a wedge with its lane's own glyph", () => {
           label: "Stay",
           amount: 300,
           share: 0.6,
-          parts: [{ label: "Beach House", amount: 300 }],
         },
         {
           categoryId: null,
           label: "Everything else",
           amount: 200,
           share: 0.4,
-          parts: [{ label: "Bits", amount: 200 }],
         },
       ],
     });

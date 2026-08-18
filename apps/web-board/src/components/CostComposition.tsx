@@ -216,25 +216,6 @@ function LegendRow({
           {Math.round(slice.share * 100)}%
         </span>
         <span className="cost-comp__amount">{write(slice.amount)}</span>
-        {/*
-         * What the lane's money went on, for a reader who cannot see the hole.
-         *
-         * Not rendered visibly here on purpose: focusing this row already puts
-         * the parts in the middle of the ring, and printing them twice on one
-         * screen would be the legend competing with the chart it explains.
-         * This copy is the same facts routed to the one reader the visual
-         * version never reaches, and it is always in the DOM rather than
-         * revealed, so it belongs to the button's description on focus instead
-         * of appearing out of nowhere.
-         */}
-        {slice.parts.length > 0 ? (
-          <span className="board__sr-only">
-            {" — "}
-            {slice.parts
-              .map((part) => `${part.label} ${write(part.amount)}`)
-              .join(", ")}
-          </span>
-        ) : null}
       </button>
     </li>
   );
