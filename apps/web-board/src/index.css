@@ -32,6 +32,15 @@
   --lane-line: #e7ddc9;
   --board-danger: #b3261e;
   --board-on-danger: #ffffff;
+  /* The counterpart to danger: money still inside the target, and nothing else.
+     A green in a palette this warm has to be earned — it is here because the
+     cost surface already says "past the budget" in red, and the figure directly
+     opposite it, "still to spend", was reading in the same neutral grey as the
+     furniture around it. Red and grey is a warning next to a fact; red and
+     green is a scale with two ends. Deliberately a deep, slightly blue green
+     rather than a leaf one, so it sits with the teal accent instead of arguing
+     with it, and it clears AA on `--lane-bg` as text. */
+  --board-ok: #1a7a4a;
   --board-shadow: 20 40 38;
   --board-scrim: rgba(35, 40, 38, 0.5);
   /* How tall a working column may get before it keeps its own content to
@@ -114,6 +123,9 @@
     /* Dark mode's danger is a light red — white on it fails AA, so the
        readable pairing is the dark canvas ink. */
     --board-on-danger: #2a0f0d;
+    /* Lifted the same way the danger red is: the light-mode green is a deep one
+       chosen to read on cream, and on a dark canvas it turns to mud. */
+    --board-ok: #4ade80;
     --board-shadow: 0 0 0;
     --board-scrim: rgba(4, 10, 9, 0.66);
     /* The decorative motifs need a touch more presence on a dark canvas. */
@@ -144,6 +156,7 @@
   --lane-line: #2c3d39;
   --board-danger: #ff6b6b;
   --board-on-danger: #2a0f0d;
+  --board-ok: #4ade80;
   --board-shadow: 0 0 0;
   --board-scrim: rgba(4, 10, 9, 0.66);
   --board-decor-opacity: 0.08;
@@ -250,11 +263,34 @@ body {
   transform: rotate(var(--r, 0deg));
 }
 
+/**
+ * Every page, and the width past which none of them keeps growing.
+ *
+ * The trip board deliberately takes no reading measure — its canvas is a field
+ * of lanes where width is working area rather than a line to be read — and that
+ * is right up to a point. Past about 1940px it stops being a canvas and becomes
+ * a room with the furniture pushed against the far walls: the crew rail at one
+ * edge of an ultrawide monitor, the account menu at the other, and a metre of
+ * cream between them. This is the outer wall, and it is on `.board` rather than
+ * on any one page's wrapper so it holds for all four alike — the overview,
+ * settings, the console and a trip.
+ *
+ * It sits *outside* `.board__measure`, which is unchanged and still does its
+ * own, much narrower job for the pages that are read rather than worked in. Two
+ * caps, two reasons: one is about line length, this one is about a page not
+ * spreading further than a person can take in without turning their head.
+ *
+ * 1940 rather than a round 1920 so the common desktop — which is exactly 1920,
+ * and has a scrollbar in it — never lands on the boundary and grows margins
+ * over a handful of pixels. Below it nothing changes at all.
+ */
 .board {
   min-height: 100vh;
   /* The page's own gutter, as a token because the measured column below has to
      subtract it — see `.board__measure`. The mobile reflow narrows it. */
   --board-gutter: 1.5rem;
+  max-width: 1940px;
+  margin-inline: auto;
   padding: 1.25rem var(--board-gutter) 2rem;
 }
 
@@ -476,6 +512,42 @@ body {
   background: transparent;
   color: var(--board-accent);
   border: 1px solid var(--board-accent);
+}
+
+/* Hover, which the shared buttons simply did not have.
+ *
+ * Everything else on this board answers the pointer — lane cards lift, chips
+ * fill, the toggle's ink changes — and the one control whose entire job is
+ * being pressed sat inert under the cursor. On a page where several things look
+ * button-ish (links, chips, the "⋯" menus), the primary buttons were the ones
+ * giving the least evidence that they were the real thing.
+ *
+ * The move is a **darkening of the button's own colour**, not a new hue: mixing
+ * the canvas ink into the accent works in both themes without a second token,
+ * because dark mode's accent is a light teal on a dark ground and its `--fg` is
+ * the light ink — so the mix goes *lighter* there, which is the direction a
+ * hover should go on a dark surface. The secondary fills faintly instead, since
+ * its ground is the page and it has no fill to deepen.
+ *
+ * `transition` on both directions so leaving is as quick as arriving; a button
+ * that fades out slowly reads as still being under the cursor. */
+[data-gtp-button] {
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+[data-gtp-button]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--board-fg) 22%, var(--board-accent));
+}
+[data-gtp-button][data-variant="secondary"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--board-accent) 12%, transparent);
+  border-color: var(--board-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-gtp-button] {
+    transition: none;
+  }
 }
 
 [data-gtp-button]:disabled {
@@ -1305,6 +1377,19 @@ body {
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  transition: background 120ms ease;
+}
+/* The same darkening the primitive button takes — this is the same control
+   wearing a different class (a link that acts as a button, mostly), and two
+   things that look identical at rest must not behave differently under the
+   pointer. */
+.board__cta:hover {
+  background: color-mix(in srgb, var(--board-fg) 22%, var(--board-accent));
+}
+@media (prefers-reduced-motion: reduce) {
+  .board__cta {
+    transition: none;
+  }
 }
 
 /* Available to a screen reader and to find-in-page, absent from the layout.
@@ -2849,6 +2934,10 @@ textarea[data-gtp-input] {
   font-variant-numeric: tabular-nums;
   color: var(--board-fg);
 }
+/* The remainder's figure in the hole — see `.cost-comp__row--left`. */
+.cost-donut__figure--ok {
+  color: var(--board-ok);
+}
 .cost-donut__caption {
   font-size: 0.7rem;
   color: var(--board-dim);
@@ -2948,7 +3037,7 @@ textarea[data-gtp-input] {
    to be recognisably the same part, and colour is the only thing carrying that
    here. */
 .cost-comp__swatch--left {
-  background: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
+  background: color-mix(in srgb, var(--board-dim) 58%, var(--lane-bg));
 }
 .cost-comp__name {
   flex: 1 1 auto;
@@ -2971,6 +3060,16 @@ textarea[data-gtp-input] {
 .cost-comp__amount {
   color: var(--board-fg);
   font-weight: 600;
+}
+/* Money still inside the target, in the green that only ever means that.
+ *
+ * Only the **figure**, not the swatch beside it: the swatch's job is to say
+ * which part of the ring this row is, and the ring's remainder is grey. So the
+ * row still points at its arc while the number reads as the good news it is —
+ * and it now sits opposite an over-budget row in red, which is what turns two
+ * unrelated colours into one scale. */
+.cost-comp__row--left .cost-comp__amount {
+  color: var(--board-ok);
 }
 
 /* Advisory, like the target line it elaborates: over is worth seeing, but

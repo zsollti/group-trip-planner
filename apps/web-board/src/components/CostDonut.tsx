@@ -427,8 +427,12 @@ function RemainingCentre({
   return (
     <div className="cost-donut__centre cost-donut__centre--active">
       <span className="cost-donut__lane">{t("Still to spend")}</span>
+      {/* Green, alone among the figures this hole prints. Every other one is a
+          quantity — this lane cost that much — and this one is a verdict: there
+          is still room. It reads against the red the same surface uses for the
+          overshoot, which is what makes the pair a scale rather than two moods. */}
       <strong
-        className="cost-donut__figure"
+        className="cost-donut__figure cost-donut__figure--ok"
         style={{ fontSize: `${centreFontRem(written, 98)}rem` }}
       >
         {written}
