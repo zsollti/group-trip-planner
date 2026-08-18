@@ -129,6 +129,59 @@ describe("DateRangeField", () => {
     expect(value()).toBe("2026-09-28|2026-10-02");
   });
 
+  it("draws each day once, though six-week grids overlap", () => {
+    // Two months are shown and each grid spills six weeks, so September's
+    // trailing row and October's leading row are the same days. Drawing both
+    // put two elements on screen for one date — with the same `id` and the
+    // same `data-day`.
+    render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
+    for (const iso of [
+      "2026-09-28",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+    ]) {
+      expect(document.querySelectorAll(`[data-day="${iso}"]`)).toHaveLength(1);
+    }
+  });
+
+  it("shades the range in one calendar, not in both", () => {
+    // The report this fixes: picking 23–30 September also lit a stretch of the
+    // October calendar, because October's leading row is 28–30 September. True,
+    // and it reads as a second range somewhere the reader did not select.
+    render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
+    fireEvent.click(day("2026-09-23"));
+    fireEvent.click(day("2026-09-30"));
+    expect(value()).toBe("2026-09-23|2026-09-30");
+
+    const months = document.querySelectorAll(".drange__month");
+    expect(months).toHaveLength(2);
+    const painted = (root: Element) =>
+      root.querySelectorAll(
+        ".drange__day--start, .drange__day--end, .drange__day--between",
+      ).length;
+    expect(painted(months[0]!)).toBeGreaterThan(0);
+    expect(painted(months[1]!)).toBe(0);
+  });
+
+  it("still draws the seams nothing else on screen covers", () => {
+    // Only the *shared* days are blanked. August in September's leading row and
+    // November in October's trailing row are the days a range crosses that no
+    // other grid here offers, so they stay — this is the case the six-week
+    // spill exists for.
+    render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
+    expect(document.querySelectorAll('[data-day="2026-08-31"]')).toHaveLength(
+      1,
+    );
+    expect(document.querySelectorAll('[data-day="2026-11-02"]')).toHaveLength(
+      1,
+    );
+
+    fireEvent.click(day("2026-08-31"));
+    fireEvent.click(day("2026-09-02"));
+    expect(value()).toBe("2026-08-31|2026-09-02");
+  });
+
   it("is one tab stop, not eighty-four", () => {
     // A roving tabindex. Without it, deleting the inputs would have replaced
     // two controls with a tab trap six weeks long.

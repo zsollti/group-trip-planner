@@ -4,6 +4,7 @@ import {
   addMonths,
   cursorFor,
   dayRole,
+  isInMonth,
   isoDay,
   monthGrid,
   monthLabel,
@@ -232,11 +233,14 @@ function RangeGrid({
         </button>
       </div>
       <div className="drange__months">
-        {[cursor, next].map((c) => (
+        {[cursor, next].map((c, i) => (
           <Month
             key={`${c.year}-${c.month}`}
             idPrefix={idPrefix}
             cursor={c}
+            // The other grid on screen. A day belonging to it is drawn there
+            // and blanked here — see `Month`.
+            sibling={i === 0 ? next : cursor}
             start={start}
             end={end}
             hovered={hovered}
@@ -302,6 +306,7 @@ function longDay(iso: string): string {
 function Month({
   idPrefix,
   cursor,
+  sibling,
   start,
   end,
   hovered,
@@ -314,6 +319,8 @@ function Month({
 }: {
   idPrefix: string;
   cursor: MonthCursor;
+  /** The month in the grid beside this one. */
+  sibling: MonthCursor;
   start: string | null;
   end: string | null;
   hovered: string | null;
@@ -343,26 +350,50 @@ function Month({
       <tbody>
         {[0, 1, 2, 3, 4, 5].map((week) => (
           <tr key={week}>
-            {days.slice(week * 7, week * 7 + 7).map((day) => (
-              <DayCell
-                key={day.iso}
-                idPrefix={idPrefix}
-                iso={day.iso}
-                dayOfMonth={day.dayOfMonth}
-                inMonth={day.inMonth}
-                role={dayRole(day.iso, start, end, hovered)}
-                inTrip={
-                  highlight?.start && highlight.end
-                    ? within(day.iso, highlight.start, highlight.end)
-                    : false
-                }
-                focused={day.iso === focused}
-                onFocused={onFocused}
-                takeFocus={takeFocus}
-                onHover={onHover}
-                onPick={onPick}
-              />
-            ))}
+            {days.slice(week * 7, week * 7 + 7).map((day) =>
+              isInMonth(day.iso, sibling) ? (
+                /*
+                 * The same day, twice on one screen.
+                 *
+                 * Two months are shown, and each six-week grid spills into its
+                 * neighbours — so October's trailing row and November's leading
+                 * row are the *same days*, drawn in both. Selecting 23–31
+                 * October then shaded a stretch of the November calendar as
+                 * well, which is arithmetically true and reads as a second,
+                 * wrong range.
+                 *
+                 * It was also two bugs quieter than that: both copies carried
+                 * the same `id` and the same `data-day`, and the roving
+                 * tabindex put a tab stop on each, so one day was two stops.
+                 *
+                 * Blanked rather than removed, so the weeks keep their shape.
+                 * Only where the day is on screen *anyway* — the outer seams
+                 * (September in October's lead, December in November's tail)
+                 * still draw, because those are the days a range crosses that
+                 * nothing else here offers.
+                 */
+                <td key={day.iso} className="drange__cell" aria-hidden="true" />
+              ) : (
+                <DayCell
+                  key={day.iso}
+                  idPrefix={idPrefix}
+                  iso={day.iso}
+                  dayOfMonth={day.dayOfMonth}
+                  inMonth={day.inMonth}
+                  role={dayRole(day.iso, start, end, hovered)}
+                  inTrip={
+                    highlight?.start && highlight.end
+                      ? within(day.iso, highlight.start, highlight.end)
+                      : false
+                  }
+                  focused={day.iso === focused}
+                  onFocused={onFocused}
+                  takeFocus={takeFocus}
+                  onHover={onHover}
+                  onPick={onPick}
+                />
+              ),
+            )}
           </tr>
         ))}
       </tbody>

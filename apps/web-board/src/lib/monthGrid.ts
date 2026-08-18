@@ -95,6 +95,19 @@ export function monthGrid(cursor: MonthCursor): GridDay[] {
   return days;
 }
 
+/**
+ * Does this day belong to that month?
+ *
+ * Used to tell a grid's own days from the neighbours it spills into, when the
+ * neighbour is a month already drawn beside it. Compared on the ISO string
+ * rather than by constructing a Date, because the string's first seven
+ * characters *are* the year and month and parsing gains nothing.
+ */
+export function isInMonth(iso: string, cursor: MonthCursor): boolean {
+  const month = String(cursor.month + 1).padStart(2, "0");
+  return iso.slice(0, 7) === `${cursor.year}-${month}`;
+}
+
 /** The month's name and year, for the grid's caption. */
 export function monthLabel(cursor: MonthCursor): string {
   return new Date(Date.UTC(cursor.year, cursor.month, 1)).toLocaleDateString(
