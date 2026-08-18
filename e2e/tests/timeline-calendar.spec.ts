@@ -97,9 +97,9 @@ async function decide(
   // than a free-text clock. `at()` only ever builds whole hours, so every value
   // these journeys ask for is on that grid.
   await page
-    .getByLabel("Start time (optional)")
+    .getByLabel("Start time")
     .selectOption(starts.slice(11, 16));
-  await page.getByLabel("End time (optional)").selectOption(ends.slice(11, 16));
+  await page.getByLabel("End time").selectOption(ends.slice(11, 16));
   await page.getByRole("button", { name: "Propose option" }).click();
 
   await lane

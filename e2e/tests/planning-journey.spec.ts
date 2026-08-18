@@ -110,7 +110,7 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
       .getByRole("button", { name: "＋ Propose the first option" })
       .click();
     await memberPage.getByLabel("Title").fill(optionTitle);
-    await memberPage.getByLabel("Amount (optional)").fill("120");
+    await memberPage.getByLabel("Amount").fill("120");
     await memberPage.getByRole("button", { name: "Propose option" }).click();
 
     await expect(memberTransport.getByText(optionTitle)).toBeVisible();
