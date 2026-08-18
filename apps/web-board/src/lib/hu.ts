@@ -587,4 +587,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Elveszíti a hozzáférést. Később újra meghívhatod.",
   "They take over the trip and you become a co-organizer.":
     "Ő veszi át az utat, te pedig társszervező leszel.",
+  "Nothing found — you can write it in yourself.":
+    "Nincs találat — beírhatod magad is.",
+  "Start typing to search, or write anywhere you like.":
+    "Kezdj írni a kereséshez, vagy írj be bármit.",
 };

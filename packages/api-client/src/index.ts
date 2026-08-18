@@ -30,6 +30,7 @@ export {
   useSetTripCover,
   useRemoveTripCover,
 } from "./trips.js";
+export { placeKeys, usePlaceSearch, placeLabel } from "./places.js";
 export {
   inviteKeys,
   useTripInvites,

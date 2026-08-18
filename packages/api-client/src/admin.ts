@@ -45,9 +45,7 @@ export function useAdminUserLookup(
   return useQuery({
     queryKey: adminKeys.users(query),
     queryFn: () =>
-      apiFetch<AdminUserLookup>(
-        `/admin/users?q=${encodeURIComponent(query)}`,
-      ),
+      apiFetch<AdminUserLookup>(`/admin/users?q=${encodeURIComponent(query)}`),
     enabled: query.trim().length > 0,
     staleTime: 0,
   });

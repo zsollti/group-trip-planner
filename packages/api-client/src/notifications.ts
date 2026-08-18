@@ -102,7 +102,10 @@ export function useNotificationLiveSync(
           }
           return {
             ...prev,
-            notifications: [notification, ...prev.notifications].slice(0, limit),
+            notifications: [notification, ...prev.notifications].slice(
+              0,
+              limit,
+            ),
             unreadCount: prev.unreadCount + 1,
           };
         },

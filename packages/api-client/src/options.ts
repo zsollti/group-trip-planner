@@ -56,9 +56,8 @@ function patchLane(
   categoryId: string,
   apply: (options: OptionView[]) => OptionView[],
 ): void {
-  qc.setQueryData<OptionView[]>(
-    optionKeys.list(tripId, categoryId),
-    (prev) => (prev ? apply(prev) : prev),
+  qc.setQueryData<OptionView[]>(optionKeys.list(tripId, categoryId), (prev) =>
+    prev ? apply(prev) : prev,
   );
 }
 

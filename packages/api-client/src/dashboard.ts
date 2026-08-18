@@ -63,7 +63,12 @@ export function useHomeDashboard(
 export function useReorderTrips(
   limit = 20,
   offset = 0,
-): UseMutationResult<void, ApiError, readonly string[], { previous?: HomeDashboardView }> {
+): UseMutationResult<
+  void,
+  ApiError,
+  readonly string[],
+  { previous?: HomeDashboardView }
+> {
   const qc = useQueryClient();
   const key = dashboardKeys.home(limit, offset);
   return useMutation({

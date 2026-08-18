@@ -3,11 +3,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { Button, Field, Input } from "@gtp/ui-primitives";
-import { CreateTripInput } from "@gtp/types";
+import { CreateTripInput, type PlaceView } from "@gtp/types";
 import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { MoneyInput } from "./MoneyInput";
+import { DestinationField } from "./DestinationField";
 import { dayToIso } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
 import { parseAmount } from "../lib/money";
@@ -103,9 +104,18 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   // submit. Registering it would also mean overriding react-hook-form's own
   // `onBlur` to regroup, which is how you lose its touched state.
   const [budget, setBudget] = useState("");
+  /*
+   * The place the destination was chosen from, when it was chosen.
+   *
+   * Held here rather than registered with the form because it is not a field —
+   * nothing types it and nothing validates it. It rides along to the server as
+   * an id, and it is what lets the currency step arrive already answered.
+   */
+  const [place, setPlace] = useState<PlaceView | null>(null);
   const {
     register,
     getValues,
+    setValue,
     trigger,
     watch,
     formState: { errors, isSubmitting },
@@ -158,6 +168,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
     try {
       const trip = await createTrip.mutateAsync({
         ...getValues(),
+        destinationPlaceId: place?.id,
         budgetPerPerson: parseAmount(budget) ?? undefined,
         startDate: dayToIso(startDay),
         endDate: dayToIso(endDay),
@@ -246,14 +257,42 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             htmlFor="destination"
             label={t("Destination")}
             error={errors.destination?.message}
-            hint="A city, a country, or nothing at all — it can be added later."
           >
-            <Input
+            {/*
+             * Suggests, and still takes anything. Choosing from the list is what
+             * hands the trip a place id — and, one step later, its country's
+             * currency already filled in.
+             *
+             * `setValue` rather than `register`: the field is a combobox with its
+             * own state, so react-hook-form is told the answer rather than
+             * wiring the input. `shouldValidate` because the destination has a
+             * length limit and a chosen label is long ("Lisbon, Lisboa,
+             * Portugal") — a reader should hear about that here, not at submit.
+             */}
+            <DestinationField
               id="destination"
-              placeholder={t("Lisbon, Portugal")}
               autoFocus
-              invalid={Boolean(errors.destination)}
-              {...register("destination")}
+              placeholder={t("Lisbon, Portugal")}
+              value={destination}
+              onChange={({ destination: next, place: chosen }) => {
+                setValue("destination", next, { shouldValidate: true });
+                setPlace(chosen);
+                /*
+                 * The currency question, answered by the answer to this one.
+                 *
+                 * This is the thing that makes a gazetteer worth a table rather
+                 * than merely tidier than a text box: having been told "Lisbon,
+                 * Portugal", the form knows the next question's answer. The
+                 * currency step still comes after this one and still shows what
+                 * it holds, so it is a filled-in field and not a decision taken
+                 * away — and going back to change the destination changes it
+                 * again, because a trip that moved country usually moved
+                 * currency.
+                 */
+                if (chosen?.currencyCode) {
+                  setValue("defaultCurrency", chosen.currencyCode);
+                }
+              }}
             />
           </Field>
         ) : null}

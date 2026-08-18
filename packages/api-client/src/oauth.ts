@@ -12,8 +12,7 @@ import { getApiBaseUrl } from "./http.js";
  * fetch — this leaves the SPA and comes back).
  */
 export function googleSignInUrl(next?: string | null): string {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const params = new URLSearchParams({ redirect: origin });
   params.set("next", withReturnMarker(next ?? "/"));
   return `${getApiBaseUrl()}/auth/google?${params.toString()}`;
