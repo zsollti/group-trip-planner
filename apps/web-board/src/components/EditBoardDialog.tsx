@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Field, Input } from "@gtp/ui-primitives";
-import { UpdateTripInput, type TripDetail } from "@gtp/types";
+import { UpdateTripInput, type PlaceView, type TripDetail } from "@gtp/types";
 import {
   ApiError,
   useRemoveTripCover,
@@ -13,6 +13,7 @@ import { ImagePicker } from "./ImagePicker";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import { MoneyInput } from "./MoneyInput";
+import { DestinationField } from "./DestinationField";
 import { formatAmount, parseAmount } from "../lib/money";
 import { t } from "../lib/i18n";
 
@@ -44,6 +45,11 @@ export function EditBoardDialog({
    * below: a file to upload, or a decision to clear what is there.
    */
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  // The destination and the place behind it, held outside the resolver like the
+  // budget is: the field is a combobox with its own state rather than an input
+  // react-hook-form can register.
+  const [destination, setDestination] = useState(trip.destination ?? "");
+  const [place, setPlace] = useState<PlaceView | null>(null);
   const [coverCleared, setCoverCleared] = useState(false);
   // Outside the resolver, like the create dialog's copy: the field shows a
   // grouped string and the contract wants a number. Seeded already grouped, so
@@ -88,7 +94,9 @@ export function EditBoardDialog({
     defaultValues: {
       name: trip.name,
       description: trip.description ?? undefined,
-      destination: trip.destination ?? undefined,
+      // The destination is not registered here — it is a combobox with its own
+      // state, and the submit spreads its value in. Left out rather than left
+      // stale, so there is one place holding the answer.
       defaultCurrency: trip.defaultCurrency,
       version: trip.version,
     },
@@ -99,6 +107,16 @@ export function EditBoardDialog({
     try {
       await updateTrip.mutateAsync({
         ...data,
+        destination: destination.trim() || undefined,
+        /*
+         * The chosen place, or null to clear one.
+         *
+         * `null` and not `undefined`, and the difference matters: the server
+         * treats an absent field as "leave it", and this form is a replace. A
+         * reader who typed over "Lisbon, Portugal" has told us the trip is not
+         * going there, and the clock that came with it has to go too.
+         */
+        destinationPlaceId: place ? place.id : null,
         budgetPerPerson: parseAmount(budget) ?? undefined,
       });
       // The trip's own fields first, because they are the ones under the
@@ -155,12 +173,19 @@ export function EditBoardDialog({
               htmlFor="destination"
               label={t("Destination")}
               error={errors.destination?.message}
-              hint="Optional."
             >
-              <Input
+              {/* The same picker the create form uses, seeded with whatever the
+                  trip says now. Editing the text by hand clears the place the
+                  trip resolved to, along with its clock — see `resolvePlace` on
+                  the server. That is the right default: a destination that has
+                  been rewritten is not the place it used to be. */}
+              <DestinationField
                 id="destination"
-                invalid={Boolean(errors.destination)}
-                {...register("destination")}
+                value={destination}
+                onChange={({ destination: next, place }) => {
+                  setDestination(next);
+                  setPlace(place);
+                }}
               />
             </Field>
             <Field

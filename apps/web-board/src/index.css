@@ -469,6 +469,84 @@ body {
   color: var(--board-danger);
 }
 
+/* --- The destination picker --------------------------------------------------
+ *
+ * A text field with a list under it, and the list is absolutely positioned so
+ * that opening it never moves the form. Inside a dialog whose body scrolls, a
+ * list that pushed the fields below it down would jump the whole panel on every
+ * keystroke.
+ *
+ * `z-index` above the fields, and nothing more: the dialog is already a layer of
+ * its own, so this only has to beat its siblings. */
+.destfield {
+  position: relative;
+}
+.destfield__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--board-dim);
+}
+.destfield__list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: 15rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--lane-line);
+  border-radius: 10px;
+  background: var(--lane-bg);
+  box-shadow: 0 10px 28px rgb(var(--board-shadow) / 0.18);
+}
+/* One suggestion: the name, where it is, and what it will do to the currency.
+   A grid so the three columns line up down the list — a name of wildly varying
+   length with the country trailing it reads as ragged prose otherwise. */
+.destfield__option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Highlighted, which is not focused: focus stays in the input the whole time, so
+   the reader can keep typing. This is what `aria-activedescendant` points at. */
+.destfield__option--on,
+.destfield__option:hover {
+  background: color-mix(in srgb, var(--board-accent) 12%, transparent);
+}
+.destfield__name {
+  font-weight: 600;
+}
+.destfield__where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--board-dim);
+}
+/* The currency this choice will hand the trip. Quiet, and monospaced-ish by way
+   of tabular figures, so three letters in a column read as a code rather than as
+   the end of the sentence before them. */
+.destfield__currency {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--board-accent);
+}
+
 /* An amount field with its currency printed inside it — see `MoneyInput`.
  *
  * The code is laid over the input's right end rather than sitting beside it, so

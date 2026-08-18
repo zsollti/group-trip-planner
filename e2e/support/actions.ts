@@ -93,7 +93,15 @@ export async function createBoard(
   await page.getByLabel("Trip name").fill(name);
   await onward.click();
 
+  // Typed rather than chosen from the list, which is the case worth exercising
+  // here: a destination the gazetteer never saw still has to make a trip.
   await page.getByLabel("Destination").fill("Lisbon, Portugal");
+  // Escape, in case it did see it. The suggestion list is absolutely positioned
+  // over whatever is under the field — including this step's own button — so on
+  // a database where `places:seed` has run, the click below would land on a
+  // suggestion instead of on Next. CI never seeds it and a developer's machine
+  // usually has, which is the worst possible polarity for a flake.
+  await page.getByLabel("Destination").press("Escape");
   await onward.click();
 
   if (dates) {
