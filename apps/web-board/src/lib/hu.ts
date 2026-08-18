@@ -420,6 +420,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Something broke on this page": "Valami elromlott ezen az oldalon",
   "Something went wrong": "Valami hiba történt",
   Source: "Forrás",
+  "Still to spend": "Még elkölthető",
   "Start time (optional)": "Kezdés (nem kötelező)",
   "Takes about a minute. You'll be the owner, and you can bring everyone else in with a single link — no accounts to set up for them, no app to install.":
     "Körülbelül egy perc. Te lesz a tulajdonos, a többieket pedig egyetlen linkkel behívhatod — nekik nem kell fiókot létrehozniuk, és alkalmazást sem kell telepíteniük.",
@@ -505,6 +506,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Your picture": "A képed",
   "Your settings": "A beállításaid",
   "Your trip boards": "Az utazástábláid",
+  "before the target": "a keretből",
   "barred from rejoining": "nem csatlakozhat újra",
   "email, name, or user id": "e-mail, név vagy felhasználói azonosító",
   "https://…": "https://…",

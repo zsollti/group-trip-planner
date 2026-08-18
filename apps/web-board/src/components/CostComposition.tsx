@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { CategoryView } from "@gtp/types";
-import type {
-  CostComposition as Composition,
-  CostSlice,
+import {
+  REMAINING_KEY,
+  sliceKey,
+  type CostComposition as Composition,
+  type CostSlice,
 } from "../lib/costComposition";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { CostDonut } from "./CostDonut";
@@ -55,8 +57,7 @@ export function CostComposition({
    * chart and its legend must never do.
    */
   const [activeId, setActiveId] = useState<string | null>(null);
-  const activate = (categoryId: string | null | undefined) =>
-    setActiveId(categoryId === undefined ? null : (categoryId ?? "tail"));
+  const activate = (key: string | undefined) => setActiveId(key ?? null);
 
   const write = (n: number) =>
     composition.approximate
@@ -113,22 +114,40 @@ function CostLegend({
   categories: readonly CategoryView[];
   write: (amount: number) => string;
   activeId: string | null;
-  onActivate: (categoryId: string | null | undefined) => void;
+  onActivate: (key: string | undefined) => void;
 }) {
-  const { slices, overspend } = composition;
+  const { slices, overspend, remaining, full } = composition;
 
   return (
     <ul className="cost-comp__legend">
       {slices.map((slice) => (
         <LegendRow
-          key={slice.categoryId ?? "tail"}
+          key={sliceKey(slice)}
           slice={slice}
           categories={categories}
           write={write}
-          active={(slice.categoryId ?? "tail") === activeId}
+          active={sliceKey(slice) === activeId}
           onActivate={onActivate}
         />
       ))}
+      {/*
+       * What is left, as a row of the breakdown.
+       *
+       * The ring's grey arc is now readable, and this is what makes that true
+       * rather than mouse-only: the chart is `aria-hidden` decoration, so a part
+       * that can only be reached by pointing at it cannot be reached at all by
+       * a keyboard or a screen reader. Every other part of the circle earns its
+       * row here; so does this one.
+       */}
+      {remaining > 0 ? (
+        <RemainingRow
+          amount={remaining}
+          share={full > 0 ? remaining / full : 0}
+          write={write}
+          active={activeId === REMAINING_KEY}
+          onActivate={onActivate}
+        />
+      ) : null}
       {/*
        * The overshoot as a row of the breakdown, not a footnote under it.
        *
@@ -172,16 +191,16 @@ function LegendRow({
   categories: readonly CategoryView[];
   write: (amount: number) => string;
   active: boolean;
-  onActivate: (categoryId: string | null | undefined) => void;
+  onActivate: (key: string | undefined) => void;
 }) {
   return (
     <li className={"cost-comp__row" + (active ? " cost-comp__row--on" : "")}>
       <button
         type="button"
         className="cost-comp__row-btn"
-        onMouseEnter={() => onActivate(slice.categoryId)}
+        onMouseEnter={() => onActivate(sliceKey(slice))}
         onMouseLeave={() => onActivate(undefined)}
-        onFocus={() => onActivate(slice.categoryId)}
+        onFocus={() => onActivate(sliceKey(slice))}
         onBlur={() => onActivate(undefined)}
       >
         <span
@@ -216,6 +235,49 @@ function LegendRow({
               .join(", ")}
           </span>
         ) : null}
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The remainder's row: same shape as a lane's, deliberately.
+ *
+ * It is not a lane and its swatch says so — the neutral grey the arc itself
+ * wears — but everything else about it is a lane row, because a reader
+ * comparing "Stay 43%" with "Still to spend 12%" is comparing two parts of one
+ * circle and the row should not make that harder than the ring does.
+ */
+function RemainingRow({
+  amount,
+  share,
+  write,
+  active,
+  onActivate,
+}: {
+  amount: number;
+  share: number;
+  write: (amount: number) => string;
+  active: boolean;
+  onActivate: (key: string | undefined) => void;
+}) {
+  return (
+    <li className={"cost-comp__row" + (active ? " cost-comp__row--on" : "")}>
+      <button
+        type="button"
+        className="cost-comp__row-btn"
+        onMouseEnter={() => onActivate(REMAINING_KEY)}
+        onMouseLeave={() => onActivate(undefined)}
+        onFocus={() => onActivate(REMAINING_KEY)}
+        onBlur={() => onActivate(undefined)}
+      >
+        <span
+          className="cost-comp__swatch cost-comp__swatch--left"
+          aria-hidden="true"
+        />
+        <span className="cost-comp__name">{t("Still to spend")}</span>
+        <span className="cost-comp__share">{Math.round(share * 100)}%</span>
+        <span className="cost-comp__amount">{write(amount)}</span>
       </button>
     </li>
   );
