@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useCategoriesOptions } from "@gtp/api-client";
 import type { CategoryView, TripDateRange } from "@gtp/types";
 import { TimelineBoard } from "./TimelineBoard";
-import { ToggleSwitch } from "./ToggleSwitch";
 import {
   buildTimeline,
   timelineCandidates,
@@ -50,18 +49,40 @@ export function TimelineCanvas({
   );
 
   const notPlaced = timeline.unscheduled.length + timeline.elsewhere.length;
+  // Named once: it is the button's tooltip and its description, and the two
+  // drifting apart is how a hover and a screen reader come to say different
+  // things about one control.
+  const proposalsHint = t(
+    "Draw the options still being decided, under the ones that are settled.",
+  );
 
   return (
     <div className="board__timeline">
-      {/* One row, because between them they are a caption: what is on the
-          calendar, and what else could be. They were stacked, and with the
-          switch's explanation under it that was four lines of chrome above a
-          view whose whole point is the part below them.
-
-          The count stays with the thing it counts. It used to live in the line
-          under the trip's name, back when this was a page of its own; up there
-          now it would be a fact about the itinerary sitting in the trip's
-          heading, still on screen while the reader is looking at the lanes. */}
+      {/*
+       * One line of chrome: what is on the calendar, and what else could be.
+       *
+       * It was a bordered panel holding two labels and a switch with an On/Off
+       * caption beside it — four pieces of furniture to carry one sentence and
+       * one binary, above a view whose entire point is the part below it. What
+       * survives is the sentence and a chip that is either pressed or not.
+       *
+       * The switch became a **toggle button**. A `role="switch"` earns its
+       * knob, its caption and its label when it is one row in a list of
+       * settings, which is what `Settings` is; here there is exactly one of
+       * them, its label is a verb phrase, and "Show proposals — On" says the
+       * same thing twice. A pressed button says it once, in the control itself,
+       * and announces as "Show proposals, toggle button, pressed".
+       *
+       * The explanation moves to `title` plus a described-by line, so it is
+       * still there for a pointer and still read out — the readers least able
+       * to guess what a proposal looks like on a calendar are the ones it was
+       * written for.
+       *
+       * The count stays with the thing it counts. It used to live in the line
+       * under the trip's name, back when this was a page of its own; up there
+       * now it would be a fact about the itinerary sitting in the trip's
+       * heading, still on screen while the reader is looking at the lanes.
+       */}
       <div className="tl__controls">
         <p className="board__muted tl__summary">
           {plural(
@@ -73,22 +94,20 @@ export function TimelineCanvas({
         </p>
 
         {/* An overlay rather than a second mode: the itinerary stays what this
-            is, and this layers the candidates under it for spotting a clash.
-
-            `describeOnDemand` keeps the sentence in the DOM and out of the
-            way — revealed on hover or focus, and still read out by
-            `aria-describedby` whether or not it is visible. Deleting it would
-            have been the easy way to the same tidiness and would have taken
-            the explanation from the readers least able to guess. */}
-        <ToggleSwitch
-          checked={showProposals}
-          onChange={setShowProposals}
-          label={t("Show proposals")}
-          description={t(
-            "Draw the options still being decided, under the ones that are settled.",
-          )}
-          describeOnDemand
-        />
+            is, and this layers the candidates under it for spotting a clash. */}
+        <button
+          type="button"
+          className="tl__proposals"
+          aria-pressed={showProposals}
+          aria-describedby="tl-proposals-desc"
+          title={proposalsHint}
+          onClick={() => setShowProposals(!showProposals)}
+        >
+          {t("Show proposals")}
+        </button>
+        <span id="tl-proposals-desc" className="board__sr-only">
+          {proposalsHint}
+        </span>
       </div>
 
       {/* Capped and scrolling, on the same token as a lane. Switching Plan →
