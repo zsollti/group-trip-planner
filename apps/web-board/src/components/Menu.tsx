@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { t } from "../lib/i18n";
 
 /** One action in a {@link Menu}. */
@@ -12,6 +12,18 @@ export interface MenuItem {
   badge?: number;
   /** Marks the item as the one currently in effect (the open channel). */
   selected?: boolean;
+  /**
+   * A line under the label saying what the item will actually do.
+   *
+   * For the few actions whose name is not enough on its own. "Remove" and
+   * "Block" are the case that asked for it: both take someone off a trip, the
+   * difference between them is whether they can come back, and no verb pair
+   * carries that difference to a reader who has not met it before. Kept out of
+   * the accessible name — the button is still "Remove and block" — and wired as
+   * its description instead, so a screen reader hears the label first and the
+   * consequence after, in that order.
+   */
+  note?: string;
   /**
    * Draw a rule above this item, breaking the list into groups.
    *
@@ -45,6 +57,8 @@ export function Menu({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Namespaces the note ids, since several of these can be open on one page.
+  const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
@@ -117,22 +131,31 @@ export function Menu({
               className={
                 "menu__item" +
                 (item.danger ? " menu__item--danger" : "") +
-                (item.separated ? " menu__item--separated" : "")
+                (item.separated ? " menu__item--separated" : "") +
+                (item.note ? " menu__item--noted" : "")
               }
               disabled={item.disabled}
               aria-current={item.selected ? "true" : undefined}
+              aria-describedby={item.note ? `${id}-note-${i}` : undefined}
               onClick={() => {
                 setOpen(false);
                 item.onSelect();
               }}
             >
-              {item.label}
-              {item.badge ? (
-                <span
-                  className="menu__badge"
-                  aria-label={t("{n} unread", { n: item.badge })}
-                >
-                  {item.badge}
+              <span className="menu__item-label">
+                {item.label}
+                {item.badge ? (
+                  <span
+                    className="menu__badge"
+                    aria-label={t("{n} unread", { n: item.badge })}
+                  >
+                    {item.badge}
+                  </span>
+                ) : null}
+              </span>
+              {item.note ? (
+                <span className="menu__note" id={`${id}-note-${i}`}>
+                  {item.note}
                 </span>
               ) : null}
             </button>

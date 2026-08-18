@@ -623,6 +623,16 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+/* The role, as the control that sets it. Narrow on purpose: it holds three
+   words at most and every row's sits in the same column, which is what makes a
+   list of people scannable as a list of roles. */
+.board__member-role {
+  flex: none;
+  width: auto;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
 }
 
 .board__cover {
@@ -3622,6 +3632,40 @@ button.cost-comp__row-btn:hover,
 }
 /* A rule above the item, drawn as a border rather than an <hr> element so the
    list stays a flat run of buttons — see `MenuItem.separated`. */
+/* An item that explains itself. The label keeps its weight and the consequence
+   sits under it, quieter — a menu of equal-weight two-line entries reads as
+   prose, and this is still a list of verbs. Wider than a bare menu, because a
+   sentence wrapped to three words a line is not a sentence anyone reads. */
+.menu__item--noted {
+  display: block;
+  max-width: 22rem;
+  padding-block: 0.5rem;
+}
+/* The label and its badge, on one line. They used to be the flex row's own two
+   children with `space-between` pushing them apart; they share a wrapper now so
+   a note can sit underneath both, and the wrapper takes over that job. */
+.menu__item-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.menu__note {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--board-dim);
+  white-space: normal;
+}
+/* Even on the danger items: the note is the explanation, not the warning, and
+   red small print is a wall rather than a sentence. */
+.menu__item--danger .menu__note {
+  color: var(--board-dim);
+}
 .menu__item--separated {
   margin-top: 0.3rem;
   padding-top: 0.55rem;
