@@ -17,6 +17,11 @@ jobs:
     # branch protection targets once the repo goes public.
     name: install · lint · typecheck · test
     runs-on: ubuntu-latest
+    # A ceiling, because a hung step is not a slow step. This job takes about
+    # three minutes; a run that reaches thirty has stopped making progress, and
+    # without this it would sit there for GitHub's six-hour default holding an
+    # auto-merge open the whole time. One did.
+    timeout-minutes: 30
 
     # Real Postgres for the auth integration tests (real DB, per Phase 0.6 DoD).
     services:
@@ -72,11 +77,42 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The browser itself, cached across runs.
+      #
+      # Keyed on the resolved Playwright version rather than on the lockfile
+      # hash: the download only changes when that version does, and a lockfile
+      # key would miss on every unrelated dependency bump. `restore-keys` gives
+      # a partial hit something to fall back to on a version bump, which is
+      # still faster than a cold download.
+      - name: Resolve the Playwright version
+        id: pw
+        run: |
+          version=$(pnpm --filter @gtp/e2e exec playwright --version | awk '{print $2}')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      # Split from the download on purpose, and the reason is the bug that made
+      # this necessary: `--with-deps` shells out to `apt-get`, which can wait on
+      # a lock forever — a run sat on this step for over an hour and blocked a
+      # merge. On its own with a timeout, a stalled apt fails in five minutes and
+      # says so, instead of looking like a slow test suite.
+      - name: Install Chromium's system libraries
+        timeout-minutes: 5
+        run: pnpm --filter @gtp/e2e exec playwright install-deps chromium
+
       # Kept as its own step so a browser that fails to download is obviously
-      # not a failing test. `--with-deps` installs the system libraries Chromium
-      # needs on the Ubuntu runner.
+      # not a failing test. Skipped entirely on a cache hit.
       - name: Install Playwright browser
-        run: pnpm --filter @gtp/e2e run e2e:install
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: pnpm --filter @gtp/e2e exec playwright install chromium
 
       # The browser journeys (Phase 7.4). They start their own API and static
       # web server against the Postgres service above, so nothing else in this
