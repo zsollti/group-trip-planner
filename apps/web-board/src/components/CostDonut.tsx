@@ -307,11 +307,6 @@ function ActiveCentre({
       >
         {amount}
       </strong>
-      <span className="cost-donut__caption">
-        {t("{percent}% of what is locked", {
-          percent: Math.round(slice.share * 100),
-        })}
-      </span>
       <ul className="cost-donut__parts">
         {shown.map((part) => (
           <li key={part.label}>{part.label}</li>

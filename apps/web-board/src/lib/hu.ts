@@ -563,7 +563,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{n} vote — see who": "{n} szavazat — nézd meg, kik",
   "{n} voted": "{n} szavazott",
   "{n} votes — see who": "{n} szavazat — nézd meg, kik",
-  "{percent}% of what is locked": "a rögzített összeg {percent}%-a",
   "{trip} — you're the only member": "{trip} — egyedül te vagy a tagja",
   "· outside the trip’s dates": "· az utazás dátumain kívül",
   "· {percent}% above it": "· {percent}%-kal fölötte",
