@@ -43,6 +43,17 @@
      replaced. Viewport-relative, and `dvh` so a phone's retracting address bar
      never leaves the last row under it. */
   --board-column-max: 80dvh;
+  /* How wide a working column is. The lane row sets it as a flex basis and the
+     week grid takes it as a *ceiling* on one day, so the two views of a trip
+     are built from the same module however they are laid out — switch between
+     them and a Tuesday is the width of the Transport lane it replaced.
+     A ceiling on the calendar rather than a basis, because a day there has a
+     floor of its own (`--cal-col-min`, below which the times stop being
+     readable) and a fortnight has to be allowed to fall between the two and
+     scroll. Uncapped, a three-day trip on a wide monitor stretched each day to
+     a third of the window, which is a lot of white space to cross to compare
+     two mornings. */
+  --board-column-w: 15rem;
   /* Category colour (see lib/categoryTheme.ts). A category contributes one
      number — its hue — and this scale decides what the theme does with it, so
      light and dark stay legible without either knowing which lane it is. The
@@ -790,7 +801,7 @@ body {
 }
 
 .lane {
-  flex: 0 0 15rem;
+  flex: 0 0 var(--board-column-w);
   /* Without this the lane is 15rem *or wider*: a flex item's default
      `min-width: auto` refuses to go below its content's min-content width, and
      a one-line `nowrap` note has no wrap point — so a card with long notes
@@ -3746,6 +3757,9 @@ body {
   margin-top: 1.25rem;
   --cal-hour: 3rem;
   --cal-col-min: 7rem;
+  /* A day is never wider than a lane — same token, so the two views of a trip
+     cannot drift apart. See `--board-column-w`. */
+  --cal-col-max: var(--board-column-w);
 }
 /* Scrolls sideways rather than squeezing. A fortnight of columns inside the
    page measure would put every day below the width its times can be read at,
@@ -3760,9 +3774,27 @@ body {
       var(--cal-days),
       minmax(var(--cal-col-min), 1fr)
     );
-  min-width: 100%;
+  /*
+   * A day is at most a lane wide, and the cap is put on the **frame** rather
+   * than on the tracks.
+   *
+   * The obvious form — `minmax(--cal-col-min, --cal-col-max)` — is wrong here,
+   * because the frame is `width: max-content` and a track with a fixed growth
+   * limit reaches it under max-content sizing. Every day would then be exactly
+   * 15rem *including on a phone*, where the whole point of `--cal-col-min` is
+   * that a narrow screen may shrink a day to 7rem and scroll. Capping the frame
+   * keeps the `1fr` distribution and only stops it running away: the columns
+   * share whatever the frame has, and the frame stops growing at N lanes wide.
+   *
+   * `min-width` has to be clamped too. It is what makes a short trip fill the
+   * column, and min-width beats max-width in the cascade — left at a flat 100%
+   * it would win against this cap and stretch a three-day trip across the whole
+   * monitor again, which is the thing being fixed.
+   */
+  --cal-frame-max: calc(3.25rem + var(--cal-days) * var(--cal-col-max));
+  min-width: min(100%, var(--cal-frame-max));
   width: max-content;
-  max-width: none;
+  max-width: var(--cal-frame-max);
 }
 .cal__corner {
   border-bottom: 1px solid var(--lane-line);
