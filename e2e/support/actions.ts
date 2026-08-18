@@ -77,7 +77,14 @@ export async function createBoard(
   name: string,
   dates?: { start: string; end: string },
 ): Promise<string> {
-  await page.getByRole("button", { name: "＋ New board" }).click();
+  // Either way in, because there are two: the ghost tile at the end of the wall
+  // (which is where creating a board lives now — it used to be a button in the
+  // page bar), and the onboarding CTA, which is what a brand-new account with
+  // no boards at all sees instead of a wall. A journey that seeds a fresh user
+  // hits the second on its first call and the first on every one after.
+  await page
+    .getByRole("button", { name: /＋ New board|Plan your first trip/ })
+    .click();
 
   // The create form is a stepper now: one question per panel, so this walks it.
   // The primary button says Skip until a question is answered and Next after,
