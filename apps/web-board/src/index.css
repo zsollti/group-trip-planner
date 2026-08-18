@@ -1701,12 +1701,24 @@ body {
   outline-offset: 1px;
 }
 
+/* Whatever a caller hangs under the calendar — the times, on an option that
+   has them. Spaced off the grid above it; see `DateRangeField`. */
+.drange__extra {
+  margin-top: 0.85rem;
+}
+
 .drange__cal {
   margin-top: 0.45rem;
   padding: 0.6rem;
   border: 1px solid var(--lane-line);
   border-radius: 12px;
-  background: var(--lane-bg);
+  /* The same fill as the inputs above it, not the card's own. The calendar *is*
+     the control for the dates (the native inputs it used to sit under are
+     gone), so it is a field like the rest of the form and has to look like one
+     — on a raised card, a field is the recessed sand and the card is the paper.
+     Left as `--lane-bg` it was the one control in the dialog that read as part
+     of the background rather than as something you fill in. */
+  background: var(--board-bg);
 }
 .drange__nav {
   display: flex;

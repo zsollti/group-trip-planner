@@ -268,7 +268,7 @@ export function OptionForm({
               <Field htmlFor="opt-costtype" label={t("Cost is")}>
                 <select
                   id="opt-costtype"
-                  className="board__select"
+                  className="board__select board__select--field"
                   value={costType}
                   onChange={(e) => setCostType(e.target.value as CostType)}
                 >
@@ -282,7 +282,7 @@ export function OptionForm({
                     who, and nothing kept it current. */}
                 <select
                   id="opt-participation"
-                  className="board__select"
+                  className="board__select board__select--field"
                   value={participationMode}
                   onChange={(e) =>
                     setParticipationMode(e.target.value as ParticipationMode)
