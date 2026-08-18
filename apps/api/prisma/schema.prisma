@@ -14,33 +14,33 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid()) @db.Uuid
-  email         String    @unique
-  displayName   String
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique
+  displayName    String
   // Nullable: OAuth-only accounts (Google, Phase 1.0) have no local password.
-  passwordHash  String?
-  emailVerified Boolean   @default(false)
+  passwordHash   String?
+  emailVerified  Boolean   @default(false)
   // Profile picture (Phase 6.2). Null means "no picture" — the front-end draws
   // generated initials rather than shipping a stock silhouette. Always a URL
   // this service issued: uploads go through the Phase-6.1 pipeline, never a
   // client-supplied address. Purged on GDPR anonymization along with the object.
-  avatarUrl     String?
+  avatarUrl      String?
   // Notification-email preference (Phase 5.2, FR-36): global "email me when I'm
   // @mentioned". Defaults on — the feature is opt-out, and the unsubscribe link
   // in every notification email flips exactly this flag. Gates the notification
   // channel ONLY; transactional mail ignores it.
-  emailOnMention Boolean  @default(true)
+  emailOnMention Boolean   @default(true)
   // The language this account reads the interface in (post-launch). Text with a
   // default rather than a Postgres enum, so offering another language is a
   // dictionary and a one-line contract change instead of a migration on a type —
   // the same reasoning as `admin_audit_events.action`. Validated on the way in
   // and on the way out against the shared `LOCALES`, so a value this build does
   // not offer can neither be stored nor rendered.
-  locale        String    @default("en")
+  locale         String    @default("en")
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
-  anonymizedAt  DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  anonymizedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -138,14 +138,33 @@ enum ChannelType {
 }
 
 model Trip {
-  id              String     @id @default(uuid()) @db.Uuid
-  name            String
-  description     String?
-  destination     String?
+  id                  String     @id @default(uuid()) @db.Uuid
+  name                String
+  description         String?
+  destination         String?
+  /// The place the destination was chosen from, when it was chosen rather than
+  /// typed. `destination` stays the display string and stays free text — a group
+  /// going to "Dad's cabin" or "the Dolomites" must not be turned away by a
+  /// gazetteer — so this is the *additional* fact that it resolved to somewhere
+  /// known.
+  ///
+  /// **Deliberately not a foreign key.** The places table is a seeded snapshot
+  /// that gets rebuilt from a newer dump; a constraint would make re-seeding able
+  /// to fail on live trips, and a cascade would make it able to edit them. This
+  /// is a reference to an external identifier that happens to be cached locally.
+  destinationPlaceId  Int?
+  /// Copied from the place at the moment it was chosen, not joined on read.
+  ///
+  /// The same reasoning as `defaultCurrency`: once a trip is being planned
+  /// around a clock, that clock is part of the trip's own data, and it must not
+  /// change because a re-seed corrected a row underneath it.
+  destinationLat      Float?
+  destinationLon      Float?
+  destinationTimezone String?
   // The safe upload pipeline is Phase 6; the column exists now so nothing has
   // to be retrofitted. Always null until then.
-  coverImageUrl   String?
-  defaultCurrency String     @default("EUR")
+  coverImageUrl       String?
+  defaultCurrency     String     @default("EUR")
   // What the group is aiming to spend each, in `defaultCurrency`. A target the
   // totals are read against, never a constraint — nothing validates against it
   // and no option is refused for exceeding it. It lives here, not in a lane,
@@ -153,29 +172,29 @@ model Trip {
   // category is written up in docs/decisions.md). Same precision as
   // `Option.amount`, so a target and the figures it is compared with round the
   // same way.
-  budgetPerPerson Decimal?   @db.Decimal(12, 2)
+  budgetPerPerson     Decimal?   @db.Decimal(12, 2)
   // Dates are written back when a Dates-category option is locked (Phase 2);
   // until then a trip carries no dates and the created+1yr `expiresAt` fallback.
-  startDate       DateTime?  @db.Date
-  endDate         DateTime?  @db.Date
-  expiresAt       DateTime
-  status          TripStatus @default(ACTIVE)
+  startDate           DateTime?  @db.Date
+  endDate             DateTime?  @db.Date
+  expiresAt           DateTime
+  status              TripStatus @default(ACTIVE)
   // Denormalized owner (SRS §6). The owner also holds an OWNER membership row;
   // both are written in one transaction at creation.
-  ownerId         String     @db.Uuid
+  ownerId             String     @db.Uuid
   // Optimistic-concurrency token for the "changed since you opened it — reload"
   // edit path (SRS §6). Bumped on every trip-detail edit.
-  version         Int        @default(0)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  version             Int        @default(0)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
-  owner       User             @relation("TripOwner", fields: [ownerId], references: [id])
-  memberships TripMembership[]
-  invites     InviteLink[]
-  blocks      TripBlock[]
-  categories  Category[]
-  auditEvents AuditEvent[]
-  channels    Channel[]
+  owner         User             @relation("TripOwner", fields: [ownerId], references: [id])
+  memberships   TripMembership[]
+  invites       InviteLink[]
+  blocks        TripBlock[]
+  categories    Category[]
+  auditEvents   AuditEvent[]
+  channels      Channel[]
   notifications Notification[]
 
   @@index([ownerId])
@@ -281,9 +300,9 @@ model Message {
   deletedById String?   @db.Uuid
   createdAt   DateTime  @default(now())
 
-  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  author    User    @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  deletedBy User?   @relation("MessageDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  channel   Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User       @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  deletedBy User?      @relation("MessageDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
   reactions Reaction[]
   mentions  Mention[]
 
@@ -408,25 +427,25 @@ enum EmailJobType {
 /// Preference gating happens at **enqueue** time, so everything in this table is
 /// mail that is meant to go out; the worker's only job is delivery + retry.
 model EmailJob {
-  id         String         @id @default(uuid()) @db.Uuid
+  id        String         @id @default(uuid()) @db.Uuid
   /// Idempotency key: `<type>:<eventId>:<recipientId>` (`emailDedupeKey`).
-  dedupeKey  String         @unique
-  type       EmailJobType
-  status     EmailJobStatus @default(PENDING)
+  dedupeKey String         @unique
+  type      EmailJobType
+  status    EmailJobStatus @default(PENDING)
   /// Snapshotted recipient address (see model doc).
-  to         String
+  to        String
   /// Nullable so a deleted account's in-flight job is dropped, not orphaned.
-  userId     String?        @db.Uuid
-  payload    Json
-  attempts   Int            @default(0)
+  userId    String?        @db.Uuid
+  payload   Json
+  attempts  Int            @default(0)
   /// Not eligible for a worker pass before this instant — the backoff schedule.
-  runAfter   DateTime       @default(now())
+  runAfter  DateTime       @default(now())
   /// When the current SENDING claim was taken; drives stale-claim reclaim.
-  claimedAt  DateTime?
-  lastError  String?
-  sentAt     DateTime?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  claimedAt DateTime?
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -446,46 +465,46 @@ model EmailJob {
 /// date-affecting** field changes, which flags prior votes stale without
 /// deleting them (FR-23, decision 3); it is null until the first material edit.
 model Option {
-  id               String       @id @default(uuid()) @db.Uuid
-  categoryId       String       @db.Uuid
-  proposerId       String       @db.Uuid
-  title            String
-  description      String?
-  url              String?
+  id                String            @id @default(uuid()) @db.Uuid
+  categoryId        String            @db.Uuid
+  proposerId        String            @db.Uuid
+  title             String
+  description       String?
+  url               String?
   // Money is stored as an exact decimal (no float drift); null = unpriced.
-  amount           Decimal?     @db.Decimal(12, 2)
-  currency         String
-  costType         CostType     @default(PER_PERSON)
+  amount            Decimal?          @db.Decimal(12, 2)
+  currency          String
+  costType          CostType          @default(PER_PERSON)
   // Who this option is priced for. WHOLE_GROUP resolves to the trip's live
   // member count (the old dynamic headcount); OPT_IN counts the `participants`
   // rows instead. This replaces the stored `headcount`/`headcountIsFixed`
   // pair — a typed number could not notice a member leaving, which is the
   // entire reason `headcountConfirmedAt` and the staleness rule existed.
   participationMode ParticipationMode @default(WHOLE_GROUP)
-  startsAt         DateTime?
-  endsAt           DateTime?
-  externalRef      String?
+  startsAt          DateTime?
+  endsAt            DateTime?
+  externalRef       String?
   // Manual display order within the category (Phase 3.5, board drag-and-drop).
   // Organizer-reorderable; new options append at the end. **Display-only** — it
   // never affects votes, cost, or the projection front-runner (which tiebreaks
   // votes → createdAt → id, not position).
-  position         Int          @default(0)
-  status           OptionStatus @default(PROPOSED)
-  version          Int          @default(0)
+  position          Int               @default(0)
+  status            OptionStatus      @default(PROPOSED)
+  version           Int               @default(0)
   materialChangedAt DateTime?
   // Set atomically when the option is locked (Phase 2.4, FR-24); cleared on
   // unlock. `lockedById` is a nullable soft reference (onDelete: SetNull) so a
   // locker's account deletion never erases the decision.
-  lockedById       String?      @db.Uuid
-  lockedAt         DateTime?
-  deletedAt        DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  lockedById        String?           @db.Uuid
+  lockedAt          DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  proposer User     @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
-  lockedBy User?    @relation("OptionLocker", fields: [lockedById], references: [id], onDelete: SetNull)
-  votes    Vote[]
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  proposer     User                @relation("OptionProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  lockedBy     User?               @relation("OptionLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+  votes        Vote[]
   participants OptionParticipant[]
 
   @@index([categoryId])
@@ -607,15 +626,15 @@ enum InviteType {
 }
 
 model TripMembership {
-  id       String   @id @default(uuid()) @db.Uuid
-  tripId   String   @db.Uuid
-  userId   String   @db.Uuid
-  role     TripRole
-  joinedAt DateTime @default(now())
+  id                String   @id @default(uuid()) @db.Uuid
+  tripId            String   @db.Uuid
+  userId            String   @db.Uuid
+  role              TripRole
+  joinedAt          DateTime @default(now())
   // Per-trip mute (Phase 5.2, FR-36): silences this trip's notification EMAIL
   // for this member without touching their global preference or the always-on
   // in-app bell. Lives on the membership so it dies with it.
-  muted    Boolean  @default(false)
+  muted             Boolean  @default(false)
   // Where this trip sits in THIS member's overview (Phase: post-launch). Lives
   // on the membership rather than the trip because the order is one person's
   // view of their own list — two members of the same trip may quite reasonably
@@ -626,15 +645,15 @@ model TripMembership {
   // arranged, and a default of 0 would have claimed every one of them was
   // deliberately placed first. Only the tiles someone has actually dragged
   // carry a number, and the rest keep falling back to newest-first.
-  sortOrder Int?
+  sortOrder         Int?
   // Which invite link (if any) this member joined through. Provenance only; the
   // link may later be disabled/deleted without touching the membership, so it is
   // a nullable soft reference (onDelete: SetNull), not a hard FK.
-  joinedViaInviteId String? @db.Uuid
+  joinedViaInviteId String?  @db.Uuid
 
-  trip         Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  joinedVia    InviteLink? @relation(fields: [joinedViaInviteId], references: [id], onDelete: SetNull)
+  trip      Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedVia InviteLink? @relation(fields: [joinedViaInviteId], references: [id], onDelete: SetNull)
 
   // One membership per user per trip; joining is idempotent (Phase 1.3).
   @@unique([tripId, userId])
@@ -651,21 +670,21 @@ model TripMembership {
 /// FR-14) and never OWNER. Disabling sets `disabledAt` (existing members are
 /// retained); redeeming a PERSONAL link sets `consumedAt`.
 model InviteLink {
-  id         String     @id @default(uuid()) @db.Uuid
-  tripId     String     @db.Uuid
-  type       InviteType
-  role       TripRole
-  token      String     @unique
+  id          String     @id @default(uuid()) @db.Uuid
+  tripId      String     @db.Uuid
+  type        InviteType
+  role        TripRole
+  token       String     @unique
   // Optional address a PERSONAL link was emailed to (informational; the link
   // itself stays unbound — anyone holding the token can redeem it).
   sentToEmail String?
-  createdById String    @db.Uuid
+  createdById String     @db.Uuid
   disabledAt  DateTime?
   consumedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime   @default(now())
 
-  trip      Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  createdBy User             @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  trip              Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy         User             @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
   joinedMemberships TripMembership[]
 
   @@index([tripId])
@@ -779,4 +798,98 @@ model AdminAuditEvent {
   /// The console's only query: newest first.
   @@index([createdAt])
   @@map("admin_audit_events")
+}
+
+/// What kind of thing a place is, which is the only reason one table holds all
+/// three: a destination is a city most of the time and legitimately a region
+/// ("Tuscany") or a country ("Portugal") the rest of it, and a picker that
+/// offered only cities would send those two back to free text.
+enum PlaceKind {
+  CITY
+  REGION
+  COUNTRY
+}
+
+/// A country, for the one field that pays for this table: its currency.
+///
+/// Two hundred and fifty rows, seeded from GeoNames' `countryInfo.txt`. The
+/// create-trip form asks for a destination and then, separately, for a currency
+/// — and having been told "Lisbon, Portugal" it can answer the second question
+/// itself. That is the difference between a picker that is tidier than a text
+/// box and one that is worth a table.
+model Country {
+  /// ISO-3166 alpha-2. Also what a flag emoji is computed from, at no storage.
+  code         String  @id @db.Char(2)
+  name         String
+  /// ISO-4217, or null for the handful of territories GeoNames leaves blank.
+  currencyCode String? @db.Char(3)
+
+  places Place[]
+
+  @@map("countries")
+}
+
+/// Somewhere a group can go.
+///
+/// Seeded, read-only, and **not** referenced by a foreign key from `Trip` — see
+/// the note on `Trip.destinationPlaceId`. Roughly 74,000 rows: every populated
+/// place over 5,000 people, every first-level administrative region, and every
+/// country. The full GeoNames dump is 4.8 million, which is mostly hamlets
+/// nobody plans a trip to.
+///
+/// Rebuilt from a committed dataset (`prisma/data/places.tsv.gz`) by
+/// `pnpm places:seed`, never from the network at runtime — which is what keeps
+/// the test suite and the deploy free of a dependency on GeoNames being up.
+/// Data © GeoNames, CC BY 4.0.
+model Place {
+  /// GeoNames' own id, kept as the primary key: it is stable across dumps, so a
+  /// re-seed next year updates rows instead of renumbering them.
+  geonameId    Int                      @id
+  kind         PlaceKind
+  /// The canonical name, and the only one ever displayed.
+  name         String
+  /// The accent-stripped form, so "Malmo" finds Malmö.
+  asciiName    String
+  /// Up to five Latin-script alternates, pipe-separated. **Search keys only** —
+  /// a Hungarian typing "Bécs" has to reach Vienna, and the board still says
+  /// Vienna. Translating proper nouns per locale is a separate decision.
+  altNames     String                   @default("")
+  countryCode  String                   @db.Char(2)
+  /// GeoNames' first-level administrative code, e.g. "16" for Tuscany within IT.
+  /// Paired with `countryCode` it identifies the region row this place sits in.
+  admin1Code   String                   @default("")
+  /// The region's display name, denormalised onto its cities: it is on screen
+  /// beside every one of them ("Springfield, Illinois") and joining a table to
+  /// itself for a type-ahead is a cost paid on every keystroke.
+  admin1Name   String?
+  /// Cities only. A country is not a point, and the only thing coordinates were
+  /// going to buy is a dot on a map.
+  latitude     Float?
+  longitude    Float?
+  /// IANA zone. Stored from the start although nothing reads it yet: the
+  /// itinerary currently renders an option's hours in the *reader's* zone, so a
+  /// 07:15 tram in Lisbon shows as 08:15 in Budapest, and fixing that needs the
+  /// trip to know its own clock. Derived for regions and countries from their
+  /// most populous city, which is a heuristic and a stated one.
+  timezone     String?
+  /// Ranking only, never shown. Somebody typing "Paris" means the French one.
+  population   Int                      @default(0)
+  /// Everything a query may match, folded: lowercased and accent-stripped, with
+  /// the name, the ascii form and the alternates run together. Built in the
+  /// seeder rather than in SQL, because folding accents in Postgres means the
+  /// `unaccent` extension and this app should not demand privileges of whatever
+  /// database it is pointed at.
+  searchText   String                   @default("")
+  /// Generated by Postgres from `searchText` — see the migration. Prisma cannot
+  /// express a generated column, so it is `Unsupported`: present in the schema
+  /// so `migrate diff` stays quiet, never written and never selected.
+  searchVector Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, \"searchText\")"))
+
+  country Country @relation(fields: [countryCode], references: [code])
+
+  /// The type-ahead's indexes. The GIN index over `searchVector` is in the
+  /// migration and not here, for the same reason the column is `Unsupported`.
+  @@index([countryCode])
+  @@index([searchVector], type: Gin)
+  @@map("places")
 }

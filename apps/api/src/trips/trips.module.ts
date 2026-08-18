@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { UploadsModule } from "../uploads/uploads.module.js";
+import { PlacesModule } from "../places/places.module.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { TripsController } from "./trips.controller.js";
 import { TripsService } from "./trips.service.js";
@@ -16,8 +17,10 @@ import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
  */
 @Module({
   // UploadsModule supplies the cover-image pipeline (Phase 6.2) and, with it,
-  // the multer config the cover route's FileInterceptor needs.
-  imports: [AuthModule, UploadsModule],
+  // the multer config the cover route's FileInterceptor needs. PlacesModule is
+  // here for one method — a chosen destination's clock and coordinates are read
+  // out of the gazetteer when a trip is written, never taken from the client.
+  imports: [AuthModule, UploadsModule, PlacesModule],
   controllers: [TripsController],
   providers: [
     TripsService,

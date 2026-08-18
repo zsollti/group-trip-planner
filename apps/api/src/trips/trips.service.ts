@@ -14,6 +14,7 @@ import type {
   UpdateTripInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { PlacesService } from "../places/places.service.js";
 import { CategoriesService } from "../categories/categories.service.js";
 import { ChannelsService } from "../chat/channels.service.js";
 import {
@@ -41,6 +42,7 @@ export class TripsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly images: ImageAttachmentService,
+    private readonly places: PlacesService,
   ) {}
 
   /**
@@ -55,14 +57,61 @@ export class TripsService {
    * still have exactly one writer, and the group can unlock to reopen the
    * question like any other decision.
    */
+  /**
+   * The columns a chosen destination writes, read from our own places table.
+   *
+   * The request sends an id and nothing else, and this is why: a client that
+   * could send a place's timezone could send the wrong one, and a trip planned
+   * around a clock nobody can account for is worse than one with no clock at
+   * all. So the facts are looked up here, from the row the id names.
+   *
+   * Three cases, all of which have to be a full set of columns because both
+   * callers spread the result into a create or an update:
+   *
+   *  - **no id** — the destination was typed, or left empty. Every column null,
+   *    which on an update is what clears a previous choice.
+   *  - **an id we do not know** — a stale tab submitting from a dataset the
+   *    server has since re-seeded past. Treated exactly like a typed
+   *    destination rather than as an error: the name the user gave is still a
+   *    perfectly good destination, and refusing the whole trip over a cached id
+   *    would be the least useful thing to do with it.
+   *  - **a known id** — the place's clock and coordinates, copied. Copied and
+   *    not joined, for the reason on `Trip.destinationTimezone`: once a trip is
+   *    being planned around a zone, that zone belongs to the trip.
+   */
+  private async resolvePlace(placeId: number | null | undefined): Promise<{
+    destinationPlaceId: number | null;
+    destinationTimezone: string | null;
+    destinationLat: number | null;
+    destinationLon: number | null;
+  }> {
+    const none = {
+      destinationPlaceId: null,
+      destinationTimezone: null,
+      destinationLat: null,
+      destinationLon: null,
+    };
+    if (placeId == null) return none;
+    const facts = await this.places.facts(placeId);
+    if (!facts) return none;
+    return {
+      destinationPlaceId: placeId,
+      destinationTimezone: facts.timezone,
+      destinationLat: facts.latitude,
+      destinationLon: facts.longitude,
+    };
+  }
+
   async createTrip(user: User, input: CreateTripInput): Promise<TripDetail> {
     const dates = this.planCreateDates(input);
+    const place = await this.resolvePlace(input.destinationPlaceId);
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
         data: {
           name: input.name,
           description: input.description ?? null,
           destination: input.destination ?? null,
+          ...place,
           defaultCurrency: input.defaultCurrency,
           budgetPerPerson: input.budgetPerPerson ?? null,
           startDate: dates?.startDate ?? null,
@@ -153,12 +202,18 @@ export class TripsService {
     ctx: TripContext,
     input: UpdateTripInput,
   ): Promise<TripDetail> {
+    const place = await this.resolvePlace(input.destinationPlaceId);
     const result = await this.prisma.trip.updateMany({
       where: { id: ctx.trip.id, version: input.version },
       data: {
         name: input.name,
         description: input.description ?? null,
         destination: input.destination ?? null,
+        // A replace, like the fields around it: an edit that submits a typed
+        // destination clears whatever place the trip used to resolve to, along
+        // with the clock and coordinates that came with it. Anything else would
+        // leave a trip labelled Lisbon and timed to Tallinn.
+        ...place,
         defaultCurrency: input.defaultCurrency,
         // A full-object replace like the fields above it: an omitted target has
         // been cleared, not left alone.

@@ -57,6 +57,13 @@ export function toTripDetail(
     name: trip.name,
     description: trip.description,
     destination: trip.destination,
+    // What the destination resolved to, when it was chosen rather than typed.
+    // All four are null on every trip made before the picker existed, and on
+    // every one whose destination is a phrase the gazetteer has never heard of.
+    destinationPlaceId: trip.destinationPlaceId,
+    destinationTimezone: trip.destinationTimezone,
+    destinationLat: trip.destinationLat,
+    destinationLon: trip.destinationLon,
     coverImageUrl: trip.coverImageUrl,
     defaultCurrency: trip.defaultCurrency,
     // Prisma hands Decimal back as its own object; the wire carries a number,
