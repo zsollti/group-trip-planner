@@ -110,9 +110,16 @@ export function TimelineCanvas({
         </span>
       </div>
 
-      {/* Capped and scrolling, on the same token as a lane. Switching Plan →
-          Timeline replaces the middle of the screen; it should not also change
-          how tall the screen is. */}
+      {/* As tall as the trip is, with the **page** doing the scrolling.
+          It was capped on the lane row's token and scrolled inside itself, for
+          the symmetry: switching Plan → Timeline replaced the middle of the
+          screen without changing its height. A second scrollbar beside the
+          page's own costs more than that symmetry buys — a calendar is read by
+          running your eye down a day, and a reader with two bars finds out
+          which one moves the thing they are looking at by moving the wrong one
+          first. The lanes keep their cap, because they are columns worked in
+          side by side and one long lane pushes the others off the bottom; the
+          itinerary is a single object and can simply be as long as it is. */}
       <div className="tl__scroll">
         {opts.isPending ? (
           <p className="board__muted" role="status">
