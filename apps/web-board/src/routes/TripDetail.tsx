@@ -235,24 +235,22 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
            * The status, the name, the facts and the view switch were four
            * stacked blocks, each with its own margins, and between them they
            * pushed the working surface — the entire point of the page — a long
-           * way down a laptop screen. Nothing here is dropped, because all of it
-           * is worth having; it is folded instead.
+           * way down a laptop screen. It is folded rather than dropped, with one
+           * exception noted below.
            *
-           * Row one is the name with the switch at the far end of it. The switch
-           * has always belonged next to what it changes rather than up in the
-           * page bar (the bar holds actions *on* the trip; this decides what you
-           * are looking at) — and "next to" turns out to include beside, which
-           * costs no row at all.
+           * Row one is the name. Row two is one sentence — what this board is to
+           * you, then what it is — with the view switch at the far end of it.
            *
-           * Row two is one sentence: what this board is to you, then what it is.
-           * They were two lines for no better reason than that they are two
-           * kinds of fact, and the eyebrow keeps its own voice inside the line.
+           * **The switch sits on the facts row, not beside the name.** It went
+           * next to the name first, on the reasoning that a control belongs
+           * beside what it changes; a cover image is what showed that to be
+           * half the story. The cover comes between the name and the facts, so
+           * a switch pinned to the name floats above the picture, cut off from
+           * every other thing the page says about this trip. Below it, the
+           * switch reads as one of them.
            */}
           <div className="triphead">
-            <div className="triphead__top">
-              <h1 className="board__title triphead__name">{trip.data.name}</h1>
-              <ViewToggle tripId={trip.data.id} view={view} />
-            </div>
+            <h1 className="board__title triphead__name">{trip.data.name}</h1>
             {/* Decorative: the trip's name and destination are right here in
                 text, so the cover adds atmosphere, not information. */}
             {trip.data.coverImageUrl ? (
@@ -262,25 +260,32 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                 alt=""
               />
             ) : null}
-            <p className="triphead__meta">
-              <span className="board__eyebrow triphead__status">
-                {trip.data.status === "HISTORY" ? t("History") : t("Active")} ·{" "}
-                {roleLabel(trip.data.role)}
-              </span>
-              <span className="triphead__facts">
-                {trip.data.destination ?? t("No destination yet")} ·{" "}
-                {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)} ·{" "}
-                {plural(trip.data.memberCount, "{n} member", "{n} members")} ·{" "}
-                {trip.data.defaultCurrency}
-              </span>
-              {/* Muting is invisible by nature — say so, or people forget they
-                  did it and wonder why the inbox is quiet (Phase 5.3). */}
-              {trip.data.viewerMuted ? (
-                <span className="board__mutedflag">
-                  {t("· 🔕 Email muted")}
+            <div className="triphead__meta">
+              <p className="triphead__line">
+                {/* No "Active ·" any more. It was true of all but a handful of
+                    boards, and a fact that is true of nearly everything tells
+                    the reader nothing — while a board that is *not* active
+                    already says so much louder, in the read-only banner
+                    directly below this line. */}
+                <span className="board__eyebrow triphead__status">
+                  {roleLabel(trip.data.role)}
                 </span>
-              ) : null}
-            </p>
+                <span className="triphead__facts">
+                  {trip.data.destination ?? t("No destination yet")} ·{" "}
+                  {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)}{" "}
+                  · {plural(trip.data.memberCount, "{n} member", "{n} members")}{" "}
+                  · {trip.data.defaultCurrency}
+                </span>
+                {/* Muting is invisible by nature — say so, or people forget they
+                    did it and wonder why the inbox is quiet (Phase 5.3). */}
+                {trip.data.viewerMuted ? (
+                  <span className="board__mutedflag">
+                    {t("· 🔕 Email muted")}
+                  </span>
+                ) : null}
+              </p>
+              <ViewToggle tripId={trip.data.id} view={view} />
+            </div>
           </div>
           {trip.data.status === "HISTORY" ? (
             <p className="board__frozen" role="status">
