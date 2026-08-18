@@ -21,7 +21,7 @@ import {
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { Menu, type MenuItem } from "./Menu";
-import { roleChangeLabel, roleLabel } from "../lib/roles";
+import { roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
@@ -117,43 +117,47 @@ export function MemberDialog({
   const canTransfer = can(myRole, "trip.transferOwnership");
 
   /**
-   * The "⋯" for one member: what you can do to them, in the order you are
-   * likely to want it — promote or demote, then remove, block, hand over.
+   * The "⋯" for one member — now **only the things that cannot be taken back**.
    *
-   * Each role gets its own sentence rather than "Make {role}" with the name
-   * interpolated: Hungarian puts a case ending on the role for this ("legyen
-   * társszervező"), so a shared frame with a slot in it cannot be translated
-   * correctly for every value.
+   * It used to hold the role changes too: six items, three of which were the
+   * commonest thing anyone does here and were two clicks and a read down a list
+   * away. The role moved onto the row as a select, where it is one gesture and
+   * where it also *states* the current role instead of leaving the reader to
+   * infer it from which options are offered.
+   *
+   * What is left is removal, blocking and handing the trip over. They stay in a
+   * menu deliberately: three destructive buttons on every row is a wall of red
+   * on a list you mostly open to check who is here, and the one thing worse
+   * than an action being hard to find is an irreversible one being easy to hit.
+   *
+   * **Each carries a note**, because the labels do not carry the distinction.
+   * "Remove" and "Block" are the same act with a different afterwards, and no
+   * verb pair tells a reader that on its own — the difference is whether the
+   * person can come back, so that is what the notes say, in those words.
    */
   function memberMenuItems(m: TripMemberView): MenuItem[] {
-    const items: MenuItem[] = assignableRoles
-      .filter((r) => r !== m.role)
-      .map((r) => ({
-        label: roleChangeLabel(r),
-        disabled: changeRole.isPending,
-        onSelect: () => void onChangeRole(m, r),
-      }));
-
-    // Everything below the rule takes someone off the trip or hands it over.
-    // `separated` marks the first of them, so the break moves with the list
-    // rather than being drawn at a fixed index.
-    items.push({
-      label: t("Remove from trip"),
-      danger: true,
-      separated: true,
-      onSelect: () =>
-        setPending({ kind: "kick", userId: m.userId, name: m.displayName }),
-    });
-    items.push({
-      label: t("Block"),
-      danger: true,
-      onSelect: () =>
-        setPending({ kind: "block", userId: m.userId, name: m.displayName }),
-    });
+    const items: MenuItem[] = [
+      {
+        label: t("Remove from trip"),
+        note: t("They lose access. You can invite them back."),
+        danger: true,
+        onSelect: () =>
+          setPending({ kind: "kick", userId: m.userId, name: m.displayName }),
+      },
+      {
+        label: t("Remove and block"),
+        note: t("They lose access and can't rejoin, even with a link."),
+        danger: true,
+        onSelect: () =>
+          setPending({ kind: "block", userId: m.userId, name: m.displayName }),
+      },
+    ];
     if (canTransfer) {
       items.push({
         label: t("Make owner"),
+        note: t("They take over the trip and you become a co-organizer."),
         danger: true,
+        separated: true,
         onSelect: () =>
           setPending({
             kind: "transfer",
@@ -204,18 +208,72 @@ export function MemberDialog({
                       <strong>{m.displayName}</strong>
                       {isSelf ? (
                         <span className="board__muted"> {t("(you)")}</span>
-                      ) : null}{" "}
-                      <span className="board__muted">{roleLabel(m.role)}</span>
+                      ) : null}
                     </div>
                     <div className="board__invite-item-actions">
+                      {/*
+                       * The role, as the control that changes it.
+                       *
+                       * It was a word beside the name plus three menu entries
+                       * behind a "⋯" — so the fact and the way to change it
+                       * were in two places, and the commonest action on this
+                       * screen was the one furthest from the hand. A select is
+                       * both at once: it states the role and it is how you set
+                       * it, in one gesture, in the column where every row's
+                       * role lines up and can be compared.
+                       *
+                       * The owner's row, and anyone this reader may not act on,
+                       * keeps the plain word — a disabled select reads as
+                       * something temporarily unavailable rather than as
+                       * something that is not theirs to change.
+                       */}
                       {manageable ? (
-                        <Menu
-                          label={t("Actions for {name}", {
-                            name: m.displayName,
-                          })}
-                          items={memberMenuItems(m)}
-                        />
-                      ) : null}
+                        <>
+                          <label
+                            className="board__sr-only"
+                            htmlFor={`role-${m.userId}`}
+                          >
+                            {t("Role for {name}", { name: m.displayName })}
+                          </label>
+                          <select
+                            id={`role-${m.userId}`}
+                            className="board__select board__member-role"
+                            value={m.role}
+                            disabled={changeRole.isPending}
+                            onChange={(e) =>
+                              void onChangeRole(
+                                m,
+                                e.target.value as AssignableRole,
+                              )
+                            }
+                          >
+                            {/* Only the roles this reader may hand out — the
+                                same list the menu offered. The member's own is
+                                always among them wherever this select renders:
+                                a row is manageable only when the reader
+                                outranks it, and the list is every role below
+                                the reader. Worth stating, because a select
+                                whose value is not in its options renders blank,
+                                and the next change would read as a demotion
+                                nobody chose. */}
+                            {assignableRoles.map((r) => (
+                              <option key={r} value={r}>
+                                {roleLabel(r)}
+                              </option>
+                            ))}
+                          </select>
+                          <Menu
+                            label={t("Actions for {name}", {
+                              name: m.displayName,
+                            })}
+                            items={memberMenuItems(m)}
+                          />
+                        </>
+                      ) : (
+                        <span className="board__muted">
+                          {roleLabel(m.role)}
+                        </span>
+                      )}
                     </div>
                   </li>
                 );
@@ -267,12 +325,32 @@ export function MemberDialog({
 
         {pending ? (
           <div className="board__dialog-actions board__dialog-actions--stack">
+            {/*
+             * Untranslated template strings, until now — three sentences built
+             * with backticks that never went near `t()`, so a Hungarian reader
+             * confirming something irreversible got it in English.
+             *
+             * Each says what happens *and* what happens afterwards, because
+             * that is the whole of the difference between the first two: both
+             * take the person off the trip, and only one of them lets them
+             * back. The menu says the same thing before the click; this is the
+             * last place to say it, so it says it again rather than assuming
+             * the note was read.
+             */}
             <p className="board__muted">
               {pending.kind === "kick"
-                ? `Remove ${pending.name}? They can rejoin via a live link.`
+                ? t("Remove {name} from this trip? You can invite them back.", {
+                    name: pending.name,
+                  })
                 : pending.kind === "block"
-                  ? `Block ${pending.name}? They're removed and barred from rejoining.`
-                  : `Make ${pending.name} the owner? You'll become a co-organizer.`}
+                  ? t(
+                      "Remove {name} and block them? They won't be able to rejoin, even with an invite link.",
+                      { name: pending.name },
+                    )
+                  : t(
+                      "Make {name} the owner? You'll become a co-organizer, and only they can hand it back.",
+                      { name: pending.name },
+                    )}
             </p>
             <div className="board__dialog-actions">
               <Button

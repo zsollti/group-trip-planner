@@ -52,7 +52,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Back to boards": "Vissza a táblákhoz",
   "Back to sign in": "Vissza a bejelentkezéshez",
   "Back to this lane’s own colour": "Vissza a sáv saját színéhez",
-  Block: "Kitiltás",
   Blocked: "Kitiltva",
   "Board id": "Tábla azonosító",
   Budget: "Költségkeret",
@@ -267,10 +266,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Lock card": "Kártya rögzítése",
   "Log out": "Kijelentkezés",
   "Looking…": "Keresés…",
-  "Make co-organizer": "Legyen társszervező",
-  "Make guest": "Legyen vendég",
   "Make owner": "Tulajdonossá tesz",
-  "Make participant": "Legyen résztvevő",
   Manage: "Kezelés",
   "Mark all read": "Összes megjelölése olvasottként",
   "Mark verified": "Megerősítettnek jelöl",
@@ -577,4 +573,18 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "＋ Add category": "＋ Új sáv",
   "＋ New board": "＋ Új tábla",
   "＋ Propose the first option": "＋ Küldd be az első javaslatot",
+  "Make {name} the owner? You'll become a co-organizer, and only they can hand it back.":
+    "Legyen {name} a tulajdonos? Te társszervező leszel, és csak ő adhatja vissza.",
+  "Remove and block": "Eltávolítás és tiltás",
+  "Remove {name} and block them? They won't be able to rejoin, even with an invite link.":
+    "Eltávolítod és letiltod őt: {name}? Nem tud majd visszalépni, meghívó linkkel sem.",
+  "Remove {name} from this trip? You can invite them back.":
+    "Eltávolítod őt az útról: {name}? Később újra meghívhatod.",
+  "Role for {name}": "{name} szerepköre",
+  "They lose access and can't rejoin, even with a link.":
+    "Elveszíti a hozzáférést, és linkkel sem tud visszalépni.",
+  "They lose access. You can invite them back.":
+    "Elveszíti a hozzáférést. Később újra meghívhatod.",
+  "They take over the trip and you become a co-organizer.":
+    "Ő veszi át az utat, te pedig társszervező leszel.",
 };

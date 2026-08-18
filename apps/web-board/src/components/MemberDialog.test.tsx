@@ -90,31 +90,57 @@ describe("MemberDialog", () => {
     vi.restoreAllMocks();
   });
 
-  it("gives each member one menu instead of a row of controls", async () => {
+  it("puts the role on the row, and only the irreversible things in the menu", async () => {
     mockFetch();
     renderDialog();
 
-    await openMenuFor("Grace Hopper");
+    // The role is the commonest thing anyone changes here and it was two
+    // clicks down a list. It is a control on the row now, and it states the
+    // role it holds rather than leaving that to be inferred from which items
+    // the menu offers.
+    const role = await screen.findByRole("combobox", {
+      name: /Role for Grace Hopper/,
+    });
+    expect(role).toHaveValue("PARTICIPANT");
 
-    // The roles she is not — hers is written beside her name, so offering it
-    // again would be an item that does nothing.
+    await openMenuFor("Grace Hopper");
+    // What is left behind the "⋯": the things that cannot be undone from here.
     expect(
-      screen.getByRole("button", { name: "Make co-organizer" }),
+      screen.getByRole("button", { name: /Remove from trip/ }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Make guest" })).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Make participant" }),
-    ).toBeNull();
-    // And the four controls that used to be on the row are gone from it.
-    expect(screen.queryByRole("combobox")).toBeNull();
+      screen.getByRole("button", { name: /Remove and block/ }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Make guest/ })).toBeNull();
   });
 
-  it("changes a role from the menu", async () => {
+  it("says which of the two removals lets someone come back", async () => {
+    // The point of the notes. "Remove" and "Block" are the same act with a
+    // different afterwards, and no pair of verbs carries that on its own — so
+    // each item states the consequence, and it is wired as the button's
+    // description rather than folded into its name.
+    mockFetch();
+    renderDialog();
+    await openMenuFor("Grace Hopper");
+
+    const remove = screen.getByRole("button", { name: /Remove from trip/ });
+    const block = screen.getByRole("button", { name: /Remove and block/ });
+    const noteOf = (el: HTMLElement) =>
+      document.getElementById(el.getAttribute("aria-describedby")!)
+        ?.textContent;
+
+    expect(noteOf(remove)).toMatch(/invite them back/i);
+    expect(noteOf(block)).toMatch(/can't rejoin/i);
+  });
+
+  it("changes a role from the row", async () => {
     const fetchMock = mockFetch();
     renderDialog();
 
-    await openMenuFor("Grace Hopper");
-    fireEvent.click(screen.getByRole("button", { name: "Make co-organizer" }));
+    const role = await screen.findByRole("combobox", {
+      name: /Role for Grace Hopper/,
+    });
+    fireEvent.change(role, { target: { value: "CO_ORGANIZER" } });
 
     await waitFor(() => {
       const patch = fetchMock.mock.calls.find(
@@ -133,7 +159,7 @@ describe("MemberDialog", () => {
     renderDialog();
 
     await openMenuFor("Grace Hopper");
-    fireEvent.click(screen.getByRole("button", { name: "Remove from trip" }));
+    fireEvent.click(screen.getByRole("button", { name: /Remove from trip/ }));
 
     // Nothing has left yet — the menu item asks, it does not act.
     expect(
@@ -141,7 +167,9 @@ describe("MemberDialog", () => {
         ([, init]) => (init as RequestInit | undefined)?.method === "DELETE",
       ),
     ).toBe(false);
-    expect(screen.getByText(/Remove Grace Hopper\?/)).toBeVisible();
+    expect(
+      screen.getByText(/Remove Grace Hopper from this trip\?/),
+    ).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 

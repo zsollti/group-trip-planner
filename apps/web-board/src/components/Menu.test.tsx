@@ -8,7 +8,12 @@ describe("Menu", () => {
       <Menu label="Card menu" items={[{ label: "Edit", onSelect: vi.fn() }]} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Card menu" }));
-    expect(document.activeElement).toBe(screen.getByText("Edit"));
+    // By role rather than by text: the label lives in a span inside the button
+    // now, so it can have a consequence line under it, and `getByText` returns
+    // the span rather than the thing that takes focus.
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Edit" }),
+    );
   });
 
   it("returns focus to its trigger when Escape closes it", () => {
