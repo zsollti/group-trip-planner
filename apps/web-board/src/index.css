@@ -42,7 +42,7 @@
      read as the whole screen jumping rather than as its middle being
      replaced. Viewport-relative, and `dvh` so a phone's retracting address bar
      never leaves the last row under it. */
-  --board-column-max: 80dvh;
+  --board-column-max: 85dvh;
   /* How wide a working column is. The lane row sets it as a flex basis and the
      week grid takes it as a *ceiling* on one day, so the two views of a trip
      are built from the same module however they are laid out — switch between
