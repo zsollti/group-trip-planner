@@ -3043,9 +3043,14 @@ textarea[data-gtp-input] {
   position: absolute;
   /* Confined to the hole rather than the whole box. `inset: 0` let a long
      figure — six digits and a grouped separator, which is every HUF trip —
-     run straight over the ring and out the other side. 66% is the hole's own
-     width: (r - t/2) * 2 / size, the same arithmetic `donutCentre.ts` does. */
-  inset: 17%;
+     run straight over the ring and out the other side.
+
+     The hole's width arrives as `--donut-hole` from the component, which is
+     where the ring's geometry lives. It used to be a hand-computed 17% here,
+     which was right until the box grew to stop clipping the over-budget band —
+     and a number copied out of another file's arithmetic has no way of
+     noticing that. */
+  inset: calc((100% - var(--donut-hole, 62.5%)) / 2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3119,19 +3124,30 @@ textarea[data-gtp-input] {
   text-align: left;
   cursor: default;
 }
-.cost-comp__row-btn:hover,
+/* Only where the row is actually a control. The over-budget row wears the same
+   class for its padding and alignment but is a `div` — it has no wedge to
+   light up, and a hover on it would promise one. */
+button.cost-comp__row-btn:hover,
 .cost-comp__row--on .cost-comp__row-btn {
   background: color-mix(in srgb, var(--board-fg) 7%, transparent);
 }
-/* The one place the ring's overshoot is named in words. No swatch colour of
-   its own beyond the danger ink — it is not a lane. */
+/* The ring's overshoot, named. Red the whole way across — the name, the
+   percentage and the figure — because unlike every other row here this one is
+   not a part of the trip, it is the part that went past it.
+
+   The layout is gone from this rule: the row's contents sit in a
+   `.cost-comp__row-btn` like every other row's now, which is what puts its
+   swatch in the same column as the lanes'. It used to lay itself out with the
+   same padding but without that class's `margin: 0 -0.2rem`, and those four
+   pixels were the whole of the misalignment. */
 .cost-comp__row--over {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.1rem 0.2rem;
   color: var(--board-danger);
   font-weight: 600;
+}
+/* The lanes quiet their percentage; this one must not, or the row reads as
+   half-red and the number a reader most wants is the faded part of it. */
+.cost-comp__row--over .cost-comp__share {
+  color: inherit;
 }
 .cost-comp__swatch--over {
   background: var(--board-danger);
@@ -3209,17 +3225,6 @@ textarea[data-gtp-input] {
  * unrelated colours into one scale. */
 .cost-comp__row--left .cost-comp__amount {
   color: var(--board-ok);
-}
-
-/* Advisory, like the target line it elaborates: over is worth seeing, but
-   nothing was refused, so it borrows the danger hue without the error dress. */
-.cost-comp__over {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--board-danger);
-}
-.cost-comp__over-pct {
-  color: var(--board-dim);
 }
 
 /* Money the ring cannot hold, named so it is not simply missing. */

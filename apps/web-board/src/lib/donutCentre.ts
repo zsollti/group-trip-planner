@@ -13,8 +13,27 @@
  * checkable.
  */
 
-/** The hole's width as a fraction of the donut's box — `(r - t/2) * 2 / size`. */
-export const HOLE_FRACTION = ((48 - 16 / 2) * 2) / 120;
+/**
+ * The hole's width as a fraction of the donut's **viewBox** — `(r - t/2) * 2 / view`.
+ *
+ * The denominator is the padded box (`VIEW` in `CostDonut`), not the ring's own
+ * 120: the over-budget band and its tick are drawn outside the wedges and ran
+ * past the old viewBox's edge, so the box grew by `VIEW_PAD` on every side and
+ * the hole is that much smaller a share of it.
+ */
+export const HOLE_FRACTION = ((48 - 16 / 2) * 2) / 128;
+
+/**
+ * How wide the donut is drawn, in CSS pixels — **must match `.cost-donut`.**
+ *
+ * Duplicated from the stylesheet on purpose: the figure in the hole is sized by
+ * arithmetic (see below) and arithmetic needs a real width, while the element's
+ * own width is not knowable until it is laid out — which under test is never.
+ */
+export const BOX_PX = 148;
+
+/** The hole, in the same pixels. What a figure has to fit inside. */
+export const HOLE_PX = Math.round(BOX_PX * HOLE_FRACTION);
 
 /**
  * Roughly how wide one character is, as a multiple of the font size.

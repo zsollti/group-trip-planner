@@ -93,7 +93,6 @@ export function Settings() {
       {/* The measure, off the <main> so the bar above it spans the window
           on every page alike — see `.board__measure`. */}
       <div className="board__measure">
-        <p className="board__eyebrow">{t("Account")}</p>
         <h1 className="board__title">{t("Your settings")}</h1>
 
         <NameSection />
@@ -280,12 +279,6 @@ function LanguageSection() {
           )}
         </p>
       )}
-
-      <p className="board__panel-note">
-        {t(
-          "Dates and times follow it too — the words in a date are part of the language, so they cannot be left to the browser. Amounts do not: how a number is grouped is a local convention rather than a language, and it keeps following your own.",
-        )}
-      </p>
     </section>
   );
 }
