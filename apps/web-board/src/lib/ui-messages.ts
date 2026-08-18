@@ -22,7 +22,6 @@ export const UI_MESSAGES = [
   " · {n} not scheduled",
   "(you)",
   "+ Add card",
-  "+{n} more",
   "/person",
   "A budget per person?",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.",

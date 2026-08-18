@@ -2701,11 +2701,16 @@ textarea[data-gtp-input] {
 /* What is left of the target. Grey, and deliberately mid-grey rather than the
    lane rule: the remainder is a real part of the reading ("this much still
    unspoken for"), so it has to be visible as a band on cream paper, not just
-   inferable from where the colour stops. Quieter than the tail wedge, which is
-   money and takes the full dim ink. */
+   inferable from where the colour stops. Still quieter than the tail wedge,
+   which is money and takes the full dim ink.
+
+   Darkened from 42%, which was too pale to be read as a band at all — and too
+   pale to carry a mark: the glyph on it had to be dim ink, and so was the one
+   wedge in the ring whose symbol was drawn in a different colour from every
+   other. One step darker and it takes the white the rest of them wear. */
 .cost-donut__headroom {
   fill: none;
-  stroke: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
+  stroke: color-mix(in srgb, var(--board-dim) 58%, var(--lane-bg));
   /* Readable like a wedge, because it is one — the same lift and the same
      easing, so nothing about the interaction says "this part is different". */
   transition:
@@ -2713,7 +2718,7 @@ textarea[data-gtp-input] {
     opacity 120ms ease-out;
 }
 .cost-donut__headroom--on {
-  stroke: color-mix(in srgb, var(--board-dim) 62%, var(--lane-bg));
+  stroke: color-mix(in srgb, var(--board-dim) 76%, var(--lane-bg));
 }
 .cost-donut__headroom--off {
   opacity: 0.4;
@@ -2749,14 +2754,6 @@ textarea[data-gtp-input] {
 /* Dimmed with the wedge it marks, or it would float over a faded band. */
 .cost-donut__mark--off {
   opacity: 0.4;
-}
-/* The remainder's mark is the one exception to the white above, because the
-   reasoning for white does not apply to it: the band under it is not a
-   saturated lane colour but a pale grey, where white is invisible. It takes the
-   secondary ink instead, which is what everything else on this board uses to
-   say "present, not the point". */
-.cost-donut__mark--quiet {
-  stroke: var(--board-dim);
 }
 @media (prefers-reduced-motion: reduce) {
   .cost-donut__mark {
@@ -2819,25 +2816,6 @@ textarea[data-gtp-input] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-/* What the lane's money went on. Three at most — the hole cannot hold more,
-   and the count of the rest is what keeps the short list honest. */
-.cost-donut__parts {
-  list-style: none;
-  margin: 0.15rem 0 0;
-  padding: 0;
-  max-width: 100%;
-  font-size: 0.56rem;
-  line-height: 1.25;
-  color: var(--board-dim);
-}
-.cost-donut__parts li {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cost-donut__parts-more {
-  font-style: italic;
 }
 .cost-donut__figure {
   font-size: 1.15rem;

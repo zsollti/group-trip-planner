@@ -208,12 +208,15 @@ export function CostDonut({
             />
           );
         })}
-        {/* The remainder's own mark, on the same rule as a lane's. */}
+        {/* The remainder's own mark, on the same rule as a lane's — and now in
+            the same white, which is the rule it was the one exception to. It
+            wore the dim ink because the grey under it was too pale to hold
+            anything lighter; the grey is a step darker now, so the exception
+            has no reason left and the ring's marks are one set again. */}
         {headroom >= MARK_MIN_ARC / CIRCUMFERENCE ? (
           <WedgeMark
             at={drawn + headroom / 2}
             path={MARK_PATHS.REMAINING}
-            className="cost-donut__mark--quiet"
             dimmed={activeId != null && !readingRemainder}
           />
         ) : null}
@@ -304,23 +307,16 @@ function WedgeMark({
   at,
   path,
   dimmed,
-  className,
 }: {
   at: number;
   path: ReactNode;
   dimmed: boolean;
-  /** An extra class, for a mark that is not sitting on a lane's colour. */
-  className?: string;
 }) {
   const { x, y } = pointOnRing(at, RADIUS, CENTRE);
   const scale = MARK / 24;
   return (
     <g
-      className={
-        "cost-donut__mark" +
-        (dimmed ? " cost-donut__mark--off" : "") +
-        (className ? ` ${className}` : "")
-      }
+      className={"cost-donut__mark" + (dimmed ? " cost-donut__mark--off" : "")}
       transform={`translate(${x - MARK / 2} ${y - MARK / 2}) scale(${scale})`}
     >
       {path}
@@ -442,17 +438,22 @@ function RemainingCentre({
   );
 }
 
-/** How many of a slice's parts the hole can hold before it is a wall of text. */
-const PARTS_SHOWN = 3;
-
 /**
- * What one lane's money actually went on.
+ * One lane's money, in the hole.
  *
- * This is the point of the hover: the ring can say a lane is a third of the
- * trip, and cannot say which decisions that third was. The parts are named
- * largest first, with the remainder counted rather than listed — a hole this
- * size cannot hold six option titles, and cutting the list off silently would
- * misreport the lane as cheaper than it is.
+ * **The lane and its figure, and nothing else.** It used to name the decisions
+ * behind the figure too — three of them, with the rest counted — on the
+ * reasoning that the ring raises a question ("which third is that?") it cannot
+ * itself answer. In use the answer was the wrong size for the place it was
+ * given: a stack of option titles at 0.56rem inside a 78px hole, appearing and
+ * vanishing under the pointer, which is a list you cannot read rather than a
+ * detail you can. The reader who wants the decisions has the lane in front of
+ * them on the board.
+ *
+ * So the hover says exactly what the wedge is: this lane, this much. Two lines
+ * and no third — the share went the same way, and for the same reason, when the
+ * hole was last trimmed: the wedge in front of the reader already *is* the
+ * share, and the row being hovered prints the percentage.
  */
 function ActiveCentre({
   slice,
@@ -461,8 +462,6 @@ function ActiveCentre({
   slice: CostSlice;
   write: (amount: number) => string;
 }) {
-  const shown = slice.parts.slice(0, PARTS_SHOWN);
-  const rest = slice.parts.length - shown.length;
   const amount = write(slice.amount);
   return (
     <div className="cost-donut__centre cost-donut__centre--active">
@@ -473,16 +472,6 @@ function ActiveCentre({
       >
         {amount}
       </strong>
-      <ul className="cost-donut__parts">
-        {shown.map((part) => (
-          <li key={part.label}>{part.label}</li>
-        ))}
-        {rest > 0 ? (
-          <li className="cost-donut__parts-more">
-            {t("+{n} more", { n: rest })}
-          </li>
-        ) : null}
-      </ul>
     </div>
   );
 }

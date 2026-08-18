@@ -27,7 +27,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   " · {n} not scheduled": " · {n} nincs beütemezve",
   "(you)": "(te)",
   "+ Add card": "+ Új kártya",
-  "+{n} more": "+{n} további",
   "/person": "/fő",
   "A budget per person?": "Fejenkénti költségkeret?",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.":
