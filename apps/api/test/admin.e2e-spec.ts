@@ -209,7 +209,14 @@ describe("Admin console (e2e)", () => {
     };
     assert.equal(body.email, "demo@example.com");
     assert.equal(body.members, 5);
-    assert.equal(body.decisions, 7);
+    // Floors, not exact counts. The figures span **both** demo boards now — the
+    // active trip and the ended one built beside it — and an equality here
+    // turned a fixture gaining a decision into a failing build, which is what it
+    // did the day the second trip landed. What is worth pinning is that the seed
+    // still produces a board with real business on it; the exact tally is the
+    // seed's own business, and `demo-seed.e2e-spec.ts` is where its shape is
+    // asserted properly.
+    assert.ok(body.decisions >= 7, "the demo still shows locked decisions");
     assert.ok(body.options >= 15, "every seeded option is counted");
 
     const audit = await http()
