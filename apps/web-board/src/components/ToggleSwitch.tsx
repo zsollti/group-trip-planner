@@ -9,14 +9,12 @@
  * `pending` disables the control while a write is in flight so a double-click
  * cannot queue two opposite updates and land on the wrong one.
  *
- * `describeOnDemand` keeps the description in the DOM but out of the layout,
- * revealed on hover or keyboard focus. It is for the places where the sentence
- * is worth having and not worth the two lines it costs every time the row is
- * drawn — a dense strip above a view, rather than a settings page where the
- * explanation *is* the content. Note what it does **not** do: the text is still
- * rendered and still referenced by `aria-describedby`, so a screen reader hears
- * it either way. Hiding a sentence from the people who can see the control is
- * one thing; hiding it from the people who cannot is another.
+ * It had a `describeOnDemand` mode that kept the description in the DOM and out
+ * of the layout, for the one dense strip that wanted a switch without the two
+ * lines under it. That strip now carries a pressed chip instead — a switch
+ * earns its knob, its caption and its label as one row among many settings,
+ * which is what this is used for and all it is used for. The mode went with its
+ * only caller rather than waiting in the file for a second one.
  */
 import { t } from "../lib/i18n";
 
@@ -26,27 +24,19 @@ export function ToggleSwitch({
   label,
   description,
   pending = false,
-  describeOnDemand = false,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
   description?: string;
   pending?: boolean;
-  /** Show the description only on hover or focus. See the note above. */
-  describeOnDemand?: boolean;
 }) {
   const slug = label.replace(/\W+/g, "-").toLowerCase();
   const labelId = `switch-label-${slug}`;
   const descriptionId = description ? `switch-desc-${slug}` : undefined;
 
   return (
-    <div
-      className={
-        "board__switch-row" +
-        (describeOnDemand ? " board__switch-row--ondemand" : "")
-      }
-    >
+    <div className="board__switch-row">
       <span className="board__switch-text">
         <span className="board__switch-label" id={labelId}>
           {label}

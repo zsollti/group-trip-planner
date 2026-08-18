@@ -54,6 +54,16 @@
      a third of the window, which is a lot of white space to cross to compare
      two mornings. */
   --board-column-w: 15rem;
+  /* How wide a **card** in that column is: the column less the lane's own
+     padding, which the lane spends on both sides. Written as a token rather
+     than as the subtraction it is, because two places need the answer and one
+     of them is nowhere near a lane — the week grid caps a day at this, so a
+     Tuesday is the width of an option, not the width of the column an option
+     sits in. That is the measure the eye actually has for these things: a day
+     and a card are both "one decision wide", and the lane's padding is chrome
+     belonging to the lane. Change the padding below and this follows. */
+  --board-lane-pad: 0.85rem;
+  --board-card-w: calc(var(--board-column-w) - 2 * var(--board-lane-pad));
   /* Category colour (see lib/categoryTheme.ts). A category contributes one
      number — its hue — and this scale decides what the theme does with it, so
      light and dark stay legible without either knowing which lane it is. The
@@ -982,8 +992,9 @@ body {
   border-top: 3px solid var(--cat-main);
   border-radius: 14px;
   /* No top padding: `.lane__pin` owns it, so the sticky header's resting and
-     stuck positions coincide. See the note on `.lane__pin`. */
-  padding: 0 0.85rem 0.85rem;
+     stuck positions coincide. See the note on `.lane__pin`. The horizontal half
+     is a token because `--board-card-w` is defined by subtracting it. */
+  padding: 0 var(--board-lane-pad) var(--board-lane-pad);
   box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.07);
 }
 /* The lane's own mark, in its own colour. */
@@ -3093,43 +3104,6 @@ textarea[data-gtp-input] {
   gap: 1rem;
 }
 
-/* The description, kept and hidden rather than dropped (see `ToggleSwitch`).
-   `position: absolute` so revealing it cannot reflow the row it hangs under —
-   a tooltip that pushes the page around as the pointer crosses it is worse
-   than no tooltip. `:focus-within` as well as `:hover`, or the explanation
-   would exist for exactly the readers who need it least. */
-.board__switch-row--ondemand {
-  position: relative;
-  align-items: center;
-}
-.board__switch-row--ondemand .board__switch-desc {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: 5;
-  max-width: 22rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--lane-line);
-  border-radius: 8px;
-  background: var(--lane-bg);
-  box-shadow: 0 6px 18px rgb(var(--board-shadow) / 0.18);
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 120ms ease,
-    visibility 120ms ease;
-}
-.board__switch-row--ondemand:hover .board__switch-desc,
-.board__switch-row--ondemand:focus-within .board__switch-desc {
-  opacity: 1;
-  visibility: visible;
-}
-@media (prefers-reduced-motion: reduce) {
-  .board__switch-row--ondemand .board__switch-desc {
-    transition: none;
-  }
-}
-
 .board__switch-text {
   display: flex;
   flex-direction: column;
@@ -3949,15 +3923,33 @@ textarea[data-gtp-input] {
   margin-top: 1.25rem;
   --cal-hour: 3rem;
   --cal-col-min: 7rem;
-  /* A day is never wider than a lane — same token, so the two views of a trip
-     cannot drift apart. See `--board-column-w`. */
-  --cal-col-max: var(--board-column-w);
+  /* A day is never wider than a **card** in a lane. It was capped at the lane
+     instead, which is the right idea measured against the wrong thing: a lane
+     is a column plus the padding it keeps its cards clear of its own edges, and
+     that padding is the lane's chrome rather than part of the module. A day
+     holds decisions, not lanes, so the width it should not exceed is the width
+     one decision is drawn at. See `--board-card-w`. */
+  --cal-col-max: var(--board-card-w);
 }
 /* Scrolls sideways rather than squeezing. A fortnight of columns inside the
    page measure would put every day below the width its times can be read at,
-   and a calendar you cannot read is worse than the list it replaced. */
+   and a calendar you cannot read is worse than the list it replaced.
+
+   `overflow-y: hidden` is not tidiness, it is the fix for a second scrollbar.
+   Two rules meet here: CSS computes the other axis's `visible` to `auto` the
+   moment one axis is not visible, and a classic (non-overlay) horizontal
+   scrollbar is laid out *inside* this box, taking its thickness out of the
+   content height. So the box overflowed itself vertically by exactly one
+   scrollbar — ~15px — and grew a vertical scrollbar to offer it. That is the
+   inner bar that scrolled about twenty pixels and moved nothing worth seeing,
+   right next to the real one on `.tl__scroll`. The `padding-bottom` here was
+   an attempt at the same fix by compensation; it stays as the gap between the
+   bar and the grid, which is what it is actually good for. */
 .cal__scroll {
   overflow-x: auto;
+  overflow-y: hidden;
+  /* Room for a focus ring at the top of the frame, now that this edge clips. */
+  padding-top: 2px;
   padding-bottom: 0.5rem;
 }
 .cal__frame {
@@ -4449,35 +4441,68 @@ textarea[data-gtp-input] {
   color: var(--board-dim);
 }
 
-/* The view preference, boxed so it reads as a control rather than as more
-   prose under the trip's summary line. */
 /* The itinerary's one strip of chrome: what is on the calendar, and what else
-   could be. One row rather than three stacked lines — the view below is the
-   point, and a caption should not need its own paragraph.
+   could be.
 
-   `align-items: center` and not `baseline`: the switch is a control with real
+   **No box.** It had a border, a fill and its own padding, which made a caption
+   and one binary look like a panel — furniture around two facts, directly above
+   the view those facts are about. A line of text and a chip need no frame to
+   be read as chrome; the calendar under them starts immediately, which is what
+   the space is for.
+
+   `align-items: center` and not `baseline`: the chip is a control with real
    height, and aligning a button's text baseline to a sentence's leaves it
    sitting low in the row. */
 .tl__controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   flex-wrap: wrap;
-  margin-top: 0.9rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--lane-line);
-  border-radius: 12px;
-  background: var(--lane-bg);
+  margin: 0.6rem 0 0.5rem;
 }
 .tl__summary {
   margin: 0;
 }
-/* The switch shrinks to its content here instead of spreading, so the row's
-   two halves sit at its two ends rather than the switch owning the width. */
-.tl__controls .board__switch-row {
-  gap: 0.6rem;
-  align-items: center;
+/* The overlay's control: a chip that is pressed or not, rather than a labelled
+   switch with an On/Off caption beside it. Its own label is the verb, so the
+   state has nowhere to be but in the control's appearance — filled when the
+   proposals are drawn, an outline when they are not. */
+.tl__proposals {
+  flex: none;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  background: var(--lane-bg);
+  color: var(--board-dim);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.tl__proposals:hover {
+  border-color: var(--board-accent);
+  color: var(--board-accent);
+}
+/* On. The accent fill is the same "this is the current one" the view switch's
+   thumb uses, so a pressed chip and a selected segment mean one thing. */
+.tl__proposals[aria-pressed="true"] {
+  border-color: var(--board-accent);
+  background: var(--board-accent);
+  color: var(--board-on-accent);
+}
+.tl__proposals:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl__proposals {
+    transition: none;
+  }
 }
 
 /* Capped on the same token as a lane, and scrolling its own content. Switching
