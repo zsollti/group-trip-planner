@@ -90,7 +90,7 @@ test("an owner locks a decision by dragging a card onto its lane's decide strip"
     .getByRole("button", { name: "＋ Propose the first option" })
     .click();
   await page.getByLabel("Title").fill(optionTitle);
-  await page.getByLabel("Amount (optional)").fill("120");
+  await page.getByLabel("Amount").fill("120");
   await page.getByRole("button", { name: "Propose option" }).click();
 
   const card = transport.locator(".lane__card", { hasText: optionTitle });
