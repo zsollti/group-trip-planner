@@ -55,7 +55,7 @@ export function ActivityDialog({
   const events = activity.data?.pages.flatMap((p) => p.events) ?? [];
 
   return (
-    <Dialog eyebrow="History" title={t("Activity")} onClose={onClose}>
+    <Dialog title={t("Activity")} onClose={onClose}>
       <>
         {activity.isPending ? (
           <p className="board__muted" role="status">

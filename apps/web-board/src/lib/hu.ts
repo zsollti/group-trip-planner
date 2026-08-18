@@ -31,7 +31,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "A budget per person?": "Fejenkénti költségkeret?",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.":
     "Be van állítva egy árfolyamforrás, de a mentés napok óta nem frissült. Az alkalmazás minden ≈ összege ebből számol.",
-  Account: "Fiók",
   "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.":
     "A fiókkal kapcsolatos leveleket — cím megerősítése, bejelentkezés — mindig elküldjük, ezek a beállítások nem érintik őket.",
   "Account menu": "Fiók menü",
@@ -56,7 +55,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Block: "Kitiltás",
   Blocked: "Kitiltva",
   "Board id": "Tábla azonosító",
-  Boards: "Táblák",
   Budget: "Költségkeret",
   "Budget per person": "Fejenkénti költségkeret",
   Cancel: "Mégse",
@@ -156,8 +154,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Currency: "Pénznem",
   "Danger zone": "Veszélyes műveletek",
   Dates: "Dátumok",
-  "Dates and times follow it too — the words in a date are part of the language, so they cannot be left to the browser. Amounts do not: how a number is grouped is a local convention rather than a language, and it keeps following your own.":
-    "A dátumok és időpontok is ezt követik — egy dátumban a szavak a nyelv részei, így nem hagyhatók a böngészőre. Az összegek nem: a számok csoportosítása helyi szokás, nem nyelv kérdése, ezért továbbra is a sajátodat követi.",
   Decided: "Eldöntve",
   "Decided · {name}": "Eldöntve · {name}",
   "Default currency": "Alapértelmezett pénznem",
@@ -528,7 +524,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "voted before the last change": "a legutóbbi módosítás előtt szavazott",
   "your address": "a címed",
   "yours: ": "a tiéd: ",
-  "{amount} over target, per person": "{amount} a cél felett, fejenként",
   "{amount} per person": "{amount} fejenként",
   "{cap} categories is the maximum. Delete one to add another.":
     "Legfeljebb {cap} sáv lehet. Törölj egyet, ha újat szeretnél.",
@@ -569,7 +564,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{n} votes — see who": "{n} szavazat — nézd meg, kik",
   "{trip} — you're the only member": "{trip} — egyedül te vagy a tagja",
   "· outside the trip’s dates": "· az utazás dátumain kívül",
-  "· {percent}% above it": "· {percent}%-kal fölötte",
   "· 🔕 Email muted": "· 🔕 E-mailek némítva",
   "— exactly {amount}": "— pontosan {amount}",
   "‹ Boards": "‹ Táblák",

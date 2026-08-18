@@ -89,45 +89,48 @@ export function ImagePicker({
         )}
       </div>
 
-      {/*
-       * The file input, hidden inside a label that is dressed as a button.
-       *
-       * A bare `<input type="file">` renders the browser's own button, and that
-       * button is two problems at once: it is unstyleable — it sat next to this
-       * app's controls looking like nothing else on the page — and its text
-       * comes from the *browser's* locale, not the app's, so a Hungarian Chrome
-       * said "Fájl kiválasztása" on an English board and a "Tallózás…" on a
-       * Hungarian one, neither of which this app chose or can translate.
-       *
-       * Wrapping it in a label is what lets us write the words ourselves: a
-       * click anywhere on the label opens the picker, and the control stays a
-       * real file input with its native semantics rather than a button
-       * pretending. The input is clipped rather than `display: none`, so it is
-       * still focusable and still announced — the ring is drawn on the label
-       * via `:focus-within`, since the thing receiving focus is invisible.
-       *
-       * The visible words are a substring of the accessible name, so a voice
-       * user asking for "choose a file" reaches the control the label names.
-       */}
-      <label className="picker__choose">
-        <input
-          ref={inputRef}
-          type="file"
-          className="picker__file"
-          accept={ACCEPT}
-          aria-label={t("{label} — choose a file", { label })}
-          onChange={(e) => pick(e.target.files?.[0] ?? null)}
-        />
-        <span aria-hidden="true">{t("Choose a file")}</span>
-      </label>
-
       {error ? (
         <p className="board__form-error" role="alert">
           {error}
         </p>
       ) : null}
 
+      {/* One row: pick, then whatever you can do with the pick. They were
+          stacked — the file control was its own block above the buttons —
+          so a panel with a picked file showed three controls down a column
+          where they are three ways of answering one question. */}
       <div className="picker__actions">
+        {/*
+         * The file input, hidden inside a label that is dressed as a button.
+         *
+         * A bare `<input type="file">` renders the browser's own button, and that
+         * button is two problems at once: it is unstyleable — it sat next to this
+         * app's controls looking like nothing else on the page — and its text
+         * comes from the *browser's* locale, not the app's, so a Hungarian Chrome
+         * said "Fájl kiválasztása" on an English board and a "Tallózás…" on a
+         * Hungarian one, neither of which this app chose or can translate.
+         *
+         * Wrapping it in a label is what lets us write the words ourselves: a
+         * click anywhere on the label opens the picker, and the control stays a
+         * real file input with its native semantics rather than a button
+         * pretending. The input is clipped rather than `display: none`, so it is
+         * still focusable and still announced — the ring is drawn on the label
+         * via `:focus-within`, since the thing receiving focus is invisible.
+         *
+         * The visible words are a substring of the accessible name, so a voice
+         * user asking for "choose a file" reaches the control the label names.
+         */}
+        <label className="picker__choose">
+          <input
+            ref={inputRef}
+            type="file"
+            className="picker__file"
+            accept={ACCEPT}
+            aria-label={t("{label} — choose a file", { label })}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+          <span aria-hidden="true">{t("Choose a file")}</span>
+        </label>
         {pending ? (
           <>
             {/* Only where this picker owns its own commit. In `onPick` mode the

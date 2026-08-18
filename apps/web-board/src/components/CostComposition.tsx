@@ -13,7 +13,7 @@ import {
   formatApproxMoney as approx,
   formatMoney as money,
 } from "../lib/money";
-import { t, tNode } from "../lib/i18n";
+import { t } from "../lib/i18n";
 
 /**
  * The cost composition: the ring, the lanes that make it up, and what it
@@ -88,7 +88,10 @@ export function CostComposition({
         activeId={activeId}
         onActivate={activate}
       />
-      <Overshoot composition={composition} />
+      {/* The overshoot had a paragraph of its own here — "€107 over target, per
+          person · 21% above it" — directly under a row that already named it.
+          Both figures live on that row now, so the sentence was the same
+          reading twice, in prose, in the place a summary should be shortest. */}
       <Excluded composition={composition} myUserId={myUserId} />
       <Uncounted composition={composition} />
     </section>
@@ -116,7 +119,7 @@ function CostLegend({
   activeId: string | null;
   onActivate: (key: string | undefined) => void;
 }) {
-  const { slices, overspend, remaining, full } = composition;
+  const { slices, overspend, overshare, remaining, full } = composition;
 
   return (
     <ul className="cost-comp__legend">
@@ -159,13 +162,36 @@ function CostLegend({
        */}
       {overspend > 0 ? (
         <li className="cost-comp__row cost-comp__row--over">
-          <span
-            className="cost-comp__swatch cost-comp__swatch--over"
-            aria-hidden="true"
-          />
-          <span className="cost-comp__name">{t("Over budget")}</span>
-          <span className="cost-comp__share" />
-          <span className="cost-comp__amount">{write(overspend)}</span>
+          {/*
+           * Wrapped in the same `__row-btn` the lanes use, though there is
+           * nothing to press.
+           *
+           * The bare spans were the whole of the indentation complaint: every
+           * other row's contents sit inside a button that carries the row's
+           * padding, so this one started a few pixels to the left of the
+           * column of swatches it belongs to. A `div` with the same class
+           * rather than a `button`, because a row with no chart part to light
+           * up must not offer a focus stop that does nothing.
+           */}
+          <div className="cost-comp__row-btn">
+            <span
+              className="cost-comp__swatch cost-comp__swatch--over"
+              aria-hidden="true"
+            />
+            <span className="cost-comp__name">{t("Over budget")}</span>
+            {/*
+             * The share here is of the **target**, not of the circle — this is
+             * not a part of the ring, it is how far the ring went past the
+             * budget. It moved up from a paragraph under the list that said the
+             * same two numbers in a sentence; one row saying "Over budget · 21%
+             * · 107 EUR" is the same information in the place the eye is
+             * already reading figures.
+             */}
+            <span className="cost-comp__share">
+              {Math.round(overshare * 100)}%
+            </span>
+            <span className="cost-comp__amount">{write(overspend)}</span>
+          </div>
         </li>
       ) : null}
     </ul>
@@ -266,28 +292,6 @@ function RemainingRow({
         <span className="cost-comp__amount">{write(amount)}</span>
       </button>
     </li>
-  );
-}
-
-/** How far past the target, in money and as a fraction of it. */
-function Overshoot({ composition }: { composition: Composition }) {
-  const { overspend, overshare, currency, approximate } = composition;
-  if (overspend <= 0) return null;
-  const amount = approximate
-    ? approx(overspend, currency)
-    : money(overspend, currency);
-  return (
-    <p className="cost-comp__over" role="status">
-      {tNode("{amount} over target, per person", {
-        amount: <strong>{amount}</strong>,
-      })}
-      <span className="cost-comp__over-pct">
-        {" "}
-        {t("· {percent}% above it", {
-          percent: Math.round(overshare * 100),
-        })}
-      </span>
-    </p>
   );
 }
 

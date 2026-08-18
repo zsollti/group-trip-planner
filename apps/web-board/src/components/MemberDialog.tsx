@@ -166,7 +166,7 @@ export function MemberDialog({
   }
 
   return (
-    <Dialog eyebrow="Crew" title={t("Members & roles")} onClose={onClose}>
+    <Dialog title={t("Members & roles")} onClose={onClose}>
       <>
         {members.isPending ? (
           <p className="board__muted" role="status">

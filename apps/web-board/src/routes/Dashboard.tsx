@@ -271,7 +271,6 @@ export function Dashboard() {
           on the <main> so the page bar can span the window like the trip
           board's does — see `.board__measure`. */}
       <div className="board__measure">
-        <p className="board__eyebrow">{t("Boards")}</p>
         <h1 className="board__title">
           {t("Welcome, {name}", { name: user?.displayName ?? "" })}
         </h1>

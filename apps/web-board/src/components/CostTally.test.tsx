@@ -507,8 +507,19 @@ describe("the cost composition", () => {
     );
     // Without the mark, fifty over and five thousand over are the same full
     // circle — the failure that retired the previous chart.
-    expect(await screen.findByText(/over target/)).toBeInTheDocument();
-    expect(screen.getByText(/50% above it/)).toBeInTheDocument();
+    //
+    // Both figures are on the breakdown's own row now. They used to be a
+    // sentence under the list as well, saying the same two numbers a second
+    // time in prose; the row is where a reader is already reading figures.
+    const row = (await screen.findByText("Over budget")).closest("li")!;
+    // The percentage is of the *target* — how far past it the trip went — and
+    // the amount is the money. Both scoped to the row, and asserted by their
+    // own classes rather than by matching "50" twice in a row that says it
+    // twice for two different reasons.
+    expect(row.querySelector(".cost-comp__share")!.textContent).toMatch(
+      /50\s*%/,
+    );
+    expect(row.querySelector(".cost-comp__amount")!.textContent).toMatch(/50/);
     expect(container.querySelector(".cost-donut__limit")).not.toBeNull();
   });
 

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { CategoryView } from "@gtp/types";
 import {
   REMAINING_KEY,
@@ -8,7 +8,7 @@ import {
 import { donutArcs, pointOnRing } from "../lib/donutGeometry";
 import { categoryHueStyleById, categoryIconKey } from "../lib/categoryTheme";
 import { MARK_PATHS } from "../lib/categoryIconPaths";
-import { centreFontRem } from "../lib/donutCentre";
+import { centreFontRem, HOLE_FRACTION, HOLE_PX } from "../lib/donutCentre";
 import { t } from "../lib/i18n";
 
 /**
@@ -49,6 +49,25 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const GAP = 2.5;
 /** The over-budget band sits outside the ring, clear of the wedges it measures. */
 const OVER_RADIUS = RADIUS + THICKNESS / 2 + 3.5;
+/**
+ * The outermost ink on this chart: the target tick's tip, plus half its stroke.
+ *
+ * Worth naming, because it was 63.75 in a box whose edge is at 60 — the
+ * over-budget band and the tick that starts it were being **clipped by the
+ * viewBox**, which is why the red arc came out with its top flattened. Nothing
+ * about the band was wrong; there was simply no canvas where it was drawn.
+ */
+const OUTERMOST = OVER_RADIUS + 3 + 2.5 / 2;
+/** How far the box has to grow on each side to hold {@link OUTERMOST}. */
+const VIEW_PAD = Math.max(0, Math.ceil(OUTERMOST - CENTRE));
+/**
+ * The drawing box, which is the ring's own box plus that bleed.
+ *
+ * Derived rather than typed in, so moving the band outwards can never silently
+ * crop it again — and `HOLE_FRACTION` divides by this, since the hole is a
+ * share of what is drawn rather than of the ring alone.
+ */
+const VIEW = SIZE + 2 * VIEW_PAD;
 /**
  * How big a lane's mark is drawn on its own wedge, in the ring's own units.
  *
@@ -103,10 +122,18 @@ export function CostDonut({
   const readingRemainder = activeId === REMAINING_KEY && headroom > 0;
 
   return (
-    <div className="cost-donut" onMouseLeave={() => onActivate?.(undefined)}>
+    <div
+      className="cost-donut"
+      /* The hole's width as a share of the box, so the middle is positioned by
+         the same arithmetic that draws the ring. It was a hand-computed 17% in
+         the stylesheet, which was right for a 120 box and wrong the moment the
+         box grew to hold the over-budget band. */
+      style={{ "--donut-hole": `${HOLE_FRACTION * 100}%` } as CSSProperties}
+      onMouseLeave={() => onActivate?.(undefined)}
+    >
       <svg
         className="cost-donut__ring"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        viewBox={`${-VIEW_PAD} ${-VIEW_PAD} ${VIEW} ${VIEW}`}
         aria-hidden="true"
       >
         <g transform={`rotate(-90 ${CENTRE} ${CENTRE})`}>
@@ -256,10 +283,13 @@ export function EmptyCostDonut({
   label: { headline: string; caption: string };
 }) {
   return (
-    <div className="cost-donut">
+    <div
+      className="cost-donut"
+      style={{ "--donut-hole": `${HOLE_FRACTION * 100}%` } as CSSProperties}
+    >
       <svg
         className="cost-donut__ring"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        viewBox={`${-VIEW_PAD} ${-VIEW_PAD} ${VIEW} ${VIEW}`}
         aria-hidden="true"
       >
         <circle
@@ -273,7 +303,7 @@ export function EmptyCostDonut({
       <div className="cost-donut__centre">
         <strong
           className="cost-donut__figure"
-          style={{ fontSize: `${centreFontRem(label.headline, 98)}rem` }}
+          style={{ fontSize: `${centreFontRem(label.headline, HOLE_PX)}rem` }}
         >
           {label.headline}
         </strong>
@@ -392,7 +422,7 @@ function Centre({
     <div className="cost-donut__centre">
       <strong
         className="cost-donut__figure"
-        style={{ fontSize: `${centreFontRem(label.headline, 98)}rem` }}
+        style={{ fontSize: `${centreFontRem(label.headline, HOLE_PX)}rem` }}
         title={label.exact ?? undefined}
       >
         {label.headline}
@@ -433,7 +463,7 @@ function RemainingCentre({
           overshoot, which is what makes the pair a scale rather than two moods. */}
       <strong
         className="cost-donut__figure cost-donut__figure--ok"
-        style={{ fontSize: `${centreFontRem(written, 98)}rem` }}
+        style={{ fontSize: `${centreFontRem(written, HOLE_PX)}rem` }}
       >
         {written}
       </strong>
@@ -472,7 +502,7 @@ function ActiveCentre({
       <span className="cost-donut__lane">{slice.label}</span>
       <strong
         className="cost-donut__figure"
-        style={{ fontSize: `${centreFontRem(amount, 98)}rem` }}
+        style={{ fontSize: `${centreFontRem(amount, HOLE_PX)}rem` }}
       >
         {amount}
       </strong>

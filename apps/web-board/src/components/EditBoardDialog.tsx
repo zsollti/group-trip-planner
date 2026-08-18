@@ -119,11 +119,7 @@ export function EditBoardDialog({
   });
 
   return (
-    <Dialog
-      eyebrow="Edit board"
-      title={t("Edit trip details")}
-      onClose={onClose}
-    >
+    <Dialog title={t("Edit trip details")} onClose={onClose}>
       <>
         {conflict ? (
           <div>
