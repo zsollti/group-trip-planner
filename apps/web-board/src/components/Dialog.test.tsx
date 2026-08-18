@@ -4,10 +4,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Dialog } from "./Dialog";
 
 /** A page with a trigger that opens a dialog — the real open/close lifecycle. */
-function Harness({ onClose }: { onClose?: () => void } = {}) {
+function Harness({
+  onClose,
+  quietTitle,
+}: { onClose?: () => void; quietTitle?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="board">
+    <div className="board" data-testid="page">
       <button type="button" onClick={() => setOpen(true)}>
         Open
       </button>
@@ -16,6 +19,7 @@ function Harness({ onClose }: { onClose?: () => void } = {}) {
         <Dialog
           title="Delete board"
           eyebrow="Danger"
+          quietTitle={quietTitle}
           onClose={() => {
             setOpen(false);
             onClose?.();
@@ -38,6 +42,35 @@ describe("Dialog", () => {
     expect(
       screen.getByRole("dialog", { name: "Delete board" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders into the body, clear of whatever layout it was written in", () => {
+    // A `position: fixed` backdrop is measured against the viewport only while
+    // no ancestor carries a transform. One did — the Plan/Timeline swap
+    // animation — and every dialog on the board opened inside the lane row.
+    // jsdom cannot see the layout, but it can see the escape that prevents it.
+    const { getByTestId } = render(<Harness />);
+    fireEvent.click(screen.getByText("Open"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(getByTestId("page").contains(dialog)).toBe(false);
+    expect(document.body.contains(dialog)).toBe(true);
+  });
+
+  it("takes its heading off the screen without losing its name", () => {
+    // For a form whose own first field says what it is. The heading has to
+    // survive as the accessible name — `aria-labelledby` points at it, and a
+    // dialog with no name is announced as nothing at all.
+    render(<Harness quietTitle />);
+    fireEvent.click(screen.getByText("Open"));
+
+    expect(
+      screen.getByRole("dialog", { name: "Delete board" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Delete board")).toHaveClass("board__sr-only");
+    // The eyebrow has no such job, so it simply goes.
+    expect(screen.queryByText("Danger")).toBeNull();
   });
 
   it("moves focus to the first control on open", () => {

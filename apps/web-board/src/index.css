@@ -1417,6 +1417,18 @@ body {
      instead of running underneath. */
   padding-right: 2rem;
 }
+/* A head that holds only a screen-reader heading still occupies its padding and
+   its child's margins, which is a band of nothing where the form should start.
+   The close button keeps its corner regardless — it is positioned against the
+   card, not against this. */
+.board__dialog-head--quiet {
+  padding-right: 0;
+}
+/* The first field then needs the room the heading would have taken from the
+   close button, or its label runs under the ✕. */
+.board__dialog-head--quiet + .board__dialog-body {
+  padding-top: 0.75rem;
+}
 .board__dialog-body {
   /* `min-height: 0` because a flex item's automatic minimum is its content:
      without it the body refuses to shrink, the card grows past its max-height,

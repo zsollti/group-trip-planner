@@ -196,8 +196,12 @@ export function OptionForm({
 
   return (
     <Dialog
-      eyebrow={isEdit ? t("Edit") : t("Propose")}
+      // Named for a screen reader, not drawn. The first thing on screen is a
+      // field labelled "Title"; a heading above it reading "Propose an option"
+      // only restates the button that opened the card, and on the board's
+      // tallest dialog those two lines are the ones the form needs most.
       title={isEdit ? t("Edit option") : t("Propose an option")}
+      quietTitle
       size="wide"
       onClose={onClose}
     >

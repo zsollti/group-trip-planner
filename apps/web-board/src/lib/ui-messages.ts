@@ -316,7 +316,6 @@ export const UI_MESSAGES = [
   "Priced for part of the group",
   "Profile picture",
   "Progress",
-  "Propose",
   "Propose an option",
   "Propose option",
   "Proposed",
