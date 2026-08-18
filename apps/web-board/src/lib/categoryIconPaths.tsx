@@ -2,26 +2,27 @@ import type { ReactNode } from "react";
 import type { CategoryIconKey } from "./categoryTheme";
 
 /**
- * The drawings behind {@link CategoryIcon}, kept apart from it.
+ * Everything the board draws as a mark, keyed.
  *
- * They live here rather than beside the component because **two** surfaces draw
- * them and neither can use the other's wrapper: a lane header wants an `<svg>`
- * of its own, and the cost ring wants a `<g>` inside the chart's SVG. One set of
- * paths is what makes the mark on a wedge and the mark on a lane the same mark —
- * which is the entire reason the ring can carry a glyph and no legend.
- *
- * (It is also its own module because a file that exports both a component and a
- * constant loses fast refresh.)
+ * `REMAINING` is not a category and never can be — nothing has
+ * `builtinKey: "REMAINING"` — but it is a part of the cost ring that a reader
+ * points at, and it needs a glyph on the same terms as the lanes beside it. One
+ * union, one record: the alternative was a second export, and a file exporting
+ * two things where one holds JSX is a file that has quietly lost fast refresh.
  */
+export type MarkKey = CategoryIconKey | "REMAINING";
 
 /**
- * One 24×24 outline, stroked so all six read as one family at small sizes.
+ * One 24×24 outline each, stroked so they all read as one family at small sizes.
  *
- * Exported because the cost ring draws these too, and it cannot use
- * {@link CategoryIcon}: a wedge's mark is a `<g>` inside the chart's own SVG,
- * not an `<svg>` of its own, so it needs the paths rather than the wrapper.
+ * They live here rather than beside {@link CategoryIcon} because **two**
+ * surfaces draw them and neither can use the other's wrapper: a lane header
+ * wants an `<svg>` of its own, and the cost ring wants a `<g>` inside the
+ * chart's SVG. One set of paths is what makes the mark on a wedge and the mark
+ * on a lane the same mark — which is the entire reason the ring can carry a
+ * glyph and no legend.
  */
-export const CATEGORY_ICON_PATHS: Record<CategoryIconKey, ReactNode> = {
+export const MARK_PATHS: Record<MarkKey, ReactNode> = {
   // A calendar — the question this lane asks is "when".
   DATES: (
     <>
@@ -61,6 +62,19 @@ export const CATEGORY_ICON_PATHS: Record<CategoryIconKey, ReactNode> = {
     <>
       <path d="M11.6 3H5a2 2 0 0 0-2 2v6.6a2 2 0 0 0 .6 1.4l7.4 7.4a2 2 0 0 0 2.8 0l6.6-6.6a2 2 0 0 0 0-2.8L13 3.6a2 2 0 0 0-1.4-.6z" />
       <circle cx="7.5" cy="7.5" r="1.2" />
+    </>
+  ),
+  /*
+   * The money still inside the target — a wallet.
+   *
+   * A wallet rather than a coin or a piggy bank: it has to read at twelve units
+   * on a pale band, which rules out anything with fine internal detail, and
+   * "what is still in the wallet" is the sentence the grey arc actually makes.
+   */
+  REMAINING: (
+    <>
+      <rect x="2.5" y="6" width="19" height="13" rx="2.5" />
+      <path d="M2.5 10h19M17 13.5h1.5" />
     </>
   ),
 };

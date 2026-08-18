@@ -99,6 +99,16 @@ export interface CostComposition {
    * headroom, over it the whole ring is spend and the target sits inside.
    */
   readonly full: number;
+  /**
+   * Per-person money still inside the target — what the grey remainder of the
+   * ring is worth. Zero once the target is met or there is no target at all.
+   *
+   * Derived rather than left to each chart, because it is the one figure on
+   * this surface that a reader has to do arithmetic to get otherwise ("what is
+   * the grey bit?"), and two charts computing it from `full - charted`
+   * independently is two chances to disagree with the wedges beside it.
+   */
+  readonly remaining: number;
   /** How far past the target, and by what fraction of it. Zero when under. */
   readonly overspend: number;
   readonly overshare: number;
@@ -108,6 +118,23 @@ export interface CostComposition {
   readonly excluded: readonly ExcludedCost[];
   /** Currencies no rate could reach, so nothing here accounts for them. */
   readonly uncounted: readonly string[];
+}
+
+/**
+ * The keys the ring and the list agree on for "which part is being read".
+ *
+ * A category id is the obvious key and covers most parts, but two of them have
+ * no category: the folded tail, and the remainder inside the target. Both are
+ * real parts of the circle a reader can point at, so both need a name, and the
+ * two surfaces must use the *same* name or hovering the ring would light a
+ * different row than hovering the row lights on the ring.
+ */
+export const TAIL_KEY = "tail";
+export const REMAINING_KEY = "remaining";
+
+/** The key for one drawn slice. */
+export function sliceKey(slice: CostSlice): string {
+  return slice.categoryId ?? TAIL_KEY;
 }
 
 /**
@@ -235,6 +262,9 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
     charted,
     target,
     full,
+    // `full - charted` and never negative: over the target the ring is all
+    // spend and there is no remainder to name.
+    remaining: Math.max(full - charted, 0),
     overspend,
     overshare: target !== null && target > 0 ? overspend / target : 0,
     // Under the target the mark is where it sits ahead of the spend; at or over

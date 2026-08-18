@@ -1,5 +1,5 @@
 import { categoryIconKey } from "../lib/categoryTheme";
-import { CATEGORY_ICON_PATHS } from "../lib/categoryIconPaths";
+import { MARK_PATHS } from "../lib/categoryIconPaths";
 import { Glyph } from "./icons";
 import type { CategoryBuiltinKey } from "@gtp/types";
 
@@ -33,7 +33,7 @@ export function CategoryIcon({
       size={size}
       className={["cat-icon", className].filter(Boolean).join(" ")}
     >
-      {CATEGORY_ICON_PATHS[categoryIconKey(category)]}
+      {MARK_PATHS[categoryIconKey(category)]}
     </Glyph>
   );
 }

@@ -2624,6 +2624,17 @@ body {
 .cost-donut__headroom {
   fill: none;
   stroke: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
+  /* Readable like a wedge, because it is one — the same lift and the same
+     easing, so nothing about the interaction says "this part is different". */
+  transition:
+    stroke-width 120ms ease-out,
+    opacity 120ms ease-out;
+}
+.cost-donut__headroom--on {
+  stroke: color-mix(in srgb, var(--board-dim) 62%, var(--lane-bg));
+}
+.cost-donut__headroom--off {
+  opacity: 0.4;
 }
 /* How far past the budget, drawn on its own band outside the wedges.
    Outside, because the overshoot is not a lane and must not eat one: the
@@ -2657,6 +2668,14 @@ body {
 .cost-donut__mark--off {
   opacity: 0.4;
 }
+/* The remainder's mark is the one exception to the white above, because the
+   reasoning for white does not apply to it: the band under it is not a
+   saturated lane colour but a pale grey, where white is invisible. It takes the
+   secondary ink instead, which is what everything else on this board uses to
+   say "present, not the point". */
+.cost-donut__mark--quiet {
+  stroke: var(--board-dim);
+}
 @media (prefers-reduced-motion: reduce) {
   .cost-donut__mark {
     transition: none;
@@ -2686,7 +2705,8 @@ body {
   opacity: 0.4;
 }
 @media (prefers-reduced-motion: reduce) {
-  .cost-donut__wedge {
+  .cost-donut__wedge,
+  .cost-donut__headroom {
     transition: none;
   }
 }
@@ -2837,6 +2857,12 @@ body {
 }
 .cost-comp__swatch--tail {
   background: var(--board-dim);
+}
+/* The remainder, wearing exactly what its arc wears — the row and the ring have
+   to be recognisably the same part, and colour is the only thing carrying that
+   here. */
+.cost-comp__swatch--left {
+  background: color-mix(in srgb, var(--board-dim) 42%, var(--lane-bg));
 }
 .cost-comp__name {
   flex: 1 1 auto;

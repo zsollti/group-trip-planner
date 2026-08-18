@@ -1,8 +1,13 @@
-import type { CategoryBuiltinKey, CategoryView } from "@gtp/types";
-import type { CostComposition, CostSlice } from "../lib/costComposition";
+import type { ReactNode } from "react";
+import type { CategoryView } from "@gtp/types";
+import {
+  REMAINING_KEY,
+  type CostComposition,
+  type CostSlice,
+} from "../lib/costComposition";
 import { donutArcs, pointOnRing } from "../lib/donutGeometry";
 import { categoryHueStyleById, categoryIconKey } from "../lib/categoryTheme";
-import { CATEGORY_ICON_PATHS } from "../lib/categoryIconPaths";
+import { MARK_PATHS } from "../lib/categoryIconPaths";
 import { centreFontRem } from "../lib/donutCentre";
 import { t } from "../lib/i18n";
 
@@ -77,9 +82,12 @@ export function CostDonut({
   label: { headline: string; caption: string; exact?: string | null };
   /** Money as this surface writes it — exact or approximate, decided upstream. */
   write: (amount: number) => string;
-  /** Which slice is being read, from either the ring or the list beside it. */
+  /**
+   * Which part is being read, from either the ring or the list beside it, by
+   * the shared key — see `sliceKey`. `undefined` from a handler means "nothing".
+   */
   activeId?: string | null;
-  onActivate?: (categoryId: string | null | undefined) => void;
+  onActivate?: (key: string | undefined) => void;
 }) {
   const { slices, targetMark, overspend } = composition;
   const arcs = donutArcs(
@@ -92,6 +100,7 @@ export function CostDonut({
   // over the target the wedges are the whole ring and this is nothing.
   const headroom = Math.max(1 - drawn, 0);
   const active = slices.find((s) => keyOf(s) === activeId) ?? null;
+  const readingRemainder = activeId === REMAINING_KEY && headroom > 0;
 
   return (
     <div className="cost-donut" onMouseLeave={() => onActivate?.(undefined)}>
@@ -101,15 +110,32 @@ export function CostDonut({
         aria-hidden="true"
       >
         <g transform={`rotate(-90 ${CENTRE} ${CENTRE})`}>
+          {/*
+           * The money still inside the target — a part of the circle like any
+           * other, and now readable like one.
+           *
+           * It was the one stretch of the ring that did nothing on hover, which
+           * made it read as background rather than as an answer. It is neither:
+           * it is the single most actionable figure on this surface ("how much
+           * can we still spend?"), and the reader was being asked to subtract
+           * to get it.
+           */}
           {headroom > 0 ? (
             <circle
-              className="cost-donut__headroom"
+              className={
+                "cost-donut__headroom" +
+                (readingRemainder ? " cost-donut__headroom--on" : "") +
+                (activeId != null && !readingRemainder
+                  ? " cost-donut__headroom--off"
+                  : "")
+              }
               cx={CENTRE}
               cy={CENTRE}
               r={RADIUS}
-              strokeWidth={THICKNESS}
+              strokeWidth={readingRemainder ? THICKNESS + LIFT : THICKNESS}
               strokeDasharray={`${Math.max(headroom * CIRCUMFERENCE - GAP, 0)} ${CIRCUMFERENCE}`}
               strokeDashoffset={-drawn * CIRCUMFERENCE}
+              onMouseEnter={() => onActivate?.(REMAINING_KEY)}
             />
           ) : null}
           {slices.map((slice, i) => {
@@ -133,7 +159,7 @@ export function CostDonut({
                 strokeWidth={isActive ? THICKNESS + LIFT : THICKNESS}
                 strokeDasharray={`${arcs[i]!.length} ${CIRCUMFERENCE}`}
                 strokeDashoffset={-arcs[i]!.start}
-                onMouseEnter={() => onActivate?.(slice.categoryId)}
+                onMouseEnter={() => onActivate?.(keyOf(slice))}
               />
             );
           })}
@@ -177,16 +203,30 @@ export function CostDonut({
             <WedgeMark
               key={keyOf(slice)}
               at={mid}
-              category={category}
+              path={MARK_PATHS[categoryIconKey(category)]}
               dimmed={activeId != null && keyOf(slice) !== activeId}
             />
           );
         })}
+        {/* The remainder's own mark, on the same rule as a lane's. */}
+        {headroom >= MARK_MIN_ARC / CIRCUMFERENCE ? (
+          <WedgeMark
+            at={drawn + headroom / 2}
+            path={MARK_PATHS.REMAINING}
+            className="cost-donut__mark--quiet"
+            dimmed={activeId != null && !readingRemainder}
+          />
+        ) : null}
         {targetMark !== null && overspend > 0 ? (
           <TargetTick at={targetMark} />
         ) : null}
       </svg>
-      <Centre label={label} active={active} write={write} />
+      <Centre
+        label={label}
+        active={active}
+        remaining={readingRemainder ? composition.remaining : null}
+        write={write}
+      />
     </div>
   );
 }
@@ -262,21 +302,28 @@ function keyOf(slice: CostSlice): string {
  */
 function WedgeMark({
   at,
-  category,
+  path,
   dimmed,
+  className,
 }: {
   at: number;
-  category: { readonly builtinKey: CategoryBuiltinKey | null };
+  path: ReactNode;
   dimmed: boolean;
+  /** An extra class, for a mark that is not sitting on a lane's colour. */
+  className?: string;
 }) {
   const { x, y } = pointOnRing(at, RADIUS, CENTRE);
   const scale = MARK / 24;
   return (
     <g
-      className={"cost-donut__mark" + (dimmed ? " cost-donut__mark--off" : "")}
+      className={
+        "cost-donut__mark" +
+        (dimmed ? " cost-donut__mark--off" : "") +
+        (className ? ` ${className}` : "")
+      }
       transform={`translate(${x - MARK / 2} ${y - MARK / 2}) scale(${scale})`}
     >
-      {CATEGORY_ICON_PATHS[categoryIconKey(category)]}
+      {path}
     </g>
   );
 }
@@ -333,13 +380,18 @@ function TargetTick({ at }: { at: number }) {
 function Centre({
   label,
   active,
+  remaining,
   write,
 }: {
   label: { headline: string; caption: string; exact?: string | null };
   active: CostSlice | null;
+  /** Money still inside the target, when that is the part being read. */
+  remaining: number | null;
   write: (amount: number) => string;
 }) {
   if (active) return <ActiveCentre slice={active} write={write} />;
+  if (remaining !== null)
+    return <RemainingCentre amount={remaining} write={write} />;
   return (
     <div className="cost-donut__centre">
       <strong
@@ -356,6 +408,36 @@ function Centre({
         </span>
       ) : null}
       <span className="cost-donut__caption">{label.caption}</span>
+    </div>
+  );
+}
+
+/**
+ * What is left to spend, in the hole.
+ *
+ * Deliberately the same three-line shape as a lane's — eyebrow, figure, caption
+ * — because it is the same *kind* of answer about a different part of the same
+ * circle. It has no parts list, and should not: a lane's parts are the decisions
+ * behind it, and there are no decisions behind money nobody has spent.
+ */
+function RemainingCentre({
+  amount,
+  write,
+}: {
+  amount: number;
+  write: (n: number) => string;
+}) {
+  const written = write(amount);
+  return (
+    <div className="cost-donut__centre cost-donut__centre--active">
+      <span className="cost-donut__lane">{t("Still to spend")}</span>
+      <strong
+        className="cost-donut__figure"
+        style={{ fontSize: `${centreFontRem(written, 98)}rem` }}
+      >
+        {written}
+      </strong>
+      <span className="cost-donut__caption">{t("before the target")}</span>
     </div>
   );
 }

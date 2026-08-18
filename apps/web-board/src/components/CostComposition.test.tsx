@@ -74,6 +74,7 @@ function composition(over: Partial<Composition> = {}): Composition {
     charted: 500,
     target: null,
     full: 500,
+    remaining: 0,
     overspend: 0,
     overshare: 0,
     targetMark: null,
@@ -221,6 +222,101 @@ describe("reading one lane", () => {
     expect(within(centre as HTMLElement).getByText(written)).toBeVisible();
     expect(within(centre as HTMLElement).getByText("Stay")).toBeVisible();
     expect(centre.textContent).not.toMatch(/60\s*%/);
+  });
+});
+
+describe("the money still inside the target", () => {
+  // The grey arc used to be the one stretch of the ring that did nothing when
+  // you pointed at it, which made it read as background rather than as an
+  // answer — when it is in fact the most actionable figure on the surface, and
+  // the reader was being left to subtract for it.
+  const underTarget = {
+    target: 800,
+    full: 800,
+    remaining: 300,
+    targetMark: 1,
+    slices: [
+      {
+        categoryId: "c1",
+        label: "Stay",
+        amount: 300,
+        share: 0.375,
+        parts: [{ label: "Beach House", amount: 300 }],
+      },
+      {
+        categoryId: "c2",
+        label: "Travel",
+        amount: 200,
+        share: 0.25,
+        parts: [{ label: "Ryanair FR1234", amount: 200 }],
+      },
+    ],
+  };
+
+  it("names what is left, with its share, in the breakdown", () => {
+    renderComp(underTarget);
+    const row = screen.getByRole("button", { name: /Still to spend/ });
+    // 300 of an 800 circle. Quoted against the same denominator the wedges use,
+    // so the rows sum to the ring.
+    expect(row).toHaveTextContent("38%");
+  });
+
+  it("puts the spendable figure in the hole when it is read", () => {
+    renderComp(underTarget);
+    fireEvent.mouseEnter(
+      screen.getByRole("button", { name: /Still to spend/ }),
+    );
+
+    const centre = document.querySelector(".cost-donut__centre--active")!;
+    const written = formatMoney(300, "EUR").replace(/\s/g, " ");
+    expect(within(centre as HTMLElement).getByText(written)).toBeVisible();
+    expect(centre.textContent).toMatch(/Still to spend/);
+  });
+
+  it("lifts the grey arc and dims the wedges, exactly as a lane does", () => {
+    const { container } = renderComp(underTarget);
+    fireEvent.mouseEnter(
+      screen.getByRole("button", { name: /Still to spend/ }),
+    );
+
+    expect(container.querySelector(".cost-donut__headroom--on")).not.toBeNull();
+    expect(container.querySelectorAll(".cost-donut__wedge--off")).toHaveLength(
+      2,
+    );
+  });
+
+  it("is reachable from the keyboard, since the ring is decoration", () => {
+    renderComp(underTarget);
+    fireEvent.focus(screen.getByRole("button", { name: /Still to spend/ }));
+    expect(
+      document.querySelector(".cost-donut__centre--active")?.textContent,
+    ).toMatch(/Still to spend/);
+  });
+
+  it("says nothing at all once the target is met", () => {
+    // No remainder, no row, no mark — the ring is all spend and there is
+    // nothing left to name.
+    renderComp({ target: 400, full: 500, remaining: 0, overspend: 100 });
+    expect(screen.queryByRole("button", { name: /Still to spend/ })).toBeNull();
+  });
+
+  it("marks the arc, but not when it is too thin to hold a glyph", () => {
+    const { container } = renderComp(underTarget);
+    // Three marks: two lanes and the remainder.
+    expect(container.querySelectorAll(".cost-donut__mark")).toHaveLength(3);
+    expect(container.querySelectorAll(".cost-donut__mark--quiet")).toHaveLength(
+      1,
+    );
+
+    const sliver = renderComp({
+      target: 505,
+      full: 505,
+      remaining: 5,
+      targetMark: 1,
+    });
+    expect(
+      sliver.container.querySelectorAll(".cost-donut__mark--quiet"),
+    ).toHaveLength(0);
   });
 });
 
