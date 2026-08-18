@@ -32,7 +32,10 @@ export function TimeSelect({
   return (
     <select
       id={id}
-      className="board__select"
+      // `--field` because this is a form control on a raised card, not a
+      // toolbar control on the canvas: it has to take the same fill as the
+      // inputs it is lined up with, or the row of fields is two colours.
+      className="board__select board__select--field"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >

@@ -154,7 +154,13 @@ export function DateRangeField({
         highlightLabel={highlightLabel}
         onClear={start ? () => onChange({ start: "", end: "" }) : undefined}
       />
-      {extra}
+      {/* Wrapped so what follows the grid is separated from it. Unwrapped, a
+          field put here — the option form's start and end times — had its label
+          sitting directly on the calendar's bottom edge, close enough to read
+          as a caption for the calendar rather than as the heading of the
+          control under it. The gap is the whole difference between "this
+          belongs to that" and "this is next". */}
+      {extra ? <div className="drange__extra">{extra}</div> : null}
     </fieldset>
   );
 }
