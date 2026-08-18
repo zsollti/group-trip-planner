@@ -1368,6 +1368,23 @@ body {
   overflow-y: auto;
   z-index: 20;
 }
+/*
+ * A tenth of the screen above a dialog is a good rest for a short one and
+ * plainly wrong for the tallest card the board has: the option form caps near
+ * 90vh, so 10vh above it guaranteed the bottom of the form was off screen and
+ * the *backdrop* had to be scrolled to reach the button that saves. It opened
+ * looking like it had been pushed down the page, because it had.
+ *
+ * Matched to the card rather than lowered for everything: a confirm dialog three
+ * lines tall wants the high resting position, and giving every dialog the tall
+ * one would leave the small ones stranded near the top of the window. `:has()`
+ * keeps the pairing in one place — the card declares how big it is and the frame
+ * answers, instead of the two agreeing by coincidence across a prop nobody would
+ * remember to pass.
+ */
+.board__backdrop:has(.board__dialog--wide) {
+  padding-top: 3vh;
+}
 /**
  * Every dialog caps its height and scrolls inside itself.
  *
@@ -1625,7 +1642,10 @@ body {
 /* Wider option form laid out in two columns so it fits without scrolling. */
 .board__dialog--wide {
   width: min(42rem, 94vw);
-  max-height: 92vh;
+  /* Leaves room for the frame's own 3vh above and 2rem below, so the whole card
+     — including the button that commits it — is on screen without the backdrop
+     having to scroll. */
+  max-height: calc(92dvh - 3vh);
   overflow-y: auto;
 }
 .board__form-grid {
