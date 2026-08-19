@@ -33,6 +33,7 @@ import { OptionCard } from "./OptionCard";
 import { CategoryIcon } from "./CategoryIcon";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { Menu, type MenuItem } from "./Menu";
+import { Dialog } from "./Dialog";
 import { PalettePicker } from "./PalettePicker";
 import { t } from "../lib/i18n";
 
@@ -558,26 +559,33 @@ export function CategoryLane({
         discussing={startDiscussion.isPending}
       />
 
+      {/*
+       * The same confirm the trip's own Delete gets — a modal, not a strip
+       * wedged into the top of the column.
+       *
+       * The inline panel put the question inside the thing it was asking about,
+       * in a 15rem column that scrolls: open it on a lane scrolled halfway down
+       * the board and the confirmation appeared above the fold you were not
+       * looking at, or pushed the lane's cards down while you read it. Deleting
+       * a lane takes every card in it with it, which is the same weight as
+       * deleting the trip, and it now asks in the same voice and in the same
+       * place on the screen.
+       *
+       * No Cancel, for the reason the trip's confirm has none: the way out is
+       * the ✕ in the corner of every dialog in this app, and Escape.
+       */}
       {confirmingDelete ? (
-        <div
-          className="lane__confirm"
-          role="alertdialog"
-          aria-label={t("Delete category")}
+        <Dialog
+          title={t("Delete “{lane}”?", { lane: category.name })}
+          describedById={`lane-delete-blurb-${category.id}`}
+          onClose={() => setConfirmingDelete(false)}
         >
-          <p className="lane__confirm-text">
-            {t("Delete “{lane}” and all its cards? This can’t be undone.", {
-              lane: category.name,
-            })}
+          <p className="board__muted" id={`lane-delete-blurb-${category.id}`}>
+            {t(
+              "This removes the lane and every card in it. This can’t be undone.",
+            )}
           </p>
           <div className="board__dialog-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              autoFocus
-              onClick={() => setConfirmingDelete(false)}
-            >
-              {t("Cancel")}
-            </Button>
             <Button
               type="button"
               variant="primary"
@@ -587,7 +595,7 @@ export function CategoryLane({
               {deleteCategory.isPending ? t("Deleting…") : t("Delete")}
             </Button>
           </div>
-        </div>
+        </Dialog>
       ) : null}
 
       {/* Above the settled cards, because that is where the dropped card is

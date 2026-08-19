@@ -1344,17 +1344,10 @@ body {
 .lane__rename input {
   width: 100%;
 }
-.lane__confirm {
-  background: color-mix(in srgb, var(--board-danger) 8%, var(--lane-bg));
-  border: 1px solid color-mix(in srgb, var(--board-danger) 40%, transparent);
-  border-radius: 10px;
-  padding: 0.6rem;
-  margin-bottom: 0.6rem;
-}
-.lane__confirm-text {
-  margin: 0 0 0.5rem;
-  font-size: 0.82rem;
-}
+/* `.lane__confirm` was the inline "delete this lane?" strip. It is a `Dialog`
+   now, on the trip confirm's own pattern — a question that takes every card in
+   the column with it should not be asked inside that column, where it scrolls
+   with the cards it is about. */
 /* Trailing "＋ Add category" lane. */
 .lane--add {
   background: transparent;
