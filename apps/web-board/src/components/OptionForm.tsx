@@ -13,6 +13,7 @@ import { ApiError, useEditOption, useProposeOption } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
 import {
+  endDayFor,
   fromDateInput,
   isoToDayInput,
   joinDay,
@@ -186,8 +187,16 @@ export function OptionForm({
         joinDay(startDay, startTime, fields.dateGranularity),
         fields.dateGranularity,
       ),
+      // `endDayFor`, not `endDay`: a single-day option is one tap on the
+      // calendar and two times, which leaves the end day blank — and an end
+      // time with no day is not an instant, so the finish the form was showing
+      // used to be dropped on save.
       endsAt: fromDateInput(
-        joinDay(endDay, endTime, fields.dateGranularity),
+        joinDay(
+          endDayFor(startDay, endDay, endTime, fields.dateGranularity),
+          endTime,
+          fields.dateGranularity,
+        ),
         fields.dateGranularity,
       ),
     };
