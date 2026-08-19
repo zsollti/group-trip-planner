@@ -155,6 +155,15 @@ export type MentionView = z.infer<typeof MentionView>;
  * `body` is null, so history and live views render "message deleted" without
  * leaking the content. `reactions` and `mentions` carry the public reaction
  * groups and the resolved @mention targets.
+ *
+ * **The tombstone says who cleared it.** An organizer may delete anyone's
+ * message, so "message deleted" left the room with the one question a removal
+ * always raises — did they take it back, or did somebody take it from them? —
+ * and no way to tell the two apart. `deletedById` answers it by comparison
+ * against `authorId` rather than by a flag, so the reading stays true if the
+ * roles change afterwards; `deletedByName` is the name to print, and is null
+ * only for a tombstone written before this was recorded (or by an account since
+ * anonymized, whose deletion nulls the reference).
  */
 export const MessageView = z.object({
   id: z.string().uuid(),
@@ -166,6 +175,9 @@ export const MessageView = z.object({
   /** Null once deleted — the tombstone carries no content. */
   body: z.string().nullable(),
   deleted: z.boolean(),
+  /** Who deleted it; null on a live message and on an unattributed tombstone. */
+  deletedById: z.string().uuid().nullable(),
+  deletedByName: z.string().nullable(),
   createdAt: z.string(),
   reactions: z.array(ReactionGroup),
   mentions: z.array(MentionView),

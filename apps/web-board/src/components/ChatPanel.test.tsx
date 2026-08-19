@@ -155,3 +155,80 @@ describe("chat channel switcher overflow", () => {
     expect(trigger.closest(".board__chat-tabs")).not.toBeNull();
   });
 });
+
+/**
+ * What a deleted message leaves behind.
+ *
+ * "message deleted" was the whole of it, for every case — which left the room
+ * unable to tell a person taking their own words back from an organizer taking
+ * them away. The distinction is drawn from the ids rather than from a flag or a
+ * role, so these three cases are the whole of the behaviour: mine, someone
+ * else's, and a tombstone with nobody recorded on it.
+ */
+describe("a deleted message", () => {
+  function withHistory(messages: unknown[]) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages, nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+  }
+
+  function tomb(over: Record<string, unknown>) {
+    return {
+      id: "m1",
+      channelId: "gen",
+      authorId: "u2",
+      authorName: "Anna Weber",
+      authorAvatarUrl: null,
+      body: null,
+      deleted: true,
+      deletedById: null,
+      deletedByName: null,
+      createdAt: new Date().toISOString(),
+      reactions: [],
+      mentions: [],
+      ...over,
+    };
+  }
+
+  it("names the author when they took it back themselves", async () => {
+    withHistory([tomb({ deletedById: "u2", deletedByName: "Anna Weber" })]);
+    expect(
+      await screen.findByText("Anna Weber deleted their message"),
+    ).toBeInTheDocument();
+  });
+
+  it("names both when somebody else removed it", async () => {
+    // The case the old wording hid: moderation that looks, to everyone in the
+    // room, exactly like the author changing their mind.
+    withHistory([tomb({ deletedById: "u1", deletedByName: "Demo User" })]);
+    expect(
+      await screen.findByText("Demo User deleted Anna Weber's message"),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the bare wording when no deleter is recorded", async () => {
+    // Tombstones written before this shipped, and any whose deleter has since
+    // deleted their account — the foreign key nulls itself. Both are ordinary.
+    withHistory([tomb({})]);
+    expect(await screen.findByText("message deleted")).toBeInTheDocument();
+  });
+
+  it("never shows the body of a deleted message", async () => {
+    // The tombstone gained a name; it must not gain the words. The server
+    // nulls the body, and this is the client's half of that promise.
+    withHistory([
+      tomb({
+        deletedById: "u1",
+        deletedByName: "Demo User",
+        body: "the thing that was said",
+      }),
+    ]);
+    await screen.findByText("Demo User deleted Anna Weber's message");
+    expect(screen.queryByText("the thing that was said")).toBeNull();
+  });
+});
