@@ -509,7 +509,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   or: "vagy",
   "outside the trip's dates": "az utazás dátumain kívül",
   "per person": "fejenként",
-  "per person, shared": "fejenként, megosztva",
   "to spare": "marad",
   "voted before the last change": "a legutóbbi módosítás előtt szavazott",
   "your address": "a címed",

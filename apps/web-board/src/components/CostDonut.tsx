@@ -54,22 +54,38 @@ const LIFT = 5;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** Matches the 2px the stacked bar puts between its segments. */
 const GAP = 2.5;
+/** The over-budget band's stroke at rest; see {@link OVER_LIFT} for what it
+ *  gains when the band is being read. */
+const OVER_WIDTH_BASE = 5;
+/**
+ * How far the over-budget band clears the wedges it measures.
+ *
+ * The **same gap two wedges leave between them**, and named against `GAP` rather
+ * than typed as its own number so it stays that way. It was 1 unit — the band
+ * sat all but touching the ring, which read as a rim on the wedges instead of a
+ * separate mark, and the moment it thickened under the pointer it closed even
+ * that.
+ */
+const OVER_GAP = GAP;
 /** The over-budget band sits outside the ring, clear of the wedges it measures. */
-const OVER_RADIUS = RADIUS + THICKNESS / 2 + 3.5;
+const OVER_RADIUS = RADIUS + THICKNESS / 2 + OVER_GAP + OVER_WIDTH_BASE / 2;
 /**
  * How thick that band is, and how much of that it gains when it is read.
  *
- * A far smaller lift than a wedge's {@link LIFT}, and not a matter of taste: a
- * stroke grows about its own centreline, so the band has only the 3.5 units
- * clearing it from the wedges to grow inward into, and the edge of the box to
- * grow outward into. A wedge's five each way would both eat the wedges it
- * measures across and reach outside the viewBox.
+ * **It grows by a wedge's {@link LIFT}, like everything else on this ring** —
+ * the band used to gain 2 where a wedge gains 5, so pointing at the one mark
+ * that answers "how far over?" moved it least of all. It could not simply be
+ * raised: a stroke grows about its own centreline, so five each way would have
+ * eaten into the gap above and reached outside the viewBox.
+ *
+ * So the band grows **outwards only** — {@link overBand} pushes its radius out
+ * by half the lift as it widens by the whole of it. The gap under it is
+ * therefore constant, and the growth is a wedge's.
  *
  * Here rather than in the stylesheet because the lift is an attribute, and a
  * `stroke-width` in CSS wins against one.
  */
-const OVER_WIDTH = 5;
-const OVER_LIFT = 2;
+const OVER_LIFT = LIFT;
 /**
  * The outermost ink on this chart: the over-budget band at its widest, plus half
  * its stroke.
@@ -80,7 +96,8 @@ const OVER_LIFT = 2;
  * canvas where it was drawn. Derived from the band's own numbers, so thickening
  * it under the pointer cannot quietly bring that back.
  */
-const OUTERMOST = OVER_RADIUS + (OVER_WIDTH + OVER_LIFT) / 2;
+const OUTERMOST =
+  OVER_RADIUS + OVER_LIFT / 2 + (OVER_WIDTH_BASE + OVER_LIFT) / 2;
 /** How far the box has to grow on each side to hold {@link OUTERMOST}. */
 const VIEW_PAD = Math.max(0, Math.ceil(OUTERMOST - CENTRE));
 /**
@@ -382,10 +399,43 @@ function WedgeMark({
 }
 
 /**
+ * The band's geometry for a given state, as one place both the radius and the
+ * dash arithmetic are read from.
+ *
+ * Together, because they are one fact: a dash length is a fraction of *its own*
+ * circle's circumference, so a band that moves outwards when it is read has to
+ * re-measure the circle it is dashed around, or the arc it draws grows with the
+ * radius and the mark stops meaning "this far past the target".
+ *
+ * **Growing outwards is what buys the wedge-sized lift** — see {@link OVER_LIFT}.
+ * A stroke thickens about its centreline, so pushing the centreline out by half
+ * the lift while widening by the whole of it leaves the inner edge exactly where
+ * it was, and the gap over the wedges constant.
+ */
+function overBand(active: boolean) {
+  const radius = OVER_RADIUS + (active ? OVER_LIFT / 2 : 0);
+  return {
+    radius,
+    width: OVER_WIDTH_BASE + (active ? OVER_LIFT : 0),
+    circumference: 2 * Math.PI * radius,
+  };
+}
+
+/**
  * The stretch of the ring that is past the target.
  *
  * Drawn in the rotated group with the wedges, so it shares their clock: zero is
- * twelve, and the band starts exactly where the wedges have spent the budget.
+ * twelve.
+ *
+ * **It starts at twelve and runs clockwise**, the way every wedge under it does,
+ * and its length is the overshoot. It used to *end* at twelve instead — starting
+ * at the angle the budget ran out and running to the top — which is the same
+ * length in the other direction, and it made this the one mark on the chart that
+ * grew backwards. Reading a ring means starting at twelve, and the eye should
+ * not have to reverse for one arc. What is lost is that the band no longer
+ * begins over the wedge that spent the last of the budget; what is gained is
+ * that its start is fixed, so consecutive readings of the same board differ only
+ * in how far round the red goes.
  *
  * **Readable like a wedge**, because a reader points at it like one. It was the
  * last mark on this chart that did nothing under the pointer — and the only one
@@ -403,7 +453,7 @@ function OverBudgetBand({
   dimmed: boolean;
   onActivate?: (key: string | undefined) => void;
 }) {
-  const circumference = 2 * Math.PI * OVER_RADIUS;
+  const { radius, width, circumference } = overBand(active);
   const span = Math.max((1 - from) * circumference, 1);
   return (
     <circle
@@ -414,10 +464,9 @@ function OverBudgetBand({
       }
       cx={CENTRE}
       cy={CENTRE}
-      r={OVER_RADIUS}
-      strokeWidth={active ? OVER_WIDTH + OVER_LIFT : OVER_WIDTH}
+      r={radius}
+      strokeWidth={width}
       strokeDasharray={`${span} ${circumference}`}
-      strokeDashoffset={-from * circumference}
       onMouseEnter={() => onActivate?.(OVER_KEY)}
     />
   );

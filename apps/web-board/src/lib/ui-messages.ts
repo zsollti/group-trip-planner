@@ -498,7 +498,6 @@ export const UI_MESSAGES = [
   "outside the trip's dates",
   "outside the trip’s dates",
   "per person",
-  "per person, shared",
   "split between whoever’s in",
   "to spare",
   "voted before the last change",
