@@ -22,25 +22,22 @@ import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { UserMenu } from "../components/UserMenu";
 import { plural, t, tNode } from "../lib/i18n";
+import { formatMoney } from "../lib/money";
 import { roleLabel } from "../lib/roles";
 
-/** Format a raw amount as its currency, tolerating unknown codes (FR-27). */
-function money(n: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `${Math.round(n)} ${currency}`;
-  }
-}
-
-/** A trip's committed cost as a compact per-currency string. */
+/**
+ * A trip's committed cost as a compact per-currency string.
+ *
+ * Through the shared {@link formatMoney}, which is the point: this tile used to
+ * carry its own three-line `Intl` call, written before `lib/money` existed and
+ * never migrated. So it grouped differently from every figure on the board it
+ * links to (no `useGrouping: "always"`) and, once the board started writing
+ * currencies as symbols, it was the one surface still saying "HUF 45,000" —
+ * a duplicate that had quietly become a disagreement.
+ */
 function costLabel(cost: HomeTripSummary["cost"]): string {
   if (cost.length === 0) return t("No committed cost");
-  return cost.map((c) => money(c.committed, c.currency)).join(" · ");
+  return cost.map((c) => formatMoney(c.committed, c.currency)).join(" · ");
 }
 
 /**
