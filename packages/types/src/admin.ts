@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AccountDeletionImpact } from "./account.js";
 import { BanState } from "./ban.js";
 
 /**
@@ -235,6 +236,25 @@ export const AdminDemoSeed = z.object({
   removedTrips: z.number().int(),
 });
 export type AdminDemoSeed = z.infer<typeof AdminDemoSeed>;
+
+/**
+ * What deleting an account from the console did.
+ *
+ * The address and the name are **snapshotted before the erasure**, because after
+ * it there is nothing left to report: the row is anonymized to a sentinel, which
+ * is the whole point. An operator needs the answer to name the account they just
+ * acted on.
+ *
+ * `impact` is the same {@link AccountDeletionImpact} the person's own delete-account
+ * screen shows them, computed by the same pure planner — so the console cannot
+ * grow its own quieter idea of what happens to a departing owner's trips.
+ */
+export const AdminUserDeletion = z.object({
+  email: z.string(),
+  displayName: z.string(),
+  impact: AccountDeletionImpact,
+});
+export type AdminUserDeletion = z.infer<typeof AdminUserDeletion>;
 
 /**
  * What loading the gazetteer produced.

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AccountModule } from "../account/account.module.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { EmailModule } from "../email/email.module.js";
 import { AdminController } from "./admin.controller.js";
@@ -16,7 +17,7 @@ import { AdminService } from "./admin.service.js";
  * module's import list and out of a cycle with it.
  */
 @Module({
-  imports: [AuthModule, EmailModule],
+  imports: [AccountModule, AuthModule, EmailModule],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard],
 })

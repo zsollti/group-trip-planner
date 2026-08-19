@@ -618,4 +618,15 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Was suspended": "Fel volt függesztve",
   "Was suspended until": "Eddig volt felfüggesztve",
   "Why this account is being suspended": "Miért függeszted fel ezt a fiókot",
+  "Any trip they own passes to a co-organizer, or to the longest-standing participant. A trip with nobody else on it is deleted, with everything in it.":
+    "A saját utazásai átszállnak egy társszervezőre, vagy a leghosszabb ideje csatlakozott résztvevőre. Az az utazás, amelyen rajta kívül nincs senki, mindenestül törlődik.",
+  "Delete account": "Fiók törlése",
+  "Erasing…": "Törlés…",
+  "Their proposals and messages in other people's trips stay, credited to “Deleted user”. This cannot be undone.":
+    "A más utazásaiban tett javaslatai és üzenetei megmaradnak, „Deleted user” néven. Ez nem vonható vissza.",
+  "They owned no trips.": "Nem volt saját utazása.",
+  "Yes, erase this account": "Igen, töröljük ezt a fiókot",
+  "{email} is erased.": "{email} törölve.",
+  "{trip} → {name}": "{trip} → {name}",
+  "{trip} — deleted": "{trip} — törölve",
 };

@@ -396,6 +396,128 @@ describe("suspending an account", () => {
   });
 });
 
+/**
+ * Erasing an account from the console.
+ *
+ * The two things worth pinning are both about *not* doing it by accident, and
+ * about being able to say afterwards what it did: the button asks first, and
+ * the answer names which trips changed hands and which went. "Done" would leave
+ * the operator unable to answer the next question they are going to be asked.
+ */
+describe("erasing an account", () => {
+  function mockWithDelete(result: unknown) {
+    const sent: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const path = String(url).replace(/^https?:\/\/[^/]+/, "");
+        if (init?.method === "POST") {
+          sent.push(path);
+          return json(result);
+        }
+        if (path.startsWith("/admin/overview")) return json(HEALTHY);
+        if (path.startsWith("/admin/audit")) return json({ entries: [] });
+        if (path.startsWith("/admin/users")) {
+          return json({ users: [{ ...USER, emailVerified: true }] });
+        }
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    return sent;
+  }
+
+  const RESULT = {
+    email: "stuck@example.com",
+    displayName: "Stuck Person",
+    impact: {
+      transfers: [
+        {
+          tripId: "t1",
+          tripName: "Lisbon weekend",
+          successorUserId: "u2",
+          successorDisplayName: "Mira",
+        },
+      ],
+      deletions: [{ tripId: "t2", tripName: "Solo hike" }],
+    },
+  };
+
+  async function findPerson() {
+    renderConsole();
+    await screen.findByText("abcdef1234");
+    fireEvent.change(screen.getByLabelText(/email, name, or user id/i), {
+      target: { value: "stuck" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Find" }));
+    return screen.findByText("stuck@example.com");
+  }
+
+  it("says what it will do to their trips, and sends nothing until confirmed", async () => {
+    const sent = mockWithDelete(RESULT);
+    await findPerson();
+
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    // The consequence that is neither obvious nor reversible: the trips do not
+    // leave with the person.
+    expect(
+      await screen.findByText(/passes to a co-organizer/i),
+    ).toBeInTheDocument();
+    expect(sent).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(screen.queryByText(/passes to a co-organizer/i)).toBeNull();
+    expect(sent).toEqual([]);
+  });
+
+  it("names what happened to each trip afterwards", async () => {
+    const sent = mockWithDelete(RESULT);
+    await findPerson();
+
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /yes, erase this account/i }),
+    );
+
+    expect(
+      await screen.findByText(/stuck@example.com is erased/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Lisbon weekend → Mira/)).toBeInTheDocument();
+    expect(screen.getByText(/Solo hike — deleted/)).toBeInTheDocument();
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatch(/\/delete$/);
+  });
+
+  it("does not offer to erase an account that has already been erased", async () => {
+    mockWithDelete(RESULT);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const path = String(url).replace(/^https?:\/\/[^/]+/, "");
+        if (path.startsWith("/admin/overview")) return json(HEALTHY);
+        if (path.startsWith("/admin/audit")) return json({ entries: [] });
+        if (path.startsWith("/admin/users")) {
+          return json({
+            users: [
+              {
+                ...USER,
+                emailVerified: true,
+                anonymizedAt: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    await findPerson();
+
+    expect(screen.getByText("Anonymized")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /delete account/i }),
+    ).toBeNull();
+  });
+});
+
 describe("a non-operator who reaches the page anyway", () => {
   it("is told the console is not there, in the same words the API used", async () => {
     // The route is only "signed in"-guarded client-side; the real gate is the

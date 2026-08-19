@@ -120,6 +120,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
   "You can only remove members below your own role.":
     "Csak a sajátodnál alacsonyabb szerepű tagokat távolíthatod el.",
   "You can't delete this message": "Ezt az üzenetet nem törölheted",
+  "You can't delete your own account from here.":
+    "Innen nem törölheted a saját fiókodat.",
   "You can't suspend your own account.":
     "A saját fiókodat nem függesztheted fel.",
   "You don't have permission to do this.": "Ehhez nincs jogosultságod.",
