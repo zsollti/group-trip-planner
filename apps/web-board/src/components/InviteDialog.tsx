@@ -107,11 +107,9 @@ export function InviteDialog({
   }
 
   return (
-    <Dialog
-      eyebrow="Invite"
-      title={t("Invite people to this board")}
-      onClose={onClose}
-    >
+    /* No eyebrow: it read "Invite" directly above "Invite people to this
+       board" — a heading with its own first word printed over it. */
+    <Dialog title={t("Invite people to this board")} onClose={onClose}>
       <>
         <form onSubmit={onCreate} noValidate>
           <fieldset className="board__radio-group">

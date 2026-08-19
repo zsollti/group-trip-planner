@@ -33,11 +33,15 @@ import { t } from "../lib/i18n";
  * one that survives a reader who cannot separate two of the board's hues.
  */
 export function CostComposition({
+  tripId,
   composition,
   categories,
   headline,
   myUserId,
 }: {
+  /** Passed through to the excluded aside's face stack, whose panel counts the
+   *  crew — see {@link AnswerPanel}. */
+  tripId: string;
   composition: Composition;
   categories: readonly CategoryView[];
   /** The reader, so their own face is ringed in the excluded aside. */
@@ -93,7 +97,7 @@ export function CostComposition({
           person · 21% above it" — directly under a row that already named it.
           Both figures live on that row now, so the sentence was the same
           reading twice, in prose, in the place a summary should be shortest. */}
-      <Excluded composition={composition} myUserId={myUserId} />
+      <Excluded tripId={tripId} composition={composition} myUserId={myUserId} />
       <Uncounted composition={composition} />
     </section>
   );
@@ -322,9 +326,11 @@ function RemainingRow({
  * contradiction; with one, this aside is the arithmetic between them.
  */
 function Excluded({
+  tripId,
   composition,
   myUserId,
 }: {
+  tripId: string;
   composition: Composition;
   /** Whose face to ring — the reader's, when they are one of the people the
    *  option is priced for. */
@@ -350,6 +356,7 @@ function Excluded({
                 "yours" in the place the eye is already looking instead of in a
                 clause after the number. */}
             <PersonStack
+              tripId={tripId}
               people={e.participants}
               mine={e.viewerOwes ? myUserId : undefined}
               label={t("{n} in — see who", { n: e.participants.length })}

@@ -10,9 +10,8 @@ import {
   useToggleParticipation,
   useToggleVote,
 } from "@gtp/api-client";
-import { Button } from "@gtp/ui-primitives";
+import { AnswerPanel } from "./AnswerPanel";
 import { Avatar } from "./Avatar";
-import { Dialog } from "./Dialog";
 import { PersonStack } from "./PersonStack";
 import { plural, t } from "../lib/i18n";
 
@@ -20,54 +19,46 @@ import { plural, t } from "../lib/i18n";
 const SHOWN = 3;
 
 /**
- * Everyone who voted, as a list you can actually read.
+ * Everyone who voted, and everyone the board is still waiting on.
  *
  * The stack on the card answers "roughly who, and how many"; past three faces
- * that is all it can honestly do in a 15rem column. This answers "exactly
- * who" — full names, unabbreviated, with the stale votes called out in words
- * rather than by a visual treatment nobody has a legend for.
+ * that is all it can honestly do in a 15rem column. This answers "exactly who"
+ * — full names, unabbreviated, with the stale votes called out in words rather
+ * than by a visual treatment nobody has a legend for.
+ *
+ * It used to answer only half of that. "Three voted" is a fact, not a decision:
+ * whether to wait or to lock turns entirely on whether three is everybody, and
+ * the reader had to go and count the crew to find out. The denominator, and the
+ * names behind it, come from {@link AnswerPanel} — which the who is-in stack
+ * shares, because the two are the same question asked of the same people.
  */
 function VoterList({
+  tripId,
   voters,
   onClose,
 }: {
+  tripId: string;
   voters: OptionVoterView[];
   onClose: () => void;
 }) {
   return (
-    <Dialog
-      eyebrow="Votes"
-      title={t("{n} voted", { n: voters.length })}
+    <AnswerPanel
+      tripId={tripId}
+      answered={voters.map((v) => ({
+        userId: v.userId,
+        displayName: v.displayName,
+        avatarUrl: v.avatarUrl,
+        note: v.stale ? t("voted before the last change") : null,
+      }))}
+      title={(n, total) =>
+        total === null
+          ? t("{n} voted", { n })
+          : t("{n} / {total} voted", { n, total })
+      }
+      pendingLabel={t("Yet to vote")}
+      doneLabel={t("Everyone has voted.")}
       onClose={onClose}
-    >
-      <>
-        <ul className="voters">
-          {voters.map((v) => (
-            <li key={v.userId} className="voters__item">
-              <Avatar
-                name={v.displayName}
-                userId={v.userId}
-                url={v.avatarUrl}
-                size={28}
-              />
-              <span className="voters__name">{v.displayName}</span>
-              {v.stale ? (
-                <span className="voters__stale">
-                  {t("voted before the last change")}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        {/* `Dialog` binds Escape and nothing else — every caller brings its own
-            close control, and a dialog a mouse cannot dismiss is a trap. */}
-        <div className="board__dialog-actions">
-          <Button type="button" variant="primary" onClick={onClose}>
-            {t("Close")}
-          </Button>
-        </div>
-      </>
-    </Dialog>
+    />
   );
 }
 
@@ -177,7 +168,11 @@ export function VoteDots({
         </span>
       ) : null}
       {listing ? (
-        <VoterList voters={option.voters} onClose={() => setListing(false)} />
+        <VoterList
+          tripId={tripId}
+          voters={option.voters}
+          onClose={() => setListing(false)}
+        />
       ) : null}
     </div>
   );
@@ -246,6 +241,7 @@ export function ParticipantDots({
            answers "am I one of them", and a ring saying it a second time would
            be the redundancy the cost aside's ring exists to remove. */
         <PersonStack
+          tripId={tripId}
           people={option.participants}
           label={t("{n} in — see who", { n: option.participants.length })}
         />
