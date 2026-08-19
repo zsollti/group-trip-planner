@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 /**
  * How many of a row's items fit before the rest must collapse behind an overflow
@@ -55,6 +55,12 @@ export function fitCount(
  * would otherwise have been collapsed, displacing whatever sat there. Without
  * that, opening a channel far down the list left the row advertising every
  * channel except the one being read.
+ *
+ * A non-empty row always shows **at least one** item, whatever count it is
+ * handed. {@link fitCount} already promises that of its own answer, but this
+ * takes a number from a caller, and a zero arriving here — a count measured
+ * before anything had mounted — produced a row that was nothing but the "＋N":
+ * a switcher advertising four channels and offering none.
  */
 export function partitionByFit<T>(
   items: readonly T[],
@@ -63,7 +69,7 @@ export function partitionByFit<T>(
 ): { shown: T[]; hidden: T[] } {
   if (visibleCount >= items.length) return { shown: [...items], hidden: [] };
 
-  const shown = items.slice(0, Math.max(0, visibleCount));
+  const shown = items.slice(0, Math.max(1, visibleCount));
   const active = items.find(isActive);
   if (active !== undefined && !shown.includes(active) && shown.length > 0) {
     shown[shown.length - 1] = active;
@@ -79,41 +85,57 @@ export function partitionByFit<T>(
  * collapsed it stops contributing a width and the answer oscillates. The hidden
  * copy always holds every item, so the measurement is stable and survives a
  * rename, a font load, or a channel appearing live over the socket.
+ *
+ * **The refs are callbacks, and that is the whole correctness argument.** They
+ * were `useRef` objects read by an effect keyed on the item count, which never
+ * fires when a node *mounts* — and the row this measures lives inside a panel
+ * that is closed on first render. So the effect ran once with both refs still
+ * null, measured nothing, and the count stayed at whatever the item count had
+ * been at mount: zero, before any channel had arrived over the socket. Opening
+ * the chat then collapsed **every** chip behind the "＋N", which is exactly
+ * what the switcher looked like in use. A callback ref is state, so mounting the
+ * row re-runs the effect and the measurement happens when there is something to
+ * measure.
+ *
+ * Unmeasured is `null` rather than a number, so "we have not looked yet" cannot
+ * be mistaken for "nothing fits" — it reads as the plain row, the same graceful
+ * default {@link fitCount} gives a container of unknown width.
  */
 export function useFitCount(
   itemCount: number,
   reserveWidth: number,
   gap: number,
 ): {
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  measureRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefCallback<HTMLDivElement>;
+  measureRef: React.RefCallback<HTMLDivElement>;
   visibleCount: number;
 } {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
-  const [visibleCount, setVisibleCount] = useState(itemCount);
-
-  const recompute = useCallback(() => {
-    const container = containerRef.current;
-    const measure = measureRef.current;
-    if (!container || !measure) return;
-    const widths = Array.from(measure.children).map(
-      (child) => (child as HTMLElement).offsetWidth,
-    );
-    setVisibleCount(fitCount(widths, container.clientWidth, reserveWidth, gap));
-  }, [reserveWidth, gap]);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [measure, setMeasure] = useState<HTMLDivElement | null>(null);
+  const [fitted, setFitted] = useState<number | null>(null);
 
   useLayoutEffect(() => {
+    if (!container || !measure) return;
+    const recompute = () => {
+      const widths = Array.from(measure.children).map(
+        (child) => (child as HTMLElement).offsetWidth,
+      );
+      setFitted(fitCount(widths, container.clientWidth, reserveWidth, gap));
+    };
     recompute();
     // Not available in jsdom; without it the row simply keeps its first answer.
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(recompute);
     // The container catches a resized panel; the measure row catches the item
     // list itself changing width (a rename, a new channel).
-    if (containerRef.current) observer.observe(containerRef.current);
-    if (measureRef.current) observer.observe(measureRef.current);
+    observer.observe(container);
+    observer.observe(measure);
     return () => observer.disconnect();
-  }, [recompute, itemCount]);
+  }, [container, measure, reserveWidth, gap, itemCount]);
 
-  return { containerRef, measureRef, visibleCount };
+  return {
+    containerRef: setContainer,
+    measureRef: setMeasure,
+    visibleCount: fitted ?? itemCount,
+  };
 }

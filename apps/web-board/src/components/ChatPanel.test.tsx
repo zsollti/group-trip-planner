@@ -31,8 +31,10 @@ vi.mock("../lib/fitTabs", async () => {
     ...actual,
     // Only the trip channel fits; the three category channels collapse.
     useFitCount: () => ({
-      containerRef: { current: null },
-      measureRef: { current: null },
+      // Callback refs, as the real hook returns — it measures on mount rather
+      // than on a changed item count, which is what it did not use to do.
+      containerRef: () => {},
+      measureRef: () => {},
       visibleCount: 1,
     }),
   };
