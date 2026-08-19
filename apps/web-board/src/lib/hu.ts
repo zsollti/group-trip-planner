@@ -164,8 +164,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Delete my account": "A fiókom törlése",
   "Delete trip": "Utazás törlése",
   "Delete your account": "Fiókod törlése",
-  "Delete “{lane}” and all its cards? This can’t be undone.":
-    "Törlöd a(z) „{lane}” sávot és az összes kártyáját? Ez nem vonható vissza.",
   "Delete “{trip}”?": "Törlöd a(z) „{trip}” utazást?",
   "Deletes the trips owned by {account} and rebuilds the published demo board from the seed — five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.":
     "Törli a(z) {account} tulajdonában lévő utazásokat, és újraépíti a nyilvános demó táblát: öt tag, tizennégy javaslat, négy döntés, a csevegés és a szavazatok. Más fiókot nem érint, a demó jelszava pedig visszaáll a README-ben szereplőre.",
@@ -636,4 +634,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{email} is erased.": "{email} törölve.",
   "{trip} → {name}": "{trip} → {name}",
   "{trip} — deleted": "{trip} — törölve",
+  "Delete “{lane}”?": "Törlöd a(z) „{lane}” sávot?",
+  "This removes the lane and every card in it. This can’t be undone.":
+    "Ez eltávolítja a sávot és minden kártyáját. Ez nem vonható vissza.",
 };

@@ -440,9 +440,20 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
             </Dialog>
           ) : null}
 
+          {/*
+           * The confirm, cut to the question and the answer.
+           *
+           * The eyebrow read "Delete board" directly above a heading reading
+           * "Delete “Lisbon”?" — a label whose only content is the first word
+           * of the sentence under it. And Cancel sat beside Delete doing
+           * exactly what the card's own ✕ does, one tab-stop from the
+           * irreversible half of the pair: the way out of a dialog is in the
+           * corner of every dialog in this app, so spelling it out here bought
+           * nothing and put a click that destroys a trip next to a click that
+           * does nothing at all. Escape still closes it too.
+           */}
           {confirmingDelete ? (
             <Dialog
-              eyebrow="Delete board"
               title={t("Delete “{trip}”?", { trip: trip.data.name })}
               describedById="delete-board-blurb"
               onClose={() => setConfirmingDelete(false)}
@@ -453,13 +464,6 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                 )}
               </p>
               <div className="board__dialog-actions">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setConfirmingDelete(false)}
-                >
-                  {t("Cancel")}
-                </Button>
                 <Button
                   type="button"
                   variant="primary"
