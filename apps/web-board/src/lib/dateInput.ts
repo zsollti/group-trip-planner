@@ -105,3 +105,34 @@ export function joinDay(
   if (granularity === "day") return day;
   return `${day}T${time || "00:00"}`;
 }
+
+/**
+ * Which day an option's *end* falls on, given what the calendar was told.
+ *
+ * Most things a group proposes happen on one day: dinner at eight, a museum in
+ * the morning. The range picker says that in one tap — a start day, and no end
+ * day, because there is no second date to give. The form still asks for two
+ * *times*, and showed them, and then dropped the second one: `joinDay` gets a
+ * time and no day, which is not an instant, so the option came back with a
+ * start and no finish.
+ *
+ * So a missing end day means "the day it started on" — but only where a time
+ * makes that a real answer:
+ *
+ *  - **day granularity** keeps the blank. A one-day proposal genuinely has no
+ *    second date, and writing one would turn a day the reader picked into a
+ *    range they did not.
+ *  - **no end time** keeps it too. Clearing the time is how a reader says the
+ *    end is open, and the fallback would otherwise pin it to midnight — an
+ *    option that finishes twelve hours before it starts.
+ */
+export function endDayFor(
+  startDay: string,
+  endDay: string,
+  endTime: string,
+  granularity: OptionDateGranularity,
+): string {
+  if (endDay) return endDay;
+  if (granularity !== "minute" || !endTime) return "";
+  return startDay;
+}

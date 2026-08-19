@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dayToIso,
+  endDayFor,
   fromDateInput,
   isoToDayInput,
   isoToMinuteInput,
@@ -119,5 +120,36 @@ describe("splitting a control's value into a day and a time", () => {
     }
     const { day, time } = splitDay("2026-09-06");
     expect(joinDay(day, time, "day")).toBe("2026-09-06");
+  });
+});
+
+describe("endDayFor", () => {
+  it("ends on the day it started, for a one-day option with an end time", () => {
+    // One tap on the calendar and two times — the shape of most things a group
+    // proposes. The end day is blank because there is no second date to give.
+    expect(endDayFor("2026-09-06", "", "16:00", "minute")).toBe("2026-09-06");
+  });
+
+  it("leaves a real end day alone", () => {
+    expect(endDayFor("2026-09-06", "2026-09-08", "16:00", "minute")).toBe(
+      "2026-09-08",
+    );
+  });
+
+  it("keeps the blank when the end time was cleared", () => {
+    // Clearing the time is how a reader says the end is open. Falling back here
+    // would join the start day to no time at all — midnight, twelve hours
+    // before the option begins.
+    expect(endDayFor("2026-09-06", "", "", "minute")).toBe("");
+  });
+
+  it("keeps the blank at day granularity", () => {
+    // A one-day proposal genuinely has no second date; inventing one would turn
+    // the day the reader picked into a range they did not.
+    expect(endDayFor("2026-09-06", "", "16:00", "day")).toBe("");
+  });
+
+  it("has nothing to fall back to with no start either", () => {
+    expect(endDayFor("", "", "16:00", "minute")).toBe("");
   });
 });
