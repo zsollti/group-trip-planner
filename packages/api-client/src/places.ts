@@ -1,8 +1,8 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   PLACE_QUERY_MIN_LENGTH,
+  placeLabel,
   type PlaceSearchResult,
-  type PlaceView,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 
@@ -49,29 +49,10 @@ export function usePlaceSearch(
 }
 
 /**
- * How a place reads on one line: "Lisbon, Lisboa, Portugal".
+ * Re-exported, not defined here.
  *
- * Here rather than in the board app because it is also what gets written into
- * the trip's `destination` field when a suggestion is chosen — the string the
- * board displays and the string the picker showed have to be the same one, or
- * choosing a suggestion silently changes what you picked.
- *
- * The region is dropped when it repeats the name, which happens constantly:
- * Lisbon sits in Lisboa, Vienna in Vienna, and "Vienna, Vienna, Austria" reads
- * as a bug rather than as precision.
+ * It moved to `@gtp/types` when the demo seed needed the same rule — a seed
+ * cannot import a package built on React Query — and it stays exported from this
+ * module so nothing that already imported it from here had to change.
  */
-export function placeLabel(place: PlaceView): string {
-  const parts = [place.name];
-  if (place.region && !sameWord(place.region, place.name)) {
-    parts.push(place.region);
-  }
-  if (!sameWord(place.countryName, place.name)) parts.push(place.countryName);
-  return parts.join(", ");
-}
-
-/** Case-folded equality, and nothing looser. "Lisboa" and "Lisbon" are different
- *  names to a reader and both are worth printing; only a literal repeat is
- *  noise. */
-function sameWord(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
-}
+export { placeLabel };
