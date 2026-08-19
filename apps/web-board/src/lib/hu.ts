@@ -493,8 +493,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Your picture": "A képed",
   "Your settings": "A beállításaid",
   "Your trip boards": "Az utazástábláid",
-  "before the target": "a keretből",
-  "past the target": "a kereten felül",
   "barred from rejoining": "nem csatlakozhat újra",
   "email, name, or user id": "e-mail, név vagy felhasználói azonosító",
   "https://…": "https://…",
