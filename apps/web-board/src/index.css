@@ -717,10 +717,28 @@ body {
   gap: 0.5rem;
   min-width: 0;
 }
+/* A long display name gives way to an ellipsis rather than widening the row past
+   the dialog. `min-width: 0` above only permits the shrink; this is what makes
+   the text inside actually do it. */
+.board__member-identity > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* The role, as the control that sets it. Narrow on purpose: it holds three
    words at most and every row's sits in the same column, which is what makes a
-   list of people scannable as a list of roles. */
-.board__member-role {
+   list of people scannable as a list of roles.
+
+   **Written as a compound selector, and it has to be.** `.board__select` sets
+   `width: 100%` and a padding of its own, and it is declared eight hundred
+   lines further down this file — same specificity, later in the cascade, so it
+   won this rule outright. The select then filled the row's action column and
+   pushed the "⋯" beside it clean outside the member's card, which is what a
+   reader sees: a menu button sitting in the margin, and a horizontal scrollbar
+   under a dialog that has nothing to scroll to. Nothing about the row's layout
+   was wrong; this rule was simply not in effect. Compounding it with the class
+   it has to beat makes that independent of where either one sits. */
+.board__select.board__member-role {
   flex: none;
   width: auto;
   padding: 0.25rem 0.4rem;
@@ -2506,7 +2524,13 @@ textarea[data-gtp-input] {
 
 .board__invite-item-actions {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+  /* Never squeezed. A flex item shrinks before it wraps, and these two controls
+     have nowhere to shrink to — the row would push its own menu button out
+     through its border rather than give up a line. The name beside it is the
+     part that yields. */
+  flex: none;
 }
 .board__invite-item-actions [data-gtp-button] {
   width: auto;
