@@ -36,11 +36,22 @@ describe("calendarDetail", () => {
     }
   });
 
-  it("shows the note once there is room for more than one line of it", () => {
-    // One line of a note is usually a clause with its verb cut off, which
-    // reads as broken rather than as an excerpt.
+  it("shows the note from two hours, and not before", () => {
+    // Room for two lines is not the same question as worth two lines: a
+    // 90-minute lunch fitted a note and turned into a paragraph in a column of
+    // otherwise scannable blocks. One line of a note reads as broken rather
+    // than as an excerpt, and a short block's note reads as clutter.
+    expect(calendarDetail(90).showNote).toBe(false);
+    expect(calendarDetail(119).showNote).toBe(false);
     expect(calendarDetail(120).showNote).toBe(true);
     expect(calendarDetail(120).noteLines).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows the price from an hour, and not before", () => {
+    // Under an hour a block has the title and its time and nothing spare.
+    expect(calendarDetail(45).showCost).toBe(false);
+    expect(calendarDetail(59).showCost).toBe(false);
+    expect(calendarDetail(60).showCost).toBe(true);
   });
 
   it("stops growing the note on a very long block", () => {
