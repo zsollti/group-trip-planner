@@ -9,7 +9,13 @@ import {
 import { donutArcs, pointOnRing } from "../lib/donutGeometry";
 import { categoryHueStyleById, categoryIconKey } from "../lib/categoryTheme";
 import { MARK_PATHS } from "../lib/categoryIconPaths";
-import { centreFontRem, HOLE_FRACTION, HOLE_PX } from "../lib/donutCentre";
+import {
+  centreFontRem,
+  centreLabelRem,
+  HOLE_FRACTION,
+  HOLE_PX,
+  LABEL_PX,
+} from "../lib/donutCentre";
 import { t } from "../lib/i18n";
 
 /**
@@ -475,6 +481,32 @@ function Centre({
 }
 
 /**
+ * The line above the figure: which part of the ring is being read.
+ *
+ * Sized to fit rather than set at a fixed 0.6rem, and fitted against a width
+ * **narrower than the hole** — see {@link LABEL_PX}. The centre is a square
+ * inset to the hole's diameter while the hole is a circle, so a name on the
+ * line above the middle had the full diameter to spread into and the circle had
+ * already narrowed by then. "Accommodation" duly ran into the wedges on both
+ * sides, which is what the reader sees as the text touching the chart.
+ *
+ * Not upper-cased any more either, and that is half the fix: capitals plus the
+ * tracking they needed cost about a fifth of the line's width for no
+ * information, and the lane is called "Accommodation" everywhere else in the
+ * app. Written the way it is written, it fits.
+ */
+function CentreLane({ children }: { children: string }) {
+  return (
+    <span
+      className="cost-donut__lane"
+      style={{ fontSize: `${centreLabelRem(children, LABEL_PX)}rem` }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
  * What is left to spend, in the hole.
  *
  * Deliberately the same three-line shape as a lane's — eyebrow, figure, caption
@@ -492,7 +524,7 @@ function RemainingCentre({
   const written = write(amount);
   return (
     <div className="cost-donut__centre cost-donut__centre--active">
-      <span className="cost-donut__lane">{t("Still to spend")}</span>
+      <CentreLane>{t("Still to spend")}</CentreLane>
       {/* Green, alone among the figures this hole prints. Every other one is a
           quantity — this lane cost that much — and this one is a verdict: there
           is still room. It reads against the red the same surface uses for the
@@ -503,7 +535,6 @@ function RemainingCentre({
       >
         {written}
       </strong>
-      <span className="cost-donut__caption">{t("before the target")}</span>
     </div>
   );
 }
@@ -526,14 +557,13 @@ function OverCentre({
   const written = write(amount);
   return (
     <div className="cost-donut__centre cost-donut__centre--active">
-      <span className="cost-donut__lane">{t("Over budget")}</span>
+      <CentreLane>{t("Over budget")}</CentreLane>
       <strong
         className="cost-donut__figure cost-donut__figure--over"
         style={{ fontSize: `${centreFontRem(written, HOLE_PX)}rem` }}
       >
         {written}
       </strong>
-      <span className="cost-donut__caption">{t("past the target")}</span>
     </div>
   );
 }
@@ -565,7 +595,7 @@ function ActiveCentre({
   const amount = write(slice.amount);
   return (
     <div className="cost-donut__centre cost-donut__centre--active">
-      <span className="cost-donut__lane">{slice.label}</span>
+      <CentreLane>{slice.label}</CentreLane>
       <strong
         className="cost-donut__figure"
         style={{ fontSize: `${centreFontRem(amount, HOLE_PX)}rem` }}

@@ -3303,14 +3303,19 @@ textarea[data-gtp-input] {
   text-align: center;
 }
 /* The lane being read: its name above the figure, quiet enough that the money
-   stays the thing the eye lands on. */
+   stays the thing the eye lands on.
+
+   No `font-size` here — it is fitted per name in `CostDonut` and arrives
+   inline. And no uppercase and no tracking, which is the other half of that
+   fix: between them they cost about a fifth of the line's width and carry
+   nothing, and this is the one label on the surface whose length is not the
+   app's to choose. `max-width` is under the hole's own square because the hole
+   is a circle and this line sits above its widest point — see `LABEL_PX`, which
+   is where that number is reasoned about. */
 .cost-donut__lane {
-  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--board-dim);
-  max-width: 100%;
+  max-width: 86%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

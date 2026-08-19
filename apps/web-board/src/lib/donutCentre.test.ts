@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { centreFontRem, HOLE_FRACTION } from "./donutCentre";
+import {
+  centreFontRem,
+  centreLabelRem,
+  HOLE_FRACTION,
+  LABEL_PX,
+} from "./donutCentre";
 
 /**
  * The figure has to fit the hole.
@@ -82,5 +87,60 @@ describe("centreFontRem", () => {
         0,
       );
     }
+  });
+});
+
+/**
+ * And the line above it has to fit too — against a narrower measure.
+ *
+ * The centre is a square inset to the hole's diameter; the hole is a circle.
+ * The lane name sits above the widest point, so a name that fits the square can
+ * still run into the wedges, which is what "Accommodation" did.
+ */
+describe("centreLabelRem", () => {
+  /** The module's own model of how wide a label is, in px. */
+  function labelWidth(text: string, rem: number): number {
+    return text.length * 0.56 * rem * 16;
+  }
+
+  it("leaves a short lane name at the size it was designed for", () => {
+    expect(centreLabelRem("Food", LABEL_PX)).toBe(0.6);
+  });
+
+  it("fits the name that ran into the ring", () => {
+    const rem = centreLabelRem("Accommodation", LABEL_PX);
+    expect(labelWidth("Accommodation", rem)).toBeLessThanOrEqual(LABEL_PX);
+  });
+
+  it("fits every lane the board seeds, and the hole's own two labels", () => {
+    const samples = [
+      "Accommodation",
+      "Transport",
+      "Activities",
+      "Food",
+      "Still to spend",
+      "Over budget",
+      "Szállás",
+      "Tevékenységek",
+    ];
+    for (const text of samples) {
+      const rem = centreLabelRem(text, LABEL_PX);
+      expect(
+        labelWidth(text, rem),
+        `${text} at ${rem}rem overflows the label line`,
+      ).toBeLessThanOrEqual(LABEL_PX);
+    }
+  });
+
+  it("stops shrinking rather than becoming unreadable", () => {
+    // A category name has no length limit worth designing for. Past the floor
+    // the honest answer is an ellipsis, which the stylesheet supplies.
+    expect(centreLabelRem("x".repeat(80), LABEL_PX)).toBe(0.46);
+  });
+
+  it("measures against less than the hole's full width", () => {
+    // The number that makes the whole thing work: a label sized against the
+    // diameter is a label sized against a width it does not have.
+    expect(LABEL_PX).toBeLessThan(Math.round(148 * HOLE_FRACTION));
   });
 });

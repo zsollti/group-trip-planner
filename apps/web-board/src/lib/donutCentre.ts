@@ -65,6 +65,51 @@ export function centreFontRem(text: string, holePx: number): number {
   return Math.min(MAX_REM, Math.max(MIN_REM, round2(ideal)));
 }
 
+/**
+ * How wide the *label* line of the hole is — narrower than the hole itself.
+ *
+ * The centre is a square inset to the hole's diameter, but the hole is a
+ * **circle**: the full diameter is available only across the middle, and the
+ * lane name sits a line above it, where the circle has already narrowed. So a
+ * name measured against the diameter fitted the box and ran into the ring —
+ * which is exactly what "ACCOMMODATION" did, reaching the wedges on both sides.
+ *
+ * The chord at the label's height, near enough: the name sits roughly 45% of
+ * the way from the centre to the top, and `2·√(r² − d²)` at `d = 0.45r` is
+ * about 0.89 of the diameter. A little under that, so there is air rather than
+ * a graze.
+ */
+export const LABEL_PX = Math.round(HOLE_PX * 0.86);
+
+/**
+ * How wide one character of the **lane name** is, relative to its font size.
+ *
+ * Higher than {@link CHAR_WIDTH} because this string is not a figure: it is
+ * prose, in a bold weight, and prose has no narrow digits in it. Deliberately
+ * pessimistic for the same reason — too small is invisible, too big is the bug.
+ */
+const LABEL_CHAR_WIDTH = 0.56;
+
+/** The size the lane name had when it fitted, and the smallest it may become. */
+const LABEL_MAX_REM = 0.6;
+const LABEL_MIN_REM = 0.46;
+
+/**
+ * A font size in `rem` that keeps a lane's name inside the hole's label line.
+ *
+ * Same shape as {@link centreFontRem} and deliberately a separate function: the
+ * two lines have different widths available, different type, and different
+ * floors — a name that has shrunk to 0.46rem is still a name, while a total at
+ * that size is not a total. Names past the floor are ellipsized by the
+ * stylesheet, which is the honest end of the scale for a string that has no
+ * bound at all.
+ */
+export function centreLabelRem(text: string, widthPx: number): number {
+  const chars = Math.max(text.length, 1);
+  const ideal = widthPx / (chars * LABEL_CHAR_WIDTH) / 16;
+  return Math.min(LABEL_MAX_REM, Math.max(LABEL_MIN_REM, round2(ideal)));
+}
+
 /** Two decimals: enough to be smooth, few enough to be stable across renders. */
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
