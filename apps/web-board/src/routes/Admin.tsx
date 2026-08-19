@@ -697,7 +697,12 @@ function UserCard({ user }: { user: AdminUserSummary }) {
       ) : null}
 
       <div className="admin__actions">
-        {!user.emailVerified ? (
+        {/* Erasure clears `emailVerified` along with everything else personal,
+            so an anonymized row looks unverified — and without this the console
+            offers to send a verification link to `deleted-…@deleted.invalid`.
+            Harmless and completely nonsensical, and it only became a common
+            sight once this console could do the erasing. */}
+        {!user.emailVerified && user.anonymizedAt === null ? (
           <>
             <Button
               type="button"
