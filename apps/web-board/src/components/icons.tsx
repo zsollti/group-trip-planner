@@ -62,3 +62,24 @@ export function MoneyIcon({ size }: { size?: number }) {
     </Glyph>
   );
 }
+
+/** Marks an outbound link — the classic two chain links, at 14px. */
+export function LinkIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M10 13.5a4 4 0 0 0 5.7.4l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+      <path d="M14 10.5a4 4 0 0 0-5.7-.4l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
+    </Glyph>
+  );
+}
+
+/** Marks a headcount — two figures, so it reads as "people" and not "person". */
+export function PeopleIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.6a3.2 3.2 0 0 1 0 6.2M17.5 14.4a5.5 5.5 0 0 1 3 4.6" />
+    </Glyph>
+  );
+}

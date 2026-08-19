@@ -8,6 +8,11 @@ import { OptionDetail } from "./OptionDetail";
  * contract now refuses a non-http(s) scheme on the way in, but rows written
  * before that rule are still in the database — so the render side decides for
  * itself what may become a link. Functional/DOM only (no screenshot tests).
+ *
+ * The panel around it was rebuilt (it was a two-column `<dl>` that read as the
+ * database row behind the card), so what is pinned here alongside the link is
+ * the part of that rebuild a reader would notice going wrong: the two headline
+ * answers say so when they have no answer, rather than vanishing.
  */
 
 const category: CategoryView = {
@@ -21,7 +26,10 @@ const category: CategoryView = {
   version: 0,
 };
 
-function option(url: string | null): OptionView {
+function option(
+  url: string | null,
+  over: Partial<OptionView> = {},
+): OptionView {
   return {
     id: "33333333-3333-4333-8333-333333333333",
     categoryId: category.id,
@@ -49,26 +57,35 @@ function option(url: string | null): OptionView {
     voteCount: 0,
     voters: [],
     viewerHasVoted: false,
+    ...over,
   };
 }
 
-function show(url: string | null) {
+function show(url: string | null, over: Partial<OptionView> = {}) {
   return render(
     <OptionDetail
       category={category}
-      option={option(url)}
+      option={option(url, over)}
       onClose={() => {}}
     />,
   );
 }
 
 describe("OptionDetail link", () => {
-  it("links an ordinary http(s) URL", () => {
-    show("https://booking.example/room/9");
-    const link = screen.getByRole("link", {
-      name: "https://booking.example/room/9",
-    });
-    expect(link).toHaveAttribute("href", "https://booking.example/room/9");
+  it("links an ordinary http(s) URL, written the way it reads", () => {
+    show("https://www.booking.example/room/9?aid=304142");
+    // The label drops the scheme, the `www.` and the query — the href does not.
+    const link = screen.getByRole("link", { name: "booking.example/room/9" });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://www.booking.example/room/9?aid=304142",
+    );
+    // …and the whole address is still one hover away, for anyone checking
+    // where a link actually goes before following it.
+    expect(link).toHaveAttribute(
+      "title",
+      "https://www.booking.example/room/9?aid=304142",
+    );
     // Opening in a new tab must not hand the opener over.
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
@@ -86,5 +103,36 @@ describe("OptionDetail link", () => {
   it("shows a data: URL as inert text too", () => {
     show("data:text/html,<script>alert(1)</script>");
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
+describe("the two headline answers", () => {
+  it("says a question is open rather than dropping the line", () => {
+    // The old panel omitted a field it had no value for, so an option nobody
+    // had priced looked exactly like an option that is free.
+    show(null);
+    expect(screen.getByText("No dates yet")).toBeInTheDocument();
+    expect(screen.getByText("No price yet")).toBeInTheDocument();
+  });
+
+  it("says who a price is for", () => {
+    show(null, { amount: 120, costType: "TOTAL", effectiveHeadcount: 4 });
+    expect(screen.getByText("for 4 people on the trip")).toBeInTheDocument();
+  });
+
+  it("says an opt-in price is split between whoever is in", () => {
+    show(null, {
+      amount: 120,
+      participationMode: "OPT_IN",
+      effectiveHeadcount: 2,
+    });
+    expect(screen.getByText("split between whoever’s in")).toBeInTheDocument();
+    // And the panel grows the group that only an opt-in option has.
+    expect(screen.getByText("Nobody is in yet.")).toBeInTheDocument();
+  });
+
+  it("states whether the option is settled, not just what it holds", () => {
+    show(null);
+    expect(screen.getByText(/Still being decided/)).toBeInTheDocument();
   });
 });

@@ -262,6 +262,7 @@ describe("the Hungarian catalogue", () => {
       ["{n} attempt", "{n} attempts"],
       ["{n} decision pending", "{n} decisions pending"],
       ["{n} decision placed", "{n} decisions placed"],
+      ["for {n} person on the trip", "for {n} people on the trip"],
     ];
     for (const [one, many] of pairs) {
       expect(hu[one], `${one} vs ${many}`).toBe(hu[many]);

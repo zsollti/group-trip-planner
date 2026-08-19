@@ -58,3 +58,35 @@ export function dateRangeLabel(
   }
   return stamp((startsAt ?? endsAt) as string);
 }
+
+/**
+ * A link, written the way a person would read it out.
+ *
+ * `https://www.booking.com/hotel/pt/lisbon-beach.en-gb.html?aid=304142&sid=9f2`
+ * is a hundred characters of which about fifteen mean anything, and printing it
+ * whole is most of why the detail panel read as a database row: it is the one
+ * field on the card with no natural length, and it wrapped over four lines
+ * under a heading that said "Link".
+ *
+ * So: the host, then the path, with the scheme, the `www.`, a trailing slash
+ * and the whole query string dropped, and the middle of a very long path
+ * elided. **The href is never touched** — this is a label, the full URL stays
+ * on `title` and in the anchor, and a reader who wants to check where a link
+ * goes has both. Anything that will not parse is returned as it came, which is
+ * the honest answer for a string that is not really a URL.
+ */
+export function linkLabel(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  const host = parsed.hostname.replace(/^www\./, "");
+  const path = parsed.pathname.replace(/\/$/, "");
+  const whole = host + path;
+  if (whole.length <= 44) return whole;
+  // Trimmed from the middle: the end of a path is usually the part that names
+  // the thing, so cutting only the tail throws away the half worth keeping.
+  return `${whole.slice(0, 26)}…${whole.slice(-14)}`;
+}
