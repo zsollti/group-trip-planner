@@ -40,18 +40,36 @@ const MINUTES_PER_LINE = 15;
 /** Below this a block cannot hold two lines at all. */
 const TIGHT_BELOW = 45;
 
+/**
+ * Durations, not line counts, for the two things a block may add.
+ *
+ * The line arithmetic below decides how many lines *fit*; these decide whether
+ * a block is the kind of thing worth putting them on, and the owner set both
+ * after reading a real trip on the grid. **An hour for the price, two for the
+ * note.** The note in particular had been appearing from 75 minutes, where two
+ * lines technically fit and a 90-minute lunch turned into a paragraph in a
+ * column of otherwise scannable blocks — fitting and being worth showing are
+ * different questions, and only the first one is geometry.
+ *
+ * Kept as minutes so they can be read against the calendar's own scale (an hour
+ * is `--cal-hour` tall) rather than inferred back through `MINUTES_PER_LINE`.
+ */
+const COST_FROM_MINUTES = 60;
+const NOTE_FROM_MINUTES = 120;
+
 export function calendarDetail(heightMinutes: number): CalendarDetail {
   const lines = Math.floor(heightMinutes / MINUTES_PER_LINE);
   const tight = heightMinutes < TIGHT_BELOW;
 
   // Title and time are one line each once there is room for two; the cost
   // takes the third, and anything past that is the note's.
-  const showCost = !tight && lines >= 4;
+  const showCost = !tight && heightMinutes >= COST_FROM_MINUTES;
   const spare = lines - (showCost ? 3 : 2);
   // Two lines is the smallest amount of prose worth showing — one line of a
   // note is usually a clause with its verb cut off, which reads as a bug
-  // rather than as an excerpt.
-  const showNote = showCost && spare >= 2;
+  // rather than as an excerpt — and two *hours* is the smallest block worth
+  // spending them on.
+  const showNote = showCost && spare >= 2 && heightMinutes >= NOTE_FROM_MINUTES;
 
   return {
     tight,
