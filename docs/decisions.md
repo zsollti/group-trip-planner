@@ -398,6 +398,67 @@ and here.
 
 ---
 
+## Suspending and erasing an account, from the operator's console
+
+Two powers that reach across every trip in the system, which is why they live on
+the console and nowhere else. The console itself is keyed on `ADMIN_EMAILS` and
+answers 404 — not 403 — to anyone not on that list.
+
+**A suspension has three columns, not one.** "Is it on", "when does it end" and
+"why" are three different answers. A null end beside a set start means
+**permanent**: modelling permanence as a far-future date would have left the app
+deciding how far is far enough, and every read of it guessing.
+
+**The reason is required, and the suspended person is shown it.** An account
+that stops working with no stated cause is the failure this feature exists to
+prevent rather than to cause. The message names the suspension, its end date (or
+that there is none) and the reason — in the reader's own language, through the
+same pattern mechanism every other server message uses. The date inside it is a
+bare `YYYY-MM-DD`, because the sentence around it is translated by the exception
+filter _later and elsewhere_ than the date would be formatted, and a Hungarian
+sentence with an American date in it is worse than a date nobody has to parse.
+
+**A lapsed ban is evaluated as over on read.** No sweeper, no scheduled job —
+neither of which this app has — and correct the instant the clock passes rather
+than at whatever hour a cron would have run. The row survives its own expiry on
+purpose: the console still shows that this account _was_ suspended and why, which
+is exactly what an operator needs when the same person writes in again.
+
+**Four paths enforce it, plus the socket.** Sign-in, the Google callback,
+refresh-token rotation and the per-request guard. A ban that only closed the
+front door would be decorative — an open tab keeps its access token for its full
+life and its refresh cookie for a fortnight — so banning also revokes every live
+refresh token, and the per-request DB read the authorization model already does
+is what makes it take effect _now_. The socket handshake asks separately: it is
+the one way into this app that never passes the HTTP guard.
+
+The sign-in check runs **after** the password is verified. A suspension message
+names an account's own circumstances, so answering with one on an unverified
+guess would turn the login endpoint into an account-existence oracle — undoing
+the generic 401 and the dummy-hash timing that are there to prevent exactly that.
+
+**Erasure is the same method the person's own Settings page calls.** Not a copy
+of it. What happens to a departing owner's trips is the highest-consequence
+branch in the app, and an operator's own implementation of that rule would
+eventually answer differently from the preview the person themselves was shown.
+So the rule stays the one the app already had (FR-6): each owned trip passes to a
+co-organizer, or failing that to the longest-standing participant, and only a
+trip with nobody else on it is deleted with everything in it.
+
+It anonymizes rather than `DELETE`s. Personal data goes — address, name,
+password, avatar and its bytes — and the row stays so that what this person wrote
+in _other people's_ trips renders as "Deleted user" instead of vanishing. A hard
+delete would cascade into boards belonging to strangers and rewrite their
+history, which is not something a support action about one account should be able
+to do.
+
+**Neither can be aimed at yourself.** The console is keyed on the operator's
+address, so both buttons would remove the person pressing them from the only tool
+that could undo it. Settings has a delete button for anyone who genuinely means
+it about themselves.
+
+---
+
 ## Things I deliberately did not build
 
 - **Currency conversion.** Covered in the README. The short version is that a
