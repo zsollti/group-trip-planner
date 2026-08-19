@@ -1,52 +1,47 @@
 import { useState } from "react";
-import { Button } from "@gtp/ui-primitives";
 import type { OptionParticipantView } from "@gtp/types";
+import { AnswerPanel } from "./AnswerPanel";
 import { Avatar } from "./Avatar";
-import { Dialog } from "./Dialog";
 import { t } from "../lib/i18n";
 
 /** Faces before the count takes over. Three fits a 15rem lane column. */
 const SHOWN = 3;
 
 /**
- * Everyone who is in, as a list you can actually read — the counterpart to the
- * stack, and its reason for existing: three faces answer "roughly who", and past
- * that only a full list is honest.
+ * Everyone who is in, and everyone still to say — the counterpart to the stack,
+ * and its reason for existing: three faces answer "roughly who", and past that
+ * only a full list is honest.
+ *
+ * The same {@link AnswerPanel} the votes stack opens, for the same reason: an
+ * opt-in option is priced for whoever is in, so "four in" means one thing next
+ * to a crew of four and quite another next to a crew of ten.
  */
 function ParticipantList({
+  tripId,
   participants,
   onClose,
 }: {
+  tripId: string;
   participants: readonly OptionParticipantView[];
   onClose: () => void;
 }) {
   return (
-    <Dialog
-      eyebrow="Who's in"
-      title={t("{n} in", { n: participants.length })}
+    <AnswerPanel
+      tripId={tripId}
+      answered={participants.map((p) => ({
+        userId: p.userId,
+        displayName: p.displayName,
+        avatarUrl: p.avatarUrl,
+      }))}
+      title={(n, total) =>
+        total === null
+          ? t("{n} in", { n })
+          : t("{n} / {total} in", { n, total })
+      }
+      pendingLabel={t("Not in yet")}
+      doneLabel={t("Everyone is in.")}
       onClose={onClose}
-    >
-      <>
-        <ul className="voters">
-          {participants.map((p) => (
-            <li key={p.userId} className="voters__item">
-              <Avatar
-                name={p.displayName}
-                userId={p.userId}
-                url={p.avatarUrl}
-                size={28}
-              />
-              <span className="voters__name">{p.displayName}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="board__dialog-actions">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            {t("Close")}
-          </Button>
-        </div>
-      </>
-    </Dialog>
+    />
   );
 }
 
@@ -66,10 +61,13 @@ function ParticipantList({
  * already looking rather than in a clause after it.
  */
 export function PersonStack({
+  tripId,
   people,
   mine,
   label,
 }: {
+  /** The trip, so the panel behind the stack can count who has not answered. */
+  tripId: string;
   people: readonly OptionParticipantView[];
   /** The reader's own id, so their face can be marked. Undefined marks none. */
   mine?: string;
@@ -112,6 +110,7 @@ export function PersonStack({
       </button>
       {listing ? (
         <ParticipantList
+          tripId={tripId}
           participants={people}
           onClose={() => setListing(false)}
         />

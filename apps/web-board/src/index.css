@@ -2638,6 +2638,64 @@ textarea[data-gtp-input] {
   color: var(--board-accent);
 }
 
+/* The panel behind a stack of faces: who has answered, and who has not.
+ *
+ * It was a list of names under a count of them and nothing else — accurate, and
+ * unable to answer the question it is opened for, which is always "are we still
+ * waiting on anybody". Three things carry that now: the heading states both
+ * figures, the meter draws the same fraction as a length, and the second list
+ * names the people the first one is missing. */
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+/* The fraction, as a length. Deliberately thin: it repeats what the heading
+   directly above it already says in figures, so it is there to be glanced at,
+   not read. `--board-accent` for the filled part because this is progress
+   towards a decision, and the board's accent is what it uses for its own
+   affirmatives — never the cost surface's red and green, which mean over and
+   under a budget and would say something here that is not true. */
+.answers__meter {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-dim) 22%, transparent);
+  overflow: hidden;
+}
+.answers__meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--board-accent);
+  transition: width 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .answers__meter > span {
+    transition: none;
+  }
+}
+/* The people still to answer. Separated by a rule and dimmed as a group rather
+   than face by face: these are the same people, at full strength one list up,
+   the moment they answer — a person is not a different person for not having
+   got to it yet. */
+.answers__pending {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--lane-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0.62;
+}
+/* …and what stands in its place when there is nobody left to wait for, which is
+   the answer the reader opened the panel hoping for. */
+.answers__done {
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--lane-line);
+  font-size: 0.85rem;
+  color: var(--board-ok);
+}
+
 /* The full list, in the "+n" dialog and in the option detail. */
 .voters {
   list-style: none;

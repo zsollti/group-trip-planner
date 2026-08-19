@@ -555,7 +555,9 @@ describe("the cost composition", () => {
     fireEvent.mouseEnter(band);
 
     // The lift and the dim, the same pair every other part of the ring uses.
-    expect(band.className.baseVal).toContain("cost-donut__over--on");
+    // `getAttribute`, not `className`: on an SVG element that property is an
+    // `SVGAnimatedString`, not a string.
+    expect(band.getAttribute("class")).toContain("cost-donut__over--on");
     expect(container.querySelector(".cost-donut__wedge--off")).not.toBeNull();
     // And the figure, in the hole, where the reader is already looking.
     const centre = container.querySelector(".cost-donut__centre")!;

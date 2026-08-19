@@ -94,6 +94,7 @@ export function CostTally({
         </p>
       ) : (
         <TallyBody
+          tripId={tripId}
           d={dash.data}
           categories={categories.data ?? []}
           myUserId={myUserId}
@@ -104,10 +105,14 @@ export function CostTally({
 }
 
 function TallyBody({
+  tripId,
   d,
   categories,
   myUserId,
 }: {
+  /** Only to pass on: the excluded aside's face stack opens a panel that counts
+   *  the crew, and the crew is a question only the trip can answer. */
+  tripId: string;
   d: TripDashboardView;
   categories: readonly CategoryView[];
   myUserId: string | undefined;
@@ -171,6 +176,7 @@ function TallyBody({
           cost panel with no money on it at all. */}
       {composition ? (
         <CostComposition
+          tripId={tripId}
           composition={composition}
           categories={categories}
           myUserId={myUserId}
