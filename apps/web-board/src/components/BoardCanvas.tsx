@@ -34,6 +34,7 @@ import {
 import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
 import { costLabel } from "./optionFormat";
+import { applyOrder } from "../lib/pendingOrder";
 import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
 
@@ -135,6 +136,29 @@ export function BoardCanvas({
   const boardLock = useBoardLock(tripId);
   const boardReorder = useBoardReorderOptions(tripId);
 
+  /**
+   * The order a drop just made, until the server's own list arrives.
+   *
+   * Neither reorder wrote anything before its response came back, so releasing
+   * a card put every neighbour back where it started, and the answer slid in
+   * over the top a round trip later: one gesture, animated twice. dnd-kit
+   * absorbs a reorder made in the same commit as the drop and nothing else, and
+   * a mutation's `onMutate` is a render too late for that. So the board holds
+   * the answer itself for the length of the request — see `lib/pendingOrder`.
+   */
+  const [laneOrder, setLaneOrder] = useState<string[] | null>(null);
+  const [cardOrder, setCardOrder] = useState<{
+    categoryId: string;
+    ids: string[];
+  } | null>(null);
+
+  /** The lanes as the reader last left them, which is what everything below
+   *  renders and what the drop's index arithmetic must agree with. */
+  const lanes = useMemo(
+    () => applyOrder(categories, laneOrder, (c) => c.id),
+    [categories, laneOrder],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
@@ -166,10 +190,16 @@ export function BoardCanvas({
       const live = (opts.byCategory[c.id] ?? []).filter(
         (o) => o.status !== "LOCKED",
       );
-      m[c.id] = [...live].sort((a, b) => b.voteCount - a.voteCount);
+      const ranked = [...live].sort((a, b) => b.voteCount - a.voteCount);
+      // A lane the reader has just rearranged shows their arrangement while the
+      // request that saves it is in flight; every other lane is untouched.
+      m[c.id] =
+        cardOrder?.categoryId === c.id
+          ? applyOrder(ranked, cardOrder.ids, (o) => o.id)
+          : ranked;
     }
     return m;
-  }, [categories, opts.byCategory]);
+  }, [categories, opts.byCategory, cardOrder]);
 
   // Locked options per category, pinned at the top of their own lane where they
   // are the answer to that lane's question. They used to appear in the Decided
@@ -224,11 +254,20 @@ export function BoardCanvas({
       // the row without touching `position`, so a drag in that view would have
       // written the indices the reader saw rather than the ones the server
       // keeps. The view is gone and with it the discrepancy.
-      const ids = categories.map((c) => c.id);
+      const ids = lanes.map((c) => c.id);
       const from = ids.indexOf(a.categoryId ?? "");
       const to = ids.indexOf(o.categoryId ?? "");
       if (from < 0 || to < 0 || from === to) return;
-      reorderCats.mutate({ orderedIds: arrayMove(ids, from, to) });
+      const orderedIds = arrayMove(ids, from, to);
+      // Held first, sent second: the row has to be in its new order in this
+      // same commit, or the lanes spring back and slide again when the answer
+      // lands. Cleared when the request settles — the list underneath is then
+      // the server's, whether it accepted the drop or refused it.
+      setLaneOrder(orderedIds);
+      reorderCats.mutate(
+        { orderedIds },
+        { onSettled: () => setLaneOrder(null) },
+      );
       return;
     }
 
@@ -253,10 +292,12 @@ export function BoardCanvas({
         const from = ids.indexOf(String(active.id));
         const to = ids.indexOf(String(over.id));
         if (from < 0 || to < 0 || from === to) return;
-        boardReorder.mutate({
-          categoryId: cat.id,
-          orderedIds: arrayMove(ids, from, to),
-        });
+        const orderedIds = arrayMove(ids, from, to);
+        setCardOrder({ categoryId: cat.id, ids: orderedIds });
+        boardReorder.mutate(
+          { categoryId: cat.id, orderedIds },
+          { onSettled: () => setCardOrder(null) },
+        );
       }
     }
   }
@@ -272,7 +313,7 @@ export function BoardCanvas({
     );
   }
 
-  const laneIds = categories.map((c) => `lane:${c.id}`);
+  const laneIds = lanes.map((c) => `lane:${c.id}`);
 
   return (
     <>
@@ -288,7 +329,7 @@ export function BoardCanvas({
             items={laneIds}
             strategy={horizontalListSortingStrategy}
           >
-            {categories.map((category) => (
+            {lanes.map((category) => (
               <CategoryLane
                 key={category.id}
                 tripId={tripId}

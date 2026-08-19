@@ -23,6 +23,7 @@ import { CreateBoardDialog } from "../components/CreateBoardDialog";
 import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { plural, t, tNode } from "../lib/i18n";
+import { applyOrder } from "../lib/pendingOrder";
 import { formatMoney } from "../lib/money";
 import { roleLabel } from "../lib/roles";
 
@@ -225,7 +226,20 @@ export function Dashboard() {
     }),
   );
 
-  const list = dash.data?.trips ?? [];
+  /**
+   * The order this drop made, until the request that saves it settles.
+   *
+   * The mutation is already optimistic, so this is not about the tiles ending
+   * up right — it is about *when*. A cache write reached through `onMutate` is
+   * at least a microtask away, and dnd-kit drops the transforms holding the
+   * neighbours aside the instant the pointer is released: in between, the wall
+   * is briefly back as it was and then slides into place. Reordering in the
+   * same commit as the drop is the one thing dnd-kit can absorb without a
+   * visible shift — see `lib/pendingOrder`.
+   */
+  const [order, setOrder] = useState<string[] | null>(null);
+
+  const list = applyOrder(dash.data?.trips ?? [], order, (t) => t.id);
   const active = list.filter((t) => t.status === "ACTIVE");
   const history = list.filter((t) => t.status === "HISTORY");
 
@@ -245,7 +259,9 @@ export function Dashboard() {
     const from = ids.indexOf(String(dragged.id));
     const to = ids.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
-    reorder.mutate([...arrayMove(ids, from, to), ...history.map((t) => t.id)]);
+    const next = [...arrayMove(ids, from, to), ...history.map((t) => t.id)];
+    setOrder(next);
+    reorder.mutate(next, { onSettled: () => setOrder(null) });
   }
 
   return (
