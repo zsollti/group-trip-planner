@@ -13,6 +13,7 @@ import {
 } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
 import { t, tNode } from "../lib/i18n";
+import { BrandLockup } from "../components/Brand";
 
 export function Login() {
   const { login } = useAuth();
@@ -50,7 +51,7 @@ export function Login() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <BrandLockup />
         <h1 className="board__title">{t("Sign in")}</h1>
         {oauthFailed ? (
           <p className="board__form-error" role="alert">

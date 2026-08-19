@@ -1524,7 +1524,57 @@ body {
   margin-top: 0;
 }
 
-/* --- Brand back link --- */
+/* --- The logo -------------------------------------------------------------
+ * Top-left on every page, and the way home from all of them. It replaced a
+ * text back-link (`.board__brand--link`, still used by nothing now but kept
+ * for the focus rule below), so the mark carries the weight the words used to.
+ *
+ * Sized in `rem` rather than `px` so it grows with a reader who has turned
+ * their type up — a logo pinned to 28px is the one thing on the bar that
+ * refuses to. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+  /* The bar is a flex row whose other child can wrap; without this the logo
+     is allowed to squash before the actions beside it do. */
+  flex: none;
+}
+.brand__mark {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  /* A flex item's floor is its content, and an SVG's content is nothing, so a
+     crowded bar would otherwise flatten the mark into a teal sliver. */
+  flex: none;
+}
+.brand__word {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+/* Only the word answers the pointer. Tinting the mark on hover would mean
+   drawing it in a second colour, which is what a mark is for not doing. */
+.brand:hover .brand__word {
+  color: var(--board-accent);
+}
+
+/* On the signed-out cards the lockup stands where an eyebrow used to, so it
+   carries the eyebrow's spacing and a size between it and the heading below —
+   a logo the same size as the body text is a piece of furniture, not a face. */
+.board__auth .brand {
+  margin-bottom: 0.4rem;
+}
+.board__auth .brand__mark {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+.board__auth .brand__word {
+  font-size: 1.05rem;
+}
+
+/* --- Brand back link (superseded by .brand, above) --- */
 .board__brand--link {
   color: inherit;
   text-decoration: none;
@@ -3586,6 +3636,7 @@ button.cost-comp__row-btn:hover,
 .board__link-btn:focus-visible,
 .board__switch:focus-visible,
 .board__brand--link:focus-visible,
+.brand:focus-visible,
 .lane__vote-btn:focus-visible,
 .lane__link:focus-visible,
 .board__alt a:focus-visible {

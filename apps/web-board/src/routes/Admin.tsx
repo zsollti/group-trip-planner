@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react";
 import { intlTag } from "../lib/locale";
-import { Link } from "react-router-dom";
 import {
   ApiError,
   useAdminAudit,
@@ -21,6 +20,7 @@ import type {
   AdminVolume,
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
+import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { plural, t, tNode } from "../lib/i18n";
 
@@ -44,9 +44,7 @@ export function Admin() {
   return (
     <main className="board">
       <header className="board__bar">
-        <Link className="board__brand board__brand--link" to="/">
-          {t("‹ Boards")}
-        </Link>
+        <Brand />
         <div className="board__bar-actions">
           <UserMenu />
         </div>
