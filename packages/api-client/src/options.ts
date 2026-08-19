@@ -24,6 +24,14 @@ export const optionKeys = {
   all: ["options"] as const,
   list: (tripId: string, categoryId: string) =>
     [...optionKeys.all, "list", tripId, categoryId] as const,
+  /**
+   * Every lane of one trip, as a **prefix** of {@link optionKeys.list}.
+   *
+   * For the changes that are not about a lane and yet touch all of them — a
+   * member leaving takes their votes and opt-ins off every card at once. Still
+   * scoped to the trip, so it stays narrower than invalidating `all`.
+   */
+  lists: (tripId: string) => [...optionKeys.all, "list", tripId] as const,
 };
 
 function optionsPath(tripId: string, categoryId: string): string {

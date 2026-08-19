@@ -15,6 +15,7 @@ import type {
 import { apiFetch, type ApiError } from "./http.js";
 import { tripKeys } from "./trips.js";
 import { dashboardKeys } from "./dashboard.js";
+import { optionKeys } from "./options.js";
 
 /** Query-key factory for a trip's member/block list. */
 export const memberKeys = {
@@ -35,9 +36,16 @@ export function useTripMembers(
 }
 
 /** Invalidate everything a membership change can touch: the member list, the
- * trip's detail (the caller's own role / member count), the trip list, and the
+ * trip's detail (the caller's own role / member count), the trip list, the
  * cost dashboard (a join/leave/kick changes the member count, which re-prices
- * dynamic headcounts and flips fixed-headcount stale flags — Phase 3.2). */
+ * dynamic headcounts and flips fixed-headcount stale flags — Phase 3.2), and
+ * **the lanes**.
+ *
+ * The lanes, because a removal takes the person's votes and opt-ins with it
+ * (see the members service): their face was on the voter stack of every card
+ * they had voted for, and without this the board went on showing it — and
+ * counting it — until somebody reloaded the page. Which is what a reader
+ * reports as "I removed them and their votes stayed". */
 function invalidateMembership(
   qc: ReturnType<typeof useQueryClient>,
   tripId: string,
@@ -45,6 +53,7 @@ function invalidateMembership(
   void qc.invalidateQueries({ queryKey: memberKeys.list(tripId) });
   void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
   void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+  void qc.invalidateQueries({ queryKey: optionKeys.lists(tripId) });
 }
 
 /** Change a member's role. */

@@ -250,6 +250,158 @@ describe("Members (e2e)", () => {
     await join(member.accessToken, token).expect(201);
   });
 
+  /**
+   * What a removal has to take with it.
+   *
+   * The membership row is the *permission*; the votes and opt-ins are the
+   * person's marks on the board, and they are what everyone else still sees.
+   * Leaving them behind put a removed member's face back on every card they had
+   * voted for and kept their vote in a tally whose denominator is the current
+   * crew — so a five-member board could show six votes on one option.
+   *
+   * Asserted for all three ways out, because they are three code paths and only
+   * one of them had ever been fixed: the block path dropped opt-ins and left
+   * votes, the kick path did the same, and leave went through the kick's helper.
+   */
+  async function optionWithAnswers(
+    ownerToken: string,
+    memberToken: string,
+    tripId: string,
+  ) {
+    const cats = await http()
+      .get(`/trips/${tripId}/categories`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .expect(200);
+    const categoryId = (cats.body as { id: string }[])[0]!.id;
+    const created = await http()
+      .post(`/trips/${tripId}/categories/${categoryId}/options`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      // Priced for whoever's in, because that is the only kind of option there
+      // is anything to opt *in* to — a whole-group option counts everybody by
+      // definition and refuses the join outright.
+      .send({
+        title: "Surf lesson",
+        amount: 40,
+        currency: "EUR",
+        participationMode: "OPT_IN",
+      })
+      .expect(201);
+    const optionId = created.body.id as string;
+    const base = `/trips/${tripId}/categories/${categoryId}/options/${optionId}`;
+    await http()
+      .post(`${base}/votes`)
+      .set("Authorization", `Bearer ${memberToken}`)
+      .expect(201);
+    await http()
+      .post(`${base}/participation`)
+      .set("Authorization", `Bearer ${memberToken}`)
+      .expect(201);
+    return { optionId };
+  }
+
+  async function answersLeftBy(tripId: string, userId: string) {
+    const where = { userId, option: { category: { tripId } } };
+    return {
+      votes: await prisma.vote.count({ where }),
+      participations: await prisma.optionParticipant.count({ where }),
+    };
+  }
+
+  it("a kick takes the member's votes and opt-ins with it", async () => {
+    const owner = await makeUser("ka-owner");
+    const member = await makeUser("ka-member");
+    const trip = await createTrip(owner.accessToken, "Kicked Answers");
+    await join(
+      member.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+    await optionWithAnswers(owner.accessToken, member.accessToken, trip.id);
+    // The answers are really there first — otherwise "gone afterwards" is a
+    // sentence about nothing, which is exactly how this shipped unnoticed.
+    assert.deepEqual(await answersLeftBy(trip.id, member.user.id), {
+      votes: 1,
+      participations: 1,
+    });
+
+    await http()
+      .delete(`/trips/${trip.id}/members/${member.user.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+
+    assert.deepEqual(await answersLeftBy(trip.id, member.user.id), {
+      votes: 0,
+      participations: 0,
+    });
+  });
+
+  it("a block takes them too", async () => {
+    const owner = await makeUser("ba-owner");
+    const member = await makeUser("ba-member");
+    const trip = await createTrip(owner.accessToken, "Blocked Answers");
+    await join(
+      member.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+    await optionWithAnswers(owner.accessToken, member.accessToken, trip.id);
+
+    await http()
+      .post(`/trips/${trip.id}/members/${member.user.id}/block`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+
+    assert.deepEqual(await answersLeftBy(trip.id, member.user.id), {
+      votes: 0,
+      participations: 0,
+    });
+  });
+
+  it("so does walking out on your own", async () => {
+    const owner = await makeUser("la-owner");
+    const member = await makeUser("la-member");
+    const trip = await createTrip(owner.accessToken, "Left Answers");
+    await join(
+      member.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+    await optionWithAnswers(owner.accessToken, member.accessToken, trip.id);
+
+    await http()
+      .post(`/trips/${trip.id}/members/leave`)
+      .set("Authorization", `Bearer ${member.accessToken}`)
+      .expect(204);
+
+    assert.deepEqual(await answersLeftBy(trip.id, member.user.id), {
+      votes: 0,
+      participations: 0,
+    });
+  });
+
+  it("leaves another trip's answers alone", async () => {
+    // The delete is scoped through the option's category to one trip. The same
+    // person is on plenty of others, and leaving one says nothing about those.
+    const owner = await makeUser("sc-owner");
+    const member = await makeUser("sc-member");
+    const left = await createTrip(owner.accessToken, "The One They Left");
+    const kept = await createTrip(owner.accessToken, "The One They Kept");
+    for (const trip of [left, kept]) {
+      await join(
+        member.accessToken,
+        await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+      ).expect(201);
+      await optionWithAnswers(owner.accessToken, member.accessToken, trip.id);
+    }
+
+    await http()
+      .delete(`/trips/${left.id}/members/${member.user.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+
+    assert.deepEqual(await answersLeftBy(kept.id, member.user.id), {
+      votes: 1,
+      participations: 1,
+    });
+  });
+
   it("enforces the member cap through the policy layer", async () => {
     const owner = await makeUser("cap-owner");
     const trip = await createTrip(owner.accessToken, "Cap Enforced");

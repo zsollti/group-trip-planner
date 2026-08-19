@@ -6,6 +6,7 @@ import {
   type LiveSocket,
   useBoardLiveSync,
   useCategoryOptions,
+  useKickMember,
   useToggleVote,
   useTrip,
   useTripCategories,
@@ -156,9 +157,12 @@ function fakeSocket(): {
 function Harness({
   socket,
   onVote,
+  onKick,
 }: {
   socket: LiveSocket;
   onVote: (fn: () => void) => void;
+  /** Optional: only the removal test drives it. */
+  onKick?: (fn: () => void) => void;
 }) {
   useTrip("t1");
   useTripCategories("t1");
@@ -167,15 +171,19 @@ function Harness({
   useBoardLiveSync(socket, "t1");
   const vote = useToggleVote("t1", "c1");
   onVote(() => vote.mutate({ optionId: "o1", hasVoted: false }));
+  const kick = useKickMember("t1");
+  onKick?.(() => kick.mutate("u2"));
   return null;
 }
 
 async function mountBoard(): Promise<{
   vote: () => void;
+  kick: () => void;
   emit: (payload: OptionsChanged) => void;
 }> {
   const { socket, emit } = fakeSocket();
   let vote: () => void = () => {};
+  let kick: () => void = () => {};
   render(
     <QueryClientProvider client={createQueryClient()}>
       <Harness
@@ -183,13 +191,16 @@ async function mountBoard(): Promise<{
         onVote={(fn) => {
           vote = fn;
         }}
+        onKick={(fn) => {
+          kick = fn;
+        }}
       />
     </QueryClientProvider>,
   );
   // All four screen queries have landed before any test starts counting.
   await waitFor(() => expect(calls).toHaveLength(4));
   calls = [];
-  return { vote: () => vote(), emit };
+  return { vote: () => vote(), kick: () => kick(), emit };
 }
 
 /** Give React Query a beat to run any refetch an action scheduled. */
@@ -255,6 +266,29 @@ describe("what a write costs the network", () => {
       expect(lane?.[0]?.voteCount).toBe(1);
       expect(lane?.[0]?.viewerHasVoted).toBe(true);
     });
+  });
+});
+
+describe("what removing someone costs the board", () => {
+  it("re-reads the lanes, because the removal took their votes off the cards", async () => {
+    // The server drops a departing member's votes and opt-ins (see the members
+    // service). The board's own cache did not know that: the member list and
+    // the money refreshed, the lanes did not, and every card the removed person
+    // had voted for went on showing their face and counting their vote until
+    // somebody reloaded the page.
+    const { kick } = await mountBoard();
+    kick();
+    await waitFor(() =>
+      expect(calls).toContain("DELETE /trips/t1/members/u2"),
+    );
+    await settle();
+
+    expect(calls).toContain("GET /trips/t1/categories/c1/options");
+    // The headcount changed, so the per-person figures did too.
+    expect(calls).toContain("GET /trips/t1/dashboard");
+    // The member list is invalidated as well, but this harness does not mount
+    // it — and an invalidation nothing is listening to costs no request, which
+    // is exactly why these tests count URLs rather than invalidate calls.
   });
 });
 
