@@ -147,6 +147,16 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
     const role = trip_.role;
     const items: MenuItem[] = [
       { label: t("Members"), onSelect: () => setManagingMembers(true) },
+      // Directly under Members, because it is the same subject: the list of who
+      // is here, and the way to make that list longer. Inviting already has a
+      // home in the crew panel, and this is the second one on purpose — the
+      // panel is halfway down the board and scrolls away with it, while the
+      // trip menu is the fixed place every other thing you can do to this trip
+      // is kept. Role-gated exactly as the panel's button is: a Guest may read
+      // the crew and never grow it.
+      ...(can(role, "invite.create")
+        ? [{ label: t("Invite"), onSelect: () => setInviting(true) }]
+        : []),
       { label: t("Activity"), onSelect: () => setViewingActivity(true) },
       {
         label: trip_.viewerMuted ? t("🔔 Unmute email") : t("🔕 Mute email"),

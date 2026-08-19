@@ -1057,6 +1057,31 @@ body {
   text-transform: uppercase;
   color: var(--board-dim);
 }
+/* The heading, as the way into the members dialog.
+   Stripped back to looking exactly like the `<h2>` text it replaced: a label
+   that suddenly read as a button would be claiming the section title is an
+   action, and what it actually is is a destination. The affordance is the
+   hover, which is all the removed "Manage" button had either. */
+.crew__open {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.crew__open:hover {
+  color: var(--board-accent);
+}
+.crew__open:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .crew__count {
   display: inline-grid;
   place-items: center;
