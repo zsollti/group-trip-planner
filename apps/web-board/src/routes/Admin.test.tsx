@@ -515,6 +515,12 @@ describe("erasing an account", () => {
     expect(
       screen.queryByRole("button", { name: /delete account/i }),
     ).toBeNull();
+    // Erasure clears `emailVerified` along with everything else personal, so
+    // without an explicit check the console offers to mail a verification link
+    // to a `.invalid` address.
+    expect(
+      screen.queryByRole("button", { name: /resend verification/i }),
+    ).toBeNull();
   });
 });
 
