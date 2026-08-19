@@ -255,8 +255,31 @@ export async function seedDemoTrip(
   // -------------------------------------------------------- reset & rebuild ---
   // Cascades from Trip clear categories, options, votes, channels, messages,
   // reactions, mentions, reads and audit events in one statement.
+  //
+  // **Not `ownerId: demo` alone.** The demo account owns the boards this script
+  // builds — right up until a visitor uses the demo to try transferring
+  // ownership, which is a thing the demo exists to let people try. The old
+  // board then stopped matching, survived the reset, and the next seed left the
+  // account looking at two Lisbons: the new one it owns, and the previous one
+  // where it is now somebody's co-organizer.
+  //
+  // So a demo trip is one the demo account is **in**, that is either still
+  // owned by a member of the cast or still carries one of the two names this
+  // file gives them. Both halves are needed and neither is enough: the first
+  // misses a board handed to a real visitor who joined by link, the second
+  // misses a renamed one. What the pair deliberately will not touch is a trip a
+  // real person owns and merely invited the demo account into — that is their
+  // board, not this script's, and deleting it would be the worst kind of
+  // surprise from a button labelled "rebuild the demo".
+  const castIds = CAST.map((p) => users[p.key].id);
   const { count: removedTrips } = await prisma.trip.deleteMany({
-    where: { ownerId: users.demo.id },
+    where: {
+      memberships: { some: { userId: users.demo.id } },
+      OR: [
+        { ownerId: { in: castIds } },
+        { name: { in: [DEMO_TRIP_NAME, DEMO_HISTORY_TRIP_NAME] } },
+      ],
+    },
   });
 
   const lisbon = await seedDestination(prisma, LISBON, "Lisbon, Portugal");

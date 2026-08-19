@@ -149,4 +149,91 @@ describe("Demo seed (e2e)", () => {
     const count = await prisma.trip.count({ where: { ownerId: owner.id } });
     assert.equal(count, 2);
   });
+
+  it("clears a demo board whose ownership a visitor handed away", async () => {
+    // The demo exists to be played with, and transferring ownership is one of
+    // the things it invites people to try. The reset used to be `ownerId: demo`
+    // alone, so the moment somebody did that the old board stopped matching:
+    // it survived the rebuild, and the account was left looking at two Lisbons
+    // — the new one it owns and the old one where it is now a co-organizer.
+    await seedDemoTrip(prisma);
+    const demo = await prisma.user.findUniqueOrThrow({
+      where: { email: DEMO_EMAIL },
+      select: { id: true },
+    });
+    const lisbon = await prisma.trip.findFirstOrThrow({
+      where: { ownerId: demo.id, name: DEMO_TRIP_NAME },
+      select: { id: true },
+    });
+    const heir = await prisma.tripMembership.findFirstOrThrow({
+      where: { tripId: lisbon.id, userId: { not: demo.id } },
+      select: { userId: true },
+    });
+    await prisma.trip.update({
+      where: { id: lisbon.id },
+      data: { ownerId: heir.userId },
+    });
+    await prisma.tripMembership.update({
+      where: { tripId_userId: { tripId: lisbon.id, userId: heir.userId } },
+      data: { role: "OWNER" },
+    });
+
+    const after_ = await seedDemoTrip(prisma);
+    assert.equal(after_.removedTrips, 2, "the handed-away board went too");
+    assert.equal(
+      await prisma.trip.count({ where: { id: lisbon.id } }),
+      0,
+      "the previous Lisbon is gone, not merely disowned",
+    );
+    assert.equal(
+      await prisma.trip.count({
+        where: { memberships: { some: { userId: demo.id } } },
+      }),
+      2,
+      "the demo account is left with exactly the two boards it just built",
+    );
+  });
+
+  it("will not touch a stranger's trip the demo was invited into", async () => {
+    // The other half of the rule, and the one that matters: "every trip the
+    // demo can see" would be a button that deletes a real person's board
+    // because they invited the public demo account in to look at it.
+    const outsider = await prisma.user.create({
+      data: {
+        email: `demo-guest+${Date.now()}@example.com`,
+        displayName: "Real Person",
+        emailVerified: true,
+      },
+      select: { id: true },
+    });
+    const demo = await prisma.user.findUniqueOrThrow({
+      where: { email: DEMO_EMAIL },
+      select: { id: true },
+    });
+    const theirs = await prisma.trip.create({
+      data: {
+        name: "Somebody else's weekend",
+        defaultCurrency: "EUR",
+        ownerId: outsider.id,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        memberships: {
+          create: [
+            { userId: outsider.id, role: "OWNER" },
+            { userId: demo.id, role: "GUEST" },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    await seedDemoTrip(prisma);
+    assert.equal(
+      await prisma.trip.count({ where: { id: theirs.id } }),
+      1,
+      "the stranger's trip survived the rebuild",
+    );
+
+    await prisma.trip.delete({ where: { id: theirs.id } });
+    await prisma.user.delete({ where: { id: outsider.id } });
+  });
 });
