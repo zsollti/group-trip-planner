@@ -600,4 +600,22 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Tízezernyi sor írása — ez elég néhány másodpercet vesz igénybe.",
   "Places loaded.": "A helyek betöltődtek.",
   Places: "Helyek",
+  "Account suspended.": "A fiók felfüggesztve.",
+  "Ends on": "Eddig tart",
+  "Lift suspension": "Felfüggesztés feloldása",
+  Permanent: "Végleges",
+  "Pick an end date, or choose permanent.":
+    "Válassz záró dátumot, vagy jelöld véglegesnek.",
+  "Reason given": "Megadott indok",
+  "Say why — the person is shown this.":
+    "Írd le az indokot — ezt látja majd az érintett.",
+  Suspend: "Felfüggesztés",
+  "Suspend account": "Fiók felfüggesztése",
+  Suspended: "Felfüggesztve",
+  "Suspended until": "Felfüggesztve eddig",
+  "Suspending…": "Felfüggesztés…",
+  "Suspension lifted.": "A felfüggesztés feloldva.",
+  "Was suspended": "Fel volt függesztve",
+  "Was suspended until": "Eddig volt felfüggesztve",
+  "Why this account is being suspended": "Miért függeszted fel ezt a fiókot",
 };

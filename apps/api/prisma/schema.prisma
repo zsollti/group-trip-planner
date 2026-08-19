@@ -37,6 +37,15 @@ model User {
   // and on the way out against the shared `LOCALES`, so a value this build does
   // not offer can neither be stored nor rendered.
   locale         String    @default("en")
+  // App-wide suspension (post-launch), set from the operator's console. Three
+  // columns and not one, because "is it on", "when does it end" and "why" are
+  // three different answers — see `packages/types/src/ban.ts` for the modelling
+  // note, including why a null `bannedUntil` beside a set `bannedAt` means
+  // permanent rather than "no end recorded". A lapsed ban is evaluated as over
+  // on read; the row is kept so the console can still say what happened.
+  bannedAt       DateTime?
+  bannedUntil    DateTime?
+  banReason      String?
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
   anonymizedAt   DateTime?
   createdAt      DateTime  @default(now())

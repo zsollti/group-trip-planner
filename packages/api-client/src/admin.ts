@@ -12,6 +12,7 @@ import type {
   AdminOverview,
   AdminUserLookup,
   AdminUserSummary,
+  BanUserInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 
@@ -100,6 +101,41 @@ export function useMarkVerified(): UseMutationResult<
   string
 > {
   return useAdminUserAction("verify");
+}
+
+/**
+ * Suspend an account, with terms.
+ *
+ * The one action here that takes a body, which is why it is not built from
+ * {@link useAdminUserAction} above: the terms *are* the feature. A ban with no
+ * reason and no end is the thing this console should make hard to do by
+ * accident, so the shape of the call insists on both being decided.
+ */
+export function useBanUser(): UseMutationResult<
+  AdminUserSummary,
+  ApiError,
+  { userId: string; input: BanUserInput }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, input }) =>
+      apiFetch<AdminUserSummary>(`/admin/users/${userId}/ban`, {
+        method: "POST",
+        body: input,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.all });
+    },
+  });
+}
+
+/** Lift a suspension. */
+export function useUnbanUser(): UseMutationResult<
+  AdminUserSummary,
+  ApiError,
+  string
+> {
+  return useAdminUserAction("unban");
 }
 
 /**

@@ -5,6 +5,7 @@ import type { User } from "@prisma/client";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { assertNotBanned } from "./ban.js";
 
 /** Access-token claims — authentication only. Authorization is never read from
  * the token; it is resolved per-request from the DB (SRS FR-4). */
@@ -81,6 +82,13 @@ export class TokenService {
     if (record.expiresAt <= new Date() || record.user.anonymizedAt) {
       throw new UnauthorizedException();
     }
+
+    // Banning revokes every live refresh token, so in practice a suspended
+    // account is stopped by the `revokedAt` branch above. This is the case that
+    // branch cannot cover: a ban applied to somebody who signs in again during
+    // it, or a lapsed ban re-imposed. Rotation is the step that turns a
+    // fortnight-old cookie back into a working session, so it has to ask.
+    assertNotBanned(record.user);
 
     const nextRaw = this.random();
     const expiresAt = new Date(

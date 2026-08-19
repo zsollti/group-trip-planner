@@ -7,6 +7,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { assertNotBanned } from "./ban.js";
 
 /**
  * Authentication guard for access-token-protected routes.
@@ -43,6 +44,12 @@ export class JwtAuthGuard implements CanActivate {
     if (!user || user.anonymizedAt) {
       throw new UnauthorizedException();
     }
+
+    // The per-request DB read the whole authorization model is built on is also
+    // what makes a suspension take effect *now* rather than in fifteen minutes
+    // when the access token happens to expire. Banning revokes the refresh
+    // tokens; this closes the window the already-issued access token leaves.
+    assertNotBanned(user);
 
     // Attach for @CurrentUser().
     (request as Request & { user: typeof user }).user = user;
