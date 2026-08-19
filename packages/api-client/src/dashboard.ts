@@ -73,9 +73,13 @@ export function useReorderTrips(
   const key = dashboardKeys.home(limit, offset);
   return useMutation({
     mutationFn: (tripIds: readonly string[]) =>
+      // The object, not a string of it: `apiFetch` serializes. Stringifying
+      // here sent the server a JSON *string* where it wanted an object, so
+      // every drag was answered 400 and rolled straight back — which is what a
+      // tile that would not stay put actually was.
       apiFetch<void>("/dashboard/order", {
         method: "PATCH",
-        body: JSON.stringify({ tripIds }),
+        body: { tripIds },
       }),
     onMutate: async (tripIds) => {
       await qc.cancelQueries({ queryKey: key });
