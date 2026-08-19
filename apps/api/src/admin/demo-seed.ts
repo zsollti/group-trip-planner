@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from "@prisma/client";
-import { BUILTIN_CATEGORIES } from "@gtp/types";
+import { BUILTIN_CATEGORIES, placeLabel } from "@gtp/types";
 import argon2 from "argon2";
 
 /**
@@ -56,6 +56,80 @@ export const DEMO_HISTORY_TRIP_NAME = "Tallinn — Christmas market";
  * example.com is reserved by RFC 2606 and cannot receive mail, so no seeded
  * address can ever reach a real person even if a notification escapes.
  */
+/**
+ * The two demo destinations, by GeoNames id.
+ *
+ * Ids and not names, because an id is what a person choosing from the picker
+ * actually sends and what the trip actually stores — seeding by name would have
+ * meant a lookup this seed could get wrong in a way the product cannot. They are
+ * stable across dumps, which is the property the whole `places` table is keyed
+ * on.
+ */
+const LISBON = 2267057;
+const TALLINN = 588409;
+
+/** What a chosen destination writes onto a trip. */
+interface SeededDestination {
+  destination: string;
+  destinationPlaceId: number | null;
+  destinationLat: number | null;
+  destinationLon: number | null;
+  destinationTimezone: string | null;
+}
+
+/**
+ * Resolve one of the demo destinations against the gazetteer.
+ *
+ * The demo's whole job is to look like a board somebody actually made, and since
+ * the destination became a chosen place rather than a typed string, a demo with
+ * two typed strings was quietly showing the *old* product: no coordinates, no
+ * timezone, no resolved id — the three things that separate "Lisbon, Portugal"
+ * from Lisbon.
+ *
+ * It reads the table directly rather than going through `PlacesService`, for the
+ * same reason nothing else in this file has a decorator on it: the CLI runs
+ * under node's `--experimental-strip-types` and cannot instantiate a Nest
+ * provider. The label is built by the shared {@link placeLabel}, though, so the
+ * seeded string is character-for-character the one the picker would have written.
+ *
+ * **It falls back to the typed name, and that is the important part.** The
+ * gazetteer is loaded once per environment by a separate step, and a fresh
+ * database has an empty `places` table — so the alternative to this fallback is
+ * a demo seed that crashes on the one environment where somebody is most likely
+ * to run it first. Free text is a first-class destination in this product
+ * anyway; a demo without coordinates is the old demo, not a broken one.
+ */
+async function seedDestination(
+  prisma: PrismaClient,
+  geonameId: number,
+  fallback: string,
+): Promise<SeededDestination> {
+  const place = await prisma.place.findUnique({
+    where: { geonameId },
+    include: { country: { select: { name: true } } },
+  });
+  if (!place) {
+    return {
+      destination: fallback,
+      destinationPlaceId: null,
+      destinationLat: null,
+      destinationLon: null,
+      destinationTimezone: null,
+    };
+  }
+  return {
+    destination: placeLabel({
+      name: place.name,
+      region: place.admin1Name,
+      countryName: place.country.name,
+    }),
+    destinationPlaceId: place.geonameId,
+    destinationLat: place.latitude,
+    destinationLon: place.longitude,
+    destinationTimezone: place.timezone,
+  };
+}
+
 const CAST = [
   { key: "demo", email: DEMO_EMAIL, name: "Demo User", role: "OWNER" },
   {
@@ -185,10 +259,12 @@ export async function seedDemoTrip(
     where: { ownerId: users.demo.id },
   });
 
+  const lisbon = await seedDestination(prisma, LISBON, "Lisbon, Portugal");
+
   const trip = await prisma.trip.create({
     data: {
       name: DEMO_TRIP_NAME,
-      destination: "Lisbon, Portugal",
+      ...lisbon,
       description:
         "Five of us, three nights, one long weekend. Flights, the flat and a couple of the activities are settled — the rest is still being argued about.",
       defaultCurrency: "EUR",
@@ -839,10 +915,12 @@ async function seedHistoryTrip(
   /** How the votes, locks and chat are spread out before the trip. */
   const before = (days: number) => lastDecember(12 - days);
 
+  const tallinn = await seedDestination(prisma, TALLINN, "Tallinn, Estonia");
+
   const trip = await prisma.trip.create({
     data: {
       name: DEMO_HISTORY_TRIP_NAME,
-      destination: "Tallinn, Estonia",
+      ...tallinn,
       description:
         "Last winter's one. Three nights, a lot of mulled wine, and the flights were the cheapest we have ever found. Ended — the board is read-only now.",
       defaultCurrency: "EUR",

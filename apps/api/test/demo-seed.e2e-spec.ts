@@ -99,6 +99,41 @@ describe("Demo seed (e2e)", () => {
     assert.equal(decidedLanes.size, 4, "every built-in lane has a decision");
   });
 
+  /**
+   * The destination, as a chosen place rather than a typed string.
+   *
+   * Both halves are here because they are the two states a real environment is
+   * in: a database with the gazetteer loaded, and one without. The second is not
+   * an edge case — loading places is a separate step somebody runs once, so
+   * every brand-new environment is in it, and a seed that only worked after that
+   * step would fail precisely where someone is most likely to run it first.
+   */
+  it("resolves its destinations against the gazetteer, when there is one", async () => {
+    const loaded = await prisma.place.count();
+    await seedDemoTrip(prisma);
+    const trip = await prisma.trip.findFirstOrThrow({
+      where: { name: DEMO_TRIP_NAME },
+    });
+
+    if (loaded === 0) {
+      // Free text is a first-class destination in this product, so this is the
+      // old demo rather than a broken one — and the trip still says where it is.
+      assert.equal(trip.destination, "Lisbon, Portugal");
+      assert.equal(trip.destinationPlaceId, null);
+      return;
+    }
+
+    // The three facts that separate a chosen place from a typed one, and the
+    // reason the seed was worth changing: a demo whose destination carried none
+    // of them was quietly showing the product as it was before the picker.
+    assert.equal(trip.destinationPlaceId, 2267057, "GeoNames' id for Lisbon");
+    assert.equal(trip.destinationTimezone, "Europe/Lisbon");
+    assert.ok(trip.destinationLat && trip.destinationLon);
+    // …and the label is the picker's own, built by the shared `placeLabel`,
+    // rather than a string this seed made up to look like one.
+    assert.equal(trip.destination, "Lisbon, Portugal");
+  });
+
   it("is re-runnable, which is what the console's button depends on", async () => {
     // Twice in a row, because a visitor edits the demo and an operator presses
     // the button. A seed that accumulated would leave the account with four

@@ -62,6 +62,42 @@ export const PlaceView = z.object({
 });
 export type PlaceView = z.infer<typeof PlaceView>;
 
+/**
+ * How a place reads on one line: "Lisbon, Portugal", "Tallinn, Harjumaa, Estonia".
+ *
+ * The string a picker shows **and** the string written into the trip's
+ * `destination` when a suggestion is taken. Those have to be one function, or
+ * choosing a suggestion silently changes what you picked.
+ *
+ * It lived in `@gtp/api-client` until the demo seed needed it, and a seed cannot
+ * import a package built on React Query. Here is where it always belonged: it is
+ * a pure rule over a contract type, with no more claim on the browser than
+ * `PlaceView` itself has. The api-client still re-exports it, so its callers did
+ * not have to care.
+ *
+ * The region is dropped when it repeats the name, which happens constantly:
+ * Lisbon sits in Lisbon, Vienna in Vienna, and "Vienna, Vienna, Austria" reads
+ * as a bug rather than as precision.
+ */
+export function placeLabel(
+  place: Pick<PlaceView, "name" | "region" | "countryName">,
+): string {
+  const parts = [place.name];
+  if (place.region && !sameWord(place.region, place.name)) {
+    parts.push(place.region);
+  }
+  if (!sameWord(place.countryName, place.name)) parts.push(place.countryName);
+  return parts.join(", ");
+}
+
+/**
+ * Case-folded equality, and nothing looser. "Lisboa" and "Lisbon" are different
+ * names to a reader and both are worth printing; only a literal repeat is noise.
+ */
+function sameWord(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 /** A page of suggestions. Never paged — a type-ahead that scrolls is a list. */
 export const PlaceSearchResult = z.object({
   places: z.array(PlaceView),
