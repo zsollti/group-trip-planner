@@ -62,22 +62,45 @@ export function CrewPanel({
   return (
     <section className="crew" aria-label={t("Crew")}>
       <h2 className="crew__head">
-        <span aria-hidden="true">👥 </span>
-        {t("Crew")}
+        {/*
+         * The heading *is* the way in.
+         *
+         * There was a "Manage" beside it — a second control, in the corner,
+         * whose whole job was to open the panel about the thing the word next
+         * to it names. Two targets for one destination, and the one everybody
+         * aims at first (the label over the list of people) did nothing. So the
+         * label takes the click and the button goes.
+         *
+         * It reads "Manage" or "View" to a screen reader depending on what this
+         * reader may actually do in there, which is what the removed button's
+         * text carried: an organizer changes roles and kicks, everyone else
+         * reads. The visible word stays "Crew" either way — it is the section's
+         * name, and a heading that renamed itself per role would make two
+         * people describing the same board disagree about what is on it.
+         */}
+        <button
+          type="button"
+          className="crew__open"
+          aria-label={
+            canManage
+              ? t("Crew — manage members and roles")
+              : t("Crew — see members and roles")
+          }
+          onClick={onManage}
+        >
+          <span aria-hidden="true">👥 </span>
+          {t("Crew")}
+        </button>
         {roster ? <span className="crew__count">{roster.length}</span> : null}
-        {/* Invite leads: it is the outward action, and it reads as the answer to
-            the list beside it ("this is the crew — add to it"). Manage stays
-            last, next to the people it acts on. */}
-        <span className="crew__actions">
-          {canInvite ? (
+        {/* Invite stays: it is the outward action, and it reads as the answer to
+            the list beside it ("this is the crew — add to it"). */}
+        {canInvite ? (
+          <span className="crew__actions">
             <button type="button" className="crew__action" onClick={onInvite}>
               {t("Invite")}
             </button>
-          ) : null}
-          <button type="button" className="crew__action" onClick={onManage}>
-            {canManage ? t("Manage") : t("View")}
-          </button>
-        </span>
+          </span>
+        ) : null}
       </h2>
 
       {members.isPending ? (

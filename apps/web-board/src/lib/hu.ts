@@ -264,7 +264,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Log out": "Kijelentkezés",
   "Looking…": "Keresés…",
   "Make owner": "Tulajdonossá tesz",
-  Manage: "Kezelés",
   "Mark all read": "Összes megjelölése olvasottként",
   "Mark verified": "Megerősítettnek jelöl",
   "Marked verified.": "Megerősítettnek jelölve.",
@@ -473,7 +472,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Verification failed": "A megerősítés nem sikerült",
   Verified: "Megerősítve",
   "Verifying…": "Megerősítés…",
-  View: "Megnyitás",
   "View details": "Részletek",
   Volume: "Mennyiség",
   Votes: "Szavazatok",
@@ -637,4 +635,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Delete “{lane}”?": "Törlöd a(z) „{lane}” sávot?",
   "This removes the lane and every card in it. This can’t be undone.":
     "Ez eltávolítja a sávot és minden kártyáját. Ez nem vonható vissza.",
+  "Crew — manage members and roles": "Csapat — tagok és szerepkörök kezelése",
+  "Crew — see members and roles": "Csapat — tagok és szerepkörök megtekintése",
 };

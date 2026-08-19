@@ -103,12 +103,18 @@ describe("BoardRail", () => {
 
   it("sends an organizer from the crew panel to the members dialog", async () => {
     // The panel is read-only by design — roles, kicks and blocks are
-    // consequential and stay behind a deliberate click.
+    // consequential and stay behind a deliberate click. The heading itself is
+    // that click now; the "Manage" button beside it was a second target for
+    // the same destination, and the one people aimed at first did nothing.
     mockFetch();
     renderRail("OWNER");
 
     const crew = await screen.findByRole("region", { name: "Crew" });
-    fireEvent.click(within(crew).getByRole("button", { name: "Manage" }));
+    fireEvent.click(
+      within(crew).getByRole("button", {
+        name: "Crew — manage members and roles",
+      }),
+    );
 
     expect(onManageMembers).toHaveBeenCalledTimes(1);
   });
@@ -118,8 +124,17 @@ describe("BoardRail", () => {
     renderRail("PARTICIPANT");
 
     const crew = await screen.findByRole("region", { name: "Crew" });
-    expect(within(crew).getByRole("button", { name: "View" })).toBeVisible();
-    expect(within(crew).queryByRole("button", { name: "Manage" })).toBeNull();
+    // Same control, and it says what this reader will actually get out of it.
+    expect(
+      within(crew).getByRole("button", {
+        name: "Crew — see members and roles",
+      }),
+    ).toBeVisible();
+    expect(
+      within(crew).queryByRole("button", {
+        name: "Crew — manage members and roles",
+      }),
+    ).toBeNull();
   });
 
   it("invites from the crew panel rather than the trip header", async () => {
