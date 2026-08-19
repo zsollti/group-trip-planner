@@ -513,6 +513,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "voted before the last change": "a legutóbbi módosítás előtt szavazott",
   "your address": "a címed",
   "yours: ": "a tiéd: ",
+  "{actor} deleted {author}'s message": "{actor} törölte {author} üzenetét",
   "{amount} per person": "{amount} fejenként",
   "{cap} categories is the maximum. Delete one to add another.":
     "Legfeljebb {cap} sáv lehet. Törölj egyet, ha újat szeretnél.",
@@ -530,6 +531,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{label} — choose a file": "{label} — válassz fájlt",
   "{lane} lane actions": "{lane} sáv műveletei",
   "{lane} — rename category": "{lane} — sáv átnevezése",
+  "{name} deleted their message": "{name} törölte a saját üzenetét",
   "{n} attempt": "{n} kísérlet",
   "{n} attempts": "{n} kísérlet",
   "{n} decision pending": "{n} döntés várakozik",

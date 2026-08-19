@@ -5,6 +5,9 @@ import type { MessageView, ReactionGroup } from "@gtp/types";
  * resolved mention targets with their display names. */
 export const messageInclude = Prisma.validator<Prisma.MessageInclude>()({
   author: { select: { displayName: true, avatarUrl: true } },
+  /** Who tombstoned it, so the tombstone can say so. Null until it is deleted —
+   *  and null again if that account is later anonymized (the FK is SetNull). */
+  deletedBy: { select: { displayName: true } },
   reactions: { select: { emoji: true, userId: true } },
   mentions: {
     select: { userId: true, user: { select: { displayName: true } } },
@@ -33,6 +36,10 @@ export function groupReactions(
  * soft-deleted message is a **tombstone**: `deleted` is true and `body` is
  * null, so the content never crosses the wire once deleted. Reactions and
  * mentions ride along for the reaction chips and @mention highlighting.
+ *
+ * The deleter is carried **only on a tombstone**. On a live message the columns
+ * are null anyway, but stating it here means a future write that stamps them
+ * early cannot leak "an organizer is about to remove this" to the room.
  */
 export function toMessageView(message: MessageWithRelations): MessageView {
   const deleted = message.deletedAt !== null;
@@ -44,6 +51,8 @@ export function toMessageView(message: MessageWithRelations): MessageView {
     authorAvatarUrl: message.author.avatarUrl,
     body: deleted ? null : message.body,
     deleted,
+    deletedById: deleted ? message.deletedById : null,
+    deletedByName: deleted ? (message.deletedBy?.displayName ?? null) : null,
     createdAt: message.createdAt.toISOString(),
     reactions: groupReactions(message.reactions),
     mentions: message.mentions.map((m) => ({

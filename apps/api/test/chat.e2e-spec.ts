@@ -396,6 +396,51 @@ describe("Chat gateway (e2e)", () => {
     const t = await tomb;
     assert.equal(t.id, msgId);
     assert.equal(t.deleted, true);
+
+    // Who cleared it, so the room can tell moderation from a retraction. The
+    // *id* is what carries that distinction — the client compares it with the
+    // author's rather than trusting a flag, so this has to be the real one and
+    // not merely a name that happens to differ.
+    assert.equal(t.deletedById, owner.user.id);
+    assert.equal(t.deletedByName, owner.user.displayName);
+    assert.notEqual(t.deletedById, t.authorId);
+  });
+
+  it("attributes a message its own author took back", async () => {
+    const owner = await makeUser("dself-owner");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+
+    const posted = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "second thoughts",
+    });
+    assert.ok(posted.ok);
+    const del = await emitAck(sock, MESSAGE_DELETE_EVENT, {
+      messageId: posted.message.id,
+    });
+    assert.ok(del.ok);
+    assert.equal(del.message.deletedById, del.message.authorId);
+    assert.equal(del.message.deletedByName, owner.user.displayName);
+  });
+
+  it("says nothing about a deleter on a live message", async () => {
+    // The columns are null until the delete, and this asserts the mapper keeps
+    // it that way: a stamp set early would tell the room an organizer is about
+    // to remove something.
+    const owner = await makeUser("dlive-owner");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    const sock = await connect({ token: owner.token, tripId: trip.id });
+
+    const posted = await emitAck(sock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "still here",
+    });
+    assert.ok(posted.ok);
+    assert.equal(posted.message.deletedById, null);
+    assert.equal(posted.message.deletedByName, null);
   });
 
   it("allows posting in a History trip (chat is exempt from the freeze)", async () => {

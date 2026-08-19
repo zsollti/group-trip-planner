@@ -349,6 +349,8 @@ export function useChat(
         authorAvatarUrl: null,
         body: text,
         deleted: false,
+        deletedById: null,
+        deletedByName: null,
         createdAt: new Date().toISOString(),
         reactions: [],
         mentions: [],

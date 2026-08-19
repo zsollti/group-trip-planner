@@ -63,6 +63,39 @@ function renderBody(body: string, mentions: MentionView[]) {
   return out.map((part, i) => <Fragment key={i}>{part}</Fragment>);
 }
 
+/**
+ * What is left where a deleted message was.
+ *
+ * Three sentences, not one, because "message deleted" answered the question
+ * nobody asks and left the one everybody does: an organizer may delete anyone's
+ * message, so a line that vanishes without a name reads as censorship or as a
+ * bug, depending on the reader's mood. Saying who removed it makes the
+ * moderation visible, which is the only thing that makes it accountable.
+ *
+ * **Who, not what rank.** The server sends the deleter's id and the row is
+ * compared against the author's, so a person taking back their own words is a
+ * different sentence from someone else taking them — and it stays the right
+ * sentence after roles change, which a stored "was moderated" flag would not.
+ *
+ * Whole sentences in the catalogue with the names as placeholders: a translator
+ * needs to be able to move the two names past the verb, and Hungarian does
+ * exactly that ("X törölte Y üzenetét").
+ *
+ * The unattributed fallback is not dead code — a tombstone written before this
+ * shipped has no deleter recorded, and the FK nulls itself when that account is
+ * deleted, so both are ordinary states rather than corruption.
+ */
+function tombstone(message: ChatMessage): string {
+  if (!message.deletedByName) return t("message deleted");
+  if (message.deletedById === message.authorId) {
+    return t("{name} deleted their message", { name: message.deletedByName });
+  }
+  return t("{actor} deleted {author}'s message", {
+    actor: message.deletedByName,
+    author: message.authorName,
+  });
+}
+
 /** One message row: tombstone, optimistic-pending/failed, or a normal message
  * with reaction chips, a reaction picker, and a delete affordance. */
 function MessageRow({
@@ -83,7 +116,7 @@ function MessageRow({
   if (message.deleted) {
     return (
       <li className="board__msg board__msg--tombstone">
-        <span className="board__msg-body">{t("message deleted")}</span>
+        <span className="board__msg-body">{tombstone(message)}</span>
       </li>
     );
   }
