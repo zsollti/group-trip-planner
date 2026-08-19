@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@gtp/ui-primitives";
 import { placeLabel, usePlaceSearch } from "@gtp/api-client";
 import { PLACE_QUERY_MIN_LENGTH, type PlaceView } from "@gtp/types";
@@ -29,6 +30,23 @@ import { t, tNode } from "../lib/i18n";
  * highlight that is *not* focus, Enter committing it, Escape closing the list
  * without touching what was typed.
  *
+ * ## Where the list is drawn
+ *
+ * In a **portal on `document.body`**, positioned over the field rather than
+ * under it in the tree. Everywhere this field appears it is inside a dialog
+ * whose body scrolls, and a scrolling box clips — so the suggestions were being
+ * cut off a row and a half down, which on the create-trip stepper (one question
+ * per screen, so a short panel) meant most of the list. The alternatives were to
+ * make the panel tall enough for a list that varies, or to move the question to
+ * a page of its own; both change the shape of the form to work around a clip.
+ * Escaping the clip is the smaller change and the one that holds wherever the
+ * field is next used.
+ *
+ * The price is that a fixed box has to be *told* where the field is, which is
+ * {@link useAnchor} — it also decides which side of the field has room, so a
+ * field near the bottom of the window drops its list upward instead of into the
+ * fold.
+ *
  * ## The debounce
  *
  * 250ms, and it lives here rather than in the hook. What wants delaying is a
@@ -37,6 +55,72 @@ import { t, tNode } from "../lib/i18n";
  * Answers are cached per query string for the session, so typing backwards over
  * a correction costs nothing.
  */
+/** The gap between the field and its list, and the air left at the window edge. */
+const ANCHOR_GAP = 4;
+const EDGE_MARGIN = 8;
+/** The tallest the list gets when there is room for it. Matches the stylesheet. */
+const LIST_MAX_PX = 240;
+
+/**
+ * Where to draw a list that has left the document flow.
+ *
+ * A `position: fixed` box is measured against the window, so it has to be told
+ * the field's rectangle — and told again whenever anything moves it. Both
+ * listeners are **capturing**, which is the part that matters: the field sits
+ * inside a dialog body that scrolls, and a scroll inside an element does not
+ * bubble. Without the capture the list would sit still while the form slid
+ * underneath it.
+ *
+ * It also picks a side. Below is the default and where a reader expects it; when
+ * the room down there is less than the room above, the list flips up rather than
+ * being squeezed into two rows above the fold.
+ */
+function useAnchor(
+  ref: React.RefObject<HTMLElement | null>,
+  open: boolean,
+): { left: number; width: number; top: number; maxHeight: number } | null {
+  const [box, setBox] = useState<{
+    left: number;
+    width: number;
+    top: number;
+    maxHeight: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setBox(null);
+      return;
+    }
+    const measure = () => {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const below = window.innerHeight - rect.bottom - ANCHOR_GAP - EDGE_MARGIN;
+      const above = rect.top - ANCHOR_GAP - EDGE_MARGIN;
+      const dropUp = below < above;
+      const room = Math.max(dropUp ? above : below, 0);
+      const maxHeight = Math.min(LIST_MAX_PX, room);
+      setBox({
+        left: rect.left,
+        width: rect.width,
+        top: dropUp
+          ? rect.top - ANCHOR_GAP - maxHeight
+          : rect.bottom + ANCHOR_GAP,
+        maxHeight,
+      });
+    };
+    measure();
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [ref, open]);
+
+  return box;
+}
+
 export function DestinationField({
   id,
   value,
@@ -64,6 +148,10 @@ export function DestinationField({
   const [highlighted, setHighlighted] = useState(-1);
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  /* The list is a child of `document.body`, so "did the click land inside the
+     field" is two questions now — one of them about a node that is nowhere near
+     the other in the tree. */
+  const listRef = useRef<HTMLUListElement>(null);
   /*
    * Whether the reader has typed since the field was last given a value from
    * outside. Without it the list opens on mount for a trip that already has a
@@ -86,7 +174,10 @@ export function DestinationField({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -95,6 +186,7 @@ export function DestinationField({
   const results = usePlaceSearch(debounced, open && typed.current);
   const places = results.data?.places ?? [];
   const showList = open && typed.current && places.length > 0;
+  const anchor = useAnchor(rootRef, showList);
 
   function type(next: string) {
     typed.current = true;
@@ -177,74 +269,93 @@ export function DestinationField({
             : t("Start typing to search, or write anywhere you like.")}
         </p>
       )}
-      {showList ? (
-        <ul className="destfield__list" id={listId} role="listbox">
-          {places.map((place, i) => (
-            <li key={place.id} role="presentation">
-              <button
-                type="button"
-                id={`${listId}-${i}`}
-                role="option"
-                aria-selected={i === highlighted}
-                className={
-                  "destfield__option" +
-                  (i === highlighted ? " destfield__option--on" : "")
-                }
-                // `onMouseDown`, not `onClick`: the input's blur fires first on a
-                // click, and a handler that closed the list on blur would remove
-                // the button before its click landed.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  choose(place);
-                }}
-                onMouseEnter={() => setHighlighted(i)}
-              >
-                <span className="destfield__name">{place.name}</span>
-                <span className="destfield__where">
-                  {[place.region, place.countryName]
-                    .filter(
-                      (part, idx, all) =>
-                        Boolean(part) &&
-                        (idx === 0 || part !== all[0]) &&
-                        part !== place.name,
-                    )
-                    .join(", ")}
-                </span>
-                {/* What the choice will do, said once per row rather than in a
+      {showList && anchor
+        ? createPortal(
+            <ul
+              className="destfield__list"
+              id={listId}
+              role="listbox"
+              ref={listRef}
+              style={{
+                left: anchor.left,
+                top: anchor.top,
+                width: anchor.width,
+                maxHeight: anchor.maxHeight,
+              }}
+            >
+              {places.map((place, i) => (
+                <li key={place.id} role="presentation">
+                  <button
+                    type="button"
+                    id={`${listId}-${i}`}
+                    role="option"
+                    aria-selected={i === highlighted}
+                    /* Never a tab stop: focus stays in the input the whole time and
+                   `aria-activedescendant` is what moves. It matters more now
+                   that the list is portalled — these buttons are outside the
+                   dialog, which is the one place Tab must not be able to go. */
+                    tabIndex={-1}
+                    className={
+                      "destfield__option" +
+                      (i === highlighted ? " destfield__option--on" : "")
+                    }
+                    // `onMouseDown`, not `onClick`: the input's blur fires first on a
+                    // click, and a handler that closed the list on blur would remove
+                    // the button before its click landed.
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      choose(place);
+                    }}
+                    onMouseEnter={() => setHighlighted(i)}
+                  >
+                    <span className="destfield__name">{place.name}</span>
+                    <span className="destfield__where">
+                      {[place.region, place.countryName]
+                        .filter(
+                          (part, idx, all) =>
+                            Boolean(part) &&
+                            (idx === 0 || part !== all[0]) &&
+                            part !== place.name,
+                        )
+                        .join(", ")}
+                    </span>
+                    {/* What the choice will do, said once per row rather than in a
                     sentence under the field: a country's currency is about to
                     become the trip's, and a reader should see that coming. */}
-                {place.currencyCode ? (
-                  <span className="destfield__currency">
-                    {place.currencyCode}
-                  </span>
-                ) : null}
-              </button>
-            </li>
-          ))}
-          {/*
-           * The attribution, at the point of use.
-           *
-           * CC BY 4.0 makes this a condition of having the data at all, not a
-           * courtesy — and the licence asks for it "in any reasonable manner for
-           * the medium", which for a search feature means where the search
-           * results are. One quiet line under the list rather than a page nobody
-           * opens: it is present exactly when the data is.
-           */}
-          <li className="destfield__credit">
-            {tNode("Place names from {source}, CC BY 4.0", {
-              source: (
-                <a
-                  href="https://www.geonames.org/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  GeoNames
-                </a>
-              ),
-            })}
-          </li>
-        </ul>
-      ) : null}
+                    {place.currencyCode ? (
+                      <span className="destfield__currency">
+                        {place.currencyCode}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+              {/*
+               * The attribution, at the point of use.
+               *
+               * CC BY 4.0 makes this a condition of having the data at all, not a
+               * courtesy — and the licence asks for it "in any reasonable manner for
+               * the medium", which for a search feature means where the search
+               * results are. One quiet line under the list rather than a page nobody
+               * opens: it is present exactly when the data is.
+               */}
+              <li className="destfield__credit">
+                {tNode("Place names from {source}, CC BY 4.0", {
+                  source: (
+                    <a
+                      href="https://www.geonames.org/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      GeoNames
+                    </a>
+                  ),
+                })}
+              </li>
+            </ul>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

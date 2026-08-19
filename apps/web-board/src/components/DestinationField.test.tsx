@@ -188,6 +188,35 @@ describe("DestinationField", () => {
     expect(input).toHaveValue("lisb");
   });
 
+  it("draws the list outside the box that would clip it", async () => {
+    stubFetch();
+    // The field's own surroundings, standing in for a dialog body: every screen
+    // this field appears on scrolls one, and a scrolling box clips whatever
+    // sticks out of it — which is what cut the suggestions off two rows down on
+    // the create-trip stepper, where the panel is one question tall.
+    //
+    // jsdom does no layout, so the clipping itself is invisible here. What is
+    // assertable is the structure that prevents it, which is the same call the
+    // chat panel's overflow menu made: the list must not be a descendant of the
+    // element that scrolls.
+    const { container } = render(
+      <div className="scrolls" style={{ overflowY: "auto", height: 40 }}>
+        <Harness onChange={() => undefined} />
+      </div>,
+    );
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: "lisb" },
+    });
+
+    const option = await screen.findByRole("option", { name: /Lisbon/ });
+    expect(container.querySelector(".scrolls")?.contains(option)).toBe(false);
+    // …and it is still the input's listbox, wherever it is drawn: the pairing is
+    // `aria-controls`, which does not care about the tree.
+    expect(screen.getByRole("combobox")).toHaveAttribute(
+      "aria-controls",
+      screen.getByRole("listbox").id,
+    );
+  });
   it("does not open a list over a destination the trip already has", async () => {
     vi.useFakeTimers();
     const fetchMock = stubFetch();

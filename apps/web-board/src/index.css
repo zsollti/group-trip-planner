@@ -471,13 +471,13 @@ body {
 
 /* --- The destination picker --------------------------------------------------
  *
- * A text field with a list under it, and the list is absolutely positioned so
- * that opening it never moves the form. Inside a dialog whose body scrolls, a
- * list that pushed the fields below it down would jump the whole panel on every
+ * A text field with a list over it. The list is taken out of the flow so that
+ * opening it never moves the form — inside a dialog whose body scrolls, a list
+ * that pushed the fields below it down would jump the whole panel on every
  * keystroke.
  *
- * `z-index` above the fields, and nothing more: the dialog is already a layer of
- * its own, so this only has to beat its siblings. */
+ * The wrapper is still the anchor — `useAnchor` measures it — but it no longer
+ * *contains* the list; see the note on `.destfield__list`. */
 .destfield {
   position: relative;
 }
@@ -486,13 +486,14 @@ body {
   font-size: 0.75rem;
   color: var(--board-dim);
 }
+/* Drawn in a portal on `document.body` and placed by `useAnchor`, so `left`,
+   `top`, `width` and `max-height` all arrive as inline styles. It has to leave
+   the field's own box: every dialog this field appears in scrolls its body, and
+   a scrolling box clips — which is what cut the suggestions off two rows down.
+   The z-index clears the dialog backdrop's (20) and the menus inside it (30). */
 .destfield__list {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 0.25rem);
-  left: 0;
-  right: 0;
-  max-height: 15rem;
+  position: fixed;
+  z-index: 60;
   overflow-y: auto;
   margin: 0;
   padding: 0.25rem;
