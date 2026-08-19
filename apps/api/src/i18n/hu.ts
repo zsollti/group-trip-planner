@@ -120,7 +120,13 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
   "You can only remove members below your own role.":
     "Csak a sajátodnál alacsonyabb szerepű tagokat távolíthatod el.",
   "You can't delete this message": "Ezt az üzenetet nem törölheted",
+  "You can't suspend your own account.":
+    "A saját fiókodat nem függesztheted fel.",
   "You don't have permission to do this.": "Ehhez nincs jogosultságod.",
+  "Your account has been suspended. Reason: {reason}":
+    "A fiókodat felfüggesztettük. Indok: {reason}",
+  "Your account is suspended until {date}. Reason: {reason}":
+    "A fiókod {date} napjáig fel van függesztve. Indok: {reason}",
   "You've been removed from this trip and can't rejoin.":
     "Eltávolítottak erről az utazásról, nem tudsz újra csatlakozni.",
   // "database unreachable" is deliberately absent, which leaves it English: it is

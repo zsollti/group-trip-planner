@@ -16,6 +16,7 @@ import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { EmailService } from "../email/email.service.js";
 import { TokenService, type IssuedToken } from "./token.service.js";
+import { assertNotBanned } from "./ban.js";
 import { toAuthUser } from "./auth.mapper.js";
 
 const ARGON2_OPTIONS = { type: argon2.argon2id } as const;
@@ -121,6 +122,12 @@ export class AuthService {
       throw new UnauthorizedException("Invalid email or password");
     }
 
+    // **After** the password check, never before. A suspension message names the
+    // account's own circumstances, so answering with one on an unverified guess
+    // would turn this endpoint into an account-existence oracle — the exact leak
+    // the generic 401 and the dummy-hash timing work above exist to close.
+    assertNotBanned(user);
+
     return this.openSession(user);
   }
 
@@ -150,6 +157,10 @@ export class AuthService {
       if (existing.anonymizedAt) {
         throw new UnauthorizedException("This account has been deleted.");
       }
+      // Google has already proved who this is, so there is nothing left to leak
+      // by naming the suspension — and a ban that email/password refused while
+      // the OAuth button waved people through would not be a ban.
+      assertNotBanned(existing);
       if (!existing.emailVerified) {
         return this.prisma.user.update({
           where: { id: existing.id },

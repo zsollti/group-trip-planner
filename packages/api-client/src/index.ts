@@ -57,6 +57,8 @@ export {
   useAdminAudit,
   useResendVerification,
   useMarkVerified,
+  useBanUser,
+  useUnbanUser,
   useRunDemoSeed,
   useRunPlacesSeed,
 } from "./admin.js";

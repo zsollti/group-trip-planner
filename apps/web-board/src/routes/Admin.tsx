@@ -6,11 +6,14 @@ import {
   useAdminOverview,
   useAdminUserLookup,
   useAuth,
+  useBanUser,
   useMarkVerified,
   useResendVerification,
   useRunDemoSeed,
   useRunPlacesSeed,
+  useUnbanUser,
 } from "@gtp/api-client";
+import { BAN_REASON_MAX, banIsActive } from "@gtp/types";
 import type {
   AdminDemoSeed,
   AdminPlacesSeed,
@@ -586,26 +589,36 @@ function UserLookup() {
 function UserCard({ user }: { user: AdminUserSummary }) {
   const resend = useResendVerification();
   const verify = useMarkVerified();
+  const unban = useUnbanUser();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [suspending, setSuspending] = useState(false);
 
-  async function run(what: "resend" | "verify") {
+  // Asked of the shared rule rather than of `user.ban !== null`, which is the
+  // difference between "is suspended" and "has ever been suspended" — and this
+  // card shows both, so it is the one screen where confusing them is easy.
+  const banned = user.ban ? banIsActive(user.ban) : false;
+
+  async function run(what: "resend" | "verify" | "unban") {
     setError(null);
     setDone(null);
     try {
       if (what === "resend") {
         await resend.mutateAsync(user.id);
         setDone(t("Verification email sent."));
-      } else {
+      } else if (what === "verify") {
         await verify.mutateAsync(user.id);
         setDone(t("Marked verified."));
+      } else {
+        await unban.mutateAsync(user.id);
+        setDone(t("Suspension lifted."));
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("That didn't work."));
     }
   }
 
-  const busy = resend.isPending || verify.isPending;
+  const busy = resend.isPending || verify.isPending || unban.isPending;
 
   return (
     <article className="admin__user">
@@ -623,6 +636,17 @@ function UserCard({ user }: { user: AdminUserSummary }) {
         )}
         {user.anonymizedAt ? (
           <span className="admin__badge">{t("Anonymized")}</span>
+        ) : null}
+        {banned ? (
+          <span className="admin__badge admin__badge--warn">
+            {t("Suspended")}
+          </span>
+        ) : user.ban ? (
+          // A lapsed one still shows. The row is kept past its own expiry
+          // precisely so an operator looking someone up after a complaint can
+          // see that this happened, and a badge that vanished with the ban
+          // would hide exactly the fact they came here for.
+          <span className="admin__badge">{t("Was suspended")}</span>
         ) : null}
       </header>
       <Row label={t("Signed up")} value={when(user.createdAt)} />
@@ -652,25 +676,78 @@ function UserCard({ user }: { user: AdminUserSummary }) {
         </p>
       )}
 
-      {!user.emailVerified ? (
-        <div className="admin__actions">
+      {user.ban ? (
+        <>
+          <Row
+            label={banned ? t("Suspended until") : t("Was suspended until")}
+            value={
+              user.ban.bannedUntil === null
+                ? t("Permanent")
+                : // Sliced, not formatted: the instant is midnight UTC standing
+                  // for a calendar day, and a local-time formatter renders it
+                  // as the day before for any operator west of Greenwich.
+                  user.ban.bannedUntil.slice(0, 10)
+            }
+          />
+          <Row label={t("Reason given")} value={user.ban.banReason} />
+        </>
+      ) : null}
+
+      <div className="admin__actions">
+        {!user.emailVerified ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void run("resend")}
+            >
+              {t("Resend verification")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void run("verify")}
+            >
+              {t("Mark verified")}
+            </Button>
+          </>
+        ) : null}
+        {banned ? (
           <Button
             type="button"
             variant="secondary"
             disabled={busy}
-            onClick={() => void run("resend")}
+            onClick={() => void run("unban")}
           >
-            {t("Resend verification")}
+            {t("Lift suspension")}
           </Button>
+        ) : suspending ? null : (
           <Button
             type="button"
             variant="secondary"
             disabled={busy}
-            onClick={() => void run("verify")}
+            onClick={() => {
+              setError(null);
+              setDone(null);
+              setSuspending(true);
+            }}
           >
-            {t("Mark verified")}
+            {t("Suspend account")}
           </Button>
-        </div>
+        )}
+      </div>
+
+      {suspending ? (
+        <SuspendForm
+          user={user}
+          onCancel={() => setSuspending(false)}
+          onDone={() => {
+            setSuspending(false);
+            setDone(t("Account suspended."));
+          }}
+        />
       ) : null}
 
       {done ? (
@@ -684,6 +761,124 @@ function UserCard({ user }: { user: AdminUserSummary }) {
         </p>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * The terms of a suspension, asked for before it happens.
+ *
+ * Inline in the card rather than in a dialog, deliberately: the account being
+ * suspended stays on screen above the form, and this is the one action in the
+ * console where aiming at the wrong person is both easy and expensive.
+ *
+ * **Permanent is a choice, not a default and not an absence.** A blank date
+ * meaning "forever" would let a slip of the finger become an indefinite ban, so
+ * the switch is explicit and the date field goes quiet while it is on.
+ *
+ * The date is a native `<input type="date">`, which the trip board itself
+ * retired in favour of a calendar the app draws. That was right there — a group
+ * picking a holiday needs to see the month — and wrong here: an operator typing
+ * "the end of next month" wants a field with a picker attached, and this screen
+ * has no business carrying the board's calendar.
+ */
+function SuspendForm({
+  user,
+  onCancel,
+  onDone,
+}: {
+  user: AdminUserSummary;
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const ban = useBanUser();
+  const [permanent, setPermanent] = useState(false);
+  const [until, setUntil] = useState("");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Tomorrow, as the earliest end a ban can have: "until today" is one that has
+  // already lapsed by the rule that reads it, which would present as a button
+  // that did nothing.
+  const earliest = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    // Both checked here as well as by the server, because the server's answer
+    // to a missing reason is a validation envelope naming a field, and the
+    // person who needs to read it is standing in front of that field.
+    if (reason.trim() === "") {
+      setError(t("Say why — the person is shown this."));
+      return;
+    }
+    if (!permanent && until === "") {
+      setError(t("Pick an end date, or choose permanent."));
+      return;
+    }
+    try {
+      await ban.mutateAsync({
+        userId: user.id,
+        input: { until: permanent ? null : until, reason: reason.trim() },
+      });
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("That didn't work."));
+    }
+  }
+
+  return (
+    <form className="admin__suspend" onSubmit={submit}>
+      <label className="admin__suspend-label" htmlFor={`ban-why-${user.id}`}>
+        {t("Why this account is being suspended")}
+      </label>
+      <textarea
+        id={`ban-why-${user.id}`}
+        className="board__input"
+        rows={2}
+        maxLength={BAN_REASON_MAX}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+      />
+
+      <label className="admin__suspend-perm">
+        <input
+          type="checkbox"
+          checked={permanent}
+          onChange={(e) => setPermanent(e.target.checked)}
+        />
+        {t("Permanent")}
+      </label>
+
+      <label className="admin__suspend-label" htmlFor={`ban-until-${user.id}`}>
+        {t("Ends on")}
+      </label>
+      <input
+        id={`ban-until-${user.id}`}
+        type="date"
+        className="board__input"
+        min={earliest}
+        value={until}
+        disabled={permanent}
+        onChange={(e) => setUntil(e.target.value)}
+      />
+
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="admin__actions">
+        <Button type="submit" variant="primary" disabled={ban.isPending}>
+          {ban.isPending ? t("Suspending…") : t("Suspend")}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          {t("Cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }
 

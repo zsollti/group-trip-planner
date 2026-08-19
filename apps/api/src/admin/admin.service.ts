@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { stat, readdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -14,6 +19,7 @@ import type {
   AdminUserLookup,
   AdminUserSummary,
   AdminVolume,
+  BanUserInput,
 } from "@gtp/types";
 import {
   CONTRACT_VERSION,
@@ -309,6 +315,17 @@ export class AdminService {
         hasPassword: u.passwordHash !== null,
         tripCount: u._count.memberships,
         lastSeenAt: u.refreshTokens[0]?.createdAt.toISOString() ?? null,
+        ban:
+          u.bannedAt === null
+            ? null
+            : {
+                bannedAt: u.bannedAt.toISOString(),
+                bannedUntil: u.bannedUntil?.toISOString() ?? null,
+                // Empty rather than null: the input schema requires a reason, so
+                // the only rows without one are from before this column existed,
+                // and "" renders as an unexplained ban instead of a crash.
+                banReason: u.banReason ?? "",
+              },
         emailJobs: u.emailJobs.map((j) => ({
           id: j.id,
           type: j.type,
@@ -407,6 +424,92 @@ export class AdminService {
     const summary = await seedPlaces(this.prisma);
     await this.record(actorEmail, "PLACES_SEEDED", `${summary.places} places`);
     return summary;
+  }
+
+  /**
+   * Suspend an account.
+   *
+   * Three things happen and all three matter:
+   *
+   *  - the three ban columns are written, which is what every sign-in path from
+   *    now on reads (see `auth/ban.ts`);
+   *  - **every live refresh token is revoked**, because a ban that left a
+   *    fortnight-old cookie able to mint fresh access tokens would be a ban you
+   *    could sit out in an open tab. The per-request guard closes the same window
+   *    from the other side, for the access token already issued;
+   *  - an audit row names the operator, the account and the terms — the record
+   *    of who did this, which is the part that outlives the ban itself.
+   *
+   * **An operator cannot ban themselves.** Not paternalism: the console is gated
+   * on `ADMIN_EMAILS` and the guard behind it would refuse the very next request,
+   * so the button would lock the person pressing it out of the tool they would
+   * need to undo it. Every other account, including another operator's, is fair
+   * game — who may run this deployment is a deployment-configuration question,
+   * and answering it here would be a second, quieter access-control system.
+   */
+  async banUser(
+    actorEmail: string,
+    userId: string,
+    input: BanUserInput,
+  ): Promise<AdminUserSummary> {
+    const user = await this.requireUser(userId);
+    if (user.email.toLowerCase() === actorEmail.toLowerCase()) {
+      throw new BadRequestException("You can't suspend your own account.");
+    }
+
+    // Midnight UTC of the chosen day, so the ban lifts *at the start of* it and
+    // the message can say "suspended until <that date>". `Date.parse` on a bare
+    // `YYYY-MM-DD` is UTC by specification; the same string with a time in it
+    // would be local, which is the trap this comment exists to mark.
+    const until =
+      input.until === null ? null : new Date(`${input.until}T00:00:00.000Z`);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          bannedAt: new Date(),
+          bannedUntil: until,
+          banReason: input.reason,
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    await this.record(
+      actorEmail,
+      "USER_BANNED",
+      `${user.email} · ${input.until ?? "permanent"} · ${input.reason}`,
+    );
+    return this.summaryOf(user.id);
+  }
+
+  /**
+   * Lift a suspension.
+   *
+   * Clears all three columns rather than only the switch, so a lifted ban leaves
+   * no half-state for {@link banIsActive} to have an opinion about. The history
+   * is not lost with it — the audit log holds both the ban and this, with the
+   * terms and both operators' names, and that is the record that should survive.
+   *
+   * Deliberately not an error on an account that is not banned: the honest reading
+   * of "unban" is "make sure this account can sign in", and refusing because it
+   * already can would be a console arguing with an operator about a no-op.
+   */
+  async unbanUser(
+    actorEmail: string,
+    userId: string,
+  ): Promise<AdminUserSummary> {
+    const user = await this.requireUser(userId);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { bannedAt: null, bannedUntil: null, banReason: null },
+    });
+    await this.record(actorEmail, "USER_UNBANNED", user.email);
+    return this.summaryOf(user.id);
   }
 
   /** The console's own history, newest first. */

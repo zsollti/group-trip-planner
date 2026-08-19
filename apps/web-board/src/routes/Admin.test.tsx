@@ -101,6 +101,7 @@ const USER = {
   hasPassword: true,
   tripCount: 2,
   lastSeenAt: null,
+  ban: null,
   emailJobs: [],
 };
 
@@ -244,6 +245,154 @@ describe("finding one person", () => {
         /verification email sent/i,
       ),
     );
+  });
+});
+
+/**
+ * Suspending an account, from the console's side.
+ *
+ * What is worth covering here is not that a button exists, but that the two
+ * things that make a suspension safe to hand an operator actually hold: it
+ * cannot be issued without terms, and the terms it sends are the ones that were
+ * typed. The server validates both again — these are about the operator not
+ * finding that out from a validation envelope.
+ */
+describe("suspending an account", () => {
+  /** Capture what was POSTed, so an assertion can be about the request. */
+  function mockWithBan(user: unknown = USER) {
+    const sent: { path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const path = String(url).replace(/^https?:\/\/[^/]+/, "");
+        if (init?.method === "POST") {
+          sent.push({
+            path,
+            body: init.body ? JSON.parse(String(init.body)) : null,
+          });
+          return json(user);
+        }
+        if (path.startsWith("/admin/overview")) return json(HEALTHY);
+        if (path.startsWith("/admin/audit")) return json({ entries: [] });
+        if (path.startsWith("/admin/users")) return json({ users: [user] });
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    return sent;
+  }
+
+  async function findPerson() {
+    renderConsole();
+    await screen.findByText("abcdef1234");
+    fireEvent.change(screen.getByLabelText(/email, name, or user id/i), {
+      target: { value: "stuck" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Find" }));
+    return screen.findByText("stuck@example.com");
+  }
+
+  it("will not suspend without a reason, and says so before sending one", async () => {
+    // A ban with no stated cause is the failure this feature exists to avoid,
+    // so "nothing was sent" is the assertion — a form that merely looked
+    // reluctant while posting anyway would pass a softer one.
+    const sent = mockWithBan();
+    await findPerson();
+
+    fireEvent.click(screen.getByRole("button", { name: /suspend account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^suspend$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/say why/i);
+    expect(sent).toEqual([]);
+  });
+
+  it("will not suspend without either an end date or an explicit permanent", async () => {
+    // The dangerous default this guards: a blank date read as "forever".
+    const sent = mockWithBan();
+    await findPerson();
+
+    fireEvent.click(screen.getByRole("button", { name: /suspend account/i }));
+    fireEvent.change(
+      screen.getByLabelText(/why this account is being suspended/i),
+      { target: { value: "Spamming boards." } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^suspend$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /pick an end date/i,
+    );
+    expect(sent).toEqual([]);
+  });
+
+  it("sends the date that was picked, and null when permanent is chosen", async () => {
+    const sent = mockWithBan();
+    await findPerson();
+
+    fireEvent.click(screen.getByRole("button", { name: /suspend account/i }));
+    fireEvent.change(
+      screen.getByLabelText(/why this account is being suspended/i),
+      { target: { value: "Spamming boards." } },
+    );
+    fireEvent.change(screen.getByLabelText(/ends on/i), {
+      target: { value: "2099-09-01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^suspend$/i }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]!.path).toMatch(/\/ban$/);
+    expect(sent[0]!.body).toEqual({
+      until: "2099-09-01",
+      reason: "Spamming boards.",
+    });
+  });
+
+  it("offers to lift a live suspension, and shows its terms", async () => {
+    const banned = {
+      ...USER,
+      emailVerified: true,
+      ban: {
+        bannedAt: new Date().toISOString(),
+        bannedUntil: null,
+        banReason: "Spamming every board they joined.",
+      },
+    };
+    const sent = mockWithBan(banned);
+    await findPerson();
+
+    expect(screen.getByText("Suspended")).toBeInTheDocument();
+    expect(screen.getByText("Permanent")).toBeInTheDocument();
+    expect(
+      screen.getByText("Spamming every board they joined."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /lift suspension/i }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]!.path).toMatch(/\/unban$/);
+  });
+
+  it("still shows a suspension that has already run out", async () => {
+    // The row outlives its own expiry so this is answerable at all: an operator
+    // taking a complaint needs to know this account *was* suspended and why.
+    const lapsed = {
+      ...USER,
+      emailVerified: true,
+      ban: {
+        bannedAt: "2026-01-01T00:00:00.000Z",
+        bannedUntil: "2026-02-01T00:00:00.000Z",
+        banReason: "Served.",
+      },
+    };
+    mockWithBan(lapsed);
+    await findPerson();
+
+    expect(screen.getByText("Was suspended")).toBeInTheDocument();
+    expect(screen.getByText("2026-02-01")).toBeInTheDocument();
+    // …and it does not offer to lift something that is already over.
+    expect(
+      screen.queryByRole("button", { name: /lift suspension/i }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /suspend account/i }),
+    ).toBeInTheDocument();
   });
 });
 

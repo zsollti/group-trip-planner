@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BanState } from "./ban.js";
 
 /**
  * The operator's console (post-launch).
@@ -151,6 +152,17 @@ export const AdminUserSummary = z.object({
   tripCount: z.number().int(),
   /** Newest refresh token issued — the closest thing to "last signed in". */
   lastSeenAt: z.string().datetime().nullable(),
+  /**
+   * The suspension on this account, live or lapsed, or null if there has never
+   * been one.
+   *
+   * Reported even once it has expired, and the console says which — an operator
+   * looking someone up after a complaint needs to know that this account *was*
+   * suspended and why, which is precisely the fact a self-clearing ban would
+   * have thrown away. Whether it is still running is `banIsActive`, asked here
+   * rather than answered by a second boolean field that could disagree with it.
+   */
+  ban: BanState.nullable(),
   emailJobs: z.array(AdminUserEmailJob),
 });
 export type AdminUserSummary = z.infer<typeof AdminUserSummary>;
@@ -173,6 +185,9 @@ export type AdminUserLookup = z.infer<typeof AdminUserLookup>;
 export const AdminAuditAction = z.enum([
   "VERIFICATION_RESENT",
   "USER_MARKED_VERIFIED",
+  "USER_BANNED",
+  "USER_UNBANNED",
+  "USER_DELETED",
   "DEMO_RESEEDED",
   "PLACES_SEEDED",
 ]);

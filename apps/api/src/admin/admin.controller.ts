@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -9,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { User } from "@prisma/client";
+import { BanUserInput } from "@gtp/types";
 import type {
   AdminAuditLog,
   AdminDemoSeed,
@@ -23,6 +25,7 @@ import {
 } from "../common/throttle-policy.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
+import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { AdminGuard } from "./admin.guard.js";
 import { AdminService } from "./admin.service.js";
 
@@ -68,6 +71,32 @@ export class AdminController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<AdminUserSummary> {
     return this.admin.markVerified(actor.email, id);
+  }
+
+  /**
+   * Suspend an account, with an end date or permanently, and a reason.
+   *
+   * `POST` and not `PATCH /users/:id`: this is not editing three fields of a
+   * person, it is one act with one set of consequences — the columns, the
+   * revoked sessions and the audit row — and it belongs behind one verb that
+   * cannot be issued by halves.
+   */
+  @Post("users/:id/ban")
+  ban(
+    @CurrentUser() actor: User,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(BanUserInput)) body: BanUserInput,
+  ): Promise<AdminUserSummary> {
+    return this.admin.banUser(actor.email, id, body);
+  }
+
+  /** Lift a suspension, whether or not it had already lapsed. */
+  @Post("users/:id/unban")
+  unban(
+    @CurrentUser() actor: User,
+    @Param("id", ParseUUIDPipe) id: string,
+  ): Promise<AdminUserSummary> {
+    return this.admin.unbanUser(actor.email, id);
   }
 
   /**

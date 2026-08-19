@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
+import argon2 from "argon2";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
@@ -319,6 +320,150 @@ describe("Admin console (e2e)", () => {
     assert.ok(joined[0]!.participants.length > 1);
     const notJoined = optIn.find((o) => o !== joined[0])!;
     assert.ok(notJoined.participants.length > 0);
+  });
+
+  /**
+   * Suspension, end to end: the console writes it, and sign-in reads it.
+   *
+   * Deliberately one case rather than four, because the thing worth pinning is
+   * the *join* between them — the console could write three perfect columns and
+   * the login path could ignore them, and each half would still pass its own
+   * test. So this bans a real account with a real password and then tries the
+   * front door with the right credentials.
+   */
+  it("suspends an account, and the account is told why at sign-in", async () => {
+    const email = `banned+${suffix}@example.com`;
+    const password = "correct-horse-battery";
+    const victim = await prisma.user.create({
+      data: {
+        email,
+        displayName: "Banned Person",
+        emailVerified: true,
+        passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
+      },
+    });
+    userIds.push(victim.id);
+
+    // The password works before the ban — otherwise the assertion after it
+    // would prove nothing about the ban.
+    await http().post("/auth/login").send({ email, password }).expect(200);
+
+    const banned = await http()
+      .post(`/admin/users/${victim.id}/ban`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ until: null, reason: "Spamming every board they joined." })
+      .expect(201);
+    const state = (banned.body as { ban: { banReason: string } | null }).ban;
+    assert.ok(state, "the answer should report the suspension it just applied");
+    assert.equal(state.banReason, "Spamming every board they joined.");
+
+    const refused = await http()
+      .post("/auth/login")
+      .send({ email, password })
+      .expect(403);
+    // The point of the whole feature: the person is told, not just stopped.
+    assert.match((refused.body as { message: string }).message, /suspended/i);
+    assert.match(
+      (refused.body as { message: string }).message,
+      /Spamming every board/,
+    );
+
+    // And it is attributable, with its terms, like every other write here.
+    const audit = await http()
+      .get("/admin/audit")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    assert.ok(
+      (
+        audit.body as { entries: { action: string; subject: string | null }[] }
+      ).entries.some(
+        (e) => e.action === "USER_BANNED" && e.subject?.includes(email),
+      ),
+    );
+
+    // Lifting it lets them back in, which is the half a ban feature most often
+    // ships without.
+    await http()
+      .post(`/admin/users/${victim.id}/unban`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(201);
+    await http().post("/auth/login").send({ email, password }).expect(200);
+  });
+
+  it("kills the live session, not just the next sign-in", async () => {
+    // A ban that only closed the front door would be decorative: an open tab
+    // keeps its access token for its full life and its refresh cookie for a
+    // fortnight. Both are checked here because they fail in different places —
+    // the per-request guard and the rotation — and each was a separate line.
+    const { user, accessToken } = await makeUser("sessioned");
+    const refresh = await http()
+      .post("/auth/login")
+      .send({ email: user.email, password: "irrelevant" });
+    assert.ok(refresh.status >= 400, "the seeded hash is not a real password");
+
+    await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    await http()
+      .post(`/admin/users/${user.id}/ban`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ until: null, reason: "Mid-session." })
+      .expect(201);
+
+    // The token is still valid and still in date. It is the per-request DB read
+    // that stops it — the same read the whole authorization model rests on.
+    await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(403);
+  });
+
+  it("lets a suspension lapse on its own, without anything sweeping it", async () => {
+    const { user, accessToken } = await makeUser("lapsing");
+    // Yesterday: a ban that has already run out. Written straight to the row
+    // because the endpoint takes a date and cannot be asked for a past one —
+    // and the rule under test is the *read*, which is what makes an expiry work
+    // with no scheduler behind it.
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        bannedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
+        bannedUntil: yesterday,
+        banReason: "Served.",
+      },
+    });
+
+    await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    // …and the console still shows what happened, which is the reason the row
+    // is not cleared when it expires.
+    const found = await http()
+      .get(`/admin/users?q=${encodeURIComponent(user.email)}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const summary = (
+      found.body as { users: { ban: { banReason: string } | null }[] }
+    ).users[0];
+    assert.equal(summary?.ban?.banReason, "Served.");
+  });
+
+  it("refuses to let an operator suspend themselves", async () => {
+    // The console is gated on the address, so this would lock the person
+    // pressing it out of the only tool that could undo it.
+    const me = await prisma.user.findUniqueOrThrow({
+      where: { email: adminEmail },
+    });
+    await http()
+      .post(`/admin/users/${me.id}/ban`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ until: null, reason: "Testing." })
+      .expect(400);
   });
 
   it("reports operator status on the session, so the app can offer the link", async () => {

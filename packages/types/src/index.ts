@@ -18,6 +18,7 @@ export * from "./invites.js";
 export * from "./policy.js";
 export * from "./members.js";
 export * from "./account.js";
+export * from "./ban.js";
 export * from "./categories.js";
 export * from "./options.js";
 export * from "./votes.js";

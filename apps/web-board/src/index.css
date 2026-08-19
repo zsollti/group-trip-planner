@@ -5393,3 +5393,37 @@ button.cost-comp__row-btn:hover,
   font-size: 0.76rem;
   color: var(--board-accent);
 }
+
+/* --- Suspending an account (operator console) ------------------------------
+ * A form inside the user card, not a dialog: the account it is aimed at stays
+ * on screen directly above it, which is the whole safeguard on the one action
+ * here that is expensive to point at the wrong person. */
+.admin__suspend {
+  margin-top: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--board-danger) 35%, transparent);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.admin__suspend-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+/* The checkbox and its word read as one control, so they sit on one line and
+   the whole thing is the hit target. */
+.admin__suspend-perm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+/* A disabled date field should look unavailable rather than merely refuse the
+   pointer — "permanent" is on, and the date has nothing to say. */
+.admin__suspend .board__input:disabled {
+  opacity: 0.5;
+}

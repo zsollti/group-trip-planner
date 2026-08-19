@@ -12,6 +12,7 @@ import {
 import type { Server, Socket } from "socket.io";
 import type { TripRole } from "@prisma/client";
 import {
+  banIsActive,
   DeleteMessageInput,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
@@ -124,6 +125,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
 
     const user = await this.prisma.user.findUnique({ where: { id: sub } });
     if (!user || user.anonymizedAt) throw new Error("unauthorized");
+    // A suspended account gets no socket either. The HTTP guard would already
+    // have refused every request this connection's board depends on, but a live
+    // socket is the one way into this app that never passes through it — and
+    // "banned but still typing in the chat" is the version of this bug someone
+    // would actually notice.
+    if (banIsActive(user)) throw new Error("unauthorized");
 
     const membership = await this.prisma.tripMembership.findUnique({
       where: { tripId_userId: { tripId, userId: user.id } },
