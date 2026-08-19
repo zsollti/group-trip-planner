@@ -637,4 +637,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Ez eltávolítja a sávot és minden kártyáját. Ez nem vonható vissza.",
   "Crew — manage members and roles": "Csapat — tagok és szerepkörök kezelése",
   "Crew — see members and roles": "Csapat — tagok és szerepkörök megtekintése",
+  "Guests — not asked to vote": "Vendégek — őket nem kérdezzük",
+  "Guests — not asked to join": "Vendégek — ők nem csatlakoznak",
 };

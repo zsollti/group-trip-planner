@@ -57,6 +57,7 @@ function VoterList({
       }
       pendingLabel={t("Yet to vote")}
       doneLabel={t("Everyone has voted.")}
+      notAskedLabel={t("Guests — not asked to vote")}
       onClose={onClose}
     />
   );

@@ -204,6 +204,8 @@ export const UI_MESSAGES = [
   "Google sign-in didn't complete. Your browser may be blocking cookies set by the API — try again, or sign in with your email and password.",
   "Group Trip Planner",
   "Guest",
+  "Guests — not asked to join",
+  "Guests — not asked to vote",
   "History",
   "I'm in",
   "Invite",
