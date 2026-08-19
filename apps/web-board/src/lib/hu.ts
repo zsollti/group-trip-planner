@@ -23,7 +23,6 @@
  * somebody made, not something nobody noticed.
  */
 export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
-  " · edited": " · szerkesztve",
   " · {n} not scheduled": " · {n} nincs beütemezve",
   "(you)": "(te)",
   "+ Add card": "+ Új kártya",
@@ -639,4 +638,15 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Guests — not asked to join": "Vendégek — ők nem csatlakoznak",
   Lane: "Sáv",
   "Propose something at {time} on {day}": "Javasolj valamit ide: {day} {time}",
+  "Still being decided": "Még döntés alatt",
+  "No dates yet": "Még nincs dátum",
+  "No price yet": "Még nincs ár",
+  "split between whoever’s in": "a résztvevők között elosztva",
+  "for {n} person on the trip": "{n} főre az utazáson",
+  "for {n} people on the trip": "{n} főre az utazáson",
+  "edited since": "azóta szerkesztve",
+  "Nobody has voted for this yet.": "Erre még senki nem szavazott.",
+  "Nobody is in yet.": "Még senki sem jelentkezett.",
+  "Who’s in": "Ki tart velünk",
+  "outside the trip’s dates": "az utazás dátumain kívül",
 };

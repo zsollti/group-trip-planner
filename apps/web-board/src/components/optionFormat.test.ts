@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OptionView } from "@gtp/types";
-import { costLabel, dateRangeLabel } from "./optionFormat";
+import { costLabel, dateRangeLabel, linkLabel } from "./optionFormat";
 import { intlTag } from "../lib/locale";
 
 /**
@@ -103,5 +103,44 @@ describe("costLabel", () => {
     // throw inside a card's render.
     const label = costLabel(priced({ currency: "ZZZ" }))!;
     expect(label).toContain("ZZZ");
+  });
+});
+
+/**
+ * The link, written the way a person would read it out.
+ *
+ * The detail panel used to print the whole URL, which is the one field on a
+ * card with no natural length — a booking link with a tracking query wrapped
+ * over four lines under a heading that said "Link". These assert what is
+ * dropped and, more importantly, that nothing here is ever asked to produce an
+ * href: the label and the address are deliberately different strings.
+ */
+describe("linkLabel", () => {
+  it("drops the scheme, the www and the query", () => {
+    expect(
+      linkLabel("https://www.booking.com/hotel/pt/lisbon.html?aid=304142"),
+    ).toBe("booking.com/hotel/pt/lisbon.html");
+  });
+
+  it("drops a trailing slash, so a bare host reads as one", () => {
+    expect(linkLabel("https://airbnb.com/")).toBe("airbnb.com");
+  });
+
+  it("elides the middle of a very long path, not its end", () => {
+    // The end of a path usually names the thing; cutting only the tail throws
+    // away the half worth keeping.
+    const long =
+      "https://example.com/one/two/three/four/five/six/seven/the-actual-room";
+    const label = linkLabel(long);
+    expect(label.length).toBeLessThan(45);
+    expect(label).toContain("…");
+    expect(label.startsWith("example.com/one")).toBe(true);
+    expect(label.endsWith("-actual-room")).toBe(true);
+  });
+
+  it("hands back anything that is not a URL unchanged", () => {
+    // Rows written before the scheme was constrained can hold anything, and a
+    // label that silently rewrote one would hide what is actually stored.
+    expect(linkLabel("not a url at all")).toBe("not a url at all");
   });
 });

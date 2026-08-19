@@ -1193,6 +1193,11 @@ body {
 .lane,
 .lane__card--option,
 .lane__tag,
+/* The option detail panel, which tints its state band and its edge with the
+   lane's colour. On this list for the reason the swatches are: a surface that
+   sets `--cat-hue` without these declarations in scope resolves every colour
+   to nothing and paints white. */
+.odetail,
 .tl__card,
 .tl__span,
 .cal__event,
@@ -2558,8 +2563,10 @@ textarea[data-gtp-input] {
 .lane__dates--elsewhere {
   color: var(--board-danger);
 }
-.lane__elsewhere,
-.board__detail-note {
+/* `.board__detail-note` sat beside this: it was the "outside the trip's dates"
+   aside inside the old detail list's `<dd>`. The detail panel says it on the
+   When tile now (`.odetail__fact-note--warn`), so only the card's own is left. */
+.lane__elsewhere {
   font-style: normal;
   font-weight: 500;
   color: var(--board-danger);
@@ -2772,11 +2779,9 @@ textarea[data-gtp-input] {
   gap: 0.4rem;
   margin-top: 0.35rem;
 }
-.lane__decided {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--board-accent);
-}
+/* `.lane__decided` was the "✦ Decided" line at the top of the option detail
+   dialog. That panel says it in a tinted band now (`.odetail__state`), which is
+   the same statement given the weight it actually carries. */
 /* The category badge in the option detail dialog — the same outlined pill the
  * timeline uses for the same job, in the same colour, because it names the same
  * thing. It was the app's teal until categories had colours of their own. */
@@ -2795,29 +2800,172 @@ textarea[data-gtp-input] {
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
-/* Read-only option detail dialog (Phase 3.5): full, un-clamped card view. */
-.board__detail {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.4rem 0.9rem;
-  margin: 0.7rem 0 0;
+/* --- Read-only option detail (Phase 3.5, rebuilt) ---------------------------
+ *
+ * `.board__detail` was a two-column `<dl>`: six label/value pairs at one size,
+ * one weight and one spacing, down a white dialog. It held everything and
+ * arranged nothing, which is why it read as the database row behind the card
+ * rather than as the card. What follows is the same facts in three tiers — the
+ * state, the two answers, then the people — and it is tinted with the lane's
+ * own colour, which used to stop at the chip above the title.
+ */
+.odetail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
 }
-.board__detail dt {
-  font-size: 0.7rem;
+/* The line that decides how to read the rest. A band rather than a line of
+   text: this is the only thing on the panel that is true of the option as a
+   whole, and it earns a surface of its own. */
+.odetail__state {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border-radius: 10px;
+  border-left: 3px solid var(--cat-main);
+  background: var(--cat-proposed);
+  color: var(--board-fg);
+  font-size: 0.78rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+}
+/* A decision takes the fuller wash, the same way a settled card does in its
+   lane — settled is said with intensity and never with a different hue, or a
+   board where most things are decided goes one colour. */
+.odetail__state--decided {
+  background: var(--cat-locked);
+}
+.odetail__state--open {
   color: var(--board-dim);
 }
-.board__detail dd {
+
+/* The two questions this panel is opened for, side by side while there is room
+   for two. `auto-fit` rather than a fixed pair because a Dates lane has no cost
+   at all, and one tile stretched across the card reads better than one tile
+   with a hole beside it. */
+.odetail__facts {
+  list-style: none;
   margin: 0;
-  font-size: 0.85rem;
-  color: var(--board-fg);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+.odetail__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 12px;
+  background: var(--board-bg);
   min-width: 0;
+}
+.odetail__fact-head {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+/* The largest type on the panel, and deliberately: these are the two answers a
+   reader came for, and everything else is context for them. */
+.odetail__fact-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--board-fg);
   overflow-wrap: anywhere;
 }
-.board__detail-notes {
+/* An unanswered question is still an answer — quiet, so it reads as an
+   opening rather than as a value. */
+.odetail__fact--empty .odetail__fact-value {
+  font-weight: 600;
+  color: var(--board-dim);
+}
+.odetail__fact-note {
+  font-size: 0.7rem;
+  color: var(--board-dim);
+}
+/* Advisory, never a rejection: the danger hue for attention, without the error
+   treatment — the same reading `.lane__dates--elsewhere` takes. */
+.odetail__fact-note--warn {
+  color: var(--board-danger);
+}
+
+.odetail__block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+/* The eyebrow is a flex row here so a glyph and a tally can sit on it. */
+.odetail__block > .board__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--board-dim);
+}
+/* How many, on the heading rather than in a sentence under it. */
+.odetail__tally {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--board-fg) 9%, transparent);
+  color: var(--board-fg);
+  font-size: 0.7rem;
+}
+/* The one field written by a person in sentences, set as prose: a quiet rule
+   down its left edge, and the author's own line breaks kept. */
+.odetail__notes {
+  margin: 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--lane-line);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--board-fg);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* A chip, not a paragraph of URL. The full address is on `title` and in the
+   href; this is the readable half — see `linkLabel`. */
+.odetail__link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  background: var(--board-bg);
+  color: var(--board-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+a.odetail__link:hover {
+  border-color: var(--board-accent);
+  text-decoration: underline;
+}
+a.odetail__link:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+/* A URL the app refused to make clickable. Shown whole and in body ink, so it
+   is plainly a stored value being displayed rather than a link that is broken. */
+.odetail__link--inert {
+  color: var(--board-dim);
+  font-weight: 500;
+}
+.odetail__none {
+  margin: 0;
+  font-size: 0.82rem;
 }
 /* The lane's settled answer, pinned above its remaining candidates.
  *
@@ -4661,6 +4809,29 @@ button.cost-comp__row-btn:hover,
   height: var(--cal-hour);
   border-bottom: 1px solid color-mix(in srgb, var(--lane-line) 55%, transparent);
 }
+/* An empty hour you can propose in.
+   Invisible until it is pointed at: a grid whose every cell advertised itself
+   would be two hundred buttons behind the handful of things the trip has
+   actually decided, and the decisions are what this view is for. `width: 100%`
+   and `display: block` because a `<button>` is neither by default and the row
+   would collapse to the width of its (empty) label. */
+.cal__slot--open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  background: none;
+  cursor: pointer;
+}
+.cal__slot--open:hover {
+  background: color-mix(in srgb, var(--board-accent) 9%, transparent);
+}
+.cal__slot--open:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: -2px;
+}
 /* Positioned by time, sized by duration — the two things the spine could not
    show. `left`/`width` come from the lane split, so simultaneous bookings sit
    side by side instead of one hiding the other. */
@@ -4809,29 +4980,6 @@ button.cost-comp__row-btn:hover,
   gap: 0.4rem;
 }
 
-/* An empty hour you can propose in.
-   Invisible until it is pointed at: a grid whose every cell advertised itself
-   would be two hundred buttons behind the handful of things the trip has
-   actually decided, and the decisions are what this view is for. `width: 100%`
-   and `display: block` because a `<button>` is neither by default and the row
-   would collapse to the width of its (empty) label. */
-.cal__slot--open {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  background: none;
-  cursor: pointer;
-}
-.cal__slot--open:hover {
-  background: color-mix(in srgb, var(--board-accent) 9%, transparent);
-}
-.cal__slot--open:focus-visible {
-  outline: 2px solid var(--board-accent);
-  outline-offset: -2px;
-}
 .tl__card {
   width: 100%;
   padding: 0.55rem 0.7rem;
