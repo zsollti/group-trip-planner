@@ -1,5 +1,9 @@
 import { DEFAULT_LOCALE, type Locale } from "@gtp/types";
-import { HU_EMAIL_MESSAGES, HU_SERVER_MESSAGES } from "./hu.js";
+import {
+  HU_EMAIL_MESSAGES,
+  HU_SEED_MESSAGES,
+  HU_SERVER_MESSAGES,
+} from "./hu.js";
 
 /**
  * Every message this API can put in front of a reader, and where its
@@ -155,6 +159,31 @@ export const EMAIL_MESSAGES = [
   '{name} mentioned you in "{trip}":',
 ] as const;
 
+/**
+ * The names a new trip's built-in lanes are created with.
+ *
+ * A third list, because these are neither thrown nor emailed: they are **seeded
+ * data**. The names go into the database once, when the trip is created, and are
+ * the group's to rename from then on — so this translates the starting point,
+ * not the display. A Hungarian organizer's board opened with four English lanes
+ * they then had to rename one by one.
+ *
+ * That makes the language the *creator's*, and it stays put afterwards: a lane
+ * called "Szállás" reads the same to everyone on the board, which is what a
+ * shared name has to do. Translating a stored name per reader would mean the
+ * same lane answering to two names in one conversation.
+ *
+ * The English here is the seed set in `@gtp/types` — the single definition of
+ * which lanes a trip gets. A name changed there without a matching entry is
+ * caught by the test that reads that list.
+ */
+export const SEED_MESSAGES = [
+  "Accommodation",
+  "Activities",
+  "Dates",
+  "Transport",
+] as const;
+
 /** A message's translations, per language. English is absent by design. */
 export type MessageCatalogue = Partial<
   Record<"en" | "hu", Readonly<Record<string, string>>>
@@ -167,7 +196,7 @@ export type MessageCatalogue = Partial<
  * neither the renderer above nor the exception filter that calls it moved a line.
  */
 export const TRANSLATIONS: MessageCatalogue = {
-  hu: { ...HU_SERVER_MESSAGES, ...HU_EMAIL_MESSAGES },
+  hu: { ...HU_SERVER_MESSAGES, ...HU_EMAIL_MESSAGES, ...HU_SEED_MESSAGES },
 };
 
 /**

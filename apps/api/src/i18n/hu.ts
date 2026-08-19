@@ -163,3 +163,18 @@ export const HU_EMAIL_MESSAGES: Readonly<Record<string, string>> = {
   '{name} mentioned you in "{trip}"': "{name} megemlített itt: „{trip}”",
   '{name} mentioned you in "{trip}":': "{name} megemlített itt: „{trip}”:",
 };
+
+/**
+ * Hungarian for the lane names a new trip is seeded with.
+ *
+ * Words a board wears, so they are short ones: the name sits on a lane header a
+ * few characters wide, and the group renames it the moment it wants something
+ * else. "Programok" rather than a literal "Tevékenységek" for the same reason a
+ * traveller says it that way.
+ */
+export const HU_SEED_MESSAGES: Readonly<Record<string, string>> = {
+  Accommodation: "Szállás",
+  Activities: "Programok",
+  Dates: "Dátumok",
+  Transport: "Közlekedés",
+};
