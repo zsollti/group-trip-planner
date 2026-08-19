@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError, useAuth, useJoinTrip } from "@gtp/api-client";
 import { t } from "../lib/i18n";
+import { BrandLockup } from "../components/Brand";
 
 /**
  * Invite redemption landing (Phase 1.3). Logged-out arrivals bounce to
@@ -51,7 +52,7 @@ export function Join() {
   return (
     <main className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <BrandLockup />
         {error ? (
           <>
             <h1 className="board__title">{t("Couldn't join")}</h1>

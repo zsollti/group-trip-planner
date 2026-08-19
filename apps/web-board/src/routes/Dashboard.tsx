@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useAuth, useHomeDashboard, useReorderTrips } from "@gtp/api-client";
 import type { HomeTripSummary } from "@gtp/types";
 import { CreateBoardDialog } from "../components/CreateBoardDialog";
+import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { plural, t, tNode } from "../lib/i18n";
 import { formatMoney } from "../lib/money";
@@ -250,7 +251,7 @@ export function Dashboard() {
   return (
     <main className="board">
       <header className="board__bar">
-        <span className="board__brand">{t("GTP · Trip Board")}</span>
+        <Brand />
         <div className="board__bar-actions">
           {/* Creating a board used to be a filled button up here. It is a ghost
               tile at the end of the wall now — see {@link NewBoardTile} — so

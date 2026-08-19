@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import {
   ApiError,
   useAuth,
@@ -10,6 +9,7 @@ import {
   useUpdateNotificationPreferences,
 } from "@gtp/api-client";
 import { LOCALES, LOCALE_LABEL, type Locale } from "@gtp/types";
+import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { useLocale } from "../lib/useLocale";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
@@ -82,9 +82,7 @@ export function Settings() {
   return (
     <main className="board">
       <header className="board__bar">
-        <Link className="board__brand board__brand--link" to="/">
-          {t("‹ Boards")}
-        </Link>
+        <Brand />
         <div className="board__bar-actions">
           <UserMenu />
         </div>

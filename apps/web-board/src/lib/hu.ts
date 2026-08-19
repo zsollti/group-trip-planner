@@ -215,7 +215,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Find a user": "Felhasználó keresése",
   "Full at {cap} options — remove one to add another.":
     "Betelt, {cap} javaslat van benne — törölj egyet, ha újat szeretnél.",
-  "GTP · Trip Board": "GTP · Utazástábla",
   "Give these dates and they'll take their place on the trip. ":
     "Add meg ezeket a dátumokat, és bekerülnek az utazás menetébe. ",
   Global: "Általános",
@@ -457,6 +456,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Transfer ownership": "Tulajdonjog átadása",
   Trip: "Utazás",
   "Trip Board": "Utazástábla",
+  "Trip Board — your boards": "Utazástábla — a tábláid",
   "Trip chat": "Utazás csevegése",
   "Trip menu": "Utazás menü",
   "Trip view": "Nézet",
@@ -562,7 +562,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "· outside the trip’s dates": "· az utazás dátumain kívül",
   "· 🔕 Email muted": "· 🔕 E-mailek némítva",
   "— exactly {amount}": "— pontosan {amount}",
-  "‹ Boards": "‹ Táblák",
   "○ Vote": "○ Szavazok",
   "● Voted": "● Megszavaztam",
   "☀ Light mode": "☀ Világos mód",

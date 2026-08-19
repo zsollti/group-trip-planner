@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@gtp/api-client";
 import { t } from "../lib/i18n";
+import { BrandLockup } from "../components/Brand";
 
 type VerifyState = "loading" | "success" | "error";
 
@@ -31,7 +32,7 @@ export function Verify() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <BrandLockup />
         {state === "loading" ? (
           <h1 className="board__title">{t("Verifying…")}</h1>
         ) : state === "success" ? (

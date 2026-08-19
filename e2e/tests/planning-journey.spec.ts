@@ -178,7 +178,13 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     ).toBeVisible();
 
     // --- the boards overview reflects the finished decision ----------------
-    await ownerPage.getByRole("link", { name: "‹ Boards" }).click();
+    // The logo is the way home now — the `‹ Boards` text link it replaced went
+    // to the same place. Matched on its accessible name rather than on the
+    // wordmark's text, because the mark beside it is `aria-hidden` and the name
+    // is what a person navigating by keyboard or screen reader actually gets.
+    await ownerPage
+      .getByRole("link", { name: "Trip Board — your boards" })
+      .click();
     const tile = ownerPage.getByRole("link", { name: new RegExp(tripName) });
     await expect(tile).toBeVisible();
 

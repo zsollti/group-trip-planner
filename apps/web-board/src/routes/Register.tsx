@@ -7,6 +7,7 @@ import { RegisterInput } from "@gtp/types";
 import { ApiError, useAuth } from "@gtp/api-client";
 import { safeNextPath } from "../lib/next";
 import { t, tNode } from "../lib/i18n";
+import { BrandLockup } from "../components/Brand";
 
 export function Register() {
   const { register: registerAccount } = useAuth();
@@ -38,7 +39,7 @@ export function Register() {
     return (
       <div className="board board--center">
         <div className="board__auth">
-          <p className="board__eyebrow">{t("Trip Board")}</p>
+          <BrandLockup />
           <h1 className="board__title">{t("Check your inbox")}</h1>
           <p className="board__muted">
             {t(
@@ -56,7 +57,7 @@ export function Register() {
   return (
     <div className="board board--center">
       <div className="board__auth">
-        <p className="board__eyebrow">{t("Trip Board")}</p>
+        <BrandLockup />
         <h1 className="board__title">{t("Create account")}</h1>
         <form onSubmit={onSubmit} noValidate>
           <Field

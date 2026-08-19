@@ -27,6 +27,7 @@ import { BoardRail } from "../components/BoardRail";
 import { TimelineCanvas } from "../components/TimelineCanvas";
 import { ViewToggle, type TripView } from "../components/ViewToggle";
 import { Menu, type MenuItem } from "../components/Menu";
+import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
 import { NotificationToasts } from "../components/NotificationToasts";
@@ -194,9 +195,7 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
        * keeps it observable without spending a corner of the header on it.
        */}
       <header className="board__bar" data-socket-status={tripSocket.status}>
-        <Link className="board__brand board__brand--link" to="/">
-          {t("‹ Boards")}
-        </Link>
+        <Brand />
         <div className="board__bar-actions">
           {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
           {/* Only the toasts sit here now — the list itself is in the account
