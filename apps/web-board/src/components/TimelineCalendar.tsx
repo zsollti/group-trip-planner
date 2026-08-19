@@ -34,9 +34,16 @@ import { plural, t } from "../lib/i18n";
 export function TimelineCalendar({
   timeline,
   onOpen,
+  onCreate,
 }: {
   timeline: Timeline;
   onOpen: (option: TimelineEntry["option"], category: CategoryView) => void;
+  /**
+   * Propose something in an empty hour — given the day's local midnight and the
+   * hour clicked. Undefined for a reader who may not propose, or a frozen
+   * board, and then the slots are inert decoration again.
+   */
+  onCreate?: (dayAt: number, hour: number) => void;
 }) {
   const grid = buildCalendar(timeline.days, timeline.spans);
   const hours = hourLabels(grid);
@@ -126,9 +133,49 @@ export function TimelineCalendar({
                 "cal__col" + (day.outsideTrip ? " cal__col--outside" : "")
               }
             >
-              {hours.map((h) => (
-                <div key={h} className="cal__slot" aria-hidden="true" />
-              ))}
+              {/*
+               * The empty hours, which are now the way to fill them.
+               *
+               * They were `aria-hidden` rules drawn so the grid had lines. The
+               * calendar is where you can see that Thursday morning is free,
+               * and it was the one surface in the app where seeing that led
+               * nowhere — the answer was to leave, find the right lane, open
+               * its form and type the day and the time back in by hand. A
+               * click here carries both.
+               *
+               * A `<button>` rather than a click handler on the div, so it is
+               * reachable and operable from the keyboard and announces what it
+               * will do. It is `tabIndex={-1}` all the same: a fortnight of
+               * fourteen-hour days is a couple of hundred empty cells, and
+               * putting every one of them in the tab order would bury the rest
+               * of the page behind them. Arrow-key roving would be the fuller
+               * answer; the lane's own "propose" button remains the keyboard's
+               * short road, and it is one Tab away on the board.
+               */}
+              {hours.map((h) =>
+                onCreate ? (
+                  <button
+                    key={h}
+                    type="button"
+                    tabIndex={-1}
+                    className="cal__slot cal__slot--open"
+                    aria-label={t("Propose something at {time} on {day}", {
+                      time: new Date(2026, 0, 1, h).toLocaleTimeString(
+                        intlTag(),
+                        { hour: "numeric" },
+                      ),
+                      day: new Date(day.at).toLocaleDateString(intlTag(), {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      }),
+                    })}
+                    onClick={() => onCreate(day.at, h)}
+                  />
+                ) : (
+                  <div key={h} className="cal__slot" aria-hidden="true" />
+                ),
+              )}
               {day.placements.map((p) => (
                 <TimedBlock
                   key={p.entry.option.id}

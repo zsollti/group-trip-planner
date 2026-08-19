@@ -48,7 +48,14 @@ const categories: CategoryView[] = [
 function renderCanvas() {
   window.localStorage.clear();
   return render(
-    <TimelineCanvas tripId="t-1" categories={categories} tripDates={null} />,
+    <TimelineCanvas
+      tripId="t-1"
+      categories={categories}
+      tripDates={null}
+      defaultCurrency="EUR"
+      myRole="PARTICIPANT"
+      frozen={false}
+    />,
   );
 }
 
@@ -85,7 +92,14 @@ describe("the proposals overlay control", () => {
     // Re-mounted from storage rather than from a default: a preference that
     // resets on every navigation is one nobody sets twice.
     render(
-      <TimelineCanvas tripId="t-1" categories={categories} tripDates={null} />,
+      <TimelineCanvas
+        tripId="t-1"
+        categories={categories}
+        tripDates={null}
+        defaultCurrency="EUR"
+        myRole="PARTICIPANT"
+        frozen={false}
+      />,
     );
     expect(
       screen.getByRole("button", { name: /Show proposals/ }),

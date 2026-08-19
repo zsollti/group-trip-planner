@@ -4,6 +4,7 @@ import {
   categoryOptionFields,
   OPTION_TITLE_MAX_LENGTH,
   type CategoryBuiltinKey,
+  type CategoryView,
   type CostType,
   type OptionView,
   type ParticipationMode,
@@ -59,6 +60,9 @@ export function OptionForm({
   currency: tripCurrency,
   option,
   tripDates = null,
+  categoryChoices,
+  seed,
+  onProposed,
   onClose,
 }: {
   tripId: string;
@@ -69,11 +73,36 @@ export function OptionForm({
   /** The trip's settled span, shaded behind the calendar so "outside the trip's
    *  dates" is visible while choosing rather than only after saving. */
   tripDates?: TripDateRange | null;
+  /**
+   * Lanes this option may be proposed into, when the caller does not know.
+   *
+   * A card opened from a lane has its answer already — the lane it was opened
+   * from — and asking again would be a question with one right answer printed
+   * above it. The calendar is the case that has none: a click lands on Thursday
+   * at 10:00, which says everything about *when* and nothing about *which lane*,
+   * so the form asks. `categoryId` is the initial selection either way.
+   */
+  categoryChoices?: readonly CategoryView[];
+  /**
+   * When the option should start and end, for a form opened from a time rather
+   * than from a lane. ISO instants, read exactly as an existing option's own
+   * dates are, so there is one definition of how a date reaches these fields.
+   * Ignored on edit — the option's own dates win.
+   */
+  seed?: { startsAt: string | null; endsAt: string | null };
+  /** Fired after a successful propose, before {@link onClose}. */
+  onProposed?: () => void;
   onClose: () => void;
 }) {
-  const fields = categoryOptionFields({ builtinKey: categoryBuiltinKey });
-  const propose = useProposeOption(tripId, categoryId);
-  const edit = useEditOption(tripId, categoryId);
+  // Held in state only because the calendar's form lets it be changed; a form
+  // opened from a lane initialises here and never moves.
+  const [chosenCategoryId, setChosenCategoryId] = useState(categoryId);
+  const chosen = categoryChoices?.find((c) => c.id === chosenCategoryId);
+  const fields = categoryOptionFields({
+    builtinKey: chosen ? chosen.builtinKey : categoryBuiltinKey,
+  });
+  const propose = useProposeOption(tripId, chosenCategoryId);
+  const edit = useEditOption(tripId, chosenCategoryId);
   const isEdit = Boolean(option);
 
   const [title, setTitle] = useState(option?.title ?? "");
@@ -96,10 +125,13 @@ export function OptionForm({
   // both granularities and only a `minute` option has a time at all. They are
   // rejoined on submit; `joinDay` is the single definition of how.
   const initialStart = splitDay(
-    toDateInput(option?.startsAt ?? null, fields.dateGranularity),
+    toDateInput(
+      option?.startsAt ?? seed?.startsAt ?? null,
+      fields.dateGranularity,
+    ),
   );
   const initialEnd = splitDay(
-    toDateInput(option?.endsAt ?? null, fields.dateGranularity),
+    toDateInput(option?.endsAt ?? seed?.endsAt ?? null, fields.dateGranularity),
   );
   // An option with no time yet opens at midday, running an hour. Blank was the
   // old answer and `joinDay` turned it into **00:00**, so picking two days on
@@ -209,6 +241,7 @@ export function OptionForm({
         });
       } else {
         await propose.mutateAsync(body);
+        onProposed?.();
       }
       onClose();
     } catch (err) {
@@ -235,6 +268,33 @@ export function OptionForm({
     >
       <form onSubmit={onSubmit} noValidate>
         <div className="board__form-grid">
+          {/*
+           * First, and only where it is a real question.
+           *
+           * It leads the form rather than sitting with the dates because it is
+           * the one field that changes the *rest* of the form: the lane decides
+           * whether there is a cost at all and whether the dates carry a time.
+           * A reader who fills in a price and then picks the Dates lane would
+           * watch what they typed disappear.
+           */}
+          {categoryChoices ? (
+            <div className="board__form-wide">
+              <Field htmlFor="opt-category" label={t("Lane")}>
+                <select
+                  id="opt-category"
+                  className="board__select board__select--field"
+                  value={chosenCategoryId}
+                  onChange={(e) => setChosenCategoryId(e.target.value)}
+                >
+                  {categoryChoices.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          ) : null}
           <div className="board__form-wide">
             <Field htmlFor="opt-title" label={t("Title")} required>
               <Input

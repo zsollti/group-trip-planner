@@ -362,6 +362,9 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                     tripId={trip.data.id}
                     categories={categories.data}
                     tripDates={tripDateRange(trip.data)}
+                    defaultCurrency={trip.data.defaultCurrency}
+                    myRole={trip.data.role}
+                    frozen={trip.data.status === "HISTORY"}
                   />
                 ) : (
                   <BoardCanvas

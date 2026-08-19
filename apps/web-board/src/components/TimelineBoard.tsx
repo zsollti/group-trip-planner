@@ -6,6 +6,7 @@ import {
   type TripDateRange,
 } from "@gtp/types";
 import { OptionDetail } from "./OptionDetail";
+import { OptionForm } from "./OptionForm";
 import { CategoryIcon } from "./CategoryIcon";
 import { TimelineCalendar } from "./TimelineCalendar";
 import { CALENDAR_MIN_WIDTH, useMediaQuery } from "../lib/media";
@@ -181,14 +182,36 @@ function TrayCard({
 export function TimelineBoard({
   timeline,
   tripDates,
+  tripId,
+  categories,
+  defaultCurrency,
+  canPropose,
+  onProposed,
 }: {
   timeline: Timeline;
   /** Passed to the detail dialog for its "outside the trip's dates" note. */
   tripDates: TripDateRange | null;
+  tripId: string;
+  /**
+   * Every lane an option may be proposed into — the Dates lane already
+   * filtered out by the caller, for the same reason it is not drawn: locking a
+   * Dates option *is* the trip's own range, not a thing that happens at 10:00.
+   */
+  categories: readonly CategoryView[];
+  defaultCurrency: string;
+  /** False for a guest, or a board that has ended: the hours stay inert. */
+  canPropose: boolean;
+  /** A proposal was made from here — see {@link TimelineCanvas}. */
+  onProposed: () => void;
 }) {
   const [viewing, setViewing] = useState<{
     option: TimelineEntry["option"];
     category: CategoryView;
+  } | null>(null);
+  // The hour a click landed on, as the instants the form seeds itself from.
+  const [creating, setCreating] = useState<{
+    startsAt: string;
+    endsAt: string;
   } | null>(null);
 
   const { days, spans, unscheduled, elsewhere, overlapping } = timeline;
@@ -197,6 +220,23 @@ export function TimelineBoard({
   const wide = useMediaQuery(CALENDAR_MIN_WIDTH);
   const open = (option: TimelineEntry["option"], category: CategoryView) =>
     setViewing({ option, category });
+  // An hour of the grid, as a pair of instants an hour apart. The day arrives
+  // as its own local midnight, so the clock is set on it rather than added to
+  // it — the two differ by an hour on the day a timezone changes, and a click
+  // on the 09:00 row must open a form saying 09:00 on that day too.
+  const create =
+    canPropose && categories.length > 0
+      ? (dayAt: number, hour: number) => {
+          const start = new Date(dayAt);
+          start.setHours(hour, 0, 0, 0);
+          const end = new Date(start);
+          end.setHours(hour + 1, 0, 0, 0);
+          setCreating({
+            startsAt: start.toISOString(),
+            endsAt: end.toISOString(),
+          });
+        }
+      : undefined;
 
   return (
     <>
@@ -228,7 +268,7 @@ export function TimelineBoard({
               )}
         </p>
       ) : wide ? (
-        <TimelineCalendar timeline={timeline} onOpen={open} />
+        <TimelineCalendar timeline={timeline} onOpen={open} onCreate={create} />
       ) : (
         <div className="tl__grid">
           {days.map((day, i) => (
@@ -389,6 +429,32 @@ export function TimelineBoard({
           option={viewing.option}
           tripDates={tripDates}
           onClose={() => setViewing(null)}
+        />
+      ) : null}
+
+      {/*
+       * The board's own propose form, opened from an hour instead of from a
+       * lane — the same dialog, with the two things a click on the grid knows
+       * already filled in and the one thing it cannot know asked as its first
+       * field.
+       *
+       * Deliberately not a lighter "quick add". A proposal made here is a
+       * proposal like any other: it will be voted on, it may carry a price, and
+       * the group will read it next to options written on the board. A reduced
+       * form would produce visibly poorer cards depending on which screen they
+       * were typed on.
+       */}
+      {creating ? (
+        <OptionForm
+          tripId={tripId}
+          categoryId={categories[0]!.id}
+          categoryBuiltinKey={categories[0]!.builtinKey}
+          categoryChoices={categories}
+          currency={defaultCurrency}
+          tripDates={tripDates}
+          seed={creating}
+          onProposed={onProposed}
+          onClose={() => setCreating(null)}
         />
       ) : null}
     </>

@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useCategoriesOptions } from "@gtp/api-client";
-import type { CategoryView, TripDateRange } from "@gtp/types";
+import {
+  can,
+  type CategoryView,
+  type TripDateRange,
+  type TripRole,
+} from "@gtp/types";
 import { TimelineBoard } from "./TimelineBoard";
 import {
   buildTimeline,
@@ -19,19 +24,34 @@ import { plural, t } from "../lib/i18n";
  * rather than about the itinerary moved up to the route, and what is left here
  * is the view itself.
  *
- * Still read-only by construction. Every mutation stays on the board; the cards
- * here open the same detail dialog and nothing else, so there is no permission
- * branch to get wrong — which is also why this takes no role.
+ * Read-only about what is already here — a card opens its detail and nothing
+ * else; editing, voting and locking all stay on the board, where the option
+ * lives beside the ones it is competing with.
+ *
+ * The **empty** hours are the exception, and it is not an inconsistency. The
+ * calendar is the only surface that shows a free Thursday morning, and until
+ * now seeing one led nowhere: you left, found the right lane, opened its form
+ * and typed the day and the hour back in by hand. So a click on an empty hour
+ * proposes there. That is why this now takes a role — proposing is a
+ * permission, and a guest's calendar keeps its inert hours.
  */
 export function TimelineCanvas({
   tripId,
   categories,
   tripDates,
+  defaultCurrency,
+  myRole,
+  frozen,
 }: {
   tripId: string;
   categories: CategoryView[];
   /** The trip's settled range, or null while the dates are still a question. */
   tripDates: TripDateRange | null;
+  /** The trip's currency, for a form opened from an hour of the grid. */
+  defaultCurrency: string;
+  myRole: TripRole;
+  /** The board has ended: read-only, so the hours propose nothing. */
+  frozen: boolean;
 }) {
   const catIds = useMemo(() => categories.map((c) => c.id), [categories]);
   const opts = useCategoriesOptions(tripId, catIds);
@@ -46,6 +66,14 @@ export function TimelineCanvas({
         tripDates,
       ),
     [categories, opts.byCategory, tripDates, showProposals],
+  );
+
+  // The lanes an hour of the grid may propose into. Dates is excluded on the
+  // same rule that keeps it off the calendar (see `timelineCandidates`): its
+  // option is the trip's own frame rather than something that happens at 10:00.
+  const proposable = useMemo(
+    () => categories.filter((c) => c.builtinKey !== "DATES"),
+    [categories],
   );
 
   const notPlaced = timeline.unscheduled.length + timeline.elsewhere.length;
@@ -132,7 +160,26 @@ export function TimelineCanvas({
             )}
           </p>
         ) : (
-          <TimelineBoard timeline={timeline} tripDates={tripDates} />
+          <TimelineBoard
+            timeline={timeline}
+            tripDates={tripDates}
+            tripId={tripId}
+            categories={proposable}
+            defaultCurrency={defaultCurrency}
+            canPropose={can(myRole, "option.propose") && !frozen}
+            /*
+             * Show what was just made.
+             *
+             * A proposal is not locked, and the overlay that draws proposals is
+             * off by default — so without this the reader clicks an empty hour,
+             * fills in a form, saves, and the hour is empty again. The card is
+             * really there; the view is simply not drawing that kind of card.
+             * That is indistinguishable from the save having failed, and it is
+             * the one moment where the preference has to give way: you have
+             * just asked for a thing to exist, so the view stops hiding it.
+             */
+            onProposed={() => setShowProposals(true)}
+          />
         )}
       </div>
     </div>
