@@ -3138,12 +3138,22 @@ textarea[data-gtp-input] {
 /* How far past the budget, drawn on its own band outside the wedges.
    Outside, because the overshoot is not a lane and must not eat one: the
    wedges keep their true shares of the spend and this measures across them.
-   Round caps so a hairline overshoot is still a mark rather than nothing. */
+   Round caps so a hairline overshoot is still a mark rather than nothing.
+
+   No `stroke-width` here: the band thickens when it is read, and the lift is an
+   attribute — a width in the stylesheet would win against it. Same transition
+   as the wedges and the remainder, so nothing about pointing at this part says
+   it is a different kind of part. */
 .cost-donut__over {
   fill: none;
   stroke: var(--board-danger);
-  stroke-width: 5;
   stroke-linecap: round;
+  transition:
+    stroke-width 120ms ease-out,
+    opacity 120ms ease-out;
+}
+.cost-donut__over--off {
+  opacity: 0.4;
 }
 /* A lane's own glyph, on its own wedge.
    White rather than `--cat-ink`: the wedge under it is `--cat-main` at full
@@ -3176,12 +3186,6 @@ textarea[data-gtp-input] {
 /* Where the budget ran out. Short, and outside the fills — the previous rule
    crossed the middle of a saturated wedge, which is the one place a 2px red
    line disappears. */
-.cost-donut__limit {
-  stroke: var(--board-danger);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-
 /* Reading one lane. The lift is on stroke-width, which grows the wedge about
    its own centreline and so never moves its neighbours; `transition` keeps the
    two directions symmetrical, since a wedge that grows fast and shrinks slowly
@@ -3197,7 +3201,8 @@ textarea[data-gtp-input] {
 }
 @media (prefers-reduced-motion: reduce) {
   .cost-donut__wedge,
-  .cost-donut__headroom {
+  .cost-donut__headroom,
+  .cost-donut__over {
     transition: none;
   }
 }
@@ -3243,6 +3248,11 @@ textarea[data-gtp-input] {
 /* The remainder's figure in the hole — see `.cost-comp__row--left`. */
 .cost-donut__figure--ok {
   color: var(--board-ok);
+}
+/* And the overshoot's, in the red the band above it is drawn in. The pair is a
+   scale rather than two moods: room left, and room needed. */
+.cost-donut__figure--over {
+  color: var(--board-danger);
 }
 .cost-donut__caption {
   font-size: 0.7rem;

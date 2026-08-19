@@ -122,6 +122,15 @@ export interface CostComposition {
  */
 export const TAIL_KEY = "tail";
 export const REMAINING_KEY = "remaining";
+/**
+ * The overshoot, which is not a part of the circle but is a part of the drawing.
+ *
+ * It earns a key for the same reason the other two did: it is a mark a reader
+ * can point at, and pointing at it must light the same thing on the ring and in
+ * the list. That it measures *across* the wedges rather than being one of them
+ * is a fact about the arithmetic, not about whether it can be read.
+ */
+export const OVER_KEY = "over";
 
 /** The key for one drawn slice. */
 export function sliceKey(slice: CostSlice): string {
