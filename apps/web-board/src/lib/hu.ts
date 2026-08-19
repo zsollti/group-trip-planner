@@ -637,4 +637,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Crew — see members and roles": "Csapat — tagok és szerepkörök megtekintése",
   "Guests — not asked to vote": "Vendégek — őket nem kérdezzük",
   "Guests — not asked to join": "Vendégek — ők nem csatlakoznak",
+  Lane: "Sáv",
+  "Propose something at {time} on {day}": "Javasolj valamit ide: {day} {time}",
 };

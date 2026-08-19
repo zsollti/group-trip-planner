@@ -77,11 +77,21 @@ const tripDates = {
   endDate: "2026-07-10T00:00:00.000Z",
 };
 
+/** The props that are not what any of these tests are about. */
+const chrome = {
+  tripId: "t-1",
+  categories: [stay, doing],
+  defaultCurrency: "EUR",
+  canPropose: false,
+  onProposed: () => undefined,
+};
+
 function renderTimeline(candidates: TimelineCandidate[]) {
   return render(
     <TimelineBoard
       timeline={buildTimeline(candidates, tripDates)}
       tripDates={tripDates}
+      {...chrome}
     />,
   );
 }
@@ -187,7 +197,11 @@ describe("TimelineBoard", () => {
 
   it("offers the board when nothing is decided at all", () => {
     render(
-      <TimelineBoard timeline={buildTimeline([], null)} tripDates={null} />,
+      <TimelineBoard
+        timeline={buildTimeline([], null)}
+        tripDates={null}
+        {...chrome}
+      />,
     );
     expect(
       screen.getByText(/lock an option on the board/i),
@@ -271,6 +285,7 @@ describe("TimelineBoard", () => {
           null,
         )}
         tripDates={null}
+        {...chrome}
       />,
     );
     expect(screen.getByText(/dates aren't settled yet/i)).toBeInTheDocument();
