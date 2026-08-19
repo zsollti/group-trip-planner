@@ -186,12 +186,13 @@ function TallyBody({
               composition.currency,
               composition.approximate,
             ),
-            // Named "shared" only when something was held back, so the word
-            // earns its place by answering the question the aside raises.
-            caption:
-              composition.excluded.length > 0
-                ? t("per person, shared")
-                : t("per person"),
+            // Always "per person", even when something was held back. The
+            // word "shared" was there to answer the question the excluded
+            // aside raises — but it answered it in the hole of the ring, three
+            // lines above the aside itself, where a reader meets it before
+            // there is anything to share. Two words under a figure have to say
+            // what the figure is; the aside says what is missing from it.
+            caption: t("per person"),
             exact,
           }}
         />

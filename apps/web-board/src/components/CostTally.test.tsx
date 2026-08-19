@@ -566,6 +566,82 @@ describe("the cost composition", () => {
     expect(centre.querySelector(".cost-donut__figure--over")).not.toBeNull();
   });
 
+  /**
+   * Which way the red goes, and how far out it sits.
+   *
+   * Both are read off the attributes rather than a screenshot, because both are
+   * arithmetic: an SVG circle's dash starts at three o'clock and the ring is
+   * rotated a quarter-turn, so a dash **offset of zero is twelve o'clock going
+   * clockwise** — the direction every wedge under it runs. The band used to
+   * carry a negative offset, which put its *end* at twelve and grew it
+   * backwards: the one mark on the chart the eye had to read anticlockwise.
+   */
+  it("starts the overshoot at twelve and runs it clockwise, like the wedges", async () => {
+    const { container } = renderTally(
+      dashboard({
+        committed: [priced(150)],
+        lines: [locked({ perPerson: 150 })],
+        budgetPerPerson: 100,
+      }),
+      LANES,
+    );
+    await screen.findByText("Over budget");
+    const band = container.querySelector(".cost-donut__over")!;
+    // No offset at all, or an explicit zero — either is "starts at the top".
+    const offset = band.getAttribute("stroke-dashoffset");
+    expect(offset === null || Number(offset) === 0).toBe(true);
+
+    // And it is a third of its own circle: 50 over a 100 target is 50 of the
+    // 150 the ring is scaled to. A band drawn the other way would be the same
+    // length, so the offset above is what actually distinguishes them — this
+    // guards the length from following it.
+    const [drawn, circumference] = band
+      .getAttribute("stroke-dasharray")!
+      .split(" ")
+      .map(Number);
+    expect(drawn! / circumference!).toBeCloseTo(1 / 3, 2);
+  });
+
+  it("grows the overshoot band outwards by a wedge's lift", async () => {
+    // Two things at once, and they are one thing: the band gains as much as any
+    // other part gains when it is read (it used to gain less than half), and it
+    // gains it *outwards*, so the gap between it and the wedges it measures is
+    // the same before and after. A stroke thickens about its centreline, so
+    // without moving the radius the wedge-sized lift would close that gap.
+    const { container } = renderTally(
+      dashboard({
+        committed: [priced(150)],
+        lines: [locked({ perPerson: 150 })],
+        budgetPerPerson: 100,
+      }),
+      LANES,
+    );
+    await screen.findByText("Over budget");
+    const band = container.querySelector(".cost-donut__over")!;
+    const edge = () =>
+      Number(band.getAttribute("r")) -
+      Number(band.getAttribute("stroke-width")) / 2;
+    const rest = {
+      inner: edge(),
+      width: Number(band.getAttribute("stroke-width")),
+    };
+
+    fireEvent.mouseEnter(band);
+    const lifted = {
+      inner: edge(),
+      width: Number(band.getAttribute("stroke-width")),
+    };
+
+    // A wedge's own lift, taken from the wedge beside it rather than restated.
+    const wedge = container.querySelector(".cost-donut__wedge")!;
+    const wedgeRest = Number(wedge.getAttribute("stroke-width"));
+    fireEvent.mouseEnter(wedge);
+    const wedgeLift = Number(wedge.getAttribute("stroke-width")) - wedgeRest;
+
+    expect(lifted.width - rest.width).toBe(wedgeLift);
+    expect(lifted.inner).toBeCloseTo(rest.inner, 5);
+  });
+
   it("gives the overshoot row the keyboard's way into that band", async () => {
     // The ring is `aria-hidden` decoration, so a part of it that can only be
     // reached by pointing cannot be reached at all. Every other row is a
@@ -636,6 +712,18 @@ describe("the cost composition", () => {
     expect(
       screen.getByRole("button", { name: /3 in — see who/ }),
     ).toBeInTheDocument();
+
+    // And the ring still says plainly what its figure is. It used to switch to
+    // "per person, shared" whenever something was held back — a qualifier
+    // printed in the hole, three lines above the aside that explains it, where
+    // a reader meets it before there is anything to share. What the figure *is*
+    // belongs under the figure; what is missing from it belongs in the aside.
+    // Scoped to the hole: the aside underneath prices its held-back option "per
+    // person" too, which is the same words about a different figure.
+    expect(document.querySelector(".cost-donut__caption")!.textContent).toBe(
+      "per person",
+    );
+    expect(screen.queryByText(/shared/)).toBeNull();
   });
 
   it("rings the reader's own face among the people an option is priced for", async () => {

@@ -3367,13 +3367,19 @@ a.odetail__link:focus-visible {
    No `stroke-width` here: the band thickens when it is read, and the lift is an
    attribute — a width in the stylesheet would win against it. Same transition
    as the wedges and the remainder, so nothing about pointing at this part says
-   it is a different kind of part. */
+   it is a different kind of part.
+
+   `r` is in the transition because this band grows *outwards* rather than about
+   its centreline — that is what lets it gain a full wedge's lift without
+   closing the gap over the wedges — so its radius moves with its width and the
+   two have to move together. */
 .cost-donut__over {
   fill: none;
   stroke: var(--board-danger);
   stroke-linecap: round;
   transition:
     stroke-width 120ms ease-out,
+    r 120ms ease-out,
     opacity 120ms ease-out;
 }
 .cost-donut__over--off {
