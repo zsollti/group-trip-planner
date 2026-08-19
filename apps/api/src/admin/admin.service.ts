@@ -17,6 +17,7 @@ import type {
   AdminRates,
   AdminSystem,
   AdminUserLookup,
+  AdminUserDeletion,
   AdminUserSummary,
   AdminVolume,
   BanUserInput,
@@ -29,6 +30,7 @@ import {
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { AccountService } from "../account/account.service.js";
 import { EmailService } from "../email/email.service.js";
 import { TokenService } from "../auth/token.service.js";
 import { seedDemoTrip } from "./demo-seed.js";
@@ -95,6 +97,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly accounts: AccountService,
     private readonly tokens: TokenService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -510,6 +513,57 @@ export class AdminService {
     });
     await this.record(actorEmail, "USER_UNBANNED", user.email);
     return this.summaryOf(user.id);
+  }
+
+  /**
+   * Delete an account on its owner's behalf.
+   *
+   * **The same erasure the person's own Settings page performs** — literally the
+   * same method, not a second implementation of it — so the two cannot drift.
+   * That matters more here than anywhere else in this console, because what
+   * happens to a departing owner's trips is the highest-consequence branch in
+   * the app: each owned trip either passes to a successor or is deleted with
+   * everything in it, and an operator's copy of that rule would eventually
+   * answer differently from the preview the person themselves was shown.
+   *
+   * **Anonymization, not a `DELETE FROM users`.** Personal data is purged — the
+   * address, the name, the password, the avatar and its bytes — and the row is
+   * kept so that a proposal, a vote or a chat message this person wrote in
+   * somebody else's trip renders as "Deleted user" instead of vanishing. Hard
+   * deletion would cascade into other groups' boards and silently rewrite their
+   * history, which is not a thing an operator should be able to do to strangers
+   * by pressing a button about one account.
+   *
+   * The impact is computed **before** the cascade runs, because afterwards there
+   * is nothing left to compute it from — that is what the answer reports.
+   *
+   * Self-deletion is refused for the same reason self-suspension is: the console
+   * is keyed on the operator's address, so this would erase the account that
+   * holds the tool. Settings has a delete button for anyone who genuinely means
+   * it about themselves.
+   */
+  async deleteUser(
+    actorEmail: string,
+    userId: string,
+  ): Promise<AdminUserDeletion> {
+    const user = await this.requireUser(userId);
+    if (user.email.toLowerCase() === actorEmail.toLowerCase()) {
+      throw new BadRequestException(
+        "You can't delete your own account from here.",
+      );
+    }
+
+    const impact = await this.accounts.previewDeletion(user.id);
+    await this.accounts.deleteAccount(user.id);
+
+    // The counts, not the trip names: this console reports on accounts, and a
+    // list of somebody's trip titles in a permanent log is trip content.
+    await this.record(
+      actorEmail,
+      "USER_DELETED",
+      `${user.email} · ${impact.transfers.length} transferred · ${impact.deletions.length} deleted`,
+    );
+    return { email: user.email, displayName: user.displayName, impact };
   }
 
   /** The console's own history, newest first. */

@@ -98,6 +98,7 @@ export const SERVER_MESSAGES = [
   "You can only manage members below your own role.",
   "You can only remove members below your own role.",
   "You can't delete this message",
+  "You can't delete your own account from here.",
   "You can't suspend your own account.",
   "You don't have permission to do this.",
   "You've been removed from this trip and can't rejoin.",

@@ -7,6 +7,7 @@ import {
   useAdminUserLookup,
   useAuth,
   useBanUser,
+  useDeleteUser,
   useMarkVerified,
   useResendVerification,
   useRunDemoSeed,
@@ -15,6 +16,7 @@ import {
 } from "@gtp/api-client";
 import { BAN_REASON_MAX, banIsActive } from "@gtp/types";
 import type {
+  AdminUserDeletion,
   AdminDemoSeed,
   AdminPlacesSeed,
   AdminEmail,
@@ -593,6 +595,7 @@ function UserCard({ user }: { user: AdminUserSummary }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [suspending, setSuspending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Asked of the shared rule rather than of `user.ban !== null`, which is the
   // difference between "is suspended" and "has ever been suspended" — and this
@@ -737,7 +740,32 @@ function UserCard({ user }: { user: AdminUserSummary }) {
             {t("Suspend account")}
           </Button>
         )}
+        {/* Not offered on an account that has already been through erasure —
+            there is nothing left to erase, and a button that does nothing is
+            worse than no button on a screen this consequential. */}
+        {user.anonymizedAt === null && !deleting ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              setError(null);
+              setDone(null);
+              setDeleting(true);
+            }}
+          >
+            {t("Delete account")}
+          </Button>
+        ) : null}
       </div>
+
+      {deleting ? (
+        <DeleteAccountConfirm
+          user={user}
+          onCancel={() => setDeleting(false)}
+          onDone={() => setDeleting(false)}
+        />
+      ) : null}
 
       {suspending ? (
         <SuspendForm
@@ -761,6 +789,118 @@ function UserCard({ user }: { user: AdminUserSummary }) {
         </p>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * Erasing an account: what it will do, then what it did.
+ *
+ * The warning is not boilerplate — it states the one thing that is not obvious
+ * and that nobody can undo: **the trips this person owns do not follow them
+ * out.** Each either changes hands or is deleted with everything in it, and
+ * which of the two is decided by who else is on it. An operator pressing this
+ * on somebody's behalf is deciding that for a group they have never met.
+ *
+ * Afterwards it reports what actually happened, by name, for the same reason the
+ * demo-seed button reports its counts: "done" leaves the operator unable to
+ * answer the next question they will be asked, which is "and what happened to
+ * our trip?"
+ */
+function DeleteAccountConfirm({
+  user,
+  onCancel,
+  onDone,
+}: {
+  user: AdminUserSummary;
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const remove = useDeleteUser();
+  const [result, setResult] = useState<AdminUserDeletion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirm() {
+    setError(null);
+    try {
+      setResult(await remove.mutateAsync(user.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("That didn't work."));
+    }
+  }
+
+  if (result) {
+    return (
+      <div className="admin__danger" role="status">
+        <p className="admin__note">
+          {t("{email} is erased.", { email: result.email })}
+        </p>
+        {result.impact.transfers.length === 0 &&
+        result.impact.deletions.length === 0 ? (
+          <p className="admin__note">{t("They owned no trips.")}</p>
+        ) : (
+          <ul className="admin__list">
+            {result.impact.transfers.map((tr) => (
+              <li key={tr.tripId} className="admin__failure">
+                <span className="admin__failure-to">
+                  {t("{trip} → {name}", {
+                    trip: tr.tripName,
+                    name: tr.successorDisplayName,
+                  })}
+                </span>
+              </li>
+            ))}
+            {result.impact.deletions.map((d) => (
+              <li key={d.tripId} className="admin__failure">
+                <span className="admin__failure-to">
+                  {t("{trip} — deleted", { trip: d.tripName })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="admin__actions">
+          <Button type="button" variant="secondary" onClick={onDone}>
+            {t("Close")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin__danger">
+      {/* Two paragraphs and two catalogue entries, not one wall: they answer
+          two different questions — what happens to the trips this person owns,
+          and what happens to everything they wrote in everyone else's. */}
+      <p className="admin__note">
+        {t(
+          "Any trip they own passes to a co-organizer, or to the longest-standing participant. A trip with nobody else on it is deleted, with everything in it.",
+        )}
+      </p>
+      <p className="admin__note">
+        {t(
+          "Their proposals and messages in other people's trips stay, credited to “Deleted user”. This cannot be undone.",
+        )}
+      </p>
+      {error ? (
+        <p className="board__form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="admin__actions">
+        <Button
+          type="button"
+          variant="primary"
+          disabled={remove.isPending}
+          onClick={() => void confirm()}
+        >
+          {remove.isPending ? t("Erasing…") : t("Yes, erase this account")}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          {t("Cancel")}
+        </Button>
+      </div>
+    </div>
   );
 }
 

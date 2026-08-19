@@ -59,6 +59,7 @@ export {
   useMarkVerified,
   useBanUser,
   useUnbanUser,
+  useDeleteUser,
   useRunDemoSeed,
   useRunPlacesSeed,
 } from "./admin.js";

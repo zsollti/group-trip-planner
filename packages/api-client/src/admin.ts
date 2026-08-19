@@ -10,6 +10,7 @@ import type {
   AdminDemoSeed,
   AdminPlacesSeed,
   AdminOverview,
+  AdminUserDeletion,
   AdminUserLookup,
   AdminUserSummary,
   BanUserInput,
@@ -136,6 +137,31 @@ export function useUnbanUser(): UseMutationResult<
   string
 > {
   return useAdminUserAction("unban");
+}
+
+/**
+ * Erase an account and settle the trips it owns.
+ *
+ * Not built from {@link useAdminUserAction} because it does not answer with the
+ * user: after this there is no user to answer with. It answers with what
+ * happened to their trips, which is the part the operator has to be able to
+ * repeat back to whoever asked for the deletion.
+ */
+export function useDeleteUser(): UseMutationResult<
+  AdminUserDeletion,
+  ApiError,
+  string
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<AdminUserDeletion>(`/admin/users/${userId}/delete`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.all });
+    },
+  });
 }
 
 /**

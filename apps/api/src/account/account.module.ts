@@ -16,5 +16,10 @@ import { AccountService } from "./account.service.js";
   imports: [AuthModule, UploadsModule],
   controllers: [AccountController],
   providers: [AccountService],
+  // Exported for the operator's console, which deletes an account on somebody's
+  // behalf and must do it by the *same* cascade as the person's own delete
+  // button — see `AdminService.deleteUser`. Re-implementing the transfer rule
+  // there would give this app two answers to "who inherits the trip".
+  exports: [AccountService],
 })
 export class AccountModule {}

@@ -16,6 +16,7 @@ import type {
   AdminDemoSeed,
   AdminPlacesSeed,
   AdminOverview,
+  AdminUserDeletion,
   AdminUserLookup,
   AdminUserSummary,
 } from "@gtp/types";
@@ -97,6 +98,21 @@ export class AdminController {
     @Param("id", ParseUUIDPipe) id: string,
   ): Promise<AdminUserSummary> {
     return this.admin.unbanUser(actor.email, id);
+  }
+
+  /**
+   * Erase an account, and settle the trips it owns.
+   *
+   * `POST` rather than `DELETE /users/:id`, matching every other write on this
+   * controller, and because the interesting part of the answer is not "gone" —
+   * it is which trips changed hands and which went with it.
+   */
+  @Post("users/:id/delete")
+  deleteUser(
+    @CurrentUser() actor: User,
+    @Param("id", ParseUUIDPipe) id: string,
+  ): Promise<AdminUserDeletion> {
+    return this.admin.deleteUser(actor.email, id);
   }
 
   /**

@@ -466,6 +466,108 @@ describe("Admin console (e2e)", () => {
       .expect(400);
   });
 
+  /**
+   * Erasing an account, and the branch that decides what happens to its trips.
+   *
+   * One test covering both outcomes on purpose: the interesting thing is not
+   * that a delete works, it is that **the same act does two different things**
+   * depending on who else is on the board, and a test that only exercised one
+   * would leave the other free to be wrong.
+   */
+  it("erases an account, handing on the trips that have somewhere to go", async () => {
+    const owner = await makeUser("owner");
+    const heir = await makeUser("heir");
+
+    const shared = await prisma.trip.create({
+      data: {
+        name: "Shared board",
+        ownerId: owner.user.id,
+        startDate: new Date("2099-06-01"),
+        endDate: new Date("2099-06-08"),
+        expiresAt: new Date("2099-07-08"),
+        memberships: {
+          create: [
+            { userId: owner.user.id, role: "OWNER" },
+            { userId: heir.user.id, role: "CO_ORGANIZER" },
+          ],
+        },
+      },
+    });
+    const solo = await prisma.trip.create({
+      data: {
+        name: "Solo board",
+        ownerId: owner.user.id,
+        startDate: new Date("2099-06-01"),
+        endDate: new Date("2099-06-08"),
+        expiresAt: new Date("2099-07-08"),
+        memberships: { create: [{ userId: owner.user.id, role: "OWNER" }] },
+      },
+    });
+
+    const res = await http()
+      .post(`/admin/users/${owner.user.id}/delete`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(201);
+
+    const body = res.body as {
+      email: string;
+      impact: {
+        transfers: { tripId: string; successorUserId: string }[];
+        deletions: { tripId: string }[];
+      };
+    };
+    // The address is snapshotted before the erasure — afterwards there is
+    // nothing left to name the account with.
+    assert.equal(body.email, owner.user.email);
+    assert.deepEqual(
+      body.impact.transfers.map((t) => t.tripId),
+      [shared.id],
+    );
+    assert.equal(body.impact.transfers[0]!.successorUserId, heir.user.id);
+    assert.deepEqual(
+      body.impact.deletions.map((t) => t.tripId),
+      [solo.id],
+    );
+
+    // …and the database agrees with the report, which is the half a summary
+    // object cannot vouch for on its own.
+    const after = await prisma.trip.findUnique({ where: { id: shared.id } });
+    assert.equal(after?.ownerId, heir.user.id);
+    assert.equal(
+      await prisma.trip.findUnique({ where: { id: solo.id } }),
+      null,
+    );
+
+    const erased = await prisma.user.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    assert.ok(erased.anonymizedAt, "the row is kept, the person is not");
+    assert.equal(erased.displayName, "Deleted user");
+    assert.notEqual(erased.email, owner.user.email);
+
+    // Their session is over: the guard rejects an anonymized row.
+    await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(401);
+
+    // Cleaned up here rather than in `after`, because the transfer is exactly
+    // what makes the shared board outlive this test: `Trip.ownerId` restricts,
+    // so the heir cannot be deleted while still owning it and the whole
+    // teardown fails — one line after every individual case had passed.
+    await prisma.trip.delete({ where: { id: shared.id } });
+  });
+
+  it("refuses to let an operator erase themselves from here", async () => {
+    const me = await prisma.user.findUniqueOrThrow({
+      where: { email: adminEmail },
+    });
+    await http()
+      .post(`/admin/users/${me.id}/delete`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(400);
+  });
+
   it("reports operator status on the session, so the app can offer the link", async () => {
     const asAdmin = await http()
       .get("/auth/me")

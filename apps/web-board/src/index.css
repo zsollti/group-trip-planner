@@ -5427,3 +5427,18 @@ button.cost-comp__row-btn:hover,
 .admin__suspend .board__input:disabled {
   opacity: 0.5;
 }
+
+/* The two-step, consequential actions in a user card: erasing an account, and
+   what it turned out to have done. Bordered in the danger colour like the
+   suspend form, because they are the two controls on this screen that a person
+   cannot take back — and boxed rather than inlined so the confirm is visibly a
+   *step*, not another row of the card. */
+.admin__danger {
+  margin-top: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--board-danger) 35%, transparent);
+  border-radius: 10px;
+}
+.admin__danger .admin__note:first-child {
+  margin-top: 0;
+}
