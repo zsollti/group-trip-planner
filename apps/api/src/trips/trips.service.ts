@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
-import { maxTripHorizonDays, planLockedDates } from "@gtp/types";
+import { maxTripHorizonDays, planLockedDates, resolveLocale } from "@gtp/types";
 import type {
   CreateTripInput,
   TripDetail,
@@ -123,7 +123,13 @@ export class TripsService {
       await tx.tripMembership.create({
         data: { tripId: created.id, userId: user.id, role: "OWNER" },
       });
-      await CategoriesService.seedBuiltins(tx, created.id);
+      // In the creator's own language: the lane names are data from here on,
+      // and this is the only moment anybody's language can decide them.
+      await CategoriesService.seedBuiltins(
+        tx,
+        created.id,
+        resolveLocale(user.locale),
+      );
       await ChannelsService.createGeneral(tx, created.id);
       if (dates) {
         await OptionsService.seedLockedDates(

@@ -1,5 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import type { Prisma } from "@prisma/client";
+import type { Locale } from "@gtp/types";
+import { CategoriesService } from "../src/categories/categories.service.js";
+import { translate } from "../src/i18n/messages.js";
 import {
   BUILTIN_CATEGORIES,
   canBeMultiSelect,
@@ -162,5 +166,61 @@ describe("categoryOptionFields", () => {
         "minute",
         `${key ?? "custom"} captures a time of day`,
       );
+  });
+});
+
+/**
+ * What language a new board's lanes are written in.
+ *
+ * The names are seeded once and are data from then on: renameable, and the same
+ * for everyone reading the board. So the creator's language is the only one that
+ * can decide them, and it used to decide nothing — a Hungarian organizer got
+ * four English lanes to rename one at a time.
+ *
+ * Driven through a fake transaction client rather than a database, because what
+ * is under test is the row that would be written, not that Prisma can write it.
+ */
+describe("seeding a new trip's lanes", () => {
+  function seededNames(locale: Locale): string[] {
+    const written: { name: string }[] = [];
+    const tx = {
+      category: {
+        createMany: ({ data }: { data: { name: string }[] }) => {
+          written.push(...data);
+          return Promise.resolve({ count: data.length });
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+    void CategoriesService.seedBuiltins(tx, "trip-1", locale);
+    return written.map((c) => c.name);
+  }
+
+  it("writes the names in the creator's language", () => {
+    assert.deepEqual(seededNames("hu"), [
+      "Dátumok",
+      "Közlekedés",
+      "Szállás",
+      "Programok",
+    ]);
+  });
+
+  it("writes the seed set's own English for an English creator", () => {
+    assert.deepEqual(
+      seededNames("en"),
+      BUILTIN_CATEGORIES.map((c) => c.name),
+    );
+  });
+
+  it("has a translation for every name it can seed", () => {
+    // The seed set in `@gtp/types` is the list; the catalogue has to cover it.
+    // Renaming a lane there without a matching entry seeds English into a
+    // Hungarian board, which nothing else would complain about.
+    for (const c of BUILTIN_CATEGORIES) {
+      assert.notEqual(
+        translate(c.name, "hu"),
+        c.name,
+        `no Hungarian for the seeded lane "${c.name}"`,
+      );
+    }
   });
 });

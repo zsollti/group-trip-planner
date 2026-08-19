@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   EMAIL_MESSAGES,
+  SEED_MESSAGES,
   SERVER_MESSAGES,
   TRANSLATIONS,
   UNTRANSLATED_MESSAGES,
@@ -11,6 +12,7 @@ import {
   translate,
   type MessageCatalogue,
 } from "../src/i18n/messages.js";
+import { BUILTIN_CATEGORIES } from "@gtp/types";
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { readerLocale } from "../src/i18n/reader-locale.js";
 import {
@@ -281,6 +283,17 @@ describe("the message inventory covers the code", () => {
     }
   });
 
+  it("lists the seeded lane names, and keeps them the seed set's own", () => {
+    // These are not thrown either — they are written into a new trip's lanes.
+    // The seed set in `@gtp/types` is the definition; an inventory that drifts
+    // from it would translate a name nothing seeds and seed a name nothing
+    // translates, and both failures are silent.
+    assert.deepEqual(
+      [...SEED_MESSAGES].sort(),
+      BUILTIN_CATEGORIES.map((c) => c.name).sort(),
+    );
+  });
+
   it("lists the email prose separately, and keeps it in use", () => {
     // Not thrown, so the scan cannot cover these — but an email string that no
     // template uses is the same dead weight for a translator.
@@ -297,7 +310,7 @@ describe("the message inventory covers the code", () => {
     // whose whole job is to make diffs legible: the same file would be "unsorted"
     // under a different collation. This ordering is the one every machine agrees
     // on, and an editor can always sort a block with it.
-    for (const list of [SERVER_MESSAGES, EMAIL_MESSAGES]) {
+    for (const list of [SERVER_MESSAGES, EMAIL_MESSAGES, SEED_MESSAGES]) {
       assert.deepEqual(
         [...list],
         [...list].sort(),
@@ -329,6 +342,16 @@ describe("the Hungarian catalogue", () => {
   it("translates every sentence in the emails", () => {
     assert.deepEqual(
       EMAIL_MESSAGES.filter((m) => !(m in hu)),
+      [],
+    );
+  });
+
+  it("translates every lane a new trip is seeded with", () => {
+    // Seeded data rather than a sentence, and the failure is quieter than the
+    // others: a missing entry does not fall back to English *once*, it writes
+    // English into somebody's board for good.
+    assert.deepEqual(
+      SEED_MESSAGES.filter((m) => !(m in hu)),
       [],
     );
   });

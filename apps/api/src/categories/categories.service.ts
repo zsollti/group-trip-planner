@@ -8,6 +8,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import {
   BUILTIN_CATEGORIES,
+  DEFAULT_LOCALE,
   canBeMultiSelect,
   canDeleteCategory,
   maxTripCategories,
@@ -16,6 +17,7 @@ import {
   type CategoryView,
   type OptionsChanged,
   type UpdateCategoryInput,
+  type Locale,
   type ReorderCategoriesInput,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -23,6 +25,7 @@ import { RealtimeGateway } from "../realtime/realtime.gateway.js";
 import type { TripContext } from "../trips/trip-context.js";
 import { toCategoryView } from "./category.mapper.js";
 import { localizedException } from "../i18n/localized-message.js";
+import { translate } from "../i18n/messages.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,15 +49,23 @@ export class CategoriesService {
    * trip-creation transaction** so a trip never exists without its categories;
    * takes the transaction client to share that atomic scope. The seed set and
    * its `singleChoice` defaults are the single definition in `@gtp/types`.
+   *
+   * The names are written in the **creator's** language. They are data from the
+   * moment they land — renameable, and the same for everyone reading the board
+   * — so this is the one chance to write them in a language anybody chose;
+   * before it, a Hungarian organizer's board opened with four English lanes to
+   * rename one at a time. The seed set stays English because it is the source
+   * language and the key the catalogue is looked up by.
    */
   static seedBuiltins(
     tx: Prisma.TransactionClient,
     tripId: string,
+    locale: Locale = DEFAULT_LOCALE,
   ): Promise<Prisma.BatchPayload> {
     return tx.category.createMany({
       data: BUILTIN_CATEGORIES.map((c) => ({
         tripId,
-        name: c.name,
+        name: translate(c.name, locale),
         singleChoice: c.singleChoice,
         isBuiltin: true,
         builtinKey: c.builtinKey,
