@@ -901,9 +901,10 @@ body {
   margin: 0;
   flex: none;
 }
-/* One sentence made of two voices: what this board is to you, then what it is.
-   `flex` with a wrap rather than plain inline text, so on a narrow screen the
-   facts drop below the status instead of breaking mid-clause. */
+/* What the board is: destination, dates, size, currency — one line, wrapping
+   between clauses rather than mid-clause on a narrow screen. It used to open
+   with the reader's own role in an eyebrow; that is a fact about the reader,
+   and it is printed against their name in the crew panel where it belongs. */
 .triphead__line {
   display: flex;
   align-items: baseline;
@@ -912,12 +913,6 @@ body {
   margin: 0;
   color: var(--board-dim);
   line-height: 1.5;
-}
-/* The eyebrow keeps its accent and its caps inside the line — it is a different
-   kind of fact from the ones after it, and losing that distinction was the one
-   real cost of folding the two rows together. */
-.triphead__status {
-  flex: none;
 }
 .triphead__facts {
   min-width: 0;

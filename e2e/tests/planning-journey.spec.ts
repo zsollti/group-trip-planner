@@ -83,26 +83,20 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     await expect(
       memberPage.getByRole("heading", { name: tripName, level: 1 }),
     ).toBeVisible();
-    // Scoped to the eyebrow, which is the board's statement about *this
-    // reader* — "Active · Participant". Unscoped, the same words also appear in
-    // the crew panel, where they are Grace's row in a list of people, and the
-    // assertion resolved to two elements and failed strict mode.
+    // Both halves of what redeeming an invite means — they are on the crew, and
+    // they are on it as a Participant — asserted inside the crew panel, which
+    // is now the only place either is said.
     //
-    // It failed as a **race**, which is why it stood for months and then went
-    // red on main while passing on the branch beside it: the crew roster is
-    // fetched, so before it lands there is one match and after it there are
-    // two. A locator that means one thing only when a request is slow is a
-    // locator that will fail on someone else's machine, eventually.
-    await expect(memberPage.locator(".board__eyebrow")).toContainText(
-      "Participant",
-    );
-    // And the other half of what redeeming an invite means, which the ambiguous
-    // locator was accidentally straddling: they are on the crew now, and
-    // everyone can see it. Asserted where it belongs rather than by matching a
-    // word that happens to appear in both places.
-    await expect(
-      memberPage.getByRole("region", { name: "Crew" }).getByText("Grace"),
-    ).toBeVisible();
+    // The role used to be read off the board's own eyebrow ("Active ·
+    // Participant"), a statement about *this reader* beside the trip's name.
+    // That was always ambiguous with the crew row that says the same word about
+    // the same person, and it failed as a **race**: the roster is fetched, so
+    // before it lands there is one match and after it there are two. The eyebrow
+    // is gone now — a reader's own role is a fact about them, not about the trip
+    // — so the ambiguity goes with it.
+    const crew = memberPage.getByRole("region", { name: "Crew" });
+    await expect(crew.getByText("Grace")).toBeVisible();
+    await expect(crew).toContainText("Participant");
 
     // --- the participant proposes an option --------------------------------
     const memberTransport = laneNamed(memberPage, "Transport");

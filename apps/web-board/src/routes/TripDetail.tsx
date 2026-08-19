@@ -35,7 +35,6 @@ import { ChatPanel } from "../components/ChatPanel";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
 import { plural, t } from "../lib/i18n";
-import { roleLabel } from "../lib/roles";
 
 /**
  * A trip's own date, which is a calendar day rather than an instant — so it
@@ -261,14 +260,14 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
             ) : null}
             <div className="triphead__meta">
               <p className="triphead__line">
-                {/* No "Active ·" any more. It was true of all but a handful of
-                    boards, and a fact that is true of nearly everything tells
-                    the reader nothing — while a board that is *not* active
-                    already says so much louder, in the read-only banner
-                    directly below this line. */}
-                <span className="board__eyebrow triphead__status">
-                  {roleLabel(trip.data.role)}
-                </span>
+                {/* No "Active ·" any more, and no role either. Both were facts
+                    about the *reader* rather than about the trip, sitting where
+                    the trip says what it is; the status because it was true of
+                    all but a handful of boards, and the role because the one
+                    place it changes anything — who may do what — is the crew
+                    panel, where it is printed against each person's name. A
+                    board that is not active still says so, much louder, in the
+                    read-only banner directly below this line. */}
                 <span className="triphead__facts">
                   {trip.data.destination ?? t("No destination yet")} ·{" "}
                   {fmtDate(trip.data.startDate)} – {fmtDate(trip.data.endDate)}{" "}
