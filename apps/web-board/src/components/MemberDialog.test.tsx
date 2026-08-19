@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   fireEvent,
@@ -221,5 +224,46 @@ describe("MemberDialog", () => {
     // dialog. Leaving now lives in the trip's own "⋯" (see `TripDetail`).
     await screen.findByText("Grace Hopper");
     expect(screen.queryByRole("button", { name: "Leave trip" })).toBeNull();
+  });
+});
+
+/**
+ * The row's own width, guarded where it was actually lost: the stylesheet.
+ *
+ * The reported symptom was a "⋯" sitting outside the member's card, with a
+ * horizontal scrollbar under a dialog that had nothing to scroll to. Nothing in
+ * the markup was wrong. `.board__member-role` sets `width: auto` on the role
+ * select and `.board__select` sets `width: 100%` eight hundred lines further
+ * down — same specificity, later in the cascade — so the select filled the
+ * actions column and pushed the menu button out through the row's border.
+ *
+ * jsdom applies no stylesheet, so no rendering test can see this; the file can.
+ * Written against the rule rather than against the geometry, because the
+ * geometry is exactly what is not available here.
+ */
+describe("the stylesheet's side of the member row", () => {
+  const css = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "index.css"),
+    "utf8",
+  );
+
+  function selectorsFor(rule: RegExp): string[] {
+    return css
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("}")
+      .map((block) => block.split("{")[0] ?? "")
+      .flatMap((s) => s.split(","))
+      .map((s) => s.trim())
+      .filter((s) => rule.test(s));
+  }
+
+  it("narrows the role select with a rule .board__select cannot outrank", () => {
+    const rules = selectorsFor(/board__member-role/);
+    expect(rules.length).toBeGreaterThan(0);
+    // Every one of them, not just the first: a second bare rule added later
+    // would lose the same argument all over again.
+    for (const selector of rules) {
+      expect(selector).toContain(".board__select.board__member-role");
+    }
   });
 });
