@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CategoryView } from "@gtp/types";
 import {
+  OVER_KEY,
   REMAINING_KEY,
   sliceKey,
   type CostComposition as Composition,
@@ -161,19 +162,30 @@ function CostLegend({
        * past the budget.
        */}
       {overspend > 0 ? (
-        <li className="cost-comp__row cost-comp__row--over">
+        <li
+          className={
+            "cost-comp__row cost-comp__row--over" +
+            (activeId === OVER_KEY ? " cost-comp__row--on" : "")
+          }
+        >
           {/*
-           * Wrapped in the same `__row-btn` the lanes use, though there is
-           * nothing to press.
+           * A button now, like every other row.
            *
-           * The bare spans were the whole of the indentation complaint: every
-           * other row's contents sit inside a button that carries the row's
-           * padding, so this one started a few pixels to the left of the
-           * column of swatches it belongs to. A `div` with the same class
-           * rather than a `button`, because a row with no chart part to light
-           * up must not offer a focus stop that does nothing.
+           * It was a `div` wearing the button's class — the right call while
+           * the band on the ring was inert, because a focus stop that lights
+           * nothing up is a promise the chart could not keep. The band reads
+           * like a wedge now, so this row has a part to light and the keyboard
+           * has a way to reach it: the ring is `aria-hidden` decoration, so a
+           * part reachable only by pointing at it is not reachable at all.
            */}
-          <div className="cost-comp__row-btn">
+          <button
+            type="button"
+            className="cost-comp__row-btn"
+            onMouseEnter={() => onActivate(OVER_KEY)}
+            onMouseLeave={() => onActivate(undefined)}
+            onFocus={() => onActivate(OVER_KEY)}
+            onBlur={() => onActivate(undefined)}
+          >
             <span
               className="cost-comp__swatch cost-comp__swatch--over"
               aria-hidden="true"
@@ -191,7 +203,7 @@ function CostLegend({
               {Math.round(overshare * 100)}%
             </span>
             <span className="cost-comp__amount">{write(overspend)}</span>
-          </div>
+          </button>
         </li>
       ) : null}
     </ul>

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type {
   CategoryView,
@@ -520,14 +520,69 @@ describe("the cost composition", () => {
       /50\s*%/,
     );
     expect(row.querySelector(".cost-comp__amount")!.textContent).toMatch(/50/);
-    expect(container.querySelector(".cost-donut__limit")).not.toBeNull();
+    expect(container.querySelector(".cost-donut__over")).not.toBeNull();
+    // The band is the whole mark. It used to start with a short radial tick at
+    // the same angle, which drew the boundary the band's own end already draws
+    // — a clean red line with one stray stroke sticking out of it.
+    expect(container.querySelector(".cost-donut__limit")).toBeNull();
   });
 
   it("draws no notch while the target still has headroom", async () => {
     const { container } = renderTally(worked(), LANES);
     await screen.findByText("Stay");
-    expect(container.querySelector(".cost-donut__limit")).toBeNull();
+    expect(container.querySelector(".cost-donut__over")).toBeNull();
     expect(container.querySelector(".cost-donut__headroom")).not.toBeNull();
+  });
+
+  /**
+   * The overshoot, read like any other part of the circle.
+   *
+   * It was the last mark on this chart that did nothing under the pointer, and
+   * the only one whose figure the hole never printed — so "how far over are we"
+   * was a question the drawing raised and left to the list to answer.
+   */
+  it("reads the overshoot in the middle of the ring when pointed at", async () => {
+    const { container } = renderTally(
+      dashboard({
+        committed: [priced(150)],
+        lines: [locked({ perPerson: 150 })],
+        budgetPerPerson: 100,
+      }),
+      LANES,
+    );
+    await screen.findByText("Over budget");
+    const band = container.querySelector(".cost-donut__over")!;
+    fireEvent.mouseEnter(band);
+
+    // The lift and the dim, the same pair every other part of the ring uses.
+    expect(band.className.baseVal).toContain("cost-donut__over--on");
+    expect(container.querySelector(".cost-donut__wedge--off")).not.toBeNull();
+    // And the figure, in the hole, where the reader is already looking.
+    const centre = container.querySelector(".cost-donut__centre")!;
+    expect(centre.textContent).toContain("Over budget");
+    expect(centre.textContent).toMatch(/50/);
+    expect(centre.querySelector(".cost-donut__figure--over")).not.toBeNull();
+  });
+
+  it("gives the overshoot row the keyboard's way into that band", async () => {
+    // The ring is `aria-hidden` decoration, so a part of it that can only be
+    // reached by pointing cannot be reached at all. Every other row is a
+    // button; this one was a div, correctly, while the band was inert.
+    const { container } = renderTally(
+      dashboard({
+        committed: [priced(150)],
+        lines: [locked({ perPerson: 150 })],
+        budgetPerPerson: 100,
+      }),
+      LANES,
+    );
+    const row = (await screen.findByText("Over budget")).closest("li")!;
+    const button = row.querySelector("button")!;
+    expect(button).not.toBeNull();
+
+    fireEvent.focus(button);
+    expect(container.querySelector(".cost-donut__over--on")).not.toBeNull();
+    expect(row.className).toContain("cost-comp__row--on");
   });
 
   it("names an option priced for part of the group instead of drawing it", async () => {

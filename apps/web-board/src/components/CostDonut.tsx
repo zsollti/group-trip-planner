@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { CategoryView } from "@gtp/types";
 import {
+  OVER_KEY,
   REMAINING_KEY,
   type CostComposition,
   type CostSlice,
@@ -50,14 +51,30 @@ const GAP = 2.5;
 /** The over-budget band sits outside the ring, clear of the wedges it measures. */
 const OVER_RADIUS = RADIUS + THICKNESS / 2 + 3.5;
 /**
- * The outermost ink on this chart: the target tick's tip, plus half its stroke.
+ * How thick that band is, and how much of that it gains when it is read.
  *
- * Worth naming, because it was 63.75 in a box whose edge is at 60 — the
- * over-budget band and the tick that starts it were being **clipped by the
- * viewBox**, which is why the red arc came out with its top flattened. Nothing
- * about the band was wrong; there was simply no canvas where it was drawn.
+ * A far smaller lift than a wedge's {@link LIFT}, and not a matter of taste: a
+ * stroke grows about its own centreline, so the band has only the 3.5 units
+ * clearing it from the wedges to grow inward into, and the edge of the box to
+ * grow outward into. A wedge's five each way would both eat the wedges it
+ * measures across and reach outside the viewBox.
+ *
+ * Here rather than in the stylesheet because the lift is an attribute, and a
+ * `stroke-width` in CSS wins against one.
  */
-const OUTERMOST = OVER_RADIUS + 3 + 2.5 / 2;
+const OVER_WIDTH = 5;
+const OVER_LIFT = 2;
+/**
+ * The outermost ink on this chart: the over-budget band at its widest, plus half
+ * its stroke.
+ *
+ * Worth naming, because it was once 63.75 in a box whose edge is at 60 — the
+ * band was being **clipped by the viewBox**, which is why the red arc came out
+ * with its top flattened. Nothing about the band was wrong; there was simply no
+ * canvas where it was drawn. Derived from the band's own numbers, so thickening
+ * it under the pointer cannot quietly bring that back.
+ */
+const OUTERMOST = OVER_RADIUS + (OVER_WIDTH + OVER_LIFT) / 2;
 /** How far the box has to grow on each side to hold {@link OUTERMOST}. */
 const VIEW_PAD = Math.max(0, Math.ceil(OUTERMOST - CENTRE));
 /**
@@ -120,6 +137,7 @@ export function CostDonut({
   const headroom = Math.max(1 - drawn, 0);
   const active = slices.find((s) => keyOf(s) === activeId) ?? null;
   const readingRemainder = activeId === REMAINING_KEY && headroom > 0;
+  const readingOver = activeId === OVER_KEY && overspend > 0;
 
   return (
     <div
@@ -203,15 +221,20 @@ export function CostDonut({
            * divider inside a lane.
            */}
           {targetMark !== null && overspend > 0 ? (
-            <OverBudgetBand from={targetMark} />
+            <OverBudgetBand
+              from={targetMark}
+              active={readingOver}
+              dimmed={activeId != null && !readingOver}
+              onActivate={onActivate}
+            />
           ) : null}
         </g>
         {/*
          * Each lane's own mark, on its own wedge.
          *
-         * Outside the rotated group, like {@link TargetTick}: `pointOnRing`
-         * already puts zero at twelve o'clock, so a glyph placed by it inside
-         * the group would be turned a further quarter-turn onto its side.
+         * Outside the rotated group: `pointOnRing` already puts zero at twelve
+         * o'clock, so a glyph placed by it inside the group would be turned a
+         * further quarter-turn onto its side.
          *
          * Decoration, and only ever that — it is `aria-hidden` with the rest of
          * the ring, and the wedge it marks is already named in the list beside
@@ -247,14 +270,12 @@ export function CostDonut({
             dimmed={activeId != null && !readingRemainder}
           />
         ) : null}
-        {targetMark !== null && overspend > 0 ? (
-          <TargetTick at={targetMark} />
-        ) : null}
       </svg>
       <Centre
         label={label}
         active={active}
         remaining={readingRemainder ? composition.remaining : null}
+        over={readingOver ? overspend : null}
         write={write}
       />
     </div>
@@ -359,42 +380,53 @@ function WedgeMark({
  *
  * Drawn in the rotated group with the wedges, so it shares their clock: zero is
  * twelve, and the band starts exactly where the wedges have spent the budget.
+ *
+ * **Readable like a wedge**, because a reader points at it like one. It was the
+ * last mark on this chart that did nothing under the pointer — and the only one
+ * whose figure the hole never printed, so "how far over are we" was a question
+ * the drawing raised and left to the list to answer.
  */
-function OverBudgetBand({ from }: { from: number }) {
+function OverBudgetBand({
+  from,
+  active,
+  dimmed,
+  onActivate,
+}: {
+  from: number;
+  active: boolean;
+  dimmed: boolean;
+  onActivate?: (key: string | undefined) => void;
+}) {
   const circumference = 2 * Math.PI * OVER_RADIUS;
   const span = Math.max((1 - from) * circumference, 1);
   return (
     <circle
-      className="cost-donut__over"
+      className={
+        "cost-donut__over" +
+        (active ? " cost-donut__over--on" : "") +
+        (dimmed ? " cost-donut__over--off" : "")
+      }
       cx={CENTRE}
       cy={CENTRE}
       r={OVER_RADIUS}
+      strokeWidth={active ? OVER_WIDTH + OVER_LIFT : OVER_WIDTH}
       strokeDasharray={`${span} ${circumference}`}
       strokeDashoffset={-from * circumference}
+      onMouseEnter={() => onActivate?.(OVER_KEY)}
     />
   );
 }
 
-/**
- * A short radial tick at the exact point the budget ran out.
+/*
+ * A short radial tick marked where the budget ran out — "this much is over"
+ * from the band, "from here" from the tick.
  *
- * The band alone says "this much is over"; the tick says "from here". Kept
- * short and outside the wedges — the old full-height rule crossed a saturated
- * fill, which is where a 2px red line disappears.
+ * Removed. The band's own end *is* the point the budget ran out, so the tick
+ * drew that boundary a second time and drew it sticking out of the arc: a clean
+ * red line with one stray mark on one end of it. What it was really
+ * compensating for — a length nobody could interrogate — is answered properly
+ * now, by the band saying in the middle of the ring how much it is measuring.
  */
-function TargetTick({ at }: { at: number }) {
-  const inner = pointOnRing(at, RADIUS + THICKNESS / 2, CENTRE);
-  const outer = pointOnRing(at, OVER_RADIUS + 3, CENTRE);
-  return (
-    <line
-      className="cost-donut__limit"
-      x1={inner.x}
-      y1={inner.y}
-      x2={outer.x}
-      y2={outer.y}
-    />
-  );
-}
 
 /**
  * The hole: the trip's figure, or the lane being read.
@@ -407,17 +439,21 @@ function Centre({
   label,
   active,
   remaining,
+  over,
   write,
 }: {
   label: { headline: string; caption: string; exact?: string | null };
   active: CostSlice | null;
   /** Money still inside the target, when that is the part being read. */
   remaining: number | null;
+  /** Money past the target, when *that* is the part being read. */
+  over: number | null;
   write: (amount: number) => string;
 }) {
   if (active) return <ActiveCentre slice={active} write={write} />;
   if (remaining !== null)
     return <RemainingCentre amount={remaining} write={write} />;
+  if (over !== null) return <OverCentre amount={over} write={write} />;
   return (
     <div className="cost-donut__centre">
       <strong
@@ -468,6 +504,36 @@ function RemainingCentre({
         {written}
       </strong>
       <span className="cost-donut__caption">{t("before the target")}</span>
+    </div>
+  );
+}
+
+/**
+ * How far past the target, in the hole.
+ *
+ * The same three-line shape as the remainder's, because it is the same question
+ * answered from the other side of the budget: the green says how much room is
+ * left, the red how much room was needed. Between them they are a scale, which
+ * is why neither is a colour this hole uses for anything else.
+ */
+function OverCentre({
+  amount,
+  write,
+}: {
+  amount: number;
+  write: (n: number) => string;
+}) {
+  const written = write(amount);
+  return (
+    <div className="cost-donut__centre cost-donut__centre--active">
+      <span className="cost-donut__lane">{t("Over budget")}</span>
+      <strong
+        className="cost-donut__figure cost-donut__figure--over"
+        style={{ fontSize: `${centreFontRem(written, HOLE_PX)}rem` }}
+      >
+        {written}
+      </strong>
+      <span className="cost-donut__caption">{t("past the target")}</span>
     </div>
   );
 }

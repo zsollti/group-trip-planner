@@ -480,6 +480,7 @@ export const UI_MESSAGES = [
   "nothing — there was no demo trip here",
   "or",
   "outside the trip's dates",
+  "past the target",
   "per person",
   "per person, shared",
   "to spare",
