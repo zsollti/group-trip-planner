@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, type Locale } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { interpolate, translate } from "../i18n/messages.js";
+import { fine, p, quote, renderEmail } from "./layout.js";
 
 /**
  * Outbound email. Two channels live here, and the split is the point (FR-36):
@@ -30,6 +31,13 @@ import { interpolate, translate } from "../i18n/messages.js";
  * break a link. User-supplied values (a trip name, a message excerpt) are still
  * escaped on the way in, exactly as before.
  *
+ * **The markup itself lives in `layout.ts`** — the header with the app's mark,
+ * the card, the button — and every template here is now a heading, some
+ * paragraphs and at most one action. What stays in this file is the prose, and
+ * that is deliberate as well as tidy: `i18n.spec.ts` reads *this file* to check
+ * that every entry in `EMAIL_MESSAGES` is still said somewhere, so a sentence
+ * that moved into the layout would read as an orphaned translation.
+ *
  * Each sentence is translated **whole**, with `{placeholders}` for the values it
  * contains — never assembled from fragments. `t("You're invited to") + name`
  * would read correctly in English and wrongly in a language that puts the verb,
@@ -53,9 +61,11 @@ export class EmailService {
     const t = (message: string) => translate(message, locale);
     const link = `${this.env.WEB_APP_URL}/verify?token=${encodeURIComponent(rawToken)}`;
     const subject = t("Verify your email");
-    const html =
-      `<p>${t("Welcome to Group Trip Planner. Confirm your email:")}</p>` +
-      `<p><a href="${link}">${t("Verify my email")}</a></p>`;
+    const html = renderEmail({
+      webAppUrl: this.env.WEB_APP_URL,
+      body: p(t("Welcome to Group Trip Planner. Confirm your email:")),
+      action: { label: t("Verify my email"), href: link },
+    });
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -91,10 +101,15 @@ export class EmailService {
     // (Phase 7.2). The subject is a plain-text JSON field, not a header we
     // assemble, so it needs no escaping; the HTML body does.
     const subject = t(`You're invited to "{trip}"`, { trip: tripName });
-    const html =
-      `<p>${t(`You've been invited to join "{trip}" on Group Trip Planner.`, {
-        trip: escapeHtml(tripName),
-      })}</p>` + `<p><a href="${link}">${t("Open the invite")}</a></p>`;
+    const html = renderEmail({
+      webAppUrl: this.env.WEB_APP_URL,
+      body: p(
+        t(`You've been invited to join "{trip}" on Group Trip Planner.`, {
+          trip: escapeHtml(tripName),
+        }),
+      ),
+      action: { label: t("Open the invite"), href: link },
+    });
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -119,7 +134,17 @@ export class EmailService {
   ): Promise<void> {
     const t = (message: string) => translate(message, locale);
     const subject = t("You already have an account");
-    const html = `<p>${t("Someone tried to register with this email. If it was you, just log in — no new account was created.")}</p>`;
+    const html = renderEmail({
+      webAppUrl: this.env.WEB_APP_URL,
+      // No button. The one thing this mail must not do is put a prominent
+      // "sign in here" link in front of somebody who did not ask for it — the
+      // recipient is by definition an address someone else just typed.
+      body: p(
+        t(
+          "Someone tried to register with this email. If it was you, just log in — no new account was created.",
+        ),
+      ),
+    });
 
     if (this.resend) {
       await this.resend.emails.send({
@@ -163,20 +188,28 @@ export class EmailService {
       name: input.actorName,
       trip: input.tripName,
     });
-    const html =
-      // The bold is carried *in the value*, not in the catalogue entry: a
-      // translator should never be handed a tag they could break, and the
-      // emphasis belongs to the name rather than to the sentence.
-      `<p>${t('{name} mentioned you in "{trip}":', {
-        name: `<strong>${escapeHtml(input.actorName)}</strong>`,
-        trip: escapeHtml(input.tripName),
-      })}</p>` +
-      `<blockquote>${escapeHtml(input.excerpt)}</blockquote>` +
-      `<p><a href="${tripLink}">${t("Open the trip")}</a></p>` +
-      `<hr><p style="font-size:12px;color:#666">` +
-      `${t("You get this because mention email is on.")} ` +
-      `<a href="${unsubscribeLink}">${t("Unsubscribe")}</a> — ` +
-      `${t("it only turns off notification email, never account email.")}</p>`;
+    const html = renderEmail({
+      webAppUrl: this.env.WEB_APP_URL,
+      body:
+        // The bold is carried *in the value*, not in the catalogue entry: a
+        // translator should never be handed a tag they could break, and the
+        // emphasis belongs to the name rather than to the sentence.
+        p(
+          t('{name} mentioned you in "{trip}":', {
+            name: `<strong>${escapeHtml(input.actorName)}</strong>`,
+            trip: escapeHtml(input.tripName),
+          }),
+        ) + quote(escapeHtml(input.excerpt)),
+      action: { label: t("Open the trip"), href: tripLink },
+      // Outside the card rather than under a rule inside it. This is the only
+      // mail here with small print, and it is *about* the mail rather than part
+      // of it — which is also where a reader's eye already looks for it.
+      footer: fine(
+        `${t("You get this because mention email is on.")} ` +
+          `<a href="${unsubscribeLink}" style="color:#0f766e">${t("Unsubscribe")}</a> — ` +
+          `${t("it only turns off notification email, never account email.")}`,
+      ),
+    });
 
     if (this.resend) {
       await this.resend.emails.send({

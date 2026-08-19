@@ -105,7 +105,12 @@ describe("invite email escaping", () => {
       html.includes("&lt;a href=&quot;https://phish.example&quot;&gt;"),
       "the markup is escaped, not stripped",
     );
-    // The real invite link is still a working anchor.
-    assert.ok(html.includes(`<a href="https://board.example/join/raw-token">`));
+    // The real invite link is still a working anchor. Matched on the opening
+    // tag and its href rather than on the whole element: the button carries
+    // inline styles now (mail clients have no stylesheet), and an assertion
+    // that pinned the exact tag was really asserting the template's typography.
+    assert.ok(
+      /<a href="https:\/\/board\.example\/join\/raw-token"[ >]/.test(html),
+    );
   });
 });
