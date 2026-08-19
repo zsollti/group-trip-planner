@@ -159,7 +159,7 @@ export class MembersService {
     }
     await this.prisma.$transaction([
       this.prisma.tripMembership.delete({ where: { id: target.id } }),
-      this.dropParticipation(ctx.trip.id, target.userId),
+      ...this.dropAnswers(ctx.trip.id, target.userId),
       this.prisma.auditEvent.create({
         data: memberAudit(
           ctx.trip.id,
@@ -202,9 +202,16 @@ export class MembersService {
         },
         update: {}, // already blocked → idempotent
       });
-      // Ejected is ejected: their opt-ins go with the membership, exactly as on
+      // Ejected is ejected: their answers go with the membership, exactly as on
       // a kick or a voluntary leave. Missing this would leave a blocked person
-      // still counted in — and paying for — options on a trip they cannot open.
+      // still voting on — and counted in, and paying for — options on a trip
+      // they cannot open.
+      await tx.vote.deleteMany({
+        where: {
+          userId: targetUserId,
+          option: { category: { tripId: ctx.trip.id } },
+        },
+      });
       await tx.optionParticipant.deleteMany({
         where: {
           userId: targetUserId,
@@ -276,7 +283,7 @@ export class MembersService {
           tripId_userId: { tripId: ctx.trip.id, userId: actor.id },
         },
       }),
-      this.dropParticipation(ctx.trip.id, actor.id),
+      ...this.dropAnswers(ctx.trip.id, actor.id),
       // A departure is audited for the same reason a kick is: without it the
       // feed shows removals but not exits, and the trip is left wondering where
       // someone went. Actor and target are the same person here.
@@ -289,13 +296,21 @@ export class MembersService {
   }
 
   /**
-   * Drop everything someone leaving the trip had opted in to.
+   * Drop every answer someone leaving the trip had given: their votes, and the
+   * options they had opted in to.
    *
    * This is what lets the participants model claim it cannot go stale, and it
-   * has to be an actual write — the `option_participants` foreign key cascades
-   * from the **user**, not from the membership, so deleting a membership row
-   * alone would leave a departed person counted in every option they had joined
-   * and quietly inflating its cost.
+   * has to be an actual write — both foreign keys cascade from the **user**, not
+   * from the membership, so deleting a membership row alone would leave a
+   * departed person counted in every option they had joined (quietly inflating
+   * its cost) and still holding a vote on every option they had voted for.
+   *
+   * **The votes are the half this used to miss**, and they were the more
+   * visible one: a kicked member's face stayed on the voter stack of every
+   * card, and their vote kept counting against a crew that no longer includes
+   * them — the tally's denominator is the current membership, so a board could
+   * show more votes than it has members. A removal has to remove the person's
+   * mark on the board, not just their way back in.
    *
    * It replaces `touchMembership`, which stamped `Trip.membershipChangedAt` so
    * that a fixed headcount confirmed earlier could be flagged stale. There is no
@@ -304,11 +319,16 @@ export class MembersService {
    *
    * Scoped through the option's category to this trip: the same person may be
    * on other trips, and leaving one says nothing about those.
+   *
+   * Returns the two deletes rather than awaiting them, so callers can put them
+   * in the same transaction as the membership row they belong to.
    */
-  private dropParticipation(tripId: string, userId: string) {
-    return this.prisma.optionParticipant.deleteMany({
-      where: { userId, option: { category: { tripId } } },
-    });
+  private dropAnswers(tripId: string, userId: string) {
+    const where = { userId, option: { category: { tripId } } };
+    return [
+      this.prisma.vote.deleteMany({ where }),
+      this.prisma.optionParticipant.deleteMany({ where }),
+    ];
   }
 
   /**
