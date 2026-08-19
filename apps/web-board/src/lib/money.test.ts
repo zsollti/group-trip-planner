@@ -66,6 +66,11 @@ describe("formatApproxMoney", () => {
     // preference rather than this module's.
     const reference = new Intl.NumberFormat(undefined, {
       useGrouping: "always",
+      // Stated for the same reason as the grouping directly above it: this is
+      // one of the two things the module overrides the locale's preference on,
+      // so a reference that left it out would be testing `Intl`'s taste in
+      // currency labels rather than this module's.
+      currencyDisplay: "narrowSymbol",
       style: "currency",
       currency: "EUR",
       minimumFractionDigits: 0,
@@ -94,6 +99,39 @@ describe("formatMoney", () => {
     const formatted = formatMoney(1200, "ZZZ");
     expect(formatted).toContain("ZZZ");
     expect(formatted.replace(/\D/g, "")).toBe("1200");
+  });
+
+  /**
+   * The symbol, in every locale this suite might run under.
+   *
+   * Asserted as "does not contain the ISO code" rather than "equals $" — which
+   * is the property the request was actually about, and the only one that holds
+   * on both boxes: `narrowSymbol` gives `$` for USD everywhere, but the *placement*
+   * is the locale's business ("$1,200" in Boston, "1 200 $" in Budapest), and
+   * pinning a literal here is exactly the mistake this file's header warns about.
+   *
+   * The three currencies are the ones named in the request, and they are a real
+   * sample: `$` is a symbol most locales already used, while `Ft` and `zł` are
+   * the ones `Intl` writes as bare codes unless asked for a symbol — so a
+   * regression that dropped `narrowSymbol` would still pass on USD alone.
+   */
+  it("writes the symbol, not the ISO code", () => {
+    for (const [currency, symbol] of [
+      ["USD", "$"],
+      ["HUF", "Ft"],
+      ["PLN", "zł"],
+    ] as const) {
+      const formatted = formatMoney(1200, currency);
+      expect(formatted).toContain(symbol);
+      expect(formatted).not.toContain(currency);
+    }
+  });
+
+  it("marks an approximate figure with a symbol too", () => {
+    // The same option, on the other formatter — they are two calls, and only one
+    // of them was carrying it at first.
+    expect(formatApproxMoney(1200, "HUF")).toContain("Ft");
+    expect(formatApproxMoney(1200, "HUF")).not.toContain("HUF");
   });
 });
 

@@ -30,6 +30,30 @@
 const GROUPING = { useGrouping: "always" } as const;
 
 /**
+ * Write a currency as its **symbol**, not its code — "$1,299.50", "45 000 Ft",
+ * "620 zł", "€120".
+ *
+ * `Intl`'s default for `style: "currency"` is `currencyDisplay: "code"`-ish in
+ * practice for anything outside the reader's own locale: an American reader gets
+ * "$" for dollars and "HUF 45,000" for forints, a Hungarian one gets "45 000 Ft"
+ * and "1 234 USD". So the same board reads as money in one currency and as a
+ * spreadsheet column in every other one — which is precisely backwards, since the
+ * foreign currency is the one a reader needs help recognising.
+ *
+ * `"narrowSymbol"` asks for the shortest form that is still unambiguous *in that
+ * locale*, which is what every currency picker in the world shows: `$`, `Ft`,
+ * `zł`, `€`, `£`, `Kč`. It is not a promise of global uniqueness — a British
+ * reader sees "$" for both USD and CAD — and that is the right trade here,
+ * because a trip's currency is named in full on the trip's own facts line, once,
+ * and repeated beside all forty of its figures it is noise.
+ *
+ * Two things it does *not* change: the grouping still follows the reader's
+ * browser (settled — see the module note), and a code `Intl` has never heard of
+ * still falls back to "<amount> <CODE>", because there is no symbol to find.
+ */
+const SYMBOL = { currencyDisplay: "narrowSymbol" } as const;
+
+/**
  * A currency amount with its symbol, grouped — "€620", "45 000 Ft", "$1,299.50".
  *
  * Cents appear only when the amount has them. A trip's prices are mostly round
@@ -43,6 +67,7 @@ export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, {
       ...GROUPING,
+      ...SYMBOL,
       style: "currency",
       currency,
       minimumFractionDigits: 0,
@@ -69,6 +94,7 @@ export function formatApproxMoney(amount: number, currency: string): string {
   try {
     return `≈ ${new Intl.NumberFormat(undefined, {
       ...GROUPING,
+      ...SYMBOL,
       style: "currency",
       currency,
       // Both bounds stated, like `formatMoney` above. A currency carries its
