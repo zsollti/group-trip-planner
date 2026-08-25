@@ -477,7 +477,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   When: "Mikor",
   "When?": "Mikor?",
   "Where are you going?": "Hová mentek?",
-  "Where it goes": "Mire megy el",
   "Yes, rebuild it": "Igen, épüljön újra",
   "You don't own any boards.": "Nincs saját táblád.",
   "You're unsubscribed": "Leiratkoztál",
@@ -502,6 +501,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   or: "vagy",
   "outside the trip's dates": "az utazás dátumain kívül",
   "per person": "fejenként",
+  over: "túllépés",
   "to spare": "marad",
   "voted before the last change": "a legutóbbi módosítás előtt szavazott",
   "your address": "a címed",
@@ -513,6 +513,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{card} — edit option": "{card} — javaslat szerkesztése",
   "{card} — view details": "{card} — részletek",
   "{currencies} not converted": "{currencies} nincs átváltva",
+  "{currencies} not counted": "{currencies} nincs beszámítva",
   "{currencies} not counted — no rate to convert with":
     "{currencies} nincs beszámítva — nincs árfolyam az átváltáshoz",
   "{date}: {count}": "{date}: {count}",

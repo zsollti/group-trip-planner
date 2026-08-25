@@ -9,7 +9,6 @@ import {
 } from "../lib/costComposition";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { CostDonut } from "./CostDonut";
-import { PersonStack } from "./PersonStack";
 import {
   formatApproxMoney as approx,
   formatMoney as money,
@@ -33,19 +32,12 @@ import { t } from "../lib/i18n";
  * one that survives a reader who cannot separate two of the board's hues.
  */
 export function CostComposition({
-  tripId,
   composition,
   categories,
   headline,
-  myUserId,
 }: {
-  /** Passed through to the excluded aside's face stack, whose panel counts the
-   *  crew — see {@link AnswerPanel}. */
-  tripId: string;
   composition: Composition;
   categories: readonly CategoryView[];
-  /** The reader, so their own face is ringed in the excluded aside. */
-  myUserId: string | undefined;
   /**
    * The per-person figure this surface states once, plus `exact`: the exact
    * per-currency sums behind it when it is approximate. `exact` is a tooltip
@@ -72,7 +64,7 @@ export function CostComposition({
   return (
     <section className="cost-comp">
       <header className="cost-comp__head">
-        <h3 className="cost-comp__title">{t("Where it goes")}</h3>
+        <h3 className="cost-comp__title">{t("Budget")}</h3>
       </header>
 
       <div className="cost-comp__chart">
@@ -97,7 +89,7 @@ export function CostComposition({
           person · 21% above it" — directly under a row that already named it.
           Both figures live on that row now, so the sentence was the same
           reading twice, in prose, in the place a summary should be shortest. */}
-      <Excluded tripId={tripId} composition={composition} myUserId={myUserId} />
+      <Excluded composition={composition} />
       <Uncounted composition={composition} />
     </section>
   );
@@ -312,55 +304,46 @@ function RemainingRow({
 }
 
 /**
- * Locked money the ring cannot honestly hold.
+ * Locked money the ring cannot honestly hold — the reader's own share of it.
  *
  * An option priced for part of the group has a per-person figure divided by a
  * different number of people, so it cannot join a per-person total without
- * making one nobody pays. It is named here instead, in its own currency and
- * with the headcount it was priced for, so the money is visible even though it
- * is not drawable.
+ * making one nobody pays. It is named here instead, in its own currency, so the
+ * money is visible even though it is not drawable.
  *
- * **The reader's own are marked.** The chart states what everyone shares while
- * the target beneath it states what *you* owe, and those legitimately differ the
- * moment you join one of these. Without a mark the two figures look like a
- * contradiction; with one, this aside is the arithmetic between them.
+ * **Only the ones this reader is in.** The chart states what everyone shares
+ * while the target beneath it states what *you* owe, and those legitimately
+ * differ the moment you join one of these — so this aside is the arithmetic
+ * between the two figures, and it can only be that for options the reader is
+ * actually paying into. Listing the rest put somebody else's bill in the gap
+ * between two of the reader's own numbers, which is the one place it cannot be
+ * read as anything but a discrepancy.
+ *
+ * `viewerOwes` is the server's answer, not a comparison made here: the
+ * dashboard computes it per line against the caller (`dashboard.mapper`), which
+ * keeps "am I in this?" one rule rather than one per surface that asks.
+ *
+ * The faces went with the filter. A stack of avatars answered "who is in",
+ * which was worth asking while the list included options the reader had nothing
+ * to do with; on a list that is by definition theirs, it drew four portraits to
+ * say "you, and some others" beside a figure that already means that.
  */
-function Excluded({
-  tripId,
-  composition,
-  myUserId,
-}: {
-  tripId: string;
-  composition: Composition;
-  /** Whose face to ring — the reader's, when they are one of the people the
-   *  option is priced for. */
-  myUserId: string | undefined;
-}) {
-  const { excluded } = composition;
-  if (excluded.length === 0) return null;
+function Excluded({ composition }: { composition: Composition }) {
+  const mine = composition.excluded.filter((e) => e.viewerOwes);
+  if (mine.length === 0) return null;
   return (
     <div className="cost-comp__aside">
       <p className="cost-comp__aside-head">
         {t("Priced for part of the group")}
       </p>
       <ul className="cost-comp__aside-list">
-        {excluded.map((e) => (
+        {mine.map((e) => (
           <li key={e.optionId}>
-            <span className="cost-comp__aside-name">{e.title}</span>{" "}
-            <strong>{money(e.perPerson, e.currency)}</strong> {t("per person")}
-            {/* Faces rather than "for 4 members · yours". The count answered a
-                question nobody standing here asks: what a reader wants of an
-                option priced for part of the group is *who* — and whether that
-                is them — which is what the board draws people as everywhere
-                else it names them. Their own face is ringed, which says
-                "yours" in the place the eye is already looking instead of in a
-                clause after the number. */}
-            <PersonStack
-              tripId={tripId}
-              people={e.participants}
-              mine={e.viewerOwes ? myUserId : undefined}
-              label={t("{n} in — see who", { n: e.participants.length })}
-            />
+            {/* The name carries the weight now. It is what the row is *about*
+                — the reader is scanning for which thing this is, not for a
+                figure they can already see in the column beside it. */}
+            <strong className="cost-comp__aside-name">{e.title}</strong>{" "}
+            {money(e.perPerson, e.currency)} {t("per person")}
           </li>
         ))}
       </ul>
