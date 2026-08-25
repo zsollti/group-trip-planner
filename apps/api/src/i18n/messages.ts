@@ -143,13 +143,15 @@ export const UNTRANSLATED_MESSAGES = ["Cannot "] as const;
  * where a name is bold, the bold travels in the value.
  */
 export const EMAIL_MESSAGES = [
+  "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.",
+  "One quick thing before you can start planning: confirm this is your email address by pressing the button below.",
   "Open the invite",
   "Open the trip",
   "Someone tried to register with this email. If it was you, just log in — no new account was created.",
+  "Thanks for signing up — welcome aboard!",
   "Unsubscribe",
   "Verify my email",
   "Verify your email",
-  "Welcome to Group Trip Planner. Confirm your email:",
   "You already have an account",
   "You get this because mention email is on.",
   `You're invited to "{trip}"`,
