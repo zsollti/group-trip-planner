@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { OptionView } from "@gtp/types";
 import { OptionForm } from "./OptionForm";
@@ -42,6 +42,14 @@ vi.mock("@gtp/api-client", async () => {
       },
     }),
   };
+});
+
+// The two recorders are module-level, because the mock that fills them is. Left
+// to accumulate, every `toHaveLength` assertion below depends on how many tests
+// ran before it — a test reading the result of its neighbours.
+beforeEach(() => {
+  proposed.length = 0;
+  edited.length = 0;
 });
 
 function renderForm() {
@@ -91,6 +99,75 @@ describe("what the option form says is required", () => {
     fireEvent.click(screen.getByRole("button", { name: "Propose option" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(proposed).toHaveLength(1);
+  });
+});
+
+/**
+ * What is wrong, and with which box.
+ *
+ * The server has always sent this — its validation pipe answers with
+ * `errors: fieldErrors` beside the message — and the form threw it away and
+ * printed `message`, which is the literal string "Validation failed". Someone
+ * who pasted a long note got two words naming neither the field nor the limit.
+ *
+ * Checked in the form rather than relayed, because what comes back is zod's own
+ * English ("String must contain at most 2000 character(s)") and this board is
+ * bilingual. The limits are imported from the contract, so the counter's
+ * promise and the server's wall are the same number.
+ */
+describe("what the option form says is wrong", () => {
+  it("counts the notes as they are typed", () => {
+    renderForm();
+    expect(screen.getByText("0/2000")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "Meet at the funicular" },
+    });
+    expect(screen.getByText("21/2000")).toBeInTheDocument();
+  });
+
+  it("names the box and the overshoot instead of saying 'Validation failed'", () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText(/^Title/), {
+      target: { value: "Tram 28" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "x".repeat(2010) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Propose option" }));
+
+    // Nothing was sent, and the reason is attached to the box that caused it.
+    expect(proposed).toHaveLength(0);
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /10 characters too long/,
+    );
+  });
+
+  it("refuses a link that is not one, and says what a link looks like", () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText(/^Title/), {
+      target: { value: "Tram 28" },
+    });
+    fireEvent.change(screen.getByLabelText("Link"), {
+      target: { value: "javascript:alert(1)" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Propose option" }));
+    expect(proposed).toHaveLength(0);
+    expect(screen.getByRole("alert").textContent).toMatch(/http:\/\/ or https/);
+  });
+
+  it("takes the complaint back as soon as it stops being true", () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText(/^Title/), {
+      target: { value: "Tram 28" },
+    });
+    const notes = screen.getByLabelText("Notes");
+    fireEvent.change(notes, { target: { value: "x".repeat(2010) } });
+    fireEvent.click(screen.getByRole("button", { name: "Propose option" }));
+    expect(screen.queryByRole("alert")).not.toBeNull();
+
+    // A message that outlives its problem trains the reader to ignore it.
+    fireEvent.change(notes, { target: { value: "short" } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

@@ -730,4 +730,10 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "That picture couldn't be cropped here. Try another one.":
     "Ezt a képet itt nem sikerült levágni. Próbálj egy másikat.",
   Zoom: "Nagyítás",
+  "A link has to start with http:// or https://":
+    "A linknek http:// vagy https:// előtaggal kell kezdődnie",
+  "That link is too long.": "Ez a link túl hosszú.",
+  "That's {n} characters too long — the notes hold {max}.":
+    "Ez {n} karakterrel hosszabb a megengedettnél — a jegyzet {max} karaktert tárol.",
+  "{n}/{max}": "{n}/{max}",
 };
