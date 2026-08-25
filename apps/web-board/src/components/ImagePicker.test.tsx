@@ -1,6 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ImagePicker } from "./ImagePicker";
+
+/**
+ * The cropper, stood in for.
+ *
+ * It decodes the file through an `<img>` and cuts it on a canvas, and jsdom
+ * does neither — `onload` never fires, so the real one renders a permanently
+ * disabled button and there is no way to reach the callback under test. What is
+ * being tested here is which of two paths `onCropped` takes, which is entirely
+ * this component's logic.
+ */
+vi.mock("./AvatarCropper", () => ({
+  AvatarCropper: ({ onCropped }: { onCropped: (f: File) => void }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onCropped(new File(["y"], "avatar.png", { type: "image/png" }))
+      }
+    >
+      Crop (test double)
+    </button>
+  ),
+}));
 
 /**
  * The picker's two jobs, both of which it used to do badly.
@@ -56,6 +78,36 @@ describe("ImagePicker", () => {
     expect(container.querySelector(".picker__label")).toHaveClass(
       "board__sr-only",
     );
+  });
+
+  it("treats framing the circle as the commit, where it owns the commit", () => {
+    // It used to ask twice: the cropper said "Use this", and the panel then
+    // came back with a Save and a Cancel putting the same question again. The
+    // cropper is already the preview and already has a Cancel, so the second
+    // ask was a step whose purpose the reader had to work out.
+    const onSave = vi.fn();
+    render(
+      <ImagePicker
+        label="Your picture"
+        currentUrl={null}
+        cropCircle
+        onSave={onSave}
+      />,
+    );
+    // Reach the cropper's own callback rather than driving a canvas in jsdom:
+    // the wiring under test is which of the two paths `onCropped` takes, and
+    // the cut itself is the browser's arithmetic, not this component's.
+    fireEvent.change(screen.getByLabelText(/Your picture/), {
+      target: { files: [new File(["x"], "face.png", { type: "image/png" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crop (test double)" }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect((onSave.mock.calls[0]![0] as File).name).toBe("avatar.png");
+    // And nothing is left asking. A Save on the panel now would be the second
+    // half of the flow that was removed.
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("keeps its own Save where it owns the commit", () => {

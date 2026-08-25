@@ -495,7 +495,6 @@ export const UI_MESSAGES = [
   "Up since",
   "Uploading…",
   "Uploads",
-  "Use this",
   "Used",
   "Users",
   "Verification email sent.",
