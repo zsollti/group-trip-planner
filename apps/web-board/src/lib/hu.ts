@@ -40,7 +40,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Add reaction": "Reakció hozzáadása",
   "Adding…": "Hozzáadás…",
   "All currencies": "Minden pénznem",
-  "Allow several winners": "Több győztes engedélyezése",
+  "Allow multi-select": "Többszörös választás engedélyezése",
+  "Allow single-select": "Egyszeres választás engedélyezése",
   "Almost there": "Már majdnem",
   "Already have an account? {link}": "Van már fiókod? {link}",
   "Also proposed": "További javaslatok",
@@ -224,7 +225,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "It may have been mistyped or truncated by your mail app. Nothing changed — you can turn mention emails off from notification settings instead.":
     "Elképzelhető, hogy elírták, vagy a levelezőprogramod levágta. Semmi nem változott — a megemlítési értesítőket az értesítési beállításokban is kikapcsolhatod.",
   "Joining board…": "Csatlakozás a táblához…",
-  "Keep only one winner": "Csak egy győztes lehet",
   "Know them already? The Dates lane will start decided. Skip to let the group vote on it.":
     "Már tudod őket? Akkor a Dátumok sáv eldöntve indul. Hagyd ki, ha a csapat szavazzon róla.",
   Language: "Nyelv",
@@ -266,6 +266,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Message the group… @ to mention": "Írj a csapatnak… @ a megemlítéshez",
   Messages: "Üzenetek",
   "Move to Decided": "Áthelyezés az Eldöntve sávba",
+  "Multi-select": "Többszörös választás",
   "Multi-day": "Több napos",
   "Mute email": "E-mailek némítása",
   Name: "Név",
@@ -381,6 +382,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Sign-in": "Bejelentkezés",
   "Signed up": "Regisztrált",
   "Signing in…": "Bejelentkezés…",
+  "Single-select": "Egyszeres választás",
   Skip: "Kihagyom",
   "Some of these fall outside the trip's own dates.":
     "Ezek közül néhány az utazás dátumain kívül esik.",
