@@ -312,7 +312,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Még semmi. A javaslatok, döntések és megemlítések ide kerülnek.",
   "Notification settings": "Értesítési beállítások",
   Notifications: "Értesítések",
-  "Now pick the end": "Most válaszd ki a végét",
   "Nowhere booked for this night": "Erre az éjszakára nincs szállás",
   Off: "Ki",
   "Offline — not updating": "Nincs kapcsolat — nem frissül",
@@ -336,7 +335,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Per person": "Fejenként",
   "Permanently deleted ({n})": "Véglegesen törölve ({n})",
   Personal: "Személyes",
-  "Pick a start, then an end": "Válaszd ki a kezdetet, majd a végét",
   "Pick both days, or skip this step.":
     "Válaszd ki mindkét napot, vagy hagyd ki ezt a lépést.",
   Plan: "Terv",
@@ -657,4 +655,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Weak: "Gyenge",
   "Your password needs": "A jelszavadhoz kell",
   "Welcome on board! :)": "Üdv a fedélzeten! :)",
+  "Pick a day": "Válassz egy napot",
+  "One day. Pick a later one to stretch it.":
+    "Egy nap. Válassz egy későbbit, ha hosszabb.",
+  "Pick any day to start again": "Bármelyik napra kattintva kezdheted újra",
 };

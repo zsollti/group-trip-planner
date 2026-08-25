@@ -109,22 +109,20 @@ export function joinDay(
 /**
  * Which day an option's *end* falls on, given what the calendar was told.
  *
- * Most things a group proposes happen on one day: dinner at eight, a museum in
- * the morning. The range picker says that in one tap — a start day, and no end
- * day, because there is no second date to give. The form still asks for two
- * *times*, and showed them, and then dropped the second one: `joinDay` gets a
- * time and no day, which is not an instant, so the option came back with a
- * start and no finish.
+ * Two rules, one per granularity, and the order they are applied in is the
+ * whole subtlety:
  *
- * So a missing end day means "the day it started on" — but only where a time
- * makes that a real answer:
- *
- *  - **day granularity** keeps the blank. A one-day proposal genuinely has no
- *    second date, and writing one would turn a day the reader picked into a
- *    range they did not.
- *  - **no end time** keeps it too. Clearing the time is how a reader says the
- *    end is open, and the fallback would otherwise pin it to midnight — an
- *    option that finishes twelve hours before it starts.
+ *  - **day granularity** takes the calendar's answer as it stands. A one-day
+ *    proposal now arrives here as the same day twice, which is exactly right —
+ *    a Dates option is the trip's own range, and a one-day trip is a range
+ *    whose ends agree. (It used to arrive as a day and a blank, and locking it
+ *    was then refused as NO_DATES.)
+ *  - **minute granularity** needs a *time* before it has an end at all, and
+ *    this is checked **before** the day, not after. Clearing the end time is
+ *    how a reader says the finish is open; the calendar still hands over a day,
+ *    and pairing that day with a missing time gives `joinDay` midnight — an
+ *    option that finishes twelve hours before it starts. With a time and no day
+ *    the answer is the day it started on, since "18:00" alone is not an instant.
  */
 export function endDayFor(
   startDay: string,
@@ -132,7 +130,7 @@ export function endDayFor(
   endTime: string,
   granularity: OptionDateGranularity,
 ): string {
-  if (endDay) return endDay;
-  if (granularity !== "minute" || !endTime) return "";
-  return startDay;
+  if (granularity !== "minute") return endDay;
+  if (!endTime) return "";
+  return endDay || startDay;
 }
