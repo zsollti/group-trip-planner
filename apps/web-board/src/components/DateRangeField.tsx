@@ -242,11 +242,19 @@ function RangeGrid({
         >
           ‹
         </button>
-        {/* The instruction, where the question is asked, and it has to change
-            with the state now that one tap is already an answer: a grid that
-            kept saying "now pick the end" would be asking for a second day the
-            reader may not have. */}
-        <p className="drange__prompt" role="status">
+        {/* The instruction, off the screen and still announced.
+
+            A two-tap calendar teaches itself in one tap: you press a day, the
+            day fills in, and the only thing left to try is a second one. The
+            line telling you so sat between the two month arrows on every form
+            that has a date on it, restating what the grid had already shown.
+
+            It stays in the accessibility tree because there it is not
+            redundant — a screen reader user gets no shading and no hover
+            preview, so "one day, pick a later one to stretch it" is the only
+            thing that says a range is even possible. `role="status"` was
+            already doing that work; only the pixels go. */}
+        <p className="drange__prompt board__sr-only" role="status">
           {!start
             ? t("Pick a day")
             : end === start
@@ -280,6 +288,7 @@ function RangeGrid({
             onFocused={onFocused}
             takeFocus={takeFocus}
             highlight={highlight}
+            highlightLabel={highlightLabel}
             min={min}
           />
         ))}
@@ -314,12 +323,6 @@ function RangeGrid({
           </button>
         ) : null}
       </div>
-      {highlight && highlightLabel ? (
-        <p className="drange__legend">
-          <span className="drange__legend-swatch" aria-hidden="true" />
-          {highlightLabel}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -365,6 +368,7 @@ function Month({
   onFocused,
   takeFocus,
   highlight,
+  highlightLabel,
   min,
 }: {
   idPrefix: string;
@@ -380,6 +384,7 @@ function Month({
   onFocused: (iso: string) => void;
   takeFocus: React.MutableRefObject<boolean>;
   highlight: DayRange | null;
+  highlightLabel?: string;
   /** The first choosable day — see the note on `today` in `DateRangeField`. */
   min: string;
 }) {
@@ -438,6 +443,7 @@ function Month({
                       ? within(day.iso, highlight.start, highlight.end)
                       : false
                   }
+                  inTripLabel={highlightLabel}
                   focused={day.iso === focused}
                   onFocused={onFocused}
                   takeFocus={takeFocus}
@@ -468,6 +474,7 @@ function DayCell({
   inMonth,
   role,
   inTrip,
+  inTripLabel,
   focused,
   onFocused,
   takeFocus,
@@ -481,6 +488,12 @@ function DayCell({
   inMonth: boolean;
   role: DayRole;
   inTrip: boolean;
+  /** What the shading behind an `inTrip` day means, e.g. "The trip's own
+   *  dates". Said on the day itself rather than in a legend under the grid:
+   *  a legend is a second thing to find and read, and it named a colour to
+   *  anyone who could see the colour and nothing at all to anyone who could
+   *  not. On the day, it reaches both. */
+  inTripLabel?: string;
   /** Before the first choosable day: drawn dimmed and refusing to be picked. */
   past: boolean;
   focused: boolean;
@@ -516,6 +529,7 @@ function DayCell({
     dateStyle: "full",
     timeZone: "UTC",
   });
+  const fullLabel = inTrip && inTripLabel ? `${label} — ${inTripLabel}` : label;
 
   return (
     <td className="drange__cell">
@@ -529,7 +543,7 @@ function DayCell({
         // accessible one is locale-formatted prose, so neither is something
         // another layer can address a specific day by.
         data-day={iso}
-        aria-label={label}
+        aria-label={fullLabel}
         /*
          * `aria-disabled`, not `disabled`.
          *

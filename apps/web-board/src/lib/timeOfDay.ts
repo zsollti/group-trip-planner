@@ -1,22 +1,25 @@
 import { intlTag } from "./locale";
 /**
- * Picking a time of day, without a spinner.
+ * Saying what time of day something is.
  *
- * `<input type="time">` is a text field wearing a clock: it wants an hour, a
- * minute and often an AM/PM, each typed or nudged with an arrow key, and it
- * gives no hint of what a *reasonable* answer looks like. For "when does dinner
- * start" that is a lot of keystrokes to say 19:00, and on a phone it is a
- * three-column drum. Options are proposed and voted on in this app, not
- * timetabled to the minute, so the honest resolution is a quarter of an hour —
- * which turns a free-text field into a short list, and a list can be tapped,
- * typed at, or arrow-keyed with the value visible the whole time.
+ * This has been three controls. `<input type="time">` was a text field wearing
+ * a clock — an hour, a minute and often an AM/PM, each typed or nudged
+ * separately, and on a phone a three-column drum. Then a quarter-hour
+ * `<select>`, on the argument that options here are proposed and voted on
+ * rather than timetabled, so a list is enough. That was true of the resolution
+ * and wrong about the gesture: a 96-row list is a lot of scrolling to say
+ * 19:00, and a quarter-hour grid cannot say 19:20 at all.
  *
- * Everything here speaks the same `"HH:MM"` string the time input did, so the
- * seam with {@link joinDay} and the contract is unchanged.
+ * It is four keys now. Type `1904`, or `19:4`, or `19:04` — {@link
+ * parseTypedTime} settles them all to `"19:04"`, and a single digit after the
+ * colon pads on the left, because `14:4` means four minutes past and never
+ * forty. Twenty-four hours, whatever the reader's clock convention: this is a
+ * field you type into, and a field that accepts `1:00 PM` has to decide what
+ * `1:00` on its own meant.
+ *
+ * Everything here still speaks the same `"HH:MM"` string, so the seam with
+ * {@link joinDay} and the contract is unchanged.
  */
-
-/** The grid the picker offers. A quarter hour — see the note above. */
-export const TIME_STEP_MINUTES = 15;
 
 /** Where a new option's span starts if nobody says otherwise. */
 export const DEFAULT_START_TIME = "12:00";
@@ -55,24 +58,6 @@ export function shiftTime(value: string, delta: number): string | null {
 }
 
 /**
- * The choices to offer, given what is currently selected.
- *
- * The quarter-hour grid, plus `current` itself when it falls between two of
- * them — an option saved at 07:20 by the old free-text control, or by anyone
- * editing the URL. Dropping it would silently round somebody's time the moment
- * they opened the form to change an unrelated field, so it is inserted in
- * order and marked off-grid for the caller to label.
- */
-export function timeChoices(current: string): string[] {
-  const grid: string[] = [];
-  for (let m = 0; m < 1440; m += TIME_STEP_MINUTES) grid.push(fromMinutes(m));
-  const minutes = toMinutes(current);
-  if (minutes === null || minutes % TIME_STEP_MINUTES === 0) return grid;
-  const at = Math.floor(minutes / TIME_STEP_MINUTES) + 1;
-  return [...grid.slice(0, at), current, ...grid.slice(at)];
-}
-
-/**
  * How a time reads to this reader: 24-hour where that is the convention,
  * "1:00 PM" where it isn't.
  *
@@ -95,4 +80,61 @@ export function formatTimeOfDay(
   } catch {
     return value;
   }
+}
+
+/** What the typed field lets through: digits and one separator, five long. */
+const TIME_KEYSTROKES = /[^0-9:]/g;
+
+/**
+ * Keep only what could still become a time, as it is being typed.
+ *
+ * Deliberately permissive — this runs on every keystroke, and a field that
+ * refuses a half-finished value is a field you cannot type `19:04` into, since
+ * `1`, `19`, `19:` and `19:0` are all on the way there. Rejection happens once,
+ * on the way out ({@link parseTypedTime}).
+ */
+export function sanitizeTypedTime(raw: string): string {
+  return raw.replace(TIME_KEYSTROKES, "").slice(0, 5);
+}
+
+/**
+ * A typed time, settled to `"HH:MM"` — or `null` if it is not a time at all.
+ * An empty field is `""`, because "no time" is a real answer here: an option's
+ * dates are optional and so is the time on them.
+ *
+ * The forms it takes, all of which people actually type:
+ *
+ * - `19:04`, `19:4`, `9:5` — a colon, with each side padded on the **left**.
+ *   `14:4` is four minutes past two, never twenty to three; a right-pad would
+ *   quietly change what somebody typed into something 36 minutes later.
+ * - `1904` — four digits, hour then minute.
+ * - `904` — three digits, one hour digit then two minute ones.
+ * - `19`, `9` — an hour on its own, on the hour.
+ *
+ * Out-of-range parts are a rejection, not a wrap: `25:00` and `19:70` are
+ * mistakes, and rounding them to something valid would be inventing an answer.
+ */
+export function parseTypedTime(raw: string): string | null {
+  const value = raw.trim();
+  if (value === "") return "";
+
+  let hours: number;
+  let minutes: number;
+  if (value.includes(":")) {
+    const parts = value.split(":");
+    if (parts.length !== 2) return null;
+    const [h, m] = parts as [string, string];
+    if (!/^\d{1,2}$/.test(h) || !/^\d{1,2}$/.test(m)) return null;
+    hours = Number(h);
+    minutes = Number(m);
+  } else {
+    if (!/^\d{1,4}$/.test(value)) return null;
+    // Minutes are the trailing pair; anything before them is the hour. One or
+    // two digits on their own is an hour, on the hour.
+    const split = value.length <= 2 ? value.length : value.length - 2;
+    hours = Number(value.slice(0, split));
+    minutes = value.length <= 2 ? 0 : Number(value.slice(split));
+  }
+  if (hours > 23 || minutes > 59) return null;
+  return `${pad(hours)}:${pad(minutes)}`;
 }
