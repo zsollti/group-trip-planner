@@ -46,6 +46,13 @@ model User {
   bannedAt       DateTime?
   bannedUntil    DateTime?
   banReason      String?
+  // When this account finished or dismissed the guided tour (post-launch), or
+  // null if it never has. On the account rather than in the browser because
+  // "skippable, but available later" needs somewhere stable: a per-browser flag
+  // means the tour ambushes the same person again from their phone. A timestamp
+  // rather than a boolean because the two cost the same and only one of them can
+  // answer a question later.
+  tourCompletedAt DateTime?
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
   anonymizedAt   DateTime?
   createdAt      DateTime  @default(now())

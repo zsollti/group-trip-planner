@@ -564,6 +564,9 @@ export function CategoryLane({
       style={laneStyle}
       className="lane"
       aria-labelledby={`lane-title-${category.id}`}
+      // Where the guided tour begins — it points at the first lane on the
+      // board, whichever that turns out to be. See `lib/tour`.
+      data-tour="lane"
     >
       <LaneHeader
         tripId={tripId}
@@ -668,6 +671,7 @@ export function CategoryLane({
             <button
               type="button"
               className="lane__card lane__card--ghost lane__card--cta"
+              data-tour="propose"
               onClick={() => setProposing(true)}
             >
               {t("＋ Propose the first option")}
@@ -730,6 +734,10 @@ export function CategoryLane({
           <Button
             type="button"
             variant="secondary"
+            // The other half of the tour's "propose" anchor: an empty lane
+            // shows the ghost card above, a filled one shows this. Exactly one
+            // of the two is ever on screen per lane.
+            data-tour="propose"
             onClick={() => setProposing(true)}
           >
             {t("+ Add card")}

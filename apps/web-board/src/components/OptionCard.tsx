@@ -164,6 +164,10 @@ export function OptionCard({
         (settled ? " lane__card--settled" : "") +
         (dragging ? " lane__card--dragging" : "")
       }
+      // The guided tour's voting step points at the first card on the board. On
+      // an empty board there is none, and that step drops itself — see
+      // `visibleSteps` in `lib/tour`.
+      data-tour="card"
     >
       <div className="lane__card-head">
         <strong>

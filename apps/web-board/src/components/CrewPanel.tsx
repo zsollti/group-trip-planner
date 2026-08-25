@@ -60,7 +60,7 @@ export function CrewPanel({
   const canInvite = can(myRole, "invite.create");
 
   return (
-    <section className="crew" aria-label={t("Crew")}>
+    <section className="crew" aria-label={t("Crew")} data-tour="crew">
       <h2 className="crew__head">
         {/*
          * The heading *is* the way in.
@@ -96,7 +96,12 @@ export function CrewPanel({
             the list beside it ("this is the crew — add to it"). */}
         {canInvite ? (
           <span className="crew__actions">
-            <button type="button" className="crew__action" onClick={onInvite}>
+            <button
+              type="button"
+              className="crew__action"
+              data-tour="invite"
+              onClick={onInvite}
+            >
               {t("Invite")}
             </button>
           </span>

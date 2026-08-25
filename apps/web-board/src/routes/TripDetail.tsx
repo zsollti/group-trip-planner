@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { intlTag } from "../lib/locale";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -32,6 +32,8 @@ import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
 import { NotificationToasts } from "../components/NotificationToasts";
 import { ChatPanel } from "../components/ChatPanel";
+import { TourSteps } from "../components/Tour";
+import { boardTourSteps } from "../lib/tour";
 import { Dialog } from "../components/Dialog";
 import { tripDateForDisplay } from "../lib/tripDate";
 import { plural, t } from "../lib/i18n";
@@ -83,6 +85,16 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
   // A channel a lane's "Discuss" action asked the chat panel to open (null = idle).
   const [openChannelId, setOpenChannelId] = useState<string | null>(null);
   const categories = useTripCategories(id);
+  /*
+   * The tour's steps, built once per mount.
+   *
+   * `useMemo` and not a bare call: the provider compares what it is offered
+   * against what it holds, but the effect that offers them runs on every change
+   * of identity — and a fresh array each render is a fresh identity. It is also
+   * the one place `t()` could be called too early, so it stays inside the
+   * component rather than at module scope (see `lib/i18n`).
+   */
+  const tourSteps = useMemo(boardTourSteps, []);
   // One trip socket for the whole screen, shared by the live indicator + chat.
   const tripSocket = useTripSocket(id);
   // Keep the board live: refetch lanes/cost when anyone proposes, votes, or an
@@ -411,6 +423,17 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
               onClose={() => setViewingActivity(false)}
             />
           ) : null}
+
+          {/*
+           * The guided tour's steps, and where it starts itself.
+           *
+           * Here rather than on the overview because this is where the app is:
+           * an account with no boards has nothing to point at but the ghost
+           * tile. `autoStart` fires once per account — see `tourCompletedAt` —
+           * and every step whose anchor is missing drops itself, so a Guest
+           * gets the four steps that are about things they can actually do.
+           */}
+          <TourSteps steps={tourSteps} autoStart />
 
           {/* No chat surface at all for a role that has no chat (post-launch).
               Not merely a disabled composer: a Guest cannot read the transcript

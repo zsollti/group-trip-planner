@@ -30,7 +30,12 @@ export function ViewToggle({
   view: TripView;
 }) {
   return (
-    <nav className="viewtoggle" data-view={view} aria-label={t("Trip view")}>
+    <nav
+      className="viewtoggle"
+      data-view={view}
+      aria-label={t("Trip view")}
+      data-tour="view"
+    >
       {/*
        * The filled pill, as one element that slides rather than a background
        * that jumps between two.

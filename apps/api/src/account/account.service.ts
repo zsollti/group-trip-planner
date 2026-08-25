@@ -202,7 +202,8 @@ export class AccountService {
   }
 
   /**
-   * Rename yourself, or change the language you read the app in (post-launch).
+   * Rename yourself, change the language you read the app in, or put the
+   * guided tour behind you (post-launch).
    *
    * A plain column write, and deliberately nothing more. The display name is
    * denormalized nowhere — every surface that shows it (a proposal's proposer,
@@ -227,6 +228,12 @@ export class AccountService {
           displayName: input.displayName,
         }),
         ...(input.locale !== undefined && { locale: input.locale }),
+        // A boolean in, a timestamp out. `false` re-offers the tour rather than
+        // recording that it was refused — there is nothing to record, since the
+        // only thing the column is ever asked is "has this account seen it".
+        ...(input.tourCompleted !== undefined && {
+          tourCompletedAt: input.tourCompleted ? new Date() : null,
+        }),
       },
     });
     return toAuthUser(updated, this.env.ADMIN_EMAILS);

@@ -76,7 +76,7 @@ export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;
  * rather than a second one that could accept a name the sign-up form would
  * refuse.
  *
- * **Both fields are optional, and a request must carry one of them.** That is
+ * **Every field is optional, and a request must carry one of them.** That is
  * what PATCH means, and it is what the two callers need: the rename form knows
  * nothing about the language switch and the switch must not have to re-send a
  * name it never asked about — a form that resubmits a field it does not own is
@@ -94,10 +94,23 @@ export const UpdateProfileInput = z
      * screen.
      */
     locale: localeSchema.optional(),
+    /**
+     * Mark the guided tour done, or offer it again.
+     *
+     * A boolean in, a timestamp out: the client knows "they finished it", the
+     * server knows when. Sent by the tour itself on both exits — finishing and
+     * skipping are the same write, because a tour that came back after being
+     * dismissed would be an advert rather than an offer.
+     */
+    tourCompleted: z.boolean().optional(),
   })
-  .refine((v) => v.displayName !== undefined || v.locale !== undefined, {
-    message: "Nothing to change.",
-  });
+  .refine(
+    (v) =>
+      v.displayName !== undefined ||
+      v.locale !== undefined ||
+      v.tourCompleted !== undefined,
+    { message: "Nothing to change." },
+  );
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
 
 /**

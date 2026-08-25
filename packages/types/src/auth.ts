@@ -116,6 +116,23 @@ export const AuthUser = z.object({
    * later would repaint the app in front of the reader.
    */
   locale: localeSchema,
+  /**
+   * When this account finished — or dismissed — the guided tour, or null if it
+   * never has (post-launch).
+   *
+   * On the account rather than in `localStorage` because "skippable, but
+   * available later" needs somewhere stable to remember it: a per-browser flag
+   * means the tour ambushes the same person again from their phone, at a moment
+   * they did not ask for it. On the *session* rather than a request of its own
+   * because the board decides whether to offer the tour on its first paint, and
+   * an answer arriving a request later would start it after the reader had
+   * already begun using the page.
+   *
+   * A timestamp rather than a boolean for the ordinary reason: "yes" and "yes,
+   * in March" cost the same to store, and only one of them can answer a
+   * question later.
+   */
+  tourCompletedAt: z.string().datetime().nullable(),
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 
