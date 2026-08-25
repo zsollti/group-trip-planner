@@ -4559,6 +4559,20 @@ button.cost-comp__row-btn:hover,
 .board__chat-more:hover {
   color: var(--board-fg);
 }
+/* The measured copy of the overflow trigger. Same reason and same technique as
+   `.board__chat-measure`: the row holds back exactly the width the trigger will
+   take, instead of a constant that was right for the widest case and wasteful
+   for every other one. Carries the trigger's own classes, and is a `button` for
+   the same reason the chip copies are `span`s — a control's metrics are the
+   element's as much as the class's, and a button does not inherit the page's
+   font family the way a span does. */
+.board__chat-more--measure {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.6rem;
+  visibility: hidden;
+  pointer-events: none;
+}
 .board__chat-tab {
   flex: 0 0 auto;
   display: inline-flex;

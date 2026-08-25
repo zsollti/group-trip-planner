@@ -17,11 +17,21 @@ import { useFitCount } from "./fitTabs";
  * whether the browser can add up.
  */
 
-/** Every element reports the same width, which is all the arithmetic needs. */
+/** Every element reports the same width, which is all the arithmetic needs —
+ *  except where a test wants one node to differ, which it says with `data-w`. */
 const CHIP_WIDTH = 60;
 const ROW_WIDTH = 200;
 
-function Row({ open, items }: { open: boolean; items: readonly string[] }) {
+function Row({
+  open,
+  items,
+  reserveWidth,
+}: {
+  open: boolean;
+  items: readonly string[];
+  /** Render a measured overflow trigger of this width; omit for none. */
+  reserveWidth?: number;
+}) {
   const fit = useFitCount(items.length, 40, 5);
   return (
     <div>
@@ -34,6 +44,9 @@ function Row({ open, items }: { open: boolean; items: readonly string[] }) {
               <span key={item}>{item}</span>
             ))}
           </div>
+          {reserveWidth !== undefined ? (
+            <span ref={fit.reserveRef} data-w={reserveWidth} />
+          ) : null}
           <div ref={fit.containerRef} />
         </div>
       ) : null}
@@ -55,7 +68,10 @@ describe("useFitCount", () => {
     client = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
     Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
       configurable: true,
-      get: () => CHIP_WIDTH,
+      get(this: HTMLElement) {
+        const stated = this.dataset?.w;
+        return stated === undefined ? CHIP_WIDTH : Number(stated);
+      },
     });
     Object.defineProperty(Element.prototype, "clientWidth", {
       configurable: true,
@@ -81,6 +97,19 @@ describe("useFitCount", () => {
     // 4 × 60 + 3 gaps = 255 > 200, so the trigger (40) and its gap come off,
     // leaving 155: two chips (125) fit and a third (190) does not.
     expect(screen.getByTestId("count")).toHaveTextContent("2");
+  });
+
+  it("holds back the trigger's measured width, not the fallback", () => {
+    // The bug this guards: the reserve was a constant sized for the widest the
+    // trigger ever gets, so a row whose trigger is actually narrow gave away a
+    // chip and left the space it would have used sitting empty beside it.
+    // Same row, same chips — only the trigger's real width differs.
+    const { rerender } = render(<Row open items={CHANNELS} />);
+    expect(screen.getByTestId("count")).toHaveTextContent("2");
+
+    // 200 − 5 (trigger) − 5 (its gap) = 190, which is exactly three chips.
+    rerender(<Row open items={CHANNELS} reserveWidth={5} />);
+    expect(screen.getByTestId("count")).toHaveTextContent("3");
   });
 
   it("says everything fits until it has looked", () => {

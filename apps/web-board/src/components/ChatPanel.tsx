@@ -18,17 +18,22 @@ import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { Menu } from "./Menu";
 import { partitionByFit, useFitCount } from "../lib/fitTabs";
+import { applyOrder, orderChannels } from "../lib/channelOrder";
 import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
 
 /**
- * Width the "＋N" overflow trigger claims in the switcher row, and the flex gap
- * between chips — both matched to `.board__chat-more` / `.board__chat-tabs` in
- * `index.css`. Kept generous: over-reserving costs one chip, under-reserving
- * reintroduces the overflow this replaced.
+ * Last-resort sizes for the switcher row: what the "＋N" trigger claims and the
+ * flex gap between chips. Both are **measured** in the browser now
+ * ({@link useFitCount}) — these stand in only where there is nothing to measure,
+ * which means before a trigger exists and in jsdom.
+ *
+ * They used to be the real answer, and being generous with them cost a chip: the
+ * reserve was sized for the widest the trigger ever gets and then charged on
+ * every row, so a chip with obvious room beside it stayed collapsed.
  */
-const OVERFLOW_RESERVE_PX = 56;
-const TAB_GAP_PX = 5;
+const OVERFLOW_RESERVE_FALLBACK_PX = 40;
+const TAB_GAP_FALLBACK_PX = 5;
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(intlTag(), {
@@ -300,14 +305,43 @@ export function ChatPanel({
     return truncateName(channelName(channel));
   }
 
+  // The order the row shows them in ({@link orderChannels}: the trip's own
+  // channel, then whatever was last spoken in). Held as a snapshot of ids rather
+  // than recomputed every render — it is refreshed when the panel opens and when
+  // the channel set changes, and deliberately left alone in between. Re-sorting
+  // live would move a chip out from under the cursor every time a message landed
+  // somewhere else, which is a worse row than one a few seconds stale.
+  const [order, setOrder] = useState<string[]>([]);
+  const channelSetKey = useMemo(
+    () =>
+      listed
+        .map((c) => c.id)
+        .sort()
+        .join(","),
+    [listed],
+  );
+  useEffect(() => {
+    setOrder(orderChannels(listed, general?.id).map((c) => c.id));
+    // `listed` and `general` are read but not depended on, and that is the whole
+    // point: `listed` gets a new identity on every incoming message (a message
+    // moves its channel's `lastMessageAt`), so depending on it would re-sort
+    // exactly when this must not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, channelSetKey]);
+  const ordered = useMemo(() => applyOrder(listed, order), [listed, order]);
+
   // One row of chips: those that fit, plus a "＋N" menu for the remainder. The
   // active channel is always among the visible ones — collapsing the channel you
   // are reading would leave the row showing everywhere you *aren't*.
-  const fit = useFitCount(listed.length, OVERFLOW_RESERVE_PX, TAB_GAP_PX);
+  const fit = useFitCount(
+    ordered.length,
+    OVERFLOW_RESERVE_FALLBACK_PX,
+    TAB_GAP_FALLBACK_PX,
+  );
   const { shown: shownChannels, hidden: hiddenChannels } = useMemo(
     () =>
-      partitionByFit(listed, fit.visibleCount, (c) => c.id === activeChannelId),
-    [listed, fit.visibleCount, activeChannelId],
+      partitionByFit(ordered, fit.visibleCount, (c) => c.id === activeChannelId),
+    [ordered, fit.visibleCount, activeChannelId],
   );
   // Surfaced on the trigger: a collapsed channel's unread count must not vanish
   // with the chip.
@@ -437,23 +471,50 @@ export function ChatPanel({
           {listed.length > 1 ? (
             <div className="board__chat-switcher">
               {/* Off-flow copy of the full list, measured to decide how many chips
-                  fit. aria-hidden and untabbable — the real row is below. */}
+                  fit. aria-hidden and untabbable — the real row is below.
+
+                  It has to mirror the real row **exactly**, badge for badge. It
+                  used to badge every unread channel including the active one,
+                  which the real row deliberately does not — so every chip was
+                  measured about a badge too wide and the row gave away a chip
+                  it had the space for. */}
               <div
                 className="board__chat-measure"
                 ref={fit.measureRef}
                 aria-hidden="true"
               >
-                {listed.map((c) => (
-                  <span key={c.id} className="board__chat-tab">
-                    {channelLabel(c)}
-                    {(unread[c.id] ?? 0) > 0 ? (
-                      <span className="board__chat-tabbadge">
-                        {unread[c.id]}
-                      </span>
-                    ) : null}
-                  </span>
-                ))}
+                {ordered.map((c) => {
+                  const badge =
+                    c.id === activeChannelId ? 0 : (unread[c.id] ?? 0);
+                  return (
+                    <span key={c.id} className="board__chat-tab">
+                      {channelLabel(c)}
+                      {badge > 0 ? (
+                        <span className="board__chat-tabbadge">{badge}</span>
+                      ) : null}
+                    </span>
+                  );
+                })}
               </div>
+              {/* And an off-flow copy of the trigger, so the space held back for
+                  it is its real width rather than a constant. Drawn at its
+                  **widest** — every channel but one collapsed, carrying the
+                  trip's whole unread count — because a reserve that is a little
+                  too big costs alignment, while one that is too small brings
+                  back the horizontal overflow this row exists to avoid. */}
+              <button
+                type="button"
+                disabled
+                tabIndex={-1}
+                className="menu__trigger board__chat-more board__chat-more--measure"
+                ref={fit.reserveRef}
+                aria-hidden="true"
+              >
+                ＋{ordered.length - 1}
+                {totalUnread > 0 ? (
+                  <span className="board__chat-tabbadge">{totalUnread}</span>
+                ) : null}
+              </button>
 
               {/* Not a `tablist`: there are no tabpanels and no arrow-key
                   contract to honour, and the overflow trigger could not live

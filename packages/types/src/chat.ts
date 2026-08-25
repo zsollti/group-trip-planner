@@ -13,12 +13,22 @@ import { z } from "zod";
 export const ChannelType = z.enum(["GENERAL", "CATEGORY"]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
-/** A channel as seen by the client. A GENERAL channel has a null `categoryId`. */
+/**
+ * A channel as seen by the client. A GENERAL channel has a null `categoryId`.
+ *
+ * `lastMessageAt` is when the channel last had something said in it (deleted
+ * messages excluded), or null for one nobody has written in yet. It exists so
+ * the switcher can lead with the conversations that are actually moving: a trip
+ * with eight category discussions had them in creation order, which is the one
+ * order that has nothing to do with where the talking is. Ordering is the
+ * client's to apply — the server states the fact and stays order-agnostic.
+ */
 export const ChannelView = z.object({
   id: z.string().uuid(),
   tripId: z.string().uuid(),
   categoryId: z.string().uuid().nullable(),
   type: ChannelType,
+  lastMessageAt: z.string().nullable(),
 });
 export type ChannelView = z.infer<typeof ChannelView>;
 

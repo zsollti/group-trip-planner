@@ -695,6 +695,46 @@ describe("Chat gateway (e2e)", () => {
     assert.equal(unreadOf(second.ready, channelId), 1);
   });
 
+  it("says when each channel was last spoken in, ignoring deleted messages", async () => {
+    // What the switcher orders on. The server states the fact and stays
+    // order-agnostic; the ordering rule itself is the client's.
+    const owner = await makeUser("lastmsg-owner");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+
+    const empty = await connectReady({ token: owner.token, tripId: trip.id });
+    assert.equal(
+      empty.ready.channels.find((c) => c.id === channelId)?.lastMessageAt,
+      null,
+      "a channel nobody has written in has no last message",
+    );
+
+    const said = await emitAck(empty.socket, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "first thing",
+    });
+    assert.ok(said.ok);
+    const spoken = await connectReady({ token: owner.token, tripId: trip.id });
+    assert.equal(
+      spoken.ready.channels.find((c) => c.id === channelId)?.lastMessageAt,
+      said.message.createdAt,
+    );
+
+    // Taking it back leaves the channel with nothing said in it again — a
+    // tombstone is not a conversation.
+    await emitAck(spoken.socket, MESSAGE_DELETE_EVENT, {
+      messageId: said.message.id,
+    });
+    const withdrawn = await connectReady({
+      token: owner.token,
+      tripId: trip.id,
+    });
+    assert.equal(
+      withdrawn.ready.channels.find((c) => c.id === channelId)?.lastMessageAt,
+      null,
+    );
+  });
+
   it("starts a category discussion on demand (idempotent) and broadcasts it live", async () => {
     const owner = await makeUser("disc-owner");
     const trip = await makeTrip(owner.user.id);
