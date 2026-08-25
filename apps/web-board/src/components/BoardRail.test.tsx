@@ -77,6 +77,11 @@ function renderRail(myRole: TripRole) {
   );
 }
 
+/** Reading order for the crew: organizers, then travelers, then guests. */
+const RANK = { Organizer: 0, Traveler: 1, Guest: 2 } as const;
+const byRank = (a: string | null, b: string | null) =>
+  RANK[a as keyof typeof RANK] - RANK[b as keyof typeof RANK];
+
 describe("BoardRail", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -98,7 +103,24 @@ describe("BoardRail", () => {
     // being present says nothing — wait for the roster itself.
     expect(await within(crew).findByText(/Ada/)).toBeInTheDocument();
     expect(within(crew).getByText("Grace")).toBeInTheDocument();
-    expect(within(crew).getByText("Participant")).toBeInTheDocument();
+    // The reader's vocabulary, not the database's: PARTICIPANT reads
+    // "Traveler", and OWNER and CO_ORGANIZER both read "Organizer".
+    expect(within(crew).getByText("Traveler")).toBeInTheDocument();
+    expect(within(crew).getByText("Organizer")).toBeInTheDocument();
+  });
+
+  it("puts the organizers at the top of the crew", async () => {
+    // The server returns join order, which leaves the one person who can
+    // actually lock a decision anywhere in the row.
+    mockFetch();
+    renderRail("OWNER");
+
+    const crew = await screen.findByRole("region", { name: "Crew" });
+    await within(crew).findByText(/Ada/);
+    const roles = within(crew)
+      .getAllByText(/^(Organizer|Traveler|Guest)$/)
+      .map((el) => el.textContent);
+    expect(roles).toEqual([...roles].sort(byRank));
   });
 
   it("sends an organizer from the crew panel to the members dialog", async () => {

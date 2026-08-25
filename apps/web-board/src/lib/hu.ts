@@ -69,7 +69,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Clear: "Törlés",
   Close: "Bezárás",
   "Close chat": "Csevegés bezárása",
-  "Co-organizer": "Társszervező",
   "Colour for {lane}": "{lane} színe",
   Commit: "Rögzítés",
   Common: "Általános",
@@ -323,10 +322,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Over budget": "Túllépi a keretet",
   "Overlaps another {lane} decision":
     "Átfedésben van egy másik {lane} döntéssel",
-  Owner: "Tulajdonos",
   "Ownership transfers ({n})": "Tulajdonjog átszáll ({n})",
   Palettes: "Színpaletták",
-  Participant: "Résztvevő",
   Password: "Jelszó",
   Pending: "Várakozik",
   "Per person": "Fejenként",
@@ -506,10 +503,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "{currencies} nincs beszámítva — nincs árfolyam az átváltáshoz",
   "{date}: {count}": "{date}: {count}",
   "{emoji} {n}": "{emoji} {n}",
-  "{kind} — a single-use link for one person, optionally emailed. Used up after the first join.":
-    "{kind} — egyszer használható link egy személynek, e-mailben is elküldhető. Az első csatlakozás után elhasználódik.",
-  "{kind} — one reusable link anyone can use to join. One per role; disable it anytime (members who joined stay).":
-    "{kind} — egy újrahasználható link, amivel bárki csatlakozhat. Szerepenként egy; bármikor kikapcsolhatod (a már csatlakozott tagok maradnak).",
   "{label} — choose a file": "{label} — válassz fájlt",
   "{lane} lane actions": "{lane} sáv műveletei",
   "{lane} — rename category": "{lane} — sáv átnevezése",
@@ -656,4 +649,16 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "One day. Pick a later one to stretch it.":
     "Egy nap. Válassz egy későbbit, ha hosszabb.",
   "Pick any day to start again": "Bármelyik napra kattintva kezdheted újra",
+  Organizer: "Szervező",
+  Traveler: "Utazó",
+  "Runs the trip with you — can add lanes, invite people and lock in the group's decisions.":
+    "Veled együtt szervezi az utazást — sávokat adhat hozzá, meghívhat másokat, és rögzítheti a csoport döntéseit.",
+  "Coming along: they can suggest options, vote on everything and join the chat.":
+    "Ő is jön: javaslatokat tehet, mindenre szavazhat, és beszélgethet a többiekkel.",
+  "Just looking — they can see how the plan is coming along, and nothing more.":
+    "Csak nézelődik — láthatja, hogyan halad a terv, de semmi többet.",
+  "{kind} — anyone with the link can join.":
+    "{kind} — bárki csatlakozhat, akinek megvan a link.",
+  "{kind} — a single-use link for one person.":
+    "{kind} — egyszer használható link egy embernek.",
 };
