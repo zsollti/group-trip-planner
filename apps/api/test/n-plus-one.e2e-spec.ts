@@ -232,7 +232,7 @@ describe("N+1 audit — list views (e2e)", () => {
     const tripId = await createTrip(me.accessToken, "Ready trip");
 
     const withDefaults = await countQueries(() =>
-      channels.readyPayload(tripId, me.user.id),
+      channels.readyPayload([tripId], me.user.id),
     );
 
     const categories = await prisma.category.findMany({ where: { tripId } });
@@ -248,13 +248,43 @@ describe("N+1 audit — list views (e2e)", () => {
     );
 
     const withMany = await countQueries(() =>
-      channels.readyPayload(tripId, me.user.id),
+      channels.readyPayload([tripId], me.user.id),
     );
 
     assertDoesNotGrow(
       withDefaults,
       withMany,
       `readyPayload issued ${withDefaults} statements for 1 channel and ${withMany} for ${channelCount}`,
+    );
+  });
+
+  it("chat ready payload: nor a query per trip", async () => {
+    // The new fan-out, and the reason this one exists. A socket used to cover
+    // one board, so the payload's cost was bounded by that board. It now covers
+    // every board its owner is on — so the same shape that once cost a query
+    // per channel would cost one per trip, and it would grow with the account
+    // rather than with the page. Both queries take the whole set at once
+    // (`IN`, `ANY`), which is what this pins.
+    const me = await makeUser("ready-many");
+    const one = await createTrip(me.accessToken, "First");
+
+    const withOneTrip = await countQueries(() =>
+      channels.readyPayload([one], me.user.id),
+    );
+
+    const ids = [one];
+    for (const name of ["Second", "Third", "Fourth", "Fifth"]) {
+      ids.push(await createTrip(me.accessToken, name));
+    }
+
+    const withFive = await countQueries(() =>
+      channels.readyPayload(ids, me.user.id),
+    );
+
+    assertDoesNotGrow(
+      withOneTrip,
+      withFive,
+      `readyPayload issued ${withOneTrip} statements for 1 trip and ${withFive} for ${ids.length}`,
     );
   });
 });

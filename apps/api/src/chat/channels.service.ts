@@ -48,7 +48,7 @@ export class ChannelsService {
         where: { tripId },
         orderBy: { createdAt: "asc" },
       }),
-      this.lastMessageByChannel(tripId),
+      this.lastMessageByChannel([tripId]),
     ]);
     return channels.map((c) => toChannelView(c, lastMessage.get(c.id) ?? null));
   }
@@ -63,16 +63,18 @@ export class ChannelsService {
    * per-category and on-demand.
    */
   private async lastMessageByChannel(
-    tripId: string,
+    tripIds: readonly string[],
   ): Promise<Map<string, Date>> {
     const rows = await this.prisma.message.groupBy({
       by: ["channelId"],
-      where: { channel: { tripId }, deletedAt: null },
+      where: { channel: { tripId: { in: [...tripIds] } }, deletedAt: null },
       _max: { createdAt: true },
     });
     return new Map(
       rows.flatMap((row) =>
-        row._max.createdAt ? [[row.channelId, row._max.createdAt] as const] : [],
+        row._max.createdAt
+          ? [[row.channelId, row._max.createdAt] as const]
+          : [],
       ),
     );
   }
@@ -96,25 +98,35 @@ export class ChannelsService {
    * everything.
    */
   async readyPayload(
-    tripId: string,
+    tripIds: readonly string[],
     userId: string,
   ): Promise<ChatReadyPayload> {
+    // Nothing to ask about. Worth returning early rather than letting an empty
+    // `IN ()` reach Postgres: a member of no board with chat is an ordinary
+    // state (a brand-new account, or one that is Guest everywhere), not a
+    // degenerate one.
+    if (tripIds.length === 0) return { channels: [], unread: [] };
+
     const [channels, lastMessage] = await Promise.all([
       this.prisma.channel.findMany({
-        where: { tripId },
+        where: { tripId: { in: [...tripIds] } },
         orderBy: { createdAt: "asc" },
       }),
-      this.lastMessageByChannel(tripId),
+      this.lastMessageByChannel(tripIds),
     ]);
 
-    // One aggregate for the whole trip rather than a count per channel (Phase
-    // 7.3). Each channel has its *own* cutoff — the member's read cursor — which
-    // is why this is raw SQL: the per-row comparison against `channel_reads`
-    // cannot be expressed as a single Prisma `groupBy`, and the previous shape
-    // fanned out into one COUNT per channel on every socket connect. Channels
-    // became per-category and on-demand in 4.5, so that fan-out grows with the
-    // board. The LEFT JOIN keeps never-read channels (NULL cursor counts all).
-    // Values are bound as parameters by the tagged template, never interpolated.
+    // One aggregate for every board the reader is on, rather than a count per
+    // channel (Phase 7.3) or a round trip per trip. Each channel has its *own*
+    // cutoff — the member's read cursor — which is why this is raw SQL: the
+    // per-row comparison against `channel_reads` cannot be expressed as a
+    // single Prisma `groupBy`, and the shape before that fanned out into one
+    // COUNT per channel on every socket connect. Channels became per-category
+    // and on-demand in 4.5, so that fan-out grows with the board — and now that
+    // one socket covers every board at once, it would have grown with the
+    // account as well. `ANY(...)` keeps it a single statement whatever the
+    // reader is a member of. The LEFT JOIN keeps never-read channels (NULL
+    // cursor counts all). Values are bound as parameters by the tagged
+    // template, never interpolated.
     const counts = await this.prisma.$queryRaw<
       { channelId: string; count: bigint }[]
     >`
@@ -123,7 +135,7 @@ export class ChannelsService {
       JOIN "channels" c ON c."id" = m."channelId"
       LEFT JOIN "channel_reads" r
         ON r."channelId" = m."channelId" AND r."userId" = ${userId}::uuid
-      WHERE c."tripId" = ${tripId}::uuid
+      WHERE c."tripId" = ANY(${[...tripIds]}::uuid[])
         AND m."deletedAt" IS NULL
         AND m."authorId" <> ${userId}::uuid
         AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt")

@@ -36,9 +36,11 @@ import { TripsService } from "../src/trips/trips.service.js";
  * Covers the Phase-4.1 DoD:
  * - a verified member's socket authenticates, joins the trip room, and receives
  *   the ready payload (its General channel);
- * - a non-member socket is rejected (the IDOR surface — never joins a trip it
- *   isn't part of);
- * - a blocked member's socket is rejected even with a valid token;
+ * - a non-member connects but hears nothing about a board they are not on (the
+ *   IDOR surface — the gate moved from the handshake to the room join when one
+ *   socket started covering every board its owner is a member of);
+ * - a blocked member is kept out of the board they were blocked from, even
+ *   holding a live membership row;
  * - a garbage token is rejected;
  * - creating a trip auto-provisions its General channel.
  */
@@ -181,7 +183,6 @@ describe("Chat gateway (e2e)", () => {
   /** Attempt a handshake; resolve with the ready payload or the rejection message. */
   function attempt(auth: {
     token: string;
-    tripId: string;
   }): Promise<
     { ok: true; channels: ChannelView[] } | { ok: false; message: string }
   > {
@@ -232,27 +233,42 @@ describe("Chat gateway (e2e)", () => {
     const owner = await makeUser("member");
     const trip = await makeTrip(owner.user.id);
 
-    const result = await attempt({ token: owner.token, tripId: trip.id });
+    const result = await attempt({ token: owner.token });
     assert.ok(result.ok, "member socket should connect");
     assert.equal(result.channels.length, 1);
     assert.equal(result.channels[0]?.type, "GENERAL");
     assert.equal(result.channels[0]?.tripId, trip.id);
   });
 
-  it("rejects a non-member socket (never joins a trip it isn't part of)", async () => {
+  /*
+   * The property these two guard did not change; where it is enforced did.
+   *
+   * A handshake used to name a trip, so "you are not on this board" could be a
+   * refusal to connect at all. One socket now covers every board its owner is
+   * on, and the handshake proves only who they are — so a stranger *does* get a
+   * connection, and what they must not get is the board. Asserting
+   * `connect_error` here would be asserting the old mechanism; asserting that
+   * the trip's channels are absent from their payload is the thing that
+   * actually matters, and it stays true however the gate is built.
+   */
+  it("gives a non-member a socket, and none of a board they are not on", async () => {
     const owner = await makeUser("owner2");
     const outsider = await makeUser("outsider");
     const trip = await makeTrip(owner.user.id);
 
-    const result = await attempt({ token: outsider.token, tripId: trip.id });
-    assert.equal(result.ok, false);
+    const result = await attempt({ token: outsider.token });
+    assert.equal(result.ok, true, "a signed-in stranger still connects");
+    assert.ok(
+      result.ok && result.channels.every((c) => c.tripId !== trip.id),
+      "but hears nothing about a board they are not a member of",
+    );
   });
 
-  it("rejects a blocked member even with a valid token", async () => {
+  it("keeps a blocked member out of the board they were blocked from", async () => {
     const owner = await makeUser("owner3");
     const blocked = await makeUser("blocked");
     const trip = await makeTrip(owner.user.id);
-    // A membership row AND a block row — the block must win.
+    // A membership row AND a block row — the block must win (FR-17).
     await prisma.tripMembership.create({
       data: { tripId: trip.id, userId: blocked.user.id, role: "PARTICIPANT" },
     });
@@ -264,15 +280,36 @@ describe("Chat gateway (e2e)", () => {
       },
     });
 
-    const result = await attempt({ token: blocked.token, tripId: trip.id });
-    assert.equal(result.ok, false);
+    const result = await attempt({ token: blocked.token });
+    assert.equal(result.ok, true);
+    assert.ok(
+      result.ok && result.channels.every((c) => c.tripId !== trip.id),
+      "a live membership row does not outrank a block",
+    );
+  });
+
+  it("carries every board the reader is on, over one connection", async () => {
+    // The point of the whole change: a conversation stopped being a property of
+    // the page you are standing on.
+    const owner = await makeUser("multi");
+    const one = await makeTrip(owner.user.id);
+    const two = await makeTrip(owner.user.id);
+
+    const result = await attempt({ token: owner.token });
+    assert.equal(result.ok, true);
+    assert.ok(
+      result.ok && result.channels.some((c) => c.tripId === one.id),
+      "the first board's channels are there",
+    );
+    assert.ok(
+      result.ok && result.channels.some((c) => c.tripId === two.id),
+      "and so are the second's, without a second socket",
+    );
   });
 
   it("rejects a garbage token", async () => {
-    const owner = await makeUser("owner4");
-    const trip = await makeTrip(owner.user.id);
-
-    const result = await attempt({ token: "not-a-jwt", tripId: trip.id });
+    // No trip to set up any more: the handshake's only question is who you are.
+    const result = await attempt({ token: "not-a-jwt" });
     assert.equal(result.ok, false);
   });
 
