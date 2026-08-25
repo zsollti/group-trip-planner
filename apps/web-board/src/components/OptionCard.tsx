@@ -17,7 +17,7 @@ import { ParticipantDots, VoteDots } from "./optionControls";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { categoryHueStyle } from "../lib/categoryTheme";
-import { CalendarIcon, LockIcon, MoneyIcon } from "./icons";
+import { CalendarIcon, GlobeIcon, LockIcon, MoneyIcon } from "./icons";
 import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
 
@@ -255,6 +255,14 @@ export function OptionCard({
           votes below the fold on a lane of ten. The whole text is in the detail
           dialog, which is what this button opens for anyone who cannot edit. */}
       {option.description ? field("lane__notes", option.description) : null}
+      {/* A globe before the word, and no arrow after it.
+          Every other fact on this card is marked by a drawn glyph in the same
+          weight — a calendar before the dates, a banknote before the price —
+          and this one wore a typed "↗" instead, which is a different size and
+          a different colour on every operating system that renders it. The
+          globe is the mark the whole web uses for "this goes out there", and
+          it puts the link in the same column as everything else the card
+          states. */}
       {option.url && isHttpUrl(option.url) ? (
         <a
           className="lane__link"
@@ -262,7 +270,7 @@ export function OptionCard({
           target="_blank"
           rel="noreferrer noopener"
         >
-          {t("Link ↗")}
+          <GlobeIcon /> {t("Link")}
         </a>
       ) : null}
       {/* "by Ada · edited" used to sit here. Who proposed an option is worth

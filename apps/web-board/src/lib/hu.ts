@@ -239,7 +239,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Leaving…": "Kilépés…",
   Link: "Link",
   "Link type": "Link típusa",
-  "Link ↗": "Link ↗",
   "Lisbon 2026": "Lisszabon 2026",
   "Lisbon, Portugal": "Lisszabon, Portugália",
   "Load older": "Korábbiak betöltése",

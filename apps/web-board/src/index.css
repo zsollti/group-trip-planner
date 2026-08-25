@@ -3252,9 +3252,17 @@ textarea[data-gtp-input] {
   font-weight: 600;
   font-size: 0.85rem;
 }
+/* One of the card's marked facts, not a link parked among them. It carried a
+   typed "↗" and a size of its own; it wears the globe now and matches the
+   dates and the price beside it, so the three read as one column of statements
+   about this option rather than two statements and an exit. */
 .lane__link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
   color: var(--board-accent);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 /* --- Who voted --------------------------------------------------------------
  *
