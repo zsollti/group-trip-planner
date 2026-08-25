@@ -96,7 +96,9 @@ test("a group plans a trip end to end: invite, join, propose, vote, lock", async
     // — so the ambiguity goes with it.
     const crew = memberPage.getByRole("region", { name: "Crew" });
     await expect(crew.getByText("Grace")).toBeVisible();
-    await expect(crew).toContainText("Participant");
+    // The reader's vocabulary, not the database's: PARTICIPANT is a "Traveler"
+    // on screen, and both organizer roles read "Organizer".
+    await expect(crew).toContainText("Traveler");
 
     // --- the participant proposes an option --------------------------------
     const memberTransport = laneNamed(memberPage, "Transport");
