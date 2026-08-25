@@ -21,17 +21,27 @@ const EXPECTED: Record<TripAction, Record<TripRole, boolean>> = {
     PARTICIPANT: true,
     GUEST: true,
   },
+  // Chat is not a Guest surface (post-launch). `message.read` is its own row so
+  // the rule is real rather than a hidden button: the message routes were
+  // guarded by `trip.view`, and without this row a Guest could still have asked
+  // the API for the whole transcript.
+  "message.read": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: false,
+  },
   "message.post": {
     OWNER: true,
     CO_ORGANIZER: true,
     PARTICIPANT: true,
-    GUEST: true,
+    GUEST: false,
   },
   "message.deleteOwn": {
     OWNER: true,
     CO_ORGANIZER: true,
     PARTICIPANT: true,
-    GUEST: true,
+    GUEST: false,
   },
   "message.deleteAny": {
     OWNER: true,
@@ -174,13 +184,17 @@ describe("canAssignRole() — the strictly-lower rule for role changes", () => {
  * exercised through the chat e2e suite, which cannot enumerate the matrix.
  */
 describe("canDeleteMessage() — own message vs. anyone's", () => {
-  it("every member may delete their own message, Guests included", () => {
-    for (const role of ROLES) {
+  it("every member with chat may delete their own message", () => {
+    // "Guests included" until post-launch, when Guest lost chat outright. A
+    // Guest has no message to own, so the answer here is false for a reason
+    // upstream of authorship — which is exactly why it is asserted separately.
+    for (const role of ROLES.filter((r) => r !== "GUEST")) {
       assert.ok(
         canDeleteMessage(role, true),
         `${role} must be able to delete their own message`,
       );
     }
+    assert.equal(canDeleteMessage("GUEST", true), false);
   });
 
   it("only Organizers may delete someone else's", () => {

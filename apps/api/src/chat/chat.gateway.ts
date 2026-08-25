@@ -13,6 +13,8 @@ import type { Server, Socket } from "socket.io";
 import type { TripRole } from "@prisma/client";
 import {
   banIsActive,
+  can,
+  type ChatReadyPayload,
   DeleteMessageInput,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
@@ -31,6 +33,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SocketRateLimiter } from "../common/socket-rate-limiter.js";
 import { MESSAGE_BURST, MESSAGE_WINDOW_MS } from "../common/throttle-policy.js";
+import { chatRoom } from "../realtime/chat-room.js";
 import { tripRoom } from "../realtime/trip-room.js";
 import { userRoom } from "../realtime/user-room.js";
 import { ChannelsService } from "./channels.service.js";
@@ -96,11 +99,25 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
       client.disconnect(true);
       return;
     }
-    // Two rooms: the trip's (chat + board events) and the user's own, which
-    // carries notifications about *any* trip they belong to (Phase 5.1).
+    // Three rooms, and the third is conditional. The trip's carries the board's
+    // own live events, the user's carries notifications about *any* trip they
+    // belong to (Phase 5.1), and the chat room carries the transcript — which a
+    // Guest does not get. See `realtime/chat-room`.
     await client.join(tripRoom(data.tripId));
     await client.join(userRoom(data.userId));
-    const payload = await this.channels.readyPayload(data.tripId, data.userId);
+    const reads = can(data.role!, "message.read");
+    if (reads) await client.join(chatRoom(data.tripId));
+    // An empty payload for a role with no chat: the ready event tells the board
+    // which channels exist and how much is unread in each, and both are answers
+    // to a question this reader is not allowed to ask.
+    //
+    // Annotated, and the annotation is load-bearing. Written as a bare object
+    // literal the empty branch typechecked with the *wrong field name* in it —
+    // `client.emit` takes `any`, so nothing downstream ever compared it to the
+    // contract. The type is what makes the two branches agree.
+    const payload: ChatReadyPayload = reads
+      ? await this.channels.readyPayload(data.tripId, data.userId)
+      : { channels: [], unread: [] };
     client.emit(SOCKET_READY_EVENT, payload);
     this.logger.debug(`socket joined ${tripRoom(data.tripId)}`);
   }
@@ -153,10 +170,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   /**
-   * Post a message (Phase 4.2). Any member may post — the handshake already
-   * proved membership. The stored message is broadcast to everyone else in the
-   * trip room; the **sender** receives it back through this ack and reconciles
-   * it against its optimistic copy (so the sender never sees a duplicate).
+   * Post a message (Phase 4.2). The stored message is broadcast to everyone else
+   * in the chat room; the **sender** receives it back through this ack and
+   * reconciles it against its optimistic copy (so the sender never sees a
+   * duplicate).
+   *
+   * The capability is checked here rather than left to the handshake. The
+   * handshake proves *membership*, which was enough while every member could
+   * post; a Guest is a member who cannot, and a socket event has no route guard
+   * standing in front of it.
    */
   @SubscribeMessage(MESSAGE_SEND_EVENT)
   async onSend(
@@ -164,6 +186,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     @MessageBody() raw: unknown,
   ): Promise<MessageAck> {
     const data = client.data as SocketData;
+    if (!can(data.role, "message.post")) {
+      return { ok: false, error: "You can't post in this board's chat." };
+    }
     const parsed = SendMessageInput.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Invalid message" };
     // Keyed on the user, not the socket, so extra tabs don't multiply the
@@ -188,7 +213,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
         data.userId,
         parsed.data,
       );
-      client.to(tripRoom(data.tripId)).emit(MESSAGE_NEW_EVENT, message);
+      client.to(chatRoom(data.tripId)).emit(MESSAGE_NEW_EVENT, message);
       return { ok: true, message };
     } catch (err) {
       return { ok: false, error: ackError(err) };
@@ -217,7 +242,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
         parsed.data.messageId,
       );
       this.server
-        .to(tripRoom(data.tripId))
+        .to(chatRoom(data.tripId))
         .emit(MESSAGE_DELETED_EVENT, message);
       return { ok: true, message };
     } catch (err) {
@@ -268,12 +293,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
     ) => Promise<ReactionUpdate>,
   ): Promise<ReactionAck> {
     const data = client.data as SocketData;
+    // Reacting is posting, by the same row of the matrix — see `onSend`.
+    if (!can(data.role, "message.post")) {
+      return { ok: false, error: "You can't post in this board's chat." };
+    }
     const parsed = ReactionInput.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "Invalid reaction" };
     try {
       const update = await run(data, parsed.data);
       this.server
-        .to(tripRoom(data.tripId))
+        .to(chatRoom(data.tripId))
         .emit(REACTION_UPDATED_EVENT, update);
       return { ok: true, update };
     } catch (err) {

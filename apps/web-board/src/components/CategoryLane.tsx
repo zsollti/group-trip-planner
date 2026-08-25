@@ -125,6 +125,7 @@ function LaneHeader({
   tripId,
   category,
   isOrganizer,
+  canDiscuss,
   grip,
   onRequestDelete,
   onDiscuss,
@@ -133,6 +134,8 @@ function LaneHeader({
   tripId: string;
   category: CategoryView;
   isOrganizer: boolean;
+  /** Whether this reader has the board's chat at all — a Guest does not. */
+  canDiscuss: boolean;
   grip?: ReactNode;
   onRequestDelete: () => void;
   onDiscuss: () => void;
@@ -202,20 +205,26 @@ function LaneHeader({
   /*
    * The lane's "⋯", built from what *this* reader may do to *this* lane.
    *
-   * Discuss leads and is the one item every member gets: starting a category's
-   * discussion is not an organizer's privilege (FR-29). It used to be a 💬
-   * button of its own beside the menu, which is why the menu could be dropped
-   * whenever a reader had no organizer items — the header always had one
-   * control. Folding the two together means the menu is now the header's only
-   * control, so it renders for everyone and *filters* rather than disappears:
-   * hiding it for a participant would take category chat with it.
+   * Discuss leads and is not an organizer's privilege (FR-29) — but it is a
+   * *chat* privilege, and post-launch a Guest has none, so it is filtered like
+   * everything else here rather than assumed. It used to be a 💬 button of its
+   * own beside the menu, which is why the menu could be dropped whenever a
+   * reader had no organizer items — the header always had one control. Folding
+   * the two together means the menu is now the header's only control, so it
+   * renders for everyone and *filters* rather than disappears: hiding it for a
+   * participant would take category chat with it.
    *
    * Colour leads the organizer half: it is the only one every lane has, Dates
    * included.
    */
-  const laneMenuItems: MenuItem[] = [
-    { label: t("Discuss"), onSelect: onDiscuss, disabled: discussing },
-  ];
+  const laneMenuItems: MenuItem[] = [];
+  if (canDiscuss) {
+    laneMenuItems.push({
+      label: t("Discuss"),
+      onSelect: onDiscuss,
+      disabled: discussing,
+    });
+  }
   if (isOrganizer) {
     laneMenuItems.push({
       label: t("Change colour"),
@@ -323,11 +332,18 @@ function LaneHeader({
               only date-setting path and cannot be recreated once gone
               (canDeleteCategory), and it holds one date range so it cannot go
               multi-select (canBeMultiSelect). Its menu is Discuss and a colour,
-              which is why it has one at all. */}
-            <Menu
-              label={t("{lane} lane actions", { lane: category.name })}
-              items={laneMenuItems}
-            />
+              which is why it has one at all.
+
+              And the menu itself goes when there is nothing left in it, which
+              post-launch is a real state rather than a defensive one: a Guest
+              has no organizer items and no chat, so the trigger would open an
+              empty card. */}
+            {laneMenuItems.length > 0 ? (
+              <Menu
+                label={t("{lane} lane actions", { lane: category.name })}
+                items={laneMenuItems}
+              />
+            ) : null}
           </div>
         </div>
         <p className="lane__meta">
@@ -553,6 +569,7 @@ export function CategoryLane({
         tripId={tripId}
         category={category}
         isOrganizer={isOrganizer}
+        canDiscuss={can(myRole, "message.post")}
         grip={laneGrip}
         onRequestDelete={() => setConfirmingDelete(true)}
         onDiscuss={onDiscuss}
