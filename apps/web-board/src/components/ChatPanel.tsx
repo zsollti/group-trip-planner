@@ -395,9 +395,17 @@ export function ChatPanel({
     if (mentionQuery === null) return [];
     const q = mentionQuery.toLowerCase();
     return (members.data?.members ?? [])
-      .filter((mem) => mem.displayName.toLowerCase().startsWith(q))
+      .filter(
+        (mem) =>
+          // Never yourself. A mention notifies everyone it names *except* its
+          // author (`notificationRecipients`), so offering your own name here
+          // was the list advertising the one choice on it that provably does
+          // nothing — no badge, no email, no trace that anything happened.
+          mem.userId !== myUserId &&
+          mem.displayName.toLowerCase().startsWith(q),
+      )
       .slice(0, 5);
-  }, [mentionQuery, members.data]);
+  }, [mentionQuery, members.data, myUserId]);
 
   function insertMention(displayName: string) {
     const before = draft
