@@ -19,6 +19,16 @@ export interface FieldProps {
    * few, and the reader has to notice an absence to learn anything.
    */
   required?: boolean;
+  /**
+   * Keep the label for assistive technology and take it off the screen.
+   *
+   * For the case where the surrounding heading already says what the field is,
+   * and printing it again directly underneath reads as two names for one box.
+   * Never a way to ship an unlabelled control: the `<label>` is still rendered
+   * and still associated, so a screen reader announces the field exactly as it
+   * would otherwise.
+   */
+  labelHidden?: boolean;
   children: ReactNode;
 }
 
@@ -33,11 +43,16 @@ export function Field({
   error,
   hint,
   required,
+  labelHidden,
   children,
 }: FieldProps) {
   return (
     <div data-gtp-field data-invalid={error ? true : undefined}>
-      <label data-gtp-label htmlFor={htmlFor}>
+      <label
+        data-gtp-label
+        data-hidden={labelHidden || undefined}
+        htmlFor={htmlFor}
+      >
         {label}
         {required ? (
           <span data-gtp-required aria-hidden="true">
