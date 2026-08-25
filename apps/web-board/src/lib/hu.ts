@@ -474,8 +474,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "View details": "Részletek",
   Volume: "Mennyiség",
   Votes: "Szavazatok",
-  "We sent a verification link. In local dev it's printed to the API console — open it, then sign in.":
-    "Küldtünk egy megerősítő linket. Helyi fejlesztésben az API konzoljára kerül kiírásra — nyisd meg, majd jelentkezz be.",
   "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails — verifying your address, signing in — are unaffected.":
     "Nem küldünk e-mailt, ha valaki @megemlít. A megemlítéseket az alkalmazásban továbbra is látod, a fiókkal kapcsolatos leveleket — cím megerősítése, bejelentkezés — pedig ez nem érinti.",
   "Welcome, {name}": "Üdv, {name}",
@@ -650,4 +648,23 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Nobody is in yet.": "Még senki sem jelentkezett.",
   "Who’s in": "Ki tart velünk",
   "outside the trip’s dates": "az utazás dátumain kívül",
+  "A lowercase letter": "Egy kisbetű",
+  "A number": "Egy számjegy",
+  "A special character": "Egy speciális karakter",
+  "An uppercase letter": "Egy nagybetű",
+  "At least {n} characters": "Legalább {n} karakter",
+  "Done:": "Kész:",
+  "Hide password": "Jelszó elrejtése",
+  Nickname: "Becenév",
+  "No sign of it? Have a look in your spam folder — it likes to hide there.":
+    "Nem találod? Nézd meg a spam mappát is — szeret ott megbújni.",
+  Normal: "Közepes",
+  "Password again": "Jelszó még egyszer",
+  "Show password": "Jelszó megjelenítése",
+  "Still needed:": "Még hiányzik:",
+  Strong: "Erős",
+  "We've sent you a link to verify your email address.":
+    "Küldtünk egy linket az e-mail-címed megerősítéséhez.",
+  Weak: "Gyenge",
+  "Your password needs": "A jelszavadhoz kell",
 };
