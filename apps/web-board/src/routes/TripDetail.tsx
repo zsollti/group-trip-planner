@@ -412,16 +412,24 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
             />
           ) : null}
 
-          <ChatPanel
-            tripId={trip.data.id}
-            tripName={trip.data.name}
-            tripSocket={tripSocket}
-            categories={categories.data ?? []}
-            myRole={trip.data.role}
-            myUserId={user?.id}
-            requestChannelId={openChannelId}
-            onRequestHandled={() => setOpenChannelId(null)}
-          />
+          {/* No chat surface at all for a role that has no chat (post-launch).
+              Not merely a disabled composer: a Guest cannot read the transcript
+              either, and the server agrees — the message routes are gated on
+              `message.read` and the socket's chat room is one a Guest never
+              joins. Rendering the panel would be a shell asking for data it
+              would be refused. */}
+          {can(trip.data.role, "message.read") ? (
+            <ChatPanel
+              tripId={trip.data.id}
+              tripName={trip.data.name}
+              tripSocket={tripSocket}
+              categories={categories.data ?? []}
+              myRole={trip.data.role}
+              myUserId={user?.id}
+              requestChannelId={openChannelId}
+              onRequestHandled={() => setOpenChannelId(null)}
+            />
+          ) : null}
 
           {confirmingLeave ? (
             <Dialog

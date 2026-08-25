@@ -358,21 +358,23 @@ describe("Chat gateway (e2e)", () => {
 
   it("tombstones on delete (Organizer any / author own) and rejects a non-author non-organizer", async () => {
     const owner = await makeUser("d-owner");
-    const guest = await makeUser("d-guest");
+    const author = await makeUser("d-author");
     const parti = await makeUser("d-parti");
     const trip = await makeTrip(owner.user.id);
-    await addMember(trip.id, guest.user.id, "GUEST");
+    await addMember(trip.id, author.user.id, "PARTICIPANT");
     await addMember(trip.id, parti.user.id, "PARTICIPANT");
     const channelId = await generalChannelId(trip.id);
 
-    const gsock = await connect({ token: guest.token, tripId: trip.id });
+    const asock = await connect({ token: author.token, tripId: trip.id });
     const osock = await connect({ token: owner.token, tripId: trip.id });
     const psock = await connect({ token: parti.token, tripId: trip.id });
 
-    // A Guest can post (chat is Guest+).
-    const posted = await emitAck(gsock, MESSAGE_SEND_EVENT, {
+    // The author was a Guest until post-launch, when Guest lost chat entirely
+    // (`message.post`). It is a Participant now — the rule under test is about
+    // authorship, not rank, and it needs an author who is allowed to write.
+    const posted = await emitAck(asock, MESSAGE_SEND_EVENT, {
       channelId,
-      body: "guest here",
+      body: "author here",
     });
     assert.ok(posted.ok);
     const msgId = posted.message.id;
@@ -385,7 +387,7 @@ describe("Chat gateway (e2e)", () => {
 
     // The Owner (Organizer) deletes anyone's; the tombstone broadcasts.
     const tomb = new Promise<MessageView>((res) =>
-      gsock.on(MESSAGE_DELETED_EVENT, res),
+      asock.on(MESSAGE_DELETED_EVENT, res),
     );
     const del = await emitAck(osock, MESSAGE_DELETE_EVENT, {
       messageId: msgId,
@@ -800,5 +802,77 @@ describe("Chat gateway (e2e)", () => {
       .set("Authorization", `Bearer ${owner.token}`)
       .send({ categoryId: foreign.id })
       .expect(404);
+  });
+
+  /**
+   * A Guest has no chat at all (post-launch), and this is the case that proves
+   * it is a rule rather than a hidden button.
+   *
+   * Four surfaces, because "remove the chat permission" is only true if every
+   * one of them refuses: the HTTP transcript, the socket's send, the socket's
+   * *broadcast* (a Guest must not merely be unable to write — they must not
+   * receive what others write), and the ready payload that lists the channels.
+   *
+   * The socket itself still connects. That is deliberate and is the thing most
+   * likely to be "tidied" later: the same connection carries the board's own
+   * live events, which are exactly what the role is for.
+   */
+  it("gives a Guest no chat: no transcript, no send, no broadcast", async () => {
+    const owner = await makeUser("gc-owner");
+    const guest = await makeUser("gc-guest");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, guest.user.id, "GUEST");
+    const channelId = await generalChannelId(trip.id);
+
+    // The transcript, over HTTP. These routes were guarded by `trip.view`,
+    // which a Guest holds — so without a `message.read` row of its own the
+    // whole conversation was one GET away.
+    await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/channels/${channelId}/messages`)
+      .set("Authorization", `Bearer ${guest.token}`)
+      .expect(403);
+
+    // Starting a discussion, which is a chat action and not an organizer one.
+    const category = await prisma.category.create({
+      data: { tripId: trip.id, name: "Food", position: 0 },
+    });
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels`)
+      .set("Authorization", `Bearer ${guest.token}`)
+      .send({ categoryId: category.id })
+      .expect(403);
+
+    // The socket connects — the board's own events are what the role is for —
+    // and its ready payload names no channels.
+    const { socket: gsock, ready } = await connectReady({
+      token: guest.token,
+      tripId: trip.id,
+    });
+    assert.deepEqual(ready.channels, []);
+    assert.deepEqual(ready.unread, []);
+
+    // Sending is refused by an ordinary ack, not a dropped connection.
+    const denied = await emitAck(gsock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "let me in",
+    });
+    assert.equal(denied.ok, false);
+
+    // And nothing anyone else says reaches them. Asserted by racing the
+    // broadcast against the owner's own ack: the ack only resolves after the
+    // server has emitted, so a message that was going to arrive has had its
+    // chance by then.
+    let heard = false;
+    gsock.on(MESSAGE_NEW_EVENT, () => {
+      heard = true;
+    });
+    const osock = await connect({ token: owner.token, tripId: trip.id });
+    const posted = await emitAck(osock, MESSAGE_SEND_EVENT, {
+      channelId,
+      body: "organizers only",
+    });
+    assert.ok(posted.ok);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(heard, false, "a Guest must not receive chat broadcasts");
   });
 });

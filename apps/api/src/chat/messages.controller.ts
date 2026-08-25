@@ -18,7 +18,10 @@ import { MessagesService } from "./messages.service.js";
  * socket; this REST read backs the initial load and infinite-scroll "load older"
  * — and, in 4.4, the reconnect catch-up. Same guard spine as the rest of the
  * trip API: TripContextGuard resolves the trip + role (non-members get a 404),
- * PermissionGuard enforces `trip.view` (every member). The channel is checked to
+ * PermissionGuard enforces `message.read` — every member except a Guest, who
+ * post-launch has no chat at all. It was `trip.view`, which every member holds,
+ * so gating only the *writes* would have left the whole transcript one GET
+ * away from a role invited to look at the board. The channel is checked to
  * belong to the trip in the service.
  */
 @Controller("trips/:id/channels/:channelId/messages")
@@ -27,7 +30,7 @@ export class MessagesController {
 
   @Get()
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
-  @RequirePermission("trip.view")
+  @RequirePermission("message.read")
   history(
     @TripCtx() ctx: TripContext,
     @Param("channelId") channelId: string,
@@ -45,7 +48,7 @@ export class MessagesController {
   /** Reconnect catch-up: messages after the client's last-seen id (Phase 4.4). */
   @Get("since")
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
-  @RequirePermission("trip.view")
+  @RequirePermission("message.read")
   since(
     @TripCtx() ctx: TripContext,
     @Param("channelId") channelId: string,

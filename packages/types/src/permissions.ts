@@ -29,6 +29,7 @@ export type TripAction =
   | "option.propose" // Propose/edit/delete option (proposer scope in-handler)
   | "vote.cast" // Vote on options
   | "decision.lock" // Lock/unlock a decision
+  | "message.read" // Chat: see the channels and their messages at all
   | "message.post" // Chat: post / react / @mention
   | "message.deleteOwn" // Delete own message
   | "message.deleteAny"; // Delete others' messages
@@ -52,13 +53,24 @@ export const ROLE_RANK: Record<TripRole, number> = {
 // coarse "has this capability at all" question.
 const MATRIX: Record<TripAction, ReadonlySet<TripRole>> = {
   "trip.view": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT", "GUEST"]),
-  "message.post": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT", "GUEST"]),
-  "message.deleteOwn": new Set([
-    "OWNER",
-    "CO_ORGANIZER",
-    "PARTICIPANT",
-    "GUEST",
-  ]),
+  /*
+   * Chat is not a Guest surface (post-launch).
+   *
+   * It used to be the one row where Guest sat with everybody else — "starting a
+   * discussion is a chat action, not an organizer one" — and in practice that
+   * made Guest a strange half-member: someone you had invited to *look* at the
+   * plan who could nonetheless talk in the group's channel, be @mentioned, and
+   * send everyone email by doing it. A Guest sees the board and can leave it.
+   * That is the whole role.
+   *
+   * `message.read` is a separate row from `message.post` and exists precisely
+   * so this is a real rule rather than a hidden button: the message routes were
+   * guarded by `trip.view`, so dropping Guest from `post` alone would have left
+   * the transcript readable to anyone who asked the API for it.
+   */
+  "message.read": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
+  "message.post": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
+  "message.deleteOwn": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
   "message.deleteAny": new Set(["OWNER", "CO_ORGANIZER"]),
   "vote.cast": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
   "option.propose": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
@@ -134,10 +146,10 @@ export function canManageOption(
 /**
  * May `actorRole` soft-delete a chat message (Phase 4.2)? The target-scoped
  * "own message / any message" rule (SRS §3): the **author** may delete their own
- * message (`message.deleteOwn`, held by every member incl. Guest), and an
- * **Organizer** (Owner/Co-organizer) may delete *anyone's* (`message.deleteAny`).
- * Posting itself is `message.post` — every member — and is never frozen by the
- * History lifecycle (chat is exempt, FR-10), so it isn't re-encoded here.
+ * message (`message.deleteOwn`), and an **Organizer** (Owner/Co-organizer) may
+ * delete *anyone's* (`message.deleteAny`). Posting itself is `message.post` —
+ * every member except a Guest, who has no chat at all — and is never frozen by
+ * the History lifecycle (chat is exempt, FR-10), so it isn't re-encoded here.
  */
 export function canDeleteMessage(
   actorRole: TripRole,

@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import type { User } from "@prisma/client";
 import { StartDiscussionInput, type ChannelView } from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
@@ -24,9 +31,9 @@ export class ChannelsController {
 
   /**
    * Start a discussion on a category (Phase 4.5, FR-29) — creates its channel on
-   * demand, idempotently. Gated `message.post` (every member incl. Guest, the one
-   * Guest-inclusive surface): starting a discussion is a chat action, not an
-   * organizer one.
+   * demand, idempotently. Gated `message.post`: starting a discussion is a chat
+   * action rather than an organizer one, so every member who has chat at all may
+   * do it — which post-launch means everyone but a Guest.
    */
   @Post()
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
@@ -39,10 +46,12 @@ export class ChannelsController {
     return this.channels.startCategoryDiscussion(ctx.trip.id, body.categoryId);
   }
 
+  // A read cursor is a chat fact, so it is gated with the rest of chat rather
+  // than on `trip.view` — a role with no transcript has nothing to mark read.
   @Post(":channelId/read")
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
-  @RequirePermission("trip.view")
+  @RequirePermission("message.read")
   markRead(
     @TripCtx() ctx: TripContext,
     @CurrentUser() user: User,
