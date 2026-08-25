@@ -333,7 +333,7 @@ describe("Admin console (e2e)", () => {
    */
   it("suspends an account, and the account is told why at sign-in", async () => {
     const email = `banned+${suffix}@example.com`;
-    const password = "correct-horse-battery";
+    const password = "Correct-Horse9Battery";
     const victim = await prisma.user.create({
       data: {
         email,

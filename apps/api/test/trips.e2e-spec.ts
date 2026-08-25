@@ -33,7 +33,7 @@ describe("Trips (e2e)", () => {
   async function makeUser(opts: { verified: boolean; label: string }) {
     const email = `trips+${opts.label}+${suffix}@example.com`;
     emails.push(email);
-    const password = "correct-horse-battery";
+    const password = "Correct-Horse9Battery";
     const agent = request.agent(app.getHttpServer());
 
     await agent
