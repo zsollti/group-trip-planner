@@ -216,6 +216,10 @@ describe("Chat gateway (e2e)", () => {
 
   after(async () => {
     for (const s of opened) s.disconnect();
+    // Queued mail outlives its user (`userId` is SetNull), so clear it first.
+    await prisma.emailJob
+      .deleteMany({ where: { userId: { in: userIds } } })
+      .catch(() => undefined);
     // Trips cascade their memberships, channels, and blocks.
     for (const id of tripIds)
       await prisma.trip.deleteMany({ where: { id } }).catch(() => undefined);
@@ -568,6 +572,35 @@ describe("Chat gateway (e2e)", () => {
     });
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.userId, ada.user.id);
+
+    // …and the delivery itself, both channels, from the socket the browser
+    // actually uses. The queue's own suite proves this from `messages.post`;
+    // what was never covered was the step in front of it, which is the one
+    // production runs. "Why did no email arrive?" is not a question a passing
+    // test one layer down can answer.
+    const notifications = await prisma.notification.findMany({
+      where: { userId: ada.user.id, tripId: trip.id, type: "MENTION" },
+    });
+    assert.equal(notifications.length, 1, "the mentioned member is notified");
+
+    const jobs = await prisma.emailJob.findMany({
+      where: { userId: ada.user.id, type: "MENTION" },
+    });
+    assert.equal(jobs.length, 1, "and an email is queued for them");
+    assert.equal(jobs[0]?.to, ada.user.email);
+
+    // Never the author, on either channel — the rule that makes a self-mention
+    // a no-op, and the reason the composer no longer offers your own name.
+    assert.equal(
+      await prisma.notification.count({
+        where: { userId: owner.user.id, tripId: trip.id, type: "MENTION" },
+      }),
+      0,
+    );
+    assert.equal(
+      await prisma.emailJob.count({ where: { userId: owner.user.id } }),
+      0,
+    );
   });
 
   it("catches up messages since a last-seen id (no gaps, no dupes)", async () => {

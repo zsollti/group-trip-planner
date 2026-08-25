@@ -35,6 +35,7 @@ vi.mock("../lib/fitTabs", async () => {
       // than on a changed item count, which is what it did not use to do.
       containerRef: () => {},
       measureRef: () => {},
+      reserveRef: () => {},
       visibleCount: 1,
     }),
   };
@@ -339,5 +340,77 @@ describe("chat channel switcher order", () => {
       document.querySelectorAll(".menu__item-label"),
     ).map((el) => el.textContent);
     expect(labels).toEqual(["Accommodation", "Activities", "Transport"]);
+  });
+});
+
+/**
+ * Who the "@" list offers.
+ *
+ * A mention notifies everyone it names except its author — the rule lives in
+ * `notificationRecipients` and is the same one that stops a busy chat mailing
+ * you your own messages. So your own name on this list is the list advertising
+ * the one choice on it that provably does nothing: no badge, no email, no trace
+ * that anything happened at all.
+ */
+describe("the @mention list", () => {
+  beforeEach(() => {
+    // A fresh Response per call: a Response body can only be read once, so one
+    // shared instance is drained by whichever query gets there first and every
+    // other one fails with an unusable body. The chat history and the member
+    // list both fetch here.
+    const roster = {
+      members: [
+        {
+          userId: "u1",
+          displayName: "Zsolt Pinter",
+          avatarUrl: null,
+          role: "PARTICIPANT",
+          joinedAt: "2026-08-01T00:00:00.000Z",
+          isOwner: false,
+        },
+        {
+          userId: "u2",
+          displayName: "Zara Ellis",
+          avatarUrl: null,
+          role: "ORGANIZER",
+          joinedAt: "2026-08-01T00:00:00.000Z",
+          isOwner: true,
+        },
+      ],
+      blocked: [],
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            String(input).includes("/members")
+              ? roster
+              : { messages: [], nextCursor: null },
+          ),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+  });
+
+  it("offers everyone but the person typing", async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+
+    // Both names begin "Z", so a filter that only matched the query would keep
+    // them both — this is the viewer being excluded, not the prefix.
+    const input = screen.getByLabelText("Message") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "@Z" } });
+    // The token being completed is the one just before the caret, and jsdom
+    // does not move a caret for us.
+    input.setSelectionRange(2, 2);
+    fireEvent.keyUp(input);
+
+    expect(
+      await screen.findByRole("option", { name: "@Zara Ellis" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "@Zsolt Pinter" }),
+    ).not.toBeInTheDocument();
   });
 });
