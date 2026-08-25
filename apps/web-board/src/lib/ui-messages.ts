@@ -247,7 +247,6 @@ export const UI_MESSAGES = [
   "Lift suspension",
   "Link",
   "Link type",
-  "Link ↗",
   "Lisbon 2026",
   "Lisbon, Portugal",
   "Load older",
