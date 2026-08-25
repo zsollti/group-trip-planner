@@ -4882,7 +4882,81 @@ button.cost-comp__row-btn:hover,
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--lane-line);
 }
+/* --- The dock: the chat, on every page ------------------------------------
+ *
+ * The panel is unchanged in shape; what is new is the level above it. The dock
+ * opens onto a list of every board the reader can talk on and drops into that
+ * panel from there, so a conversation stopped being a property of the page
+ * underneath it.
+ */
+
+/* The list stands where the panel does, and stops where its content does: a
+   half-empty 30rem card listing two boards would look like a panel that had
+   failed to load something. */
+.board__chat--list {
+  height: auto;
+  max-height: min(30rem, calc(100vh - 6rem));
+}
+
+/* The board's name over the channel's. On a dock that spans every trip,
+   "Stay" as a heading does not say which trip's Stay. */
+.board__chat-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.board__chat-title > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board__chat-trip {
+  font-size: 0.7rem;
+  color: var(--board-dim);
+}
+
+.board__chat-trips {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem;
+  overflow-y: auto;
+}
+.board__chat-tripbtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.board__chat-tripbtn:hover {
+  background: var(--board-bg);
+}
+.board__chat-tripbtn:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: -2px;
+}
+.board__chat-tripname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board__chat-empty {
+  margin: 0;
+  padding: 1rem 0.9rem;
+  font-size: 0.85rem;
+}
+
 .board__chat-close,
+.board__chat-back,
 .board__msg-del {
   font: inherit;
   cursor: pointer;
@@ -4894,6 +4968,15 @@ button.cost-comp__row-btn:hover,
 }
 .board__chat-close {
   font-size: 1.2rem;
+}
+/* Back to the list, before the name. Sized like the close beside it so the two
+   read as the header's pair of exits rather than as a control and a glyph. */
+.board__chat-back {
+  font-size: 1.4rem;
+  flex: none;
+}
+.board__chat-back:hover {
+  color: var(--board-fg);
 }
 .board__chat-close:hover,
 .board__msg-del:hover {

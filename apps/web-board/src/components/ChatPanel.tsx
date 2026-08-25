@@ -4,7 +4,7 @@ import {
   useChat,
   useTripMembers,
   type ChatMessage,
-  type TripSocket,
+  type SessionSocket,
 } from "@gtp/api-client";
 import {
   canDeleteMessage,
@@ -242,28 +242,42 @@ function MessageRow({
 export function ChatPanel({
   tripId,
   tripName,
-  tripSocket,
+  sessionSocket,
   categories,
   myRole,
   myUserId,
   requestChannelId,
   onRequestHandled,
+  onClose,
+  onBack,
 }: {
   tripId: string;
   /** Labels the trip-wide channel — it is this trip's conversation, so the chip
    *  reads the board's name rather than a generic "General". */
   tripName: string;
-  tripSocket: TripSocket;
+  /**
+   * The session's socket, carrying every board's channels.
+   *
+   * The panel takes the whole thing and narrows it, rather than being handed a
+   * pre-filtered list, because the filter and the `tripId` it uses have to
+   * agree — and this component is the only place that knows which board it is
+   * drawing.
+   */
+  sessionSocket: SessionSocket;
   categories: CategoryView[];
   myRole: TripRole;
   myUserId: string | undefined;
   /** A channel to open + select (from a lane's "Discuss" action); null when idle. */
   requestChannelId: string | null;
   onRequestHandled: () => void;
+  /** Shut the whole dock. */
+  onClose: () => void;
+  /** Back to the list of conversations, where there is more than one board to
+   *  choose between. Absent when there is nothing to go back to. */
+  onBack?: () => void;
 }) {
   const { socket, channels, unread, markChannelRead, setActiveChannel } =
-    tripSocket;
-  const [open, setOpen] = useState(false);
+    sessionSocket;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -271,23 +285,38 @@ export function ChatPanel({
     () => new Map(categories.map((c) => [c.id, c.name])),
     [categories],
   );
-  const general = channels.find((c) => c.type === "GENERAL");
+  /**
+   * This board's channels, out of the session's.
+   *
+   * One socket now carries every conversation the reader is part of, so the
+   * first thing the panel does is narrow that to the board it is showing.
+   * Everything downstream — the switcher, the unread badges, the ordering —
+   * counts what is in here, which is what keeps a busy trip elsewhere from
+   * appearing in this trip's row.
+   */
+  const mine = useMemo(
+    () => channels.filter((c) => c.tripId === tripId),
+    [channels, tripId],
+  );
+  const general = mine.find((c) => c.type === "GENERAL");
   // Category channels for categories that still exist (a deleted category's
   // channel is gone server-side; hide it until the socket list catches up).
   const listed = useMemo<ChannelView[]>(() => {
-    const cats = channels.filter(
+    const cats = mine.filter(
       (c) =>
         c.type === "CATEGORY" && c.categoryId && categoryName.has(c.categoryId),
     );
     return general ? [general, ...cats] : cats;
-  }, [channels, general, categoryName]);
+  }, [mine, general, categoryName]);
 
   // The selected channel, falling back to General if the selection went away.
   const activeChannel = listed.find((c) => c.id === activeId) ?? general;
   const activeChannelId = activeChannel?.id;
 
   const chat = useChat(socket, tripId, activeChannelId, myUserId);
-  const members = useTripMembers(open ? tripId : undefined);
+  // The panel only exists while it is open now, so there is no closed state to
+  // avoid fetching in: mounting *is* opening.
+  const members = useTripMembers(tripId);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -326,8 +355,12 @@ export function ChatPanel({
     // point: `listed` gets a new identity on every incoming message (a message
     // moves its channel's `lastMessageAt`), so depending on it would re-sort
     // exactly when this must not.
+    //
+    // `tripId` is in the array because the panel is reused across boards: the
+    // dock swaps which trip it shows without unmounting, and an order held from
+    // the last board would put this one's channels in somebody else's sequence.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, channelSetKey]);
+  }, [tripId, channelSetKey]);
   const ordered = useMemo(() => applyOrder(listed, order), [listed, order]);
 
   // One row of chips: those that fit, plus a "＋N" menu for the remainder. The
@@ -340,7 +373,11 @@ export function ChatPanel({
   );
   const { shown: shownChannels, hidden: hiddenChannels } = useMemo(
     () =>
-      partitionByFit(ordered, fit.visibleCount, (c) => c.id === activeChannelId),
+      partitionByFit(
+        ordered,
+        fit.visibleCount,
+        (c) => c.id === activeChannelId,
+      ),
     [ordered, fit.visibleCount, activeChannelId],
   );
   // Surfaced on the trigger: a collapsed channel's unread count must not vanish
@@ -354,35 +391,48 @@ export function ChatPanel({
     setActiveId(id);
     setActiveChannel(id);
   }
-  function openPanel(id?: string) {
-    setOpen(true);
-    const target = id ?? activeChannelId ?? general?.id ?? null;
+
+  /*
+   * Land on a channel as soon as there is one to land on.
+   *
+   * The panel used to choose when it opened, because it owned the opening. The
+   * dock owns that now — so this runs when the panel mounts, and again if the
+   * channel list arrives after it (the socket's ready payload can land a beat
+   * later than the render that shows this board).
+   */
+  useEffect(() => {
+    if (activeChannelId) return;
+    const target = general?.id ?? listed[0]?.id ?? null;
+    if (!target) return;
     setActiveId(target);
     setActiveChannel(target);
-  }
-  function closePanel() {
-    setOpen(false);
-    setActiveChannel(null);
-  }
+  }, [activeChannelId, general, listed, setActiveChannel]);
 
-  // A lane's "Discuss" action requested a channel: open + select it, once.
+  // A lane's "Discuss" action requested a channel: select it, once.
   useEffect(() => {
     if (!requestChannelId) return;
-    openPanel(requestChannelId);
+    setActiveId(requestChannelId);
+    setActiveChannel(requestChannelId);
     onRequestHandled();
-    // openPanel/onRequestHandled are stable enough for a one-shot request.
+    // A one-shot request; the setters are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestChannelId]);
+
+  // Leaving the panel stops the active channel being active — otherwise the
+  // board it was on would go on suppressing its own unread badge.
+  useEffect(() => {
+    return () => setActiveChannel(null);
+  }, [setActiveChannel]);
 
   // Keep the newest message in view as the log grows, and keep the active channel
   // marked read while it's open so new arrivals don't re-badge it.
   const count = chat.messages.length;
   useEffect(() => {
-    if (open && logRef.current) {
+    if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-    if (open && activeChannelId) markChannelRead(activeChannelId);
-  }, [open, count, activeChannelId, markChannelRead]);
+    if (activeChannelId) markChannelRead(activeChannelId);
+  }, [count, activeChannelId, markChannelRead]);
 
   // @mention autocomplete: the token being typed just before the caret.
   const [caret, setCaret] = useState(0);
@@ -433,52 +483,45 @@ export function ChatPanel({
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className="board__chat-fab"
-        data-tour="chat"
-        aria-expanded={open}
-        aria-label={
-          totalUnread > 0 && !open
-            ? t("Chat, {n} unread", { n: totalUnread })
-            : t("Chat")
-        }
-        onClick={() => (open ? closePanel() : openPanel())}
-      >
-        <span aria-hidden="true">💬 </span>
-        {t("Chat")}
-        {!open && totalUnread > 0 ? (
-          <span className="board__chat-badge" aria-hidden="true">
-            {totalUnread}
-          </span>
+    <section className="board__chat" role="dialog" aria-label={t("Trip chat")}>
+      <header className="board__chat-head">
+        {/* Back before the name, where there is a list to go back to. The
+                dock opens onto every board's conversation, so the panel is one
+                level down from something — and a panel you can only leave by
+                closing it makes switching boards a three-step round trip. */}
+        {onBack ? (
+          <button
+            type="button"
+            className="board__chat-back"
+            aria-label={t("All conversations")}
+            onClick={onBack}
+          >
+            ‹
+          </button>
         ) : null}
-      </button>
-      {open ? (
-        <section
-          className="board__chat"
-          role="dialog"
-          aria-label={t("Trip chat")}
+        {/* The board's name above the channel's. On a dock that spans every
+                trip, "Stay" as a heading does not say which trip's Stay. */}
+        <span className="board__chat-title">
+          <small className="board__chat-trip">{truncateName(tripName)}</small>
+          <strong
+            title={activeChannel ? channelName(activeChannel) : undefined}
+          >
+            {activeChannel ? channelLabel(activeChannel) : t("Chat")}
+          </strong>
+        </span>
+        <button
+          type="button"
+          className="board__chat-close"
+          aria-label={t("Close chat")}
+          onClick={onClose}
         >
-          <header className="board__chat-head">
-            <strong
-              title={activeChannel ? channelName(activeChannel) : undefined}
-            >
-              {activeChannel ? channelLabel(activeChannel) : t("Chat")}
-            </strong>
-            <button
-              type="button"
-              className="board__chat-close"
-              aria-label={t("Close chat")}
-              onClick={closePanel}
-            >
-              ×
-            </button>
-          </header>
+          ×
+        </button>
+      </header>
 
-          {listed.length > 1 ? (
-            <div className="board__chat-switcher">
-              {/* Off-flow copy of the full list, measured to decide how many chips
+      {listed.length > 1 ? (
+        <div className="board__chat-switcher">
+          {/* Off-flow copy of the full list, measured to decide how many chips
                   fit. aria-hidden and untabbable — the real row is below.
 
                   It has to mirror the real row **exactly**, badge for badge. It
@@ -486,226 +529,214 @@ export function ChatPanel({
                   which the real row deliberately does not — so every chip was
                   measured about a badge too wide and the row gave away a chip
                   it had the space for. */}
-              <div
-                className="board__chat-measure"
-                ref={fit.measureRef}
-                aria-hidden="true"
-              >
-                {ordered.map((c) => {
-                  const badge =
-                    c.id === activeChannelId ? 0 : (unread[c.id] ?? 0);
-                  return (
-                    <span key={c.id} className="board__chat-tab">
-                      {channelLabel(c)}
-                      {badge > 0 ? (
-                        <span className="board__chat-tabbadge">{badge}</span>
-                      ) : null}
-                    </span>
-                  );
-                })}
-              </div>
-              {/* And an off-flow copy of the trigger, so the space held back for
+          <div
+            className="board__chat-measure"
+            ref={fit.measureRef}
+            aria-hidden="true"
+          >
+            {ordered.map((c) => {
+              const badge = c.id === activeChannelId ? 0 : (unread[c.id] ?? 0);
+              return (
+                <span key={c.id} className="board__chat-tab">
+                  {channelLabel(c)}
+                  {badge > 0 ? (
+                    <span className="board__chat-tabbadge">{badge}</span>
+                  ) : null}
+                </span>
+              );
+            })}
+          </div>
+          {/* And an off-flow copy of the trigger, so the space held back for
                   it is its real width rather than a constant. Drawn at its
                   **widest** — every channel but one collapsed, carrying the
                   trip's whole unread count — because a reserve that is a little
                   too big costs alignment, while one that is too small brings
                   back the horizontal overflow this row exists to avoid. */}
-              <button
-                type="button"
-                disabled
-                tabIndex={-1}
-                className="menu__trigger board__chat-more board__chat-more--measure"
-                ref={fit.reserveRef}
-                aria-hidden="true"
-              >
-                ＋{ordered.length - 1}
-                {totalUnread > 0 ? (
-                  <span className="board__chat-tabbadge">{totalUnread}</span>
-                ) : null}
-              </button>
+          <button
+            type="button"
+            disabled
+            tabIndex={-1}
+            className="menu__trigger board__chat-more board__chat-more--measure"
+            ref={fit.reserveRef}
+            aria-hidden="true"
+          >
+            ＋{ordered.length - 1}
+            {totalUnread > 0 ? (
+              <span className="board__chat-tabbadge">{totalUnread}</span>
+            ) : null}
+          </button>
 
-              {/* Not a `tablist`: there are no tabpanels and no arrow-key
+          {/* Not a `tablist`: there are no tabpanels and no arrow-key
                   contract to honour, and the overflow trigger could not live
                   inside one. Toggle buttons with aria-pressed say what this is —
                   the same call Menu documents. */}
-              <div
-                className="board__chat-tabs"
-                role="group"
-                aria-label={t("Channels")}
-                ref={fit.containerRef}
-              >
-                {/* The chips clip, the overflow menu must not. Only this inner
+          <div
+            className="board__chat-tabs"
+            role="group"
+            aria-label={t("Channels")}
+            ref={fit.containerRef}
+          >
+            {/* The chips clip, the overflow menu must not. Only this inner
                     strip carries `overflow: hidden` — when the row itself did,
                     it also clipped the Menu's absolutely-positioned popover to
                     the height of one chip, so every collapsed channel but the
                     first was unreachable. The strip spans the row, so the fit
                     arithmetic (which measures the row) is unaffected. */}
-                <div className="board__chat-strip">
-                  {shownChannels.map((c) => {
-                    const isActive = c.id === activeChannelId;
-                    const badge = !isActive ? (unread[c.id] ?? 0) : 0;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={isActive}
-                        title={channelName(c)}
-                        className={
-                          "board__chat-tab" +
-                          (isActive ? " board__chat-tab--active" : "")
-                        }
-                        onClick={() => selectChannel(c.id)}
-                      >
-                        {channelLabel(c)}
-                        {badge > 0 ? (
-                          <span
-                            className="board__chat-tabbadge"
-                            aria-label={t("{n} unread", { n: badge })}
-                          >
-                            {badge}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-                {hiddenChannels.length > 0 ? (
-                  <Menu
-                    label={
-                      hiddenUnread > 0
-                        ? `${hiddenChannels.length} more channels, ${hiddenUnread} unread`
-                        : `${hiddenChannels.length} more channels`
-                    }
-                    triggerClassName="board__chat-more"
-                    trigger={
-                      <>
-                        ＋{hiddenChannels.length}
-                        {hiddenUnread > 0 ? (
-                          <span
-                            className="board__chat-tabbadge"
-                            aria-hidden="true"
-                          >
-                            {hiddenUnread}
-                          </span>
-                        ) : null}
-                      </>
-                    }
-                    items={hiddenChannels.map((c) => ({
-                      label: channelName(c),
-                      badge: unread[c.id] ?? 0,
-                      selected: c.id === activeChannelId,
-                      onSelect: () => selectChannel(c.id),
-                    }))}
-                  />
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="board__chat-log" ref={logRef}>
-            {chat.status === "loading" ? (
-              <p className="board__muted" role="status">
-                {t("Loading messages…")}
-              </p>
-            ) : chat.status === "error" ? (
-              <>
-                <p className="board__form-error" role="alert">
-                  {t("Couldn't load chat.")}
-                </p>
-                <button
-                  type="button"
-                  className="board__chat-older"
-                  onClick={chat.reload}
-                >
-                  {t("Try again")}
-                </button>
-              </>
-            ) : (
-              <>
-                {chat.hasMore ? (
+            <div className="board__chat-strip">
+              {shownChannels.map((c) => {
+                const isActive = c.id === activeChannelId;
+                const badge = !isActive ? (unread[c.id] ?? 0) : 0;
+                return (
                   <button
+                    key={c.id}
                     type="button"
-                    className="board__chat-older"
-                    disabled={chat.loadingOlder}
-                    onClick={chat.loadOlder}
+                    aria-pressed={isActive}
+                    title={channelName(c)}
+                    className={
+                      "board__chat-tab" +
+                      (isActive ? " board__chat-tab--active" : "")
+                    }
+                    onClick={() => selectChannel(c.id)}
                   >
-                    {chat.loadingOlder
-                      ? t("Loading…")
-                      : t("Load older messages")}
+                    {channelLabel(c)}
+                    {badge > 0 ? (
+                      <span
+                        className="board__chat-tabbadge"
+                        aria-label={t("{n} unread", { n: badge })}
+                      >
+                        {badge}
+                      </span>
+                    ) : null}
                   </button>
-                ) : null}
-                {chat.messages.length === 0 ? (
-                  <p className="board__muted">
-                    {t(
-                      "No messages yet. Say hello — or @mention someone to pull them in.",
-                    )}
-                  </p>
-                ) : (
-                  <ul className="board__msg-list">
-                    {chat.messages.map((m) => (
-                      <MessageRow
-                        key={m.id}
-                        message={m}
-                        myRole={myRole}
-                        myUserId={myUserId}
-                        onDelete={chat.remove}
-                        onToggleReaction={chat.toggleReaction}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
+                );
+              })}
+            </div>
+            {hiddenChannels.length > 0 ? (
+              <Menu
+                label={
+                  hiddenUnread > 0
+                    ? `${hiddenChannels.length} more channels, ${hiddenUnread} unread`
+                    : `${hiddenChannels.length} more channels`
+                }
+                triggerClassName="board__chat-more"
+                trigger={
+                  <>
+                    ＋{hiddenChannels.length}
+                    {hiddenUnread > 0 ? (
+                      <span className="board__chat-tabbadge" aria-hidden="true">
+                        {hiddenUnread}
+                      </span>
+                    ) : null}
+                  </>
+                }
+                items={hiddenChannels.map((c) => ({
+                  label: channelName(c),
+                  badge: unread[c.id] ?? 0,
+                  selected: c.id === activeChannelId,
+                  onSelect: () => selectChannel(c.id),
+                }))}
+              />
+            ) : null}
           </div>
+        </div>
+      ) : null}
 
-          <form className="board__chat-composer" onSubmit={onSubmit}>
-            {suggestions.length > 0 ? (
-              <ul className="board__mention-menu" role="listbox">
-                {suggestions.map((mem) => (
-                  <li key={mem.userId}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected="false"
-                      onClick={() => insertMention(mem.displayName)}
-                    >
-                      @{mem.displayName}
-                    </button>
-                  </li>
+      <div className="board__chat-log" ref={logRef}>
+        {chat.status === "loading" ? (
+          <p className="board__muted" role="status">
+            {t("Loading messages…")}
+          </p>
+        ) : chat.status === "error" ? (
+          <>
+            <p className="board__form-error" role="alert">
+              {t("Couldn't load chat.")}
+            </p>
+            <button
+              type="button"
+              className="board__chat-older"
+              onClick={chat.reload}
+            >
+              {t("Try again")}
+            </button>
+          </>
+        ) : (
+          <>
+            {chat.hasMore ? (
+              <button
+                type="button"
+                className="board__chat-older"
+                disabled={chat.loadingOlder}
+                onClick={chat.loadOlder}
+              >
+                {chat.loadingOlder ? t("Loading…") : t("Load older messages")}
+              </button>
+            ) : null}
+            {chat.messages.length === 0 ? (
+              <p className="board__muted">
+                {t(
+                  "No messages yet. Say hello — or @mention someone to pull them in.",
+                )}
+              </p>
+            ) : (
+              <ul className="board__msg-list">
+                {chat.messages.map((m) => (
+                  <MessageRow
+                    key={m.id}
+                    message={m}
+                    myRole={myRole}
+                    myUserId={myUserId}
+                    onDelete={chat.remove}
+                    onToggleReaction={chat.toggleReaction}
+                  />
                 ))}
               </ul>
-            ) : null}
-            <textarea
-              ref={inputRef}
-              data-gtp-input
-              className="board__chat-input"
-              rows={2}
-              placeholder={t("Message the group… @ to mention")}
-              aria-label={t("Message")}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setCaret(e.target.selectionStart);
-              }}
-              onKeyUp={(e) => setCaret(e.currentTarget.selectionStart)}
-              onClick={(e) => setCaret(e.currentTarget.selectionStart)}
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey &&
-                  suggestions.length === 0
-                ) {
-                  e.preventDefault();
-                  onSubmit(e);
-                }
-              }}
-            />
-            <Button type="submit" variant="primary" disabled={!draft.trim()}>
-              {t("Send")}
-            </Button>
-          </form>
-        </section>
-      ) : null}
-    </>
+            )}
+          </>
+        )}
+      </div>
+
+      <form className="board__chat-composer" onSubmit={onSubmit}>
+        {suggestions.length > 0 ? (
+          <ul className="board__mention-menu" role="listbox">
+            {suggestions.map((mem) => (
+              <li key={mem.userId}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  onClick={() => insertMention(mem.displayName)}
+                >
+                  @{mem.displayName}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <textarea
+          ref={inputRef}
+          data-gtp-input
+          className="board__chat-input"
+          rows={2}
+          placeholder={t("Message the group… @ to mention")}
+          aria-label={t("Message")}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setCaret(e.target.selectionStart);
+          }}
+          onKeyUp={(e) => setCaret(e.currentTarget.selectionStart)}
+          onClick={(e) => setCaret(e.currentTarget.selectionStart)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && suggestions.length === 0) {
+              e.preventDefault();
+              onSubmit(e);
+            }
+          }}
+        />
+        <Button type="submit" variant="primary" disabled={!draft.trim()}>
+          {t("Send")}
+        </Button>
+      </form>
+    </section>
   );
 }

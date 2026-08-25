@@ -739,4 +739,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{kind} — for one address, and only that address.":
     "{kind} — egyetlen címre, és csak arra.",
   "{n}/{max}": "{n}/{max}",
+  "All conversations": "Összes beszélgetés",
+  Conversations: "Beszélgetések",
+  "No boards to talk on yet.": "Még nincs tábla, ahol beszélgethetnél.",
 };
