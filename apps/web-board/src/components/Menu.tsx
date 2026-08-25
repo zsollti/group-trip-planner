@@ -49,12 +49,15 @@ export function Menu({
   trigger,
   align = "right",
   triggerClassName,
+  tourAnchor,
 }: {
   label: string;
   items: MenuItem[];
   trigger?: ReactNode;
   align?: "left" | "right";
   triggerClassName?: string;
+  /** `data-tour` value for the trigger, when the guided tour points at it. */
+  tourAnchor?: string;
 }) {
   const [open, setOpen] = useState(false);
   // Namespaces the note ids, since several of these can be open on one page.
@@ -113,6 +116,7 @@ export function Menu({
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={label}
+        data-tour={tourAnchor}
         onClick={() => setOpen((o) => !o)}
       >
         {trigger ?? "⋯"}

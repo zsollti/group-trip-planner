@@ -11,6 +11,7 @@ import { Settings } from "./routes/Settings";
 import { Admin } from "./routes/Admin";
 import { Unsubscribed } from "./routes/Unsubscribed";
 import { LocaleProvider } from "./components/LocaleProvider";
+import { TourProvider } from "./components/Tour";
 
 /**
  * UI C — Trip Board. Routes, plus the one provider that belongs to the app
@@ -30,81 +31,89 @@ import { LocaleProvider } from "./components/LocaleProvider";
 export function App() {
   return (
     <LocaleProvider>
-      <BoardBackdrop />
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <PublicOnly>
-              <Login />
-            </PublicOnly>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnly>
-              <Register />
-            </PublicOnly>
-          }
-        />
-        <Route path="/verify" element={<Verify />} />
-        {/* Join crafts its own ?next= redirect when logged out. */}
-        <Route path="/join/:token" element={<Join />} />
-        {/* The unsubscribe landing is public on purpose: it is opened from an
+      {/*
+       * Above the routes, because the guided tour outlives any one of them: the
+       * account menu offers it from every page, and each route hands it the
+       * steps that make sense where the reader actually is (`TourSteps`). Inside
+       * `LocaleProvider` for the ordinary reason — its own words are translated.
+       */}
+      <TourProvider>
+        <BoardBackdrop />
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <PublicOnly>
+                <Login />
+              </PublicOnly>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnly>
+                <Register />
+              </PublicOnly>
+            }
+          />
+          <Route path="/verify" element={<Verify />} />
+          {/* Join crafts its own ?next= redirect when logged out. */}
+          <Route path="/join/:token" element={<Join />} />
+          {/* The unsubscribe landing is public on purpose: it is opened from an
             email client with no session (Phase 5.3). */}
-        <Route path="/unsubscribed" element={<Unsubscribed />} />
-        <Route
-          path="/settings"
-          element={
-            <RequireAuth>
-              <Settings />
-            </RequireAuth>
-          }
-        />
-        {/* The operator's console. Guarded only as "signed in" here, because
+          <Route path="/unsubscribed" element={<Unsubscribed />} />
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <Settings />
+              </RequireAuth>
+            }
+          />
+          {/* The operator's console. Guarded only as "signed in" here, because
             the real gate is the API's: every /admin request 404s for anyone
             this deployment has not named. Routing cannot be the check — a
             client-side role is a suggestion. */}
-        <Route
-          path="/admin"
-          element={
-            <RequireAuth>
-              <Admin />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <Dashboard />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/trips/:id"
-          element={
-            <RequireAuth>
-              <TripDetail />
-            </RequireAuth>
-          }
-        />
-        {/* The itinerary — the same screen as the board, with the lanes
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <Admin />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/trips/:id"
+            element={
+              <RequireAuth>
+                <TripDetail />
+              </RequireAuth>
+            }
+          />
+          {/* The itinerary — the same screen as the board, with the lanes
             swapped for the calendar. Still its own URL rather than a piece of
             component state, so it stays linkable, Back still undoes the switch,
             and a frozen trip keeps a read-only view of what it turned out to be
             at the address people already have. */}
-        <Route
-          path="/trips/:id/timeline"
-          element={
-            <RequireAuth>
-              <TripDetail view="timeline" />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route
+            path="/trips/:id/timeline"
+            element={
+              <RequireAuth>
+                <TripDetail view="timeline" />
+              </RequireAuth>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </TourProvider>
     </LocaleProvider>
   );
 }

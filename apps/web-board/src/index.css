@@ -1822,6 +1822,121 @@ body {
   }
 }
 
+/* --- The guided tour -------------------------------------------------------
+ *
+ * Fixed, and portalled to `document.body` — a `transform` anywhere up the tree
+ * makes a fixed element position against *that* element instead of the
+ * viewport, and the board has one on the Plan/Timeline swap. See `Tour.tsx`.
+ *
+ * `pointer-events: none` on the layer, restored only on the bubble's own
+ * buttons. The tour describes the app; it must not become a sheet of glass over
+ * it, and a reader who wants to press the thing being pointed at can. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+
+/* The dimming, drawn as an enormous shadow *around* a transparent box rather
+   than four panels or a `clip-path`: one element, and the hole is exactly the
+   anchor's rectangle however it is shaped, wherever it has scrolled to. */
+.tour__spot {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 9999px var(--board-scrim),
+    0 0 0 2px var(--board-accent);
+  transition:
+    top 160ms ease-out,
+    left 160ms ease-out,
+    width 160ms ease-out,
+    height 160ms ease-out;
+}
+
+.tour__bubble {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  box-sizing: border-box;
+  pointer-events: auto;
+  background: var(--lane-bg);
+  border: 1px solid var(--lane-line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 18px 44px rgb(var(--board-shadow) / 0.28);
+}
+
+/* The send-off belongs to no element on the page, so it sits in the middle of
+   the screen instead of beside whatever was last discussed. */
+.tour__bubble[data-side="center"] {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tour__count {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-accent);
+}
+
+.tour__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.tour__body {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--board-dim);
+}
+
+.tour__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Pushes Back and Next to the right, leaving Skip on the left in the same place
+   on every panel — a way out that moved would be worse than none. */
+.tour__spacer {
+  flex: 1;
+}
+
+.tour__skip {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--board-dim);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tour__skip:hover {
+  color: var(--board-fg);
+}
+
+/* A phone has no room beside anything, so the bubble stops chasing its anchor
+   and sits at the bottom of the screen where a sheet would. The spotlight still
+   marks what is being talked about. */
+@media (max-width: 30rem) {
+  .tour__bubble {
+    top: auto !important;
+    bottom: 1rem;
+    left: 1rem !important;
+    right: 1rem;
+    width: auto;
+    transform: none !important;
+  }
+}
+
 /* Available to a screen reader and to find-in-page, absent from the layout.
    Not `display: none`, which hides it from both. Used where a figure carries a
    longhand a sighted reader gets from a tooltip — the exact per-currency sums

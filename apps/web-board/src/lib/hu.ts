@@ -661,4 +661,41 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "{kind} — bárki csatlakozhat, akinek megvan a link.",
   "{kind} — a single-use link for one person.":
     "{kind} — egyszer használható link egy embernek.",
+  "Show me around": "Mutasd meg a programot",
+  "Skip the tour": "Kihagyom a bemutatót",
+  "Let's go": "Vágjunk bele",
+  "{step} of {total}": "{step} / {total}",
+  "One lane, one question": "Egy sáv, egy kérdés",
+  "Every column is something the group has to agree on — when to go, how to get there, where to sleep. Add as many as your trip needs.":
+    "Minden oszlop egy kérdés, amiben meg kell egyezni: mikor induljatok, mivel menjetek, hol aludjatok. Annyit veszel fel, amennyire szükség van.",
+  "Anyone can suggest something": "Bárki javasolhat valamit",
+  "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission — you are putting it on the table.":
+    "Dobj be egy ötletet a sávba árral, linkkel és időponttal. Nem engedélyt kérsz — leteszed az asztalra.",
+  "Everyone votes": "Mindenki szavaz",
+  "Say what you think of each idea and see at a glance who agrees. When the group has made up its mind, an organizer locks the winner in and it stays at the top of its lane.":
+    "Mondd el, mit gondolsz az ötletekről, és láthatod, ki ért egyet. Ha megvan a döntés, egy szervező rögzíti a győztest, és az a sáv tetején marad.",
+  "The money adds itself up": "A költségek maguktól összeadódnak",
+  "Every decision you lock in lands here, split per person. Give the trip a target and this will tell you where you stand against it.":
+    "Minden rögzített döntés ide kerül, fejenkénti bontásban. Adj meg egy keretet, és megmutatja, hol tartotok hozzá képest.",
+  "Two ways to look at it": "Kétféleképpen nézheted",
+  "Plan is the board you have been looking at. Timeline lays the same decisions out day by day, so you can see what your trip actually looks like.":
+    "A Terv az a tábla, amit eddig néztél. Az Idővonal ugyanazokat a döntéseket napokra bontva mutatja, így látod, hogy fest az utazás.",
+  "Who you're going with": "Kikkel utaztok",
+  "Everyone on the trip, and what each of them can do. Organizers lock decisions in; travelers propose and vote.":
+    "Mindenki, aki jön, és hogy ki mit tehet. A szervezők rögzítik a döntéseket, az utazók javasolnak és szavaznak.",
+  "Bring the others in": "Hívd meg a többieket",
+  "One link is all it takes — no app for them to install. You choose what each link lets someone do.":
+    "Elég egyetlen link — nekik semmit sem kell telepíteniük. Te döntöd el, mit tehet, aki vele érkezik.",
+  "Talk it over here": "Itt beszéljétek meg",
+  "Every lane gets its own conversation, so the reason behind a decision stays next to the decision instead of scrolling away in a group chat.":
+    "Minden sávnak saját beszélgetése van, így a döntés indoklása a döntés mellett marad, nem vész el egy csoportos csevegésben.",
+  "A board is one trip": "Egy tábla egy utazás",
+  "Start one here. Everything about that trip — the dates, the flights, the bill, the arguing — lives on its own board.":
+    "Itt hozhatsz létre egyet. Az utazás minden része — az időpont, a repülőjegy, a számla, a vita — a saját tábláján él.",
+  "Everything else is in here": "Minden más itt található",
+  "Your picture, the app's language, and this tour again whenever you want it.":
+    "A képed, az alkalmazás nyelve, és ez a bemutató, amikor csak újra szeretnéd.",
+  "Let the fun begin!": "Kezdődjön a móka!",
+  "That's the whole thing. Go and plan something.":
+    "Ennyi az egész. Menj, és tervezz valamit.",
 };

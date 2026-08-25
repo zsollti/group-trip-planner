@@ -85,7 +85,14 @@ export function CostTally({
   const categories = useTripCategories(tripId);
 
   return (
-    <section className="board__cost-strip" aria-label={t("Cost")}>
+    <section
+      className="board__cost-strip"
+      aria-label={t("Cost")}
+      // The guided tour points here. An attribute of its own rather than the
+      // class beside it: a class is a styling decision and gets renamed, and the
+      // label is translated, so neither can be a stable selector. See `lib/tour`.
+      data-tour="cost"
+    >
       {dash.isPending ? (
         <p className="board__tally-muted">{t("Counting…")}</p>
       ) : dash.isError ? (

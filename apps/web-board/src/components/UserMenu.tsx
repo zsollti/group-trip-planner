@@ -5,6 +5,7 @@ import { Menu } from "./Menu";
 import { Avatar } from "./Avatar";
 import { NotificationsDialog } from "./NotificationsDialog";
 import { useTheme } from "../lib/theme";
+import { useTour } from "../lib/useTour";
 import { t } from "../lib/i18n";
 
 /**
@@ -46,6 +47,10 @@ export function UserMenu() {
   // is waiting, and a menu badge is invisible until the menu is open.
   const notifications = useNotifications();
   const unread = notifications.data?.unreadCount ?? 0;
+  // The tour, from wherever the reader is. `available` is false on a page with
+  // nothing to point at (the settings screen, the operator console), and the
+  // item goes with it rather than offering a walkthrough of nothing.
+  const tour = useTour();
 
   return (
     <>
@@ -55,6 +60,7 @@ export function UserMenu() {
         }
         align="right"
         triggerClassName="board__avatar-trigger"
+        tourAnchor="account"
         trigger={
           <span className="board__avatar-wrap">
             <Avatar
@@ -78,6 +84,12 @@ export function UserMenu() {
             onSelect: () => setNotificationsOpen(true),
             badge: unread,
           },
+          // "Skippable, but available later" — this is the later. It sits
+          // above Settings because it is the thing a reader who is lost reaches
+          // for, and below the two they use every day.
+          ...(tour.available
+            ? [{ label: t("Show me around"), onSelect: tour.start }]
+            : []),
           {
             label: t("Settings"),
             onSelect: () => navigate("/settings"),

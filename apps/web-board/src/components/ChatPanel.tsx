@@ -395,6 +395,7 @@ export function ChatPanel({
       <button
         type="button"
         className="board__chat-fab"
+        data-tour="chat"
         aria-expanded={open}
         aria-label={
           totalUnread > 0 && !open

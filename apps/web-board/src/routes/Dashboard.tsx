@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   DndContext,
@@ -26,6 +26,8 @@ import { plural, t, tNode } from "../lib/i18n";
 import { applyOrder } from "../lib/pendingOrder";
 import { formatMoney } from "../lib/money";
 import { roleLabel } from "../lib/roles";
+import { TourSteps } from "../components/Tour";
+import { dashboardTourSteps } from "../lib/tour";
 
 /**
  * A trip's committed cost as a compact per-currency string.
@@ -149,6 +151,8 @@ function NewBoardTile({ onCreate }: { onCreate: () => void }) {
     <button
       type="button"
       className="board__tile board__tile--add"
+      // Where the overview's own two-step tour starts. See `lib/tour`.
+      data-tour="new-board"
       onClick={onCreate}
     >
       {t("＋ New board")}
@@ -204,6 +208,9 @@ export function Dashboard() {
   const dash = useHomeDashboard();
   const reorder = useReorderTrips();
   const [createOpen, setCreateOpen] = useState(false);
+  // Memoized for the reason `TripDetail` gives: a fresh array every render is a
+  // fresh identity, and the effect that offers them watches exactly that.
+  const tourSteps = useMemo(dashboardTourSteps, []);
   const sensors = useSensors(
     // The same 6px threshold the board uses: a tile is a link, and without a
     // distance a click that trembles becomes a drag that never opens anything.
@@ -271,6 +278,15 @@ export function Dashboard() {
       {/* Everything except the bar. The measure lives here rather than
           on the <main> so the page bar can span the window like the trip
           board's does — see `.board__measure`. */}
+      {/*
+       * The overview's own two steps, and no `autoStart`: the tour proper runs
+       * on a board, which is where there is something to show. These exist so
+       * "Show me around" answers about whatever the reader is looking at —
+       * somebody with no boards yet would otherwise ask for help and be told
+       * there is none.
+       */}
+      <TourSteps steps={tourSteps} />
+
       <div className="board__measure">
         {/*
          * Not "Welcome, Ada" any more.

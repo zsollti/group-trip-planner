@@ -317,4 +317,83 @@ describe("Display name (e2e)", () => {
       ),
     );
   });
+
+  /**
+   * The guided tour's one bit of persistence.
+   *
+   * On the account rather than in the browser because "skippable, but available
+   * later" needs somewhere stable — a per-browser flag means the tour ambushes
+   * the same person again from their phone. So it travels on the session, and
+   * these are the two directions it can go.
+   */
+  it("records that the tour has been seen, and hands the fact back", async () => {
+    const u = await makeUser("tour");
+
+    // A fresh account has never seen it: that null is what makes the board
+    // offer it on the first one they open.
+    const before = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .expect(200);
+    assert.equal(
+      (before.body as { tourCompletedAt: unknown }).tourCompletedAt,
+      null,
+    );
+
+    const done = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ tourCompleted: true })
+      .expect(200);
+    const at = (done.body as { tourCompletedAt: string }).tourCompletedAt;
+    // A timestamp, not a boolean — "yes" and "yes, in March" cost the same to
+    // store, and the response is what the session carries.
+    assert.ok(at, "an instant was recorded");
+    assert.ok(!Number.isNaN(Date.parse(at)));
+
+    // It survives the round trip rather than living in the response only.
+    const after = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .expect(200);
+    assert.equal(
+      (after.body as { tourCompletedAt: string }).tourCompletedAt,
+      at,
+    );
+
+    // And it can be handed back, which is what a "show it to me again on every
+    // device" control would use. Nothing offers that today; the column is
+    // symmetrical because a one-way flag is a migration waiting to happen.
+    const reset = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ tourCompleted: false })
+      .expect(200);
+    assert.equal(
+      (reset.body as { tourCompletedAt: unknown }).tourCompletedAt,
+      null,
+    );
+  });
+
+  it("marks the tour done without being told the name again", async () => {
+    // The same property the language switch has, and for the same reason: a
+    // form that resubmits a field it does not own is how one screen quietly
+    // reverts another's edit.
+    const u = await makeUser("tour-alone");
+    await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ displayName: "Ada Lovelace" })
+      .expect(200);
+
+    const done = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ tourCompleted: true })
+      .expect(200);
+    assert.equal(
+      (done.body as { displayName: string }).displayName,
+      "Ada Lovelace",
+    );
+  });
 });

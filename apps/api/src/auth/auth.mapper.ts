@@ -29,5 +29,8 @@ export function toAuthUser(
     // must degrade to the default, not fail the session payload and lock the
     // account out of the app.
     locale: resolveLocale(user.locale),
+    // ISO, or null for an account that has never been shown the tour. The board
+    // reads exactly that: null means offer it on the first board they open.
+    tourCompletedAt: user.tourCompletedAt?.toISOString() ?? null,
   };
 }
