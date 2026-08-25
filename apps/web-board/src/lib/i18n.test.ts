@@ -92,8 +92,8 @@ describe("translating a message", () => {
   it("returns the source string in the source language, with no lookup", () => {
     // English is never a catalogue entry: translating into it is the identity, and
     // 507 strings mapped to themselves would be 507 chances to disagree.
-    expect(translateUi("Plan your first trip", "en")).toBe(
-      "Plan your first trip",
+    expect(translateUi("Welcome on board! :)", "en")).toBe(
+      "Welcome on board! :)",
     );
   });
 
@@ -102,8 +102,8 @@ describe("translating a message", () => {
     // exactly what it should have done then: an empty catalogue must degrade rather
     // than blank the screen. It now asserts the translation, and the change of
     // expectation is the clearest evidence in the suite that Hungarian is live.
-    expect(translateUi("Plan your first trip", "hu" as never)).toBe(
-      "Tervezd meg az első utazásod",
+    expect(translateUi("Welcome on board! :)", "hu" as never)).toBe(
+      "Üdv a fedélzeten! :)",
     );
   });
 

@@ -81,10 +81,12 @@ describe("web-board auth flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-    // Landed on the boards overview with an empty-state CTA.
-    expect(await screen.findByText(/welcome, ada/i)).toBeInTheDocument();
+    // Landed on the boards overview. The heading no longer names the reader —
+    // an empty wall is now just its one dashed frame, and that frame is the
+    // whole empty state.
+    expect(await screen.findByText("Welcome on board! :)")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: /plan your first trip/i }),
+      await screen.findByRole("button", { name: /New board/ }),
     ).toBeInTheDocument();
   });
 

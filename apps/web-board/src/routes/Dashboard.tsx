@@ -156,54 +156,41 @@ function NewBoardTile({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function Onboarding({
-  verified,
-  email,
-  onCreate,
-}: {
-  verified: boolean;
-  email?: string;
-  onCreate: () => void;
-}) {
+/**
+ * The one case where an empty overview still has something to say.
+ *
+ * Creating a board is gated on a confirmed email (FR-7, `VerifiedEmailGuard`)
+ * and signing in is not, so an account that registered and has not yet clicked
+ * the link lands here — and before Phase 6.4 it got a full-strength CTA, filled
+ * in the form and ate a 403 from the server. This panel is what stands in the
+ * ghost tile's place for exactly that reader.
+ *
+ * The **verified** half of this panel is gone (post-launch). It explained what
+ * a board was in a paragraph nobody with an empty page needed, over a button
+ * duplicating the ghost tile below it; the tour now does the explaining, and
+ * the empty wall's one dashed frame does the asking.
+ */
+function VerifyFirst({ email }: { email?: string }) {
   return (
     <section className="board__onboard" aria-labelledby="onboard-heading">
       <h2 className="board__onboard-title" id="onboard-heading">
-        {verified ? t("Let's plan something") : t("Almost there")}
+        {t("Almost there")}
       </h2>
-      <p className="board__onboard-lead">
-        {t(
-          "No boards yet — so here's the idea. A board is one place for one trip, with a lane for each thing you have to agree on: when to go, how to get there, where to sleep, what to do. Anyone can add an option to a lane, everyone votes, and when the group has made its mind up an organiser locks the winner in. It stays at the top of its lane, the cost adds itself up as you go, and nobody has to scroll back through a group chat to remember what was decided.",
-        )}
-      </p>
-
-      {verified ? (
-        <>
-          <button type="button" className="board__cta" onClick={onCreate}>
-            {t("Plan your first trip")}
-          </button>
-          <p className="board__onboard-note">
-            {t(
-              "Takes about a minute. You'll be the owner, and you can bring everyone else in with a single link — no accounts to set up for them, no app to install.",
-            )}
-          </p>
-        </>
-      ) : (
-        <div className="board__onboard-gate">
-          <p className="board__onboard-note">
-            {tNode(
-              "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)",
-              {
-                email: <strong>{email ?? t("your address")}</strong>,
-              },
-            )}
-          </p>
-          <p className="board__onboard-note">
-            {t(
-              "No need to wait around, though. If someone has already invited you to their board you can join it right now, and propose, vote and chat like everyone else.",
-            )}
-          </p>
-        </div>
-      )}
+      <div className="board__onboard-gate">
+        <p className="board__onboard-note">
+          {tNode(
+            "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)",
+            {
+              email: <strong>{email ?? t("your address")}</strong>,
+            },
+          )}
+        </p>
+        <p className="board__onboard-note">
+          {t(
+            "No need to wait around, though. If someone has already invited you to their board you can join it right now, and propose, vote and chat like everyone else.",
+          )}
+        </p>
+      </div>
     </section>
   );
 }
@@ -285,8 +272,16 @@ export function Dashboard() {
           on the <main> so the page bar can span the window like the trip
           board's does — see `.board__measure`. */}
       <div className="board__measure">
-        <h1 className="board__title">
-          {t("Welcome, {name}", { name: user?.displayName ?? "" })}
+        {/*
+         * Not "Welcome, Ada" any more.
+         *
+         * The name was the whole greeting, and it is the one fact on this page
+         * the reader already knows better than we do — their own account menu is
+         * two inches to the right of it. What the line is actually for is
+         * marking the top of the wall, so it does that and says hello.
+         */}
+        <h1 className="board__title board__title--center">
+          {t("Welcome on board! :)")}
         </h1>
 
         {dash.isPending ? (
@@ -310,12 +305,8 @@ export function Dashboard() {
               {t("Retry")}
             </button>
           </p>
-        ) : list.length === 0 ? (
-          <Onboarding
-            verified={user?.emailVerified ?? false}
-            email={user?.email}
-            onCreate={() => setCreateOpen(true)}
-          />
+        ) : list.length === 0 && !user?.emailVerified ? (
+          <VerifyFirst email={user?.email} />
         ) : (
           <>
             <DndContext

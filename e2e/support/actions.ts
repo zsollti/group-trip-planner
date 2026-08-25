@@ -68,8 +68,11 @@ export async function signIn(page: Page, account: Account): Promise<void> {
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Sign in" }).click();
+  // The overview's heading no longer names the reader — the account menu two
+  // inches to the right of it already does. It is still the one heading that
+  // only appears once a session exists, which is what this is waiting for.
   await expect(
-    page.getByRole("heading", { name: `Welcome, ${account.displayName}` }),
+    page.getByRole("heading", { name: "Welcome on board! :)" }),
   ).toBeVisible();
 }
 
@@ -86,14 +89,10 @@ export async function createBoard(
   name: string,
   dates?: { start: string; end: string },
 ): Promise<string> {
-  // Either way in, because there are two: the ghost tile at the end of the wall
-  // (which is where creating a board lives now — it used to be a button in the
-  // page bar), and the onboarding CTA, which is what a brand-new account with
-  // no boards at all sees instead of a wall. A journey that seeds a fresh user
-  // hits the second on its first call and the first on every one after.
-  await page
-    .getByRole("button", { name: /＋ New board|Plan your first trip/ })
-    .click();
+  // One way in, now that the onboarding panel and its rival CTA are gone: the
+  // ghost tile at the end of the wall, which a brand-new account with no boards
+  // also gets as the wall's only tile.
+  await page.getByRole("button", { name: "＋ New board" }).click();
 
   // The create form is a stepper now: one question per panel, so this walks it.
   // The primary button says Skip until a question is answered and Next after,
