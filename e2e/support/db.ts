@@ -48,6 +48,23 @@ export async function markVerified(email: string): Promise<void> {
 }
 
 /**
+ * Put an account past the guided tour.
+ *
+ * For the one user a journey creates through the real registration form: seeded
+ * users get this in {@link createVerifiedUser}, but a registered one is a
+ * genuinely new account and the tour would open on the first board it reached.
+ * Kept separate from {@link markVerified} rather than folded into it, because
+ * they stand for two different things a real person does — clicking a link in
+ * their inbox, and having been shown around.
+ */
+export async function skipTour(email: string): Promise<void> {
+  await prisma.user.update({
+    where: { email },
+    data: { tourCompletedAt: new Date() },
+  });
+}
+
+/**
  * A verified account created straight in the database, ready to sign in with.
  *
  * `POST /auth/register` is rate limited to 5 a minute per IP (Phase 7.1), and
@@ -62,6 +79,7 @@ export async function markVerified(email: string): Promise<void> {
 export async function createVerifiedUser(
   displayName: string,
   password: string,
+  opts: { tourSeen?: boolean } = {},
 ): Promise<{ email: string }> {
   const email = e2eEmail(displayName.toLowerCase());
   await prisma.user.create({
@@ -69,6 +87,19 @@ export async function createVerifiedUser(
       email,
       displayName,
       emailVerified: true,
+      /*
+       * Already past the guided tour.
+       *
+       * The tour opens itself on the first board a new account sees, and its
+       * bubble is a real element over the page — so every journey would spend
+       * its first act dismissing a walkthrough it is not testing, and a failure
+       * would read as "the button was covered" rather than as what it is.
+       *
+       * A date, not a hand-wave: this is exactly what an account that has been
+       * shown it looks like. The tour has a journey of its own
+       * (`guided-tour.spec.ts`) which seeds a user *without* it.
+       */
+      tourCompletedAt: opts.tourSeen === false ? null : new Date(),
       // Matches the argon2id configuration the auth service hashes with, so the
       // real login route verifies this password normally.
       passwordHash: await argon2.hash(password, { type: argon2.argon2id }),

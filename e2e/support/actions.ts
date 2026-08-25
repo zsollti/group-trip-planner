@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { createVerifiedUser, e2eEmail, markVerified } from "./db";
+import { createVerifiedUser, e2eEmail, markVerified, skipTour } from "./db";
 
 /** An account this run created, so a later step can sign back in as them. */
 export interface Account {
@@ -32,6 +32,25 @@ export async function seedAndSignIn(
 }
 
 /**
+ * The same, for an account that has **not** been shown the guided tour.
+ *
+ * Exactly one journey wants this — the tour's own. Everything else wants the
+ * ordinary seeder, whose users are marked as having seen it so a walkthrough
+ * does not open over the thing they are testing.
+ */
+export async function seedAndSignInWithTour(
+  page: Page,
+  displayName: string,
+): Promise<Account> {
+  const { email } = await createVerifiedUser(displayName, PASSWORD, {
+    tourSeen: false,
+  });
+  const account = { email, password: PASSWORD, displayName };
+  await signIn(page, account);
+  return account;
+}
+
+/**
  * Register through the real form, verify the address, and sign in — the front
  * door, not a seeded session. Registration deliberately does not log anyone in
  * (it returns only "verification sent", so the response cannot reveal whether an
@@ -57,6 +76,10 @@ export async function signUpAndIn(
 
   // Stand in for clicking the emailed link — see the note in support/db.ts.
   await markVerified(email);
+  // And past the guided tour, which would otherwise open on the first board
+  // this account reaches and cover the thing the journey is about. The tour has
+  // a journey of its own.
+  await skipTour(email);
 
   await signIn(page, { email, password: PASSWORD, displayName });
   return { email, password: PASSWORD, displayName };
@@ -134,9 +157,12 @@ export async function createBoard(
       await cell.first().click();
     }
   }
+  // Onto the last panel. There were five and there are four: the budget step
+  // was retired, since a target per person means nothing before the board that
+  // would be read against it exists.
   await onward.click();
-  // Currency keeps its default; budget is left unset.
-  await onward.click();
+  // Currency keeps its default, and its panel is the last — so its primary
+  // button is "Create board" rather than another Next.
   await page.getByRole("button", { name: "Create board" }).click();
 
   await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
