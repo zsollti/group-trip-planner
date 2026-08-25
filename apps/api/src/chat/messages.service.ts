@@ -51,6 +51,34 @@ export class MessagesService {
     return channel;
   }
 
+  /**
+   * Which trip a channel belongs to, or null if there is no such channel.
+   *
+   * For the socket, which is no longer scoped to a board and so has to work out
+   * what a request is *about* before it can decide whether the caller may make
+   * it. Deliberately the server's own answer rather than a `tripId` added to
+   * the message payload: a client that names both could name a mismatched
+   * pair, and the assertions above would then be checking the caller's claim
+   * against itself.
+   */
+  async tripOfChannel(channelId: string): Promise<string | null> {
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { tripId: true },
+    });
+    return channel?.tripId ?? null;
+  }
+
+  /** {@link tripOfChannel} for a message — the delete and react paths, which
+   *  hold a message id and not a channel. */
+  async tripOfMessage(messageId: string): Promise<string | null> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { channel: { select: { tripId: true } } },
+    });
+    return message?.channel.tripId ?? null;
+  }
+
   /** Load a message and assert its channel belongs to `tripId` (else 404). */
   private async messageInTrip(messageId: string, tripId: string) {
     const message = await this.prisma.message.findUnique({

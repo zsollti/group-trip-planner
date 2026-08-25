@@ -198,7 +198,7 @@ async function main(): Promise<void> {
   );
   results.push(
     await time("socket ready payload (channels + unread)", () =>
-      channels.readyPayload(bigTrip, protagonist),
+      channels.readyPayload([bigTrip], protagonist),
     ),
   );
 

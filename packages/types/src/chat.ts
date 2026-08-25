@@ -41,8 +41,18 @@ export type ChannelView = z.infer<typeof ChannelView>;
  */
 export interface TripSocketAuth {
   token: string;
-  tripId: string;
 }
+
+/**
+ * Client to server: re-run the room join for this connection (post-launch).
+ *
+ * One socket now covers every board the reader is on, which means its rooms are
+ * decided once at connect and can go stale — you join a trip, you are removed
+ * from one — where a per-trip socket re-handshook every time you navigated. The
+ * client emits this when its own trip list changes; the server re-reads the
+ * membership table, so it grants nothing.
+ */
+export const ROOMS_REFRESH_EVENT = "rooms:refresh";
 
 /** A channel's unread count for the connecting member (Phase 4.4): messages
  * after their read cursor authored by someone else. */
@@ -217,7 +227,7 @@ export function resolveMentions(
   let working = body;
   for (const m of byLength) {
     const re = new RegExp(`@${escape(m.displayName)}(?![\\w])`, "gi");
-    const replaced = working.replace(re, (s) => " ".repeat(s.length));
+    const replaced = working.replace(re, (s) => "".repeat(s.length));
     if (replaced !== working) {
       matched.add(m.userId);
       working = replaced;
@@ -257,8 +267,7 @@ export type DeleteMessageInput = z.infer<typeof DeleteMessageInput>;
  * emit: the stored message on success, or an error string the client surfaces
  * (and, for a send, rolls the optimistic message back). */
 export type MessageAck =
-  | { ok: true; message: MessageView }
-  | { ok: false; error: string };
+  { ok: true; message: MessageView } | { ok: false; error: string };
 
 /** Socket event names for the message stream (Phase 4.2). Send/delete are
  * client→server emits (with ack); new/deleted are server→room broadcasts. */
@@ -286,8 +295,7 @@ export type ReactionUpdate = z.infer<typeof ReactionUpdate>;
 
 /** The ack for a `reaction:add`/`reaction:remove` emit. */
 export type ReactionAck =
-  | { ok: true; update: ReactionUpdate }
-  | { ok: false; error: string };
+  { ok: true; update: ReactionUpdate } | { ok: false; error: string };
 
 /** Socket event names for reactions (Phase 4.3). Add/remove are client→server
  * emits (with ack); updated is the server→room broadcast. */
