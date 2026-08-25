@@ -282,7 +282,7 @@ function LanguageSection() {
 }
 
 /**
- * Your name, as everyone else sees it.
+ * Your nickname, as everyone else sees it.
  *
  * It was set at registration and then frozen: no screen in the app could change
  * it, and it is the name attached to every proposal, vote and message you have
@@ -324,12 +324,18 @@ function NameSection() {
   return (
     <section className="board__panel" aria-labelledby="name-heading">
       <h2 className="board__panel-title" id="name-heading">
-        {t("Display name")}
+        {t("Nickname")}
       </h2>
       <form className="settings__name" onSubmit={(e) => void onSubmit(e)}>
+        {/* The label is hidden, not dropped. The heading directly above says
+            "Nickname" already, and a second copy of that word under it was one
+            name too many for one box — but a control with no label at all is
+            unreadable to anyone not looking at the heading, so the `<label>`
+            stays and only leaves the screen. */}
         <Field
           htmlFor="displayName"
-          label={t("Your name")}
+          label={t("Nickname")}
+          labelHidden
           error={error ?? undefined}
         >
           <Input
@@ -351,11 +357,16 @@ function NameSection() {
           {update.isPending ? t("Saving…") : t("Save")}
         </Button>
       </form>
-      <p className="board__panel-note">
-        {saved
-          ? t("Saved. Everyone on your boards sees the new name.")
-          : t("Shown on everything you propose, vote for and write.")}
-      </p>
+      {/* Only the confirmation. The standing description under this box - what
+          a nickname is shown on - was explaining a field whose heading, value
+          and Save button already say the whole thing, so it was a line of prose
+          the reader had to skip every visit. Feedback after an edit is a
+          different matter: nothing else on screen changes when a save lands. */}
+      {saved ? (
+        <p className="board__panel-note" role="status">
+          {t("Saved. Everyone on your boards sees the new name.")}
+        </p>
+      ) : null}
     </section>
   );
 }

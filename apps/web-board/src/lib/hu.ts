@@ -178,7 +178,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Discuss: "Megbeszélés",
   Discussion: "Beszélgetés",
   "Dismiss notification": "Értesítés elvetése",
-  "Display name": "Megjelenítendő név",
   "Drag to reorder the {lane} lane": "Fogd meg a(z) {lane} sáv átrendezéséhez",
   "Drag {card} — reorder or drop on Decided to lock":
     "Fogd meg: {card} — rendezd át, vagy húzd az Eldöntve sávra a rögzítéshez",
@@ -388,8 +387,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Csak az első {n} napot mutatjuk — valami sokkal későbbre van dátumozva, mint a többi.",
   "Showing the first {n} days — something is dated much further out than the rest.":
     "Csak az első {n} napot mutatjuk — valami sokkal későbbre van dátumozva, mint a többi.",
-  "Shown on everything you propose, vote for and write.":
-    "Ez látszik mindenen, amit javasolsz, megszavazsz vagy megírsz.",
   "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.":
     "Ott jelenik meg, ahol te is — a csapatlistában és a tábla csevegésében. Ha nincs, a monogramod helyettesíti.",
   "Sign in": "Bejelentkezés",
@@ -486,7 +483,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Yes, rebuild it": "Igen, épüljön újra",
   "You don't own any boards.": "Nincs saját táblád.",
   "You're unsubscribed": "Leiratkoztál",
-  "Your name": "A neved",
   "Your picture": "A képed",
   "Your settings": "A beállításaid",
   "Your trip boards": "Az utazástábláid",
