@@ -2,23 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   fromMinutes,
   formatTimeOfDay,
+  parseTypedTime,
+  sanitizeTypedTime,
   shiftTime,
-  timeChoices,
   toMinutes,
-  TIME_STEP_MINUTES,
 } from "./timeOfDay";
 
 /**
- * The quarter-hour time picker's arithmetic.
+ * The time field's arithmetic and its parsing.
  *
- * The interesting cases are the two that a naive implementation gets wrong and
+ * The interesting cases are the ones a naive implementation gets wrong and
  * nobody notices until a real trip hits them: a span that runs past midnight,
- * and a stored time that does not sit on the grid the list offers.
+ * and — now that the time is typed rather than chosen from a list — a single
+ * digit after the colon, which means what it looks like and not ten times it.
  */
 
 describe("toMinutes / fromMinutes", () => {
   it("round-trips every value the picker can offer", () => {
-    for (let m = 0; m < 1440; m += TIME_STEP_MINUTES) {
+    for (let m = 0; m < 1440; m += 15) {
       expect(toMinutes(fromMinutes(m))).toBe(m);
     }
   });
@@ -48,27 +49,57 @@ describe("shiftTime", () => {
   });
 });
 
-describe("timeChoices", () => {
-  it("offers the whole day on the quarter hour", () => {
-    const choices = timeChoices("12:00");
-    expect(choices).toHaveLength(1440 / TIME_STEP_MINUTES);
-    expect(choices[0]).toBe("00:00");
-    expect(choices.at(-1)).toBe("23:45");
+describe("sanitizeTypedTime", () => {
+  it("keeps only what could still become a time", () => {
+    expect(sanitizeTypedTime("1p9m:0x4")).toBe("19:04");
+    expect(sanitizeTypedTime("19:04:33")).toBe("19:04");
   });
 
-  it("keeps an off-grid value, in its right place", () => {
-    // Anything saved by the old free-text control can sit between two steps.
-    // Dropping it would round somebody's time behind their back the moment
-    // they opened the form to edit an unrelated field.
-    const choices = timeChoices("07:20");
-    expect(choices).toContain("07:20");
-    expect(choices.indexOf("07:20")).toBe(choices.indexOf("07:15") + 1);
-    expect(choices.indexOf("07:30")).toBe(choices.indexOf("07:20") + 1);
+  it("lets a half-typed value stand", () => {
+    // It runs on every keystroke, and `19:04` cannot be typed without passing
+    // through all of these. Rejection happens once, on the way out.
+    for (const partial of ["1", "19", "19:", "19:0"]) {
+      expect(sanitizeTypedTime(partial)).toBe(partial);
+    }
+  });
+});
+
+describe("parseTypedTime", () => {
+  it("pads a single minute digit on the left", () => {
+    // The whole reason this is not `Number(m)` formatted back: `14:4` is four
+    // minutes past two. Padding on the right would make it 36 minutes later
+    // than what somebody typed, silently.
+    expect(parseTypedTime("14:4")).toBe("14:04");
+    expect(parseTypedTime("14:04")).toBe("14:04");
+    expect(parseTypedTime("9:5")).toBe("09:05");
   });
 
-  it("does not duplicate a value already on the grid", () => {
-    const choices = timeChoices("07:15");
-    expect(choices.filter((c) => c === "07:15")).toHaveLength(1);
+  it("takes four bare digits, and three, and an hour on its own", () => {
+    expect(parseTypedTime("1904")).toBe("19:04");
+    expect(parseTypedTime("904")).toBe("09:04");
+    expect(parseTypedTime("19")).toBe("19:00");
+    expect(parseTypedTime("9")).toBe("09:00");
+  });
+
+  it("treats an empty field as a real answer", () => {
+    // The dates on an option are optional and so is the time on them.
+    expect(parseTypedTime("")).toBe("");
+    expect(parseTypedTime("   ")).toBe("");
+  });
+
+  it("rejects rather than rounds", () => {
+    // Wrapping 25:00 to 01:00, or clamping 19:70 to 19:59, would be inventing
+    // an answer for someone who made a typo.
+    for (const bad of ["25:00", "19:70", "24:00", "1:2:3", ":30", "19:", "x"]) {
+      expect(parseTypedTime(bad)).toBeNull();
+    }
+  });
+
+  it("still accepts anything the old quarter-hour list could produce", () => {
+    for (let m = 0; m < 1440; m += 15) {
+      const onGrid = fromMinutes(m);
+      expect(parseTypedTime(onGrid)).toBe(onGrid);
+    }
   });
 });
 

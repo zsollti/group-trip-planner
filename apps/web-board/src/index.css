@@ -2598,15 +2598,12 @@ body {
 .drange__nav {
   display: flex;
   align-items: center;
+  /* The prompt between the arrows used to hold them apart with `flex: 1`. It is
+     announced-only now (`.board__sr-only` takes it out of flow entirely), so the
+     row has to space its own two ends. */
+  justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.4rem;
-}
-.drange__prompt {
-  flex: 1;
-  margin: 0;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--board-dim);
 }
 .drange__step {
   width: 1.9rem;
@@ -2737,21 +2734,6 @@ body {
   border-radius: 7px;
 }
 
-.drange__legend {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0.5rem 0 0;
-  font-size: 0.72rem;
-  color: var(--board-dim);
-}
-.drange__legend-swatch {
-  width: 0.85rem;
-  height: 0.85rem;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--board-accent) 35%, transparent);
-}
 textarea[data-gtp-input] {
   width: 100%;
   resize: vertical;

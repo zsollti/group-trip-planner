@@ -199,6 +199,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Ended trip boards": "Befejezett utazások",
   Environment: "Környezet",
   "Everyone on the trip": "Az utazás minden tagja",
+  "Everyone on the trip pays a share of this. There is nothing to join and nothing to press.":
+    "Az utazás minden tagja fizet belőle egy részt. Nincs mihez csatlakozni, és nincs mit megnyomni.",
   "Everyone on this trip sees the colour you pick.":
     "A választott színt az utazás minden tagja látja.",
   "Exchange rates": "Árfolyamok",
@@ -315,7 +317,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   On: "Be",
   "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)":
     "Egy dolog még: tábla indításához megerősített e-mail-cím kell. Küldtünk egy linket ide: {email} — nyisd meg, és készen vagy. (Ha késik, nézd meg a spam mappát is.)",
-  "Only whoever's in": "Csak aki jön",
+  "Only people who opt in": "Csak aki jelentkezik rá",
   "Operations · signed in as {email}": "Üzemeltetés · bejelentkezve: {email}",
   "Operator log": "Üzemeltetői napló",
   Options: "Javaslatok",
@@ -479,6 +481,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Your trip boards": "Az utazástábláid",
   "barred from rejoining": "nem csatlakozhat újra",
   "email, name, or user id": "e-mail, név vagy felhasználói azonosító",
+  "hh:mm": "óó:pp",
   "https://…": "https://…",
   in: "jön",
   "just now": "épp most",

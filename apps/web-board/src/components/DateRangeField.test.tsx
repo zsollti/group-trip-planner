@@ -294,8 +294,17 @@ describe("DateRangeField", () => {
     render(<Harness highlight={{ start: "2026-09-06", end: "2026-09-09" }} />);
     expect(day("2026-09-07").className).toMatch(/trip/);
     expect(day("2026-09-12").className).not.toMatch(/trip/);
-    // Named, because a shaded band that explains nothing is decoration.
-    expect(screen.getByText(/the trip's own dates/i)).toBeInTheDocument();
+
+    // Named, because a shaded band that explains nothing is decoration — and
+    // named on the day rather than in a legend under the grid. The legend was
+    // a second thing to find and read, and it explained a colour to whoever
+    // could already see the colour and nothing at all to anyone else.
+    expect(day("2026-09-07").getAttribute("aria-label")).toMatch(
+      /the trip's own dates/i,
+    );
+    expect(day("2026-09-12").getAttribute("aria-label")).not.toMatch(
+      /the trip's own dates/i,
+    );
   });
 
   it("opens on the month being worked in, not today's", () => {

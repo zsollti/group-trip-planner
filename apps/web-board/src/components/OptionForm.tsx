@@ -22,7 +22,7 @@ import {
   toDateInput,
 } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
-import { TimeSelect } from "./TimeSelect";
+import { TimeField } from "./TimeField";
 import {
   DEFAULT_END_TIME,
   DEFAULT_START_TIME,
@@ -371,7 +371,12 @@ export function OptionForm({
               <Field htmlFor="opt-participation" label={t("Priced for")}>
                 {/* Two named choices rather than a checkbox plus a number. The
                     number was the problem: it claimed how many without saying
-                    who, and nothing kept it current. */}
+                    who, and nothing kept it current.
+
+                    "Only whoever's in" named the answer without naming the
+                    mechanism, so the one thing a reader needed to know — that
+                    somebody has to press a button on the card — was exactly the
+                    thing it left out. */}
                 <select
                   id="opt-participation"
                   className="board__select board__select--field"
@@ -383,21 +388,28 @@ export function OptionForm({
                   <option value="WHOLE_GROUP">
                     {t("Everyone on the trip")}
                   </option>
-                  <option value="OPT_IN">{t("Only whoever's in")}</option>
+                  <option value="OPT_IN">{t("Only people who opt in")}</option>
                 </select>
               </Field>
               <div />
 
-              {participationMode === "OPT_IN" ? (
-                <div className="board__form-wide">
-                  <p className="board__field-note">
-                    {tNode(
-                      "The card gets an {control} button, and its cost is split between the people who press it — nobody else pays for it. Everyone can see who is in.",
-                      { control: <strong>{t("I'm in")}</strong> },
-                    )}
-                  </p>
-                </div>
-              ) : null}
+              {/* Both choices explain themselves, not just the unusual one. The
+                  note used to appear only once OPT_IN was already chosen, which
+                  is the wrong moment: the difference between the two is what
+                  the reader is deciding, and it was invisible until after they
+                  had decided. */}
+              <div className="board__form-wide">
+                <p className="board__field-note">
+                  {participationMode === "OPT_IN"
+                    ? tNode(
+                        "The card gets an {control} button, and its cost is split between the people who press it — nobody else pays for it. Everyone can see who is in.",
+                        { control: <strong>{t("I'm in")}</strong> },
+                      )
+                    : t(
+                        "Everyone on the trip pays a share of this. There is nothing to join and nothing to press.",
+                      )}
+                </p>
+              </div>
             </>
           ) : null}
 
@@ -416,19 +428,17 @@ export function OptionForm({
                 fields.dateGranularity === "minute" ? (
                   <div className="board__form-grid">
                     <Field htmlFor="opt-start-time" label={t("Start time")}>
-                      <TimeSelect
+                      <TimeField
                         id="opt-start-time"
                         value={startTime}
                         onChange={changeStartTime}
-                        emptyLabel="No time"
                       />
                     </Field>
                     <Field htmlFor="opt-end-time" label={t("End time")}>
-                      <TimeSelect
+                      <TimeField
                         id="opt-end-time"
                         value={endTime}
                         onChange={setEndTime}
-                        emptyLabel="No time"
                       />
                     </Field>
                   </div>
