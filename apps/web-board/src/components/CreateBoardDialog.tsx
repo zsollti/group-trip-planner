@@ -7,11 +7,9 @@ import { CreateTripInput, type PlaceView } from "@gtp/types";
 import { ApiError, useCreateTrip } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
 import { CurrencySelect } from "./CurrencySelect";
-import { MoneyInput } from "./MoneyInput";
 import { DestinationField } from "./DestinationField";
 import { dayToIso } from "../lib/dateInput";
 import { DateRangeField } from "./DateRangeField";
-import { parseAmount } from "../lib/money";
 import { tripDateStepError } from "../lib/tripDateStep";
 import { t } from "../lib/i18n";
 
@@ -19,11 +17,17 @@ import { t } from "../lib/i18n";
  * The questions, in the order a trip is actually decided.
  *
  * Name first because it is the only required one and the only one nobody can
- * guess; money last, because a budget means little until you know roughly what
- * and when the trip is.
+ * guess. **A budget per person is no longer among them.** It was the last step,
+ * and it was the wrong question at the wrong moment: a target only means
+ * anything once you know roughly what the trip costs, which is a thing the
+ * board works out over the following week. Asking for it before the board
+ * exists produced either a number invented on the spot or a fifth panel
+ * everyone skipped. It is still a trip setting — the cost panel reads against
+ * it — and it is set from the board's own edit dialog, where the figures it is
+ * meant to be read against are already on screen.
  */
 interface Step {
-  readonly id: "name" | "destination" | "dates" | "currency" | "budget";
+  readonly id: "name" | "destination" | "dates" | "currency";
   /** The question, as the dialog's heading. */
   readonly title: string;
   /** What the progress list calls it — a name, not the question again. */
@@ -38,7 +42,7 @@ interface Step {
  * The constant version is the one hazard `lib/i18n` warns about: `t()` at module
  * scope runs once, at import, so the questions would keep the language that was
  * active when the bundle first loaded while the rest of the dialog followed the
- * reader. The array is five objects — building it per render costs nothing worth
+ * reader. The array is four objects — building it per render costs nothing worth
  * measuring, and it cannot be wrong.
  */
 function steps(): readonly Step[] {
@@ -60,7 +64,6 @@ function steps(): readonly Step[] {
       title: t("What are prices quoted in?"),
       short: t("Currency"),
     },
-    { id: "budget", title: t("A budget per person?"), short: t("Budget") },
   ];
 }
 
@@ -76,7 +79,7 @@ type StepId = Step["id"];
  * not. Reading it took longer than answering it.
  *
  * So it is a stepper: one question per panel, with the progress said out loud.
- * Four of the five are optional, and their button reads **Skip** until there is
+ * Three of the four are optional, and their button reads **Skip** until there is
  * something in the field — which teaches that without a form full of
  * "(optional)" suffixes.
  *
@@ -99,11 +102,6 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
   // OptionForm uses for its own date fields.
   const [startDay, setStartDay] = useState("");
   const [endDay, setEndDay] = useState("");
-  // Held outside the resolver for the same reason the dates are: the field
-  // shows a grouped string and the contract wants a number, so it is shaped at
-  // submit. Registering it would also mean overriding react-hook-form's own
-  // `onBlur` to regroup, which is how you lose its touched state.
-  const [budget, setBudget] = useState("");
   /*
    * The place the destination was chosen from, when it was chosen.
    *
@@ -158,8 +156,6 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
       // Always answered: it ships with a default, so there is nothing to skip.
       case "currency":
         return true;
-      case "budget":
-        return budget.trim() !== "";
     }
   }
 
@@ -169,7 +165,6 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
       const trip = await createTrip.mutateAsync({
         ...getValues(),
         destinationPlaceId: place?.id,
-        budgetPerPerson: parseAmount(budget) ?? undefined,
         startDate: dayToIso(startDay),
         endDate: dayToIso(endDay),
       });
@@ -341,26 +336,6 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
               id="defaultCurrency"
               autoFocus
               {...register("defaultCurrency")}
-            />
-          </Field>
-        ) : null}
-
-        {step.id === "budget" ? (
-          <Field
-            htmlFor="budgetPerPerson"
-            label={t("Budget per person")}
-            hint="A target to read the total against — nothing is blocked for going over."
-          >
-            <MoneyInput
-              id="budgetPerPerson"
-              autoFocus
-              // The step before this one is the currency, so the answer is
-              // always already given by the time this is asked — and read off
-              // the live form value, not the default, or a trip in forints
-              // would ask for its budget marked EUR.
-              currency={watch("defaultCurrency") ?? "EUR"}
-              value={budget}
-              onChange={setBudget}
             />
           </Field>
         ) : null}
