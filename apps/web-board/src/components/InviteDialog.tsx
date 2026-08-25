@@ -14,11 +14,30 @@ import {
   useTripInvites,
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-import { GlobeIcon, LinkIcon } from "./icons";
+import { CrownIcon, EyeIcon, GlobeIcon, LinkIcon, PeopleIcon } from "./icons";
 import { t, tNode } from "../lib/i18n";
 import { roleBlurb, roleLabel } from "../lib/roles";
 
 const INVITE_ROLES: InviteRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
+
+/**
+ * A role as a mark, for the picker where three of them are compared at once.
+ *
+ * A crown runs things, two figures are coming along, an eye is watching — the
+ * same three ideas the words carry, in the register the link-type radios above
+ * already set. Decoration: the bold name beside each is the accessible answer,
+ * so a screen reader hears "Organizer", not "crown, Organizer".
+ */
+function RoleIcon({ role }: { role: InviteRole }) {
+  switch (role) {
+    case "CO_ORGANIZER":
+      return <CrownIcon size={16} />;
+    case "PARTICIPANT":
+      return <PeopleIcon size={16} />;
+    case "GUEST":
+      return <EyeIcon size={16} />;
+  }
+}
 
 function joinUrl(token: string): string {
   return `${window.location.origin}/join/${token}`;
@@ -84,10 +103,17 @@ export function InviteDialog({
     e.preventDefault();
     setFormError(null);
     try {
+      // Said here rather than left to the contract's own refusal, which comes
+      // back as "Validation failed" with the detail in a field the form does
+      // not read. Same rule; this is only where the reader is.
+      if (type === "PERSONAL" && !email.trim()) {
+        setFormError(t("A personal link needs the address it is for."));
+        return;
+      }
       await createInvite.mutateAsync({
         type,
         role,
-        email: type === "PERSONAL" && email.trim() ? email.trim() : undefined,
+        email: type === "PERSONAL" ? email.trim() : undefined,
       });
       setEmail("");
     } catch (err) {
@@ -145,7 +171,7 @@ export function InviteDialog({
               />
               <span>
                 <LinkIcon size={16} />{" "}
-                {tNode("{kind} — a single-use link for one person.", {
+                {tNode("{kind} — for one address, and only that address.", {
                   kind: <strong>{t("Personal")}</strong>,
                 })}
               </span>
@@ -153,43 +179,58 @@ export function InviteDialog({
           </fieldset>
 
           {/*
-           * The role, and — under it — what that role can actually do.
+           * The role, in the shape the question above it already uses.
            *
-           * This picker used to be three words with nothing to choose between
-           * them: an inviter who did not already know the permission matrix was
-           * guessing, and the guess that costs something is handing an
+           * It was a `<select>` with a sentence underneath that changed as the
+           * selection did — so the three answers could not be compared, only
+           * visited: to find out what a Traveler is you had to *choose*
+           * Traveler, and the guess that costs something here is handing an
            * Organizer link to somebody who should have had a Traveler one. The
-           * blurb follows the selection rather than listing all three at once,
-           * so the panel says one thing at a time and stays the height it was.
+           * two questions on this form are the same kind of question, so they
+           * are now the same control.
+           *
+           * The height it costs is the point. Three sentences at once is what
+           * makes them a comparison.
            */}
-          <Field htmlFor="invite-role" label={t("Role granted")}>
-            <select
-              id="invite-role"
-              className="board__select"
-              value={role}
-              aria-describedby="invite-role-blurb"
-              onChange={(e) => setRole(e.target.value as InviteRole)}
-            >
-              {allowedRoles.map((r) => (
-                <option key={r} value={r}>
-                  {roleLabel(r)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <p className="board__field-note" id="invite-role-blurb">
-            {roleBlurb(role)}
-          </p>
+          <fieldset className="board__radio-group">
+            <legend className="board__field-label">{t("Role granted")}</legend>
+            {allowedRoles.map((r) => (
+              <label className="board__radio" key={r}>
+                <input
+                  type="radio"
+                  name="role"
+                  checked={role === r}
+                  onChange={() => setRole(r)}
+                />
+                {/* Two lines, where the link-type radios above manage one.
+                    Those distinguish themselves in a clause ("anyone with the
+                    link can join"); a role needs a sentence, and the sentences
+                    carry dashes of their own — so "{name} — {blurb}" would put
+                    two different dashes in one line doing two different jobs.
+                    The name leads, the sentence sits under it. */}
+                <span className="board__radio-stack">
+                  <span className="board__radio-name">
+                    <RoleIcon role={r} /> <strong>{roleLabel(r)}</strong>
+                  </span>
+                  <span className="board__radio-note">{roleBlurb(r)}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
 
           {type === "PERSONAL" ? (
             <Field
               htmlFor="invite-email"
-              label={t("Email (optional)")}
-              hint="We'll email the link. It stays unbound — anyone who gets it can use it."
+              label={t("Email")}
+              required
+              hint={t(
+                "We'll email the link, and only this address can use it.",
+              )}
             >
               <Input
                 id="invite-email"
                 type="email"
+                required
                 placeholder="friend@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

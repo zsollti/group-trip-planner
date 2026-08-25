@@ -25,18 +25,38 @@ export type InviteType = z.infer<typeof InviteType>;
 export const InviteRole = z.enum(["GUEST", "PARTICIPANT", "CO_ORGANIZER"]);
 export type InviteRole = z.infer<typeof InviteRole>;
 
-/** Create an invite link. `email` is only meaningful for a personal link (the
- * address the system emails it to); it is ignored for a global link. */
-export const CreateInviteInput = z.object({
-  type: InviteType,
-  role: InviteRole.default("PARTICIPANT"),
-  email: z
-    .string()
-    .trim()
-    .email()
-    .optional()
-    .transform((v) => (v ? v : undefined)),
-});
+/**
+ * Create an invite link.
+ *
+ * **A personal link requires an address, and is bound to it.** It used to be
+ * optional and purely a delivery detail — the system mailed the link there and
+ * then anyone holding the URL could redeem it, which made "personal" a
+ * statement about how it was *sent* rather than about who it was for. A link
+ * forwarded, pasted into a group chat or read out of a shared inbox let a
+ * stranger into the board at the role it granted. Single-use only decided
+ * which stranger.
+ *
+ * The address is still ignored for a global link, which is broadcast by
+ * definition.
+ *
+ * A cross-field rule rather than two schemas, because the kinds share every
+ * other field and a caller building one is choosing a `type`, not a shape.
+ */
+export const CreateInviteInput = z
+  .object({
+    type: InviteType,
+    role: InviteRole.default("PARTICIPANT"),
+    email: z
+      .string()
+      .trim()
+      .email()
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+  })
+  .refine((v) => v.type !== "PERSONAL" || Boolean(v.email), {
+    path: ["email"],
+    message: "A personal link needs the address it is for.",
+  });
 export type CreateInviteInput = z.infer<typeof CreateInviteInput>;
 
 /**
@@ -55,6 +75,33 @@ export const InviteLinkView = z.object({
   createdAt: z.string(),
 });
 export type InviteLinkView = z.infer<typeof InviteLinkView>;
+
+/**
+ * Whether this caller may redeem this link.
+ *
+ * Pure, and here rather than in the service, for the same reason
+ * {@link resolveJoin} is: it is a rule about who a link is for, and a rule
+ * stated once cannot be enforced differently in two places.
+ *
+ * **A null binding is not a failure to bind — it is a link from before links
+ * were bound, and it stays open.** Refusing those would break invites that are
+ * live right now, in inboxes, sent by people who had no way to know. The bar
+ * applies to every link written from here on, which is every link that will
+ * ever be created again.
+ *
+ * Compared case-insensitively on the trimmed value, because a domain is not
+ * case-sensitive and nobody types their own capitalisation consistently. No
+ * further normalisation: an invite to `ada+trips@example.com` is an invite to
+ * that address, and folding plus-tags would be this app deciding it knows
+ * somebody's mail routing better than they do.
+ */
+export function invitedAddressMatches(
+  boundTo: string | null,
+  callerEmail: string,
+): boolean {
+  if (!boundTo) return true;
+  return boundTo.trim().toLowerCase() === callerEmail.trim().toLowerCase();
+}
 
 /**
  * Result of redeeming a token at `/join/:token`. `alreadyMember` distinguishes a

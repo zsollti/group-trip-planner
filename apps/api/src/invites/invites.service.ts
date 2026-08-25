@@ -11,12 +11,14 @@ import { Prisma } from "@prisma/client";
 import type { User } from "@prisma/client";
 import {
   ROLE_RANK,
+  invitedAddressMatches,
   maxTripMembers,
   resolveJoin,
   type CreateInviteInput,
   type InviteLinkView,
   type JoinTripResult,
 } from "@gtp/types";
+import { localizedException } from "../i18n/localized-message.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { EmailService } from "../email/email.service.js";
 import type { TripContext } from "../trips/trip-context.js";
@@ -170,6 +172,25 @@ export class InvitesService {
     }
     if (link.type === "PERSONAL" && link.consumedAt) {
       throw new GoneException("This invite link has already been used.");
+    }
+    // A personal link is for one person, and now says which. Checked before the
+    // trip's own state so the answer does not depend on what else is wrong: a
+    // link that is not yours should say so whether the board is frozen or not.
+    //
+    // The address is named in the refusal on purpose. The commonest way to hit
+    // this is not an attack — it is being invited at a work address and signed
+    // in with a personal one, and "you can't use this" without saying which
+    // account would is a dead end. It leaks nothing the reader does not already
+    // hold: they are looking at a link that was mailed to that address.
+    if (
+      link.type === "PERSONAL" &&
+      !invitedAddressMatches(link.sentToEmail, user.email)
+    ) {
+      throw localizedException(
+        (m) => new ForbiddenException(m),
+        "This invite was sent to {email}. Sign in with that address to use it.",
+        { email: link.sentToEmail ?? "" },
+      );
     }
     if (link.trip.status === "HISTORY") {
       throw new ForbiddenException(

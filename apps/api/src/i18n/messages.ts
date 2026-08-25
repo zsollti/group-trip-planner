@@ -83,6 +83,7 @@ export const SERVER_MESSAGES = [
   "This invite link has already been used.",
   "This invite link has been disabled.",
   "This invite link is invalid.",
+  "This invite was sent to {email}. Sign in with that address to use it.",
   "This option can no longer be locked. Reload to see the current state.",
   "This option is already locked. Reload to see the current decision.",
   "This option is priced for the whole trip, so everyone is already in.",

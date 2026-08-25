@@ -191,7 +191,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Edit trip": "Utazás szerkesztése",
   "Edit trip details": "Utazás adatainak szerkesztése",
   Email: "E-mail",
-  "Email (optional)": "E-mail (nem kötelező)",
   "Email me when I'm @mentioned": "Kapjak e-mailt, ha @megemlítenek",
   "Email queue": "E-mail várólista",
   "Email verified": "E-mail megerősítve",
@@ -677,8 +676,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Csak nézelődik — láthatja, hogyan halad a terv, de semmi többet.",
   "{kind} — anyone with the link can join.":
     "{kind} — bárki csatlakozhat, akinek megvan a link.",
-  "{kind} — a single-use link for one person.":
-    "{kind} — egyszer használható link egy embernek.",
   "Show me around": "Mutasd meg a programot",
   "Skip the tour": "Kihagyom a bemutatót",
   "Let's go": "Vágjunk bele",
@@ -732,8 +729,14 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Zoom: "Nagyítás",
   "A link has to start with http:// or https://":
     "A linknek http:// vagy https:// előtaggal kell kezdődnie",
+  "A personal link needs the address it is for.":
+    "A személyes linkhez meg kell adni a címzett e-mail-címét.",
   "That link is too long.": "Ez a link túl hosszú.",
   "That's {n} characters too long — the notes hold {max}.":
     "Ez {n} karakterrel hosszabb a megengedettnél — a jegyzet {max} karaktert tárol.",
+  "We'll email the link, and only this address can use it.":
+    "Elküldjük a linket e-mailben, és csak ez a cím használhatja.",
+  "{kind} — for one address, and only that address.":
+    "{kind} — egyetlen címre, és csak arra.",
   "{n}/{max}": "{n}/{max}",
 };
