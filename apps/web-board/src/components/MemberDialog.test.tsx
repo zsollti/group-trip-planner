@@ -266,4 +266,28 @@ describe("the stylesheet's side of the member row", () => {
       expect(selector).toContain(".board__select.board__member-role");
     }
   });
+
+  /**
+   * "(you)" and the role, on the same line as the name.
+   *
+   * Reported as the reader's own row printing both a little above their name.
+   * `.board__muted` is a paragraph class — quiet prose with `margin: 0 0 1.5rem`
+   * — and this row, the crew panel and the invite list all use it inline for a
+   * word. As a flex item that bottom margin counts: `align-items: center`
+   * centres the *margin* box, lifting the text three-quarters of a rem. Only
+   * your own row shows it, because it is the only one that prints its role as a
+   * word rather than as a `<select>`.
+   *
+   * Guarded here for the same reason as the rule above: jsdom applies no
+   * stylesheet, so the geometry this is about does not exist in a render test.
+   */
+  it("gives an inline .board__muted no margin to be lifted by", () => {
+    const declarations = css
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("}")
+      .map((block) => block.split("{"))
+      .filter(([selector]) => (selector ?? "").trim() === "span.board__muted")
+      .map(([, body]) => (body ?? "").replace(/\s/g, ""));
+    expect(declarations).toEqual(["margin:0;"]);
+  });
 });

@@ -418,6 +418,23 @@ body {
   line-height: 1.5;
   margin: 0 0 1.5rem;
 }
+/*
+ * The same class, used as a word rather than as a paragraph.
+ *
+ * It is a `<p>` class by shape — a block of quiet prose with a rem and a half
+ * under it — but the member rows, the crew panel and the invite list all reach
+ * for it inline, for "(you)", for a role, for "barred from rejoining". As a
+ * flex item that bottom margin is real: `align-items: center` centres the
+ * margin box, so the words sat three-quarters of a rem above the name they
+ * belong beside. Only your own row showed it, because it is the one row that
+ * prints its role as a word instead of a `<select>`.
+ *
+ * Element-qualified rather than a new modifier: every inline use is a `<span>`
+ * and no paragraph is, so this needs nothing at the call sites to be right.
+ */
+span.board__muted {
+  margin: 0;
+}
 
 /* --- Auth card floating on the canvas --- */
 .board__auth {
