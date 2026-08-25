@@ -232,3 +232,23 @@ describe("OptionCard", () => {
     expect(within(dialog).getByText("Ada")).toBeInTheDocument();
   });
 });
+
+/**
+ * The decision, said twice.
+ *
+ * The board's own answer is intensity — a fuller wash and a solid left edge —
+ * which is fast to scan and reaches nobody who cannot see it, or who meets one
+ * card at a time. The padlock is the same fact in a channel a screen reader can
+ * read, so it is labelled rather than hidden like every other glyph on the card.
+ */
+describe("the decided card's mark", () => {
+  it("marks a locked card", () => {
+    renderCard(opt({ status: "LOCKED" }));
+    expect(screen.getByRole("img", { name: "Decided" })).toBeInTheDocument();
+  });
+
+  it("leaves a candidate unmarked", () => {
+    renderCard(opt({ status: "PROPOSED" }));
+    expect(screen.queryByRole("img", { name: "Decided" })).toBeNull();
+  });
+});
