@@ -419,6 +419,10 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "This deployment": "Ez a telepítés",
   "This deployment has no console configured for you.":
     "Ebben a telepítésben nincs konzol beállítva neked.",
+  "This is the decision — the trip's dates go with it.":
+    "Ez a döntés — az utazás dátumai is eltűnnek vele.",
+  "This is the decision. The lane goes back to undecided.":
+    "Ez a döntés. A sáv visszatér az eldöntetlen állapotba.",
   "This link is invalid or has expired. Sign in to request a new one.":
     "Ez a link érvénytelen vagy lejárt. Jelentkezz be, és kérj újat.",
   "This permanently deletes your account and personal data. It can't be undone.":

@@ -303,10 +303,23 @@ export class OptionsService {
 
   /**
    * Edit an option. Rules, in order: Active-trip; option exists (404); the
-   * proposer-or-Organizer rule (`canManageOption` → 403); a **locked** option is
-   * rejected until unlocked (409, FR-24); optimistic concurrency on `version`
-   * (409); and a **material** change (cost/date field) stamps `materialChangedAt`
-   * so prior votes are flagged stale without being deleted (FR-23).
+   * proposer-or-Organizer rule (`canManageOption` → 403); optimistic concurrency
+   * on `version` (409); and a **material** change (cost/date field) stamps
+   * `materialChangedAt` so prior votes are flagged stale without being deleted
+   * (FR-23).
+   *
+   * **A locked option is editable.** It used to be a 409 telling the reader to
+   * unlock first, which sounds like a safeguard and is really a detour: fixing
+   * the price on a hotel the group has settled on meant unlocking it — which in
+   * a single-choice lane throws the decision away, clears the trip's dates if it
+   * is the Dates lane, and has to be redone afterwards from memory. Nobody was
+   * protected by that; they were just made to take four steps instead of one.
+   *
+   * The one thing an edit cannot be allowed to do quietly is leave the trip
+   * disagreeing with its own decision. Locking a Dates option writes its days
+   * onto the trip (FR-8/25), so editing that option re-runs the same write-back
+   * in the same transaction — including the same validation, so a locked
+   * decision cannot be edited into a range the lock would have refused.
    */
   async editOption(
     ctx: TripContext,
@@ -316,7 +329,7 @@ export class OptionsService {
     input: UpdateOptionInput,
   ): Promise<OptionView> {
     this.assertActive(ctx);
-    await this.requireCategory(ctx, categoryId);
+    const category = await this.requireCategory(ctx, categoryId);
     const option = await this.requireOption(categoryId, optionId);
 
     if (!canManageOption(ctx.role, option.proposerId === user.id)) {
@@ -324,11 +337,17 @@ export class OptionsService {
         "Only the proposer or an organizer can edit this option.",
       );
     }
-    if (option.status === "LOCKED") {
-      throw new ConflictException(
-        "This option is locked. Unlock it before editing.",
-      );
-    }
+
+    // Editing the settled Dates decision moves the trip with it. Planned before
+    // the write (a bad range is a 400 on its own terms, independent of the
+    // concurrency guard) and applied inside it, exactly as locking does.
+    const dates =
+      option.status === "LOCKED"
+        ? this.planDatesWriteBack(category.builtinKey, {
+            startsAt: input.startsAt ? new Date(input.startsAt) : null,
+            endsAt: input.endsAt ? new Date(input.endsAt) : null,
+          })
+        : null;
 
     // Compare cost/date fields before vs. after. Dates are canonicalised to UTC
     // so re-saving the same instant in a different string form isn't "material".
@@ -343,31 +362,57 @@ export class OptionsService {
       endsAt: normDate(input.endsAt),
     });
 
-    const result = await this.prisma.option.updateMany({
-      where: { id: option.id, version: input.version },
-      data: {
-        ...this.toData(input),
-        version: { increment: 1 },
-        ...(material ? { materialChangedAt: new Date() } : {}),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.option.updateMany({
+        where: { id: option.id, version: input.version },
+        data: {
+          ...this.toData(input),
+          version: { increment: 1 },
+          ...(material ? { materialChangedAt: new Date() } : {}),
+        },
+      });
+      if (result.count === 0) {
+        throw new ConflictException(
+          "This option was changed since you opened it. Reload to see the latest.",
+        );
+      }
+      if (dates) {
+        await tx.trip.update({
+          where: { id: ctx.trip.id },
+          data: {
+            startDate: dates.startDate,
+            endDate: dates.endDate,
+            expiresAt: dates.expiresAt,
+          },
+        });
+      }
     });
-    if (result.count === 0) {
-      throw new ConflictException(
-        "This option was changed since you opened it. Reload to see the latest.",
-      );
-    }
 
     const updated = await this.prisma.option.findUniqueOrThrow({
       where: { id: option.id },
       include: optionInclude,
     });
-    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    // Editing a decision *is* a decision change: only that kind invalidates the
+    // trip itself on the other viewers' boards, and it is the trip's own dates
+    // that the Dates write-back above just moved.
+    this.emitOptionsChanged(
+      ctx.trip.id,
+      categoryId,
+      option.status === "LOCKED" ? "decision" : "option",
+    );
     return toOptionView(updated, user.id, ctx.trip._count.memberships);
   }
 
   /**
    * Soft-delete an option (proposer or Organizer). Sets `deletedAt` so votes and
    * audit history survive (SRS §6). Active-trip gated.
+   *
+   * A **locked** option can be deleted, and always could — the guard that made
+   * the board hide the action lived only in the UI. What did not exist was the
+   * consequence: deleting the settled Dates decision left the trip carrying the
+   * start, end and expiry that decision had written onto it, with nothing on the
+   * board still claiming them. So a locked Dates option takes its dates with it,
+   * exactly as unlocking does (FR-9/25) — same clear, same fallback expiry.
    */
   async deleteOption(
     ctx: TripContext,
@@ -376,7 +421,7 @@ export class OptionsService {
     optionId: string,
   ): Promise<void> {
     this.assertActive(ctx);
-    await this.requireCategory(ctx, categoryId);
+    const category = await this.requireCategory(ctx, categoryId);
     const option = await this.requireOption(categoryId, optionId);
 
     if (!canManageOption(ctx.role, option.proposerId === user.id)) {
@@ -384,11 +429,31 @@ export class OptionsService {
         "Only the proposer or an organizer can delete this option.",
       );
     }
-    await this.prisma.option.update({
-      where: { id: option.id },
-      data: { deletedAt: new Date() },
+    const settledDates =
+      option.status === "LOCKED" && category.builtinKey === "DATES";
+    await this.prisma.$transaction(async (tx) => {
+      await tx.option.update({
+        where: { id: option.id },
+        data: { deletedAt: new Date() },
+      });
+      if (settledDates) {
+        await tx.trip.update({
+          where: { id: ctx.trip.id },
+          data: {
+            startDate: null,
+            endDate: null,
+            expiresAt: new Date(
+              fallbackExpiresAt(ctx.trip.createdAt.getTime()),
+            ),
+          },
+        });
+      }
     });
-    this.emitOptionsChanged(ctx.trip.id, categoryId);
+    this.emitOptionsChanged(
+      ctx.trip.id,
+      categoryId,
+      option.status === "LOCKED" ? "decision" : "option",
+    );
   }
 
   /**
@@ -826,7 +891,10 @@ export class OptionsService {
  * drifts.
  */
 export const DATE_REJECTION_MESSAGE: Record<LockDatesRejection, string> = {
-  NO_DATES: "Add a start and end date to this option before locking it.",
+  // Neutral about *why* it is being checked: the same rule now runs when a
+  // locked Dates option is edited, where "before locking it" would be
+  // describing something the reader already did.
+  NO_DATES: "This option needs a start and an end date.",
   END_BEFORE_START: "The end date can't be before the start date.",
   PAST: "You can't lock dates that start in the past.",
   OVER_HORIZON: "These dates are too far in the future to lock.",

@@ -90,8 +90,6 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "Ez a javaslat már nem rögzíthető. Töltsd újra, hogy lásd a jelenlegi állapotot.",
   "This option is already locked. Reload to see the current decision.":
     "Ez a javaslat már rögzítve van. Töltsd újra, hogy lásd a jelenlegi döntést.",
-  "This option is locked. Unlock it before editing.":
-    "Ez a javaslat rögzítve van. Szerkesztés előtt oldd fel.",
   "This option is priced for the whole trip, so everyone is already in.":
     "Ennek a javaslatnak az ára az egész csapatra szól, tehát mindenki benne van.",
   "This option isn't locked as you last saw it. Reload to see the current state.":
