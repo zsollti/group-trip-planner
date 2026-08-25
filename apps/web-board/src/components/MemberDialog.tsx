@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@gtp/ui-primitives";
 import {
-  ROLE_RANK,
   can,
   canActOn,
   type AssignableRole,
@@ -11,26 +10,16 @@ import {
 import {
   ApiError,
   useAuth,
-  useBlockMember,
-  useChangeMemberRole,
-  useKickMember,
-  useTransferOwnership,
   useTripMembers,
   useUnblockMember,
 } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
+import { MemberConfirm } from "./MemberConfirm";
 import { Menu, type MenuItem } from "./Menu";
+import { useMemberActions } from "../lib/memberActions";
 import { byRole, roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
-
-const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
-
-type Pending = {
-  kind: "kick" | "block" | "transfer";
-  userId: string;
-  name: string;
-};
 
 /**
  * Board-paradigm crew dialog: a floating card listing members with role controls
@@ -69,48 +58,17 @@ export function MemberDialog({
 }) {
   const { user } = useAuth();
   const members = useTripMembers(tripId);
-  const changeRole = useChangeMemberRole(tripId);
-  const kick = useKickMember(tripId);
-  const block = useBlockMember(tripId);
   const unblock = useUnblockMember(tripId);
-  const transfer = useTransferOwnership(tripId);
+  // Shared with the crew panel's per-person quick actions — see
+  // `lib/memberActions`. Handing the trip over closes this dialog: the reader
+  // is no longer the owner, so the controls they were looking at are not theirs.
+  const actions = useMemberActions(tripId, myRole, { onTransferred: onClose });
+  const { assignableRoles, pending } = actions;
 
-  const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const assignableRoles = ASSIGNABLE.filter(
-    (r) => ROLE_RANK[r] < ROLE_RANK[myRole],
-  );
 
   function report(err: unknown, fallback: string) {
     setError(err instanceof ApiError ? err.message : fallback);
-  }
-
-  async function onChangeRole(m: TripMemberView, role: AssignableRole) {
-    setError(null);
-    try {
-      await changeRole.mutateAsync({ userId: m.userId, role });
-    } catch (err) {
-      report(err, t("Could not change the role"));
-    }
-  }
-
-  async function onConfirm() {
-    setError(null);
-    try {
-      if (pending?.kind === "kick") await kick.mutateAsync(pending.userId);
-      else if (pending?.kind === "block")
-        await block.mutateAsync(pending.userId);
-      else if (pending?.kind === "transfer") {
-        await transfer.mutateAsync(pending.userId);
-        setPending(null);
-        onClose();
-        return;
-      }
-      setPending(null);
-    } catch (err) {
-      report(err, t("Could not complete that action"));
-    }
   }
 
   const canManage = can(myRole, "member.manage");
@@ -141,15 +99,13 @@ export function MemberDialog({
         label: t("Remove from trip"),
         note: t("They lose access. You can invite them back."),
         danger: true,
-        onSelect: () =>
-          setPending({ kind: "kick", userId: m.userId, name: m.displayName }),
+        onSelect: () => actions.ask("kick", m),
       },
       {
         label: t("Remove and block"),
         note: t("They lose access and can't rejoin, even with a link."),
         danger: true,
-        onSelect: () =>
-          setPending({ kind: "block", userId: m.userId, name: m.displayName }),
+        onSelect: () => actions.ask("block", m),
       },
     ];
     if (canTransfer) {
@@ -158,12 +114,7 @@ export function MemberDialog({
         note: t("They take over the trip and you become a co-organizer."),
         danger: true,
         separated: true,
-        onSelect: () =>
-          setPending({
-            kind: "transfer",
-            userId: m.userId,
-            name: m.displayName,
-          }),
+        onSelect: () => actions.ask("transfer", m),
       });
     }
     return items;
@@ -242,9 +193,9 @@ export function MemberDialog({
                             id={`role-${m.userId}`}
                             className="board__select board__member-role"
                             value={m.role}
-                            disabled={changeRole.isPending}
+                            disabled={actions.busy}
                             onChange={(e) =>
-                              void onChangeRole(
+                              actions.setRole(
                                 m,
                                 e.target.value as AssignableRole,
                               )
@@ -320,56 +271,23 @@ export function MemberDialog({
           </>
         )}
 
-        {error ? (
+        {(error ?? actions.error) ? (
           <p className="board__form-error" role="alert">
-            {error}
+            {error ?? actions.error}
           </p>
         ) : null}
 
+        {/* The question, and the words it is asked in, are shared with the crew
+            panel's quick actions — see `MemberConfirm`. Whichever way a reader
+            reached "remove and block", they are told the same thing about what
+            happens afterwards, which is the only difference between it and the
+            item above it. */}
         {pending ? (
-          <div className="board__dialog-actions board__dialog-actions--stack">
-            {/*
-             * Untranslated template strings, until now — three sentences built
-             * with backticks that never went near `t()`, so a Hungarian reader
-             * confirming something irreversible got it in English.
-             *
-             * Each says what happens *and* what happens afterwards, because
-             * that is the whole of the difference between the first two: both
-             * take the person off the trip, and only one of them lets them
-             * back. The menu says the same thing before the click; this is the
-             * last place to say it, so it says it again rather than assuming
-             * the note was read.
-             */}
-            <p className="board__muted">
-              {pending.kind === "kick"
-                ? t("Remove {name} from this trip? You can invite them back.", {
-                    name: pending.name,
-                  })
-                : pending.kind === "block"
-                  ? t(
-                      "Remove {name} and block them? They won't be able to rejoin, even with an invite link.",
-                      { name: pending.name },
-                    )
-                  : t(
-                      "Make {name} the owner? You'll become a co-organizer, and only they can hand it back.",
-                      { name: pending.name },
-                    )}
-            </p>
-            <div className="board__dialog-actions">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setPending(null)}
-              >
-                {t("Cancel")}
-              </Button>
-              <Button type="button" variant="primary" onClick={onConfirm}>
-                {pending.kind === "transfer"
-                  ? t("Transfer ownership")
-                  : t("Confirm")}
-              </Button>
-            </div>
-          </div>
+          <MemberConfirm
+            pending={pending}
+            onCancel={actions.cancel}
+            onConfirm={actions.confirm}
+          />
         ) : null}
       </>
     </Dialog>

@@ -259,6 +259,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Log out": "Kijelentkezés",
   "Looking…": "Keresés…",
   "Make owner": "Tulajdonossá tesz",
+  "Make {name} the owner": "{name} legyen a tulajdonos",
   "Mark all read": "Összes megjelölése olvasottként",
   "Mark verified": "Megerősítettnek jelöl",
   "Marked verified.": "Megerősítettnek jelölve.",
@@ -356,6 +357,9 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Reload the board": "Tábla újratöltése",
   Remove: "Eltávolítás",
   "Remove from trip": "Eltávolítás az utazásból",
+  "Remove {name} and block them from rejoining":
+    "{name} eltávolítása és kizárása az újracsatlakozásból",
+  "Remove {name} from the trip": "{name} eltávolítása az utazásból",
   "Removing…": "Eltávolítás…",
   "Rename {lane}": "{lane} átnevezése",
   "Reorder {trip}": "{trip} átrendezése",
@@ -372,6 +376,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Send: "Küldés",
   Sending: "Küldés folyamatban",
   Sent: "Elküldve",
+  "Set {name} as {role}": "{name} legyen {role}",
   Settings: "Beállítások",
   "Show proposals": "Javaslatok mutatása",
   "Showing the first {n} day — something is dated much further out than the rest.":
@@ -678,6 +683,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Every column is something the group has to agree on — when to go, how to get there, where to sleep. Add as many as your trip needs.":
     "Minden oszlop egy kérdés, amiben meg kell egyezni: mikor induljatok, mivel menjetek, hol aludjatok. Annyit veszel fel, amennyire szükség van.",
   "Anyone can suggest something": "Bárki javasolhat valamit",
+  "Are you sure?": "Biztos vagy benne?",
   "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission — you are putting it on the table.":
     "Dobj be egy ötletet a sávba árral, linkkel és időponttal. Nem engedélyt kérsz — leteszed az asztalra.",
   "Everyone votes": "Mindenki szavaz",
