@@ -53,6 +53,17 @@ export const optionTitleSchema = z
   .min(1)
   .max(OPTION_TITLE_MAX_LENGTH);
 
+/**
+ * Longest the notes may be, and the longest a link may be.
+ *
+ * Named rather than written into the schema, because the form has to say the
+ * same number: a character counter under the box is a promise about where the
+ * server will stop, and a promise made by a literal typed in a second file is
+ * one that drifts the first time either moves.
+ */
+export const OPTION_DESCRIPTION_MAX_LENGTH = 2000;
+export const OPTION_URL_MAX_LENGTH = 2000;
+
 const optionalText = (max: number) =>
   z
     .string()
@@ -78,7 +89,7 @@ const optionalUrl = z.preprocess(
     .string()
     .trim()
     .url()
-    .max(2000)
+    .max(OPTION_URL_MAX_LENGTH)
     .refine(isHttpUrl, { message: "Must be an http(s) link" })
     .optional(),
 );
@@ -127,7 +138,7 @@ const currencySchema = z
  */
 const optionBody = z.object({
   title: optionTitleSchema,
-  description: optionalText(2000),
+  description: optionalText(OPTION_DESCRIPTION_MAX_LENGTH),
   url: optionalUrl,
   amount: optionalAmount,
   currency: currencySchema,

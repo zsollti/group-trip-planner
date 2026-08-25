@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import {
   categoryOptionFields,
+  isHttpUrl,
+  OPTION_DESCRIPTION_MAX_LENGTH,
   OPTION_TITLE_MAX_LENGTH,
+  OPTION_URL_MAX_LENGTH,
   type CategoryBuiltinKey,
   type CategoryView,
   type CostType,
@@ -149,6 +152,24 @@ export function OptionForm({
   // the attempt rather than while typing: a form that goes red before you have
   // finished filling it in is scolding you for not having got there yet.
   const [missing, setMissing] = useState(false);
+  /**
+   * What is wrong with which box, in the reader's language.
+   *
+   * The server has always sent this — its validation pipe answers with
+   * `errors: fieldErrors` beside the message, and `ApiError.body` keeps the
+   * whole payload — and the form threw it away and printed `message`, which is
+   * the literal string "Validation failed". Someone who pasted a long note got
+   * two words naming neither the field nor the limit.
+   *
+   * Checked here rather than relayed, because what comes back is zod's own
+   * English ("String must contain at most 2000 character(s)") and this app is
+   * bilingual. The limits are imported from the contract, so the counter's
+   * promise and the server's wall are the same number.
+   */
+  const [fieldErrors, setFieldErrors] = useState<{
+    description?: string;
+    url?: string;
+  }>({});
 
   function setDays(next: { start: string; end: string }) {
     setStartDay(next.start);
@@ -207,6 +228,30 @@ export function OptionForm({
       return;
     }
     setMissing(false);
+
+    // Everything the contract would refuse, named against the box that holds
+    // it. Collected rather than short-circuited: a form that reports one
+    // problem per attempt makes the reader press the button three times to
+    // find out about three.
+    const found: { description?: string; url?: string } = {};
+    if (description.trim().length > OPTION_DESCRIPTION_MAX_LENGTH) {
+      found.description = t(
+        "That's {n} characters too long — the notes hold {max}.",
+        {
+          n: description.trim().length - OPTION_DESCRIPTION_MAX_LENGTH,
+          max: OPTION_DESCRIPTION_MAX_LENGTH,
+        },
+      );
+    }
+    const trimmedUrl = url.trim();
+    if (trimmedUrl && !isHttpUrl(trimmedUrl)) {
+      found.url = t("A link has to start with http:// or https://");
+    } else if (trimmedUrl.length > OPTION_URL_MAX_LENGTH) {
+      found.url = t("That link is too long.");
+    }
+    setFieldErrors(found);
+    if (Object.keys(found).length > 0) return;
+
     const body = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -307,26 +352,60 @@ export function OptionForm({
             </Field>
           </div>
           <div className="board__form-wide">
-            <Field htmlFor="opt-desc" label={t("Notes")}>
+            {/*
+             * The count is a `hint`, so an error replaces it rather than
+             * stacking under it — they occupy the same line and say the same
+             * thing at different volumes. It counts the trimmed length,
+             * because that is what the server measures: a box padded out with
+             * newlines would otherwise read as full while the contract still
+             * had room.
+             */}
+            <Field
+              htmlFor="opt-desc"
+              label={t("Notes")}
+              error={fieldErrors.description}
+              hint={t("{n}/{max}", {
+                n: description.trim().length,
+                max: OPTION_DESCRIPTION_MAX_LENGTH,
+              })}
+            >
               <textarea
                 id="opt-desc"
                 data-gtp-input
                 className="board__textarea"
                 rows={4}
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                aria-invalid={fieldErrors.description ? true : undefined}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  // Clears as soon as it stops being true. A message that
+                  // outlives its problem trains the reader to ignore it.
+                  if (fieldErrors.description) {
+                    setFieldErrors((f) => ({ ...f, description: undefined }));
+                  }
+                }}
               />
             </Field>
           </div>
           {fields.url ? (
             <div className="board__form-wide">
-              <Field htmlFor="opt-url" label={t("Link")}>
+              <Field
+                htmlFor="opt-url"
+                label={t("Link")}
+                error={fieldErrors.url}
+              >
                 <Input
                   id="opt-url"
                   type="url"
                   placeholder={t("https://…")}
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  invalid={Boolean(fieldErrors.url)}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (fieldErrors.url) {
+                      setFieldErrors((f) => ({ ...f, url: undefined }));
+                    }
+                  }}
                 />
               </Field>
             </div>
