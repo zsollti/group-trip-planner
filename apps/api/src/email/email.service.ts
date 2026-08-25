@@ -61,10 +61,32 @@ export class EmailService {
     const t = (message: string) => translate(message, locale);
     const link = `${this.env.WEB_APP_URL}/verify?token=${encodeURIComponent(rawToken)}`;
     const subject = t("Verify your email");
+    /*
+     * Three short paragraphs where there was one clause and a colon.
+     *
+     * The old body — "Welcome to Group Trip Planner. Confirm your email:" — read
+     * as a machine's label for the button under it. This is the very first thing
+     * a new account ever receives from us and it is the message most likely to
+     * be sitting in a spam folder looking suspicious, so it says who it is, what
+     * it is for, and what happens if it was not asked for. That last line is not
+     * politeness: an unexpected verification mail means someone typed the wrong
+     * address, and the only safe instruction is to ignore it.
+     */
     const html = renderEmail({
       webAppUrl: this.env.WEB_APP_URL,
-      body: p(t("Welcome to Group Trip Planner. Confirm your email:")),
+      body:
+        p(t("Thanks for signing up — welcome aboard!")) +
+        p(
+          t(
+            "One quick thing before you can start planning: confirm this is your email address by pressing the button below.",
+          ),
+        ),
       action: { label: t("Verify my email"), href: link },
+      footer: fine(
+        t(
+          "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.",
+        ),
+      ),
     });
 
     if (this.resend) {

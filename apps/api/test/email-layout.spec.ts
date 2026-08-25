@@ -92,7 +92,11 @@ describe("the email layout", () => {
     await service.sendInviteEmail("someone@example.com", "tok-2", "Lisbon");
     await service.sendAccountExistsNotice("someone@example.com");
 
-    assert.match(sent[0]!.html, /Confirm your email/);
+    // The verification mail's own words, which changed post-launch: it thanks
+    // you for signing up, tells you what the button is for, and says what to do
+    // if you never asked for it.
+    assert.match(sent[0]!.html, /Thanks for signing up/);
+    assert.match(sent[0]!.html, /Didn't sign up\?/);
     assert.match(
       sent[0]!.html,
       /href="https:\/\/trips\.example\.com\/verify\?token=tok-1"/,

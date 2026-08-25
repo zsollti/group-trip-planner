@@ -143,15 +143,19 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
 
 /** Hungarian for the four emails. Whole sentences, placeholders where values go. */
 export const HU_EMAIL_MESSAGES: Readonly<Record<string, string>> = {
+  "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.":
+    "Nem te regisztráltál? Akkor valaki elgépelte a saját címét — nyugodtan hagyd figyelmen kívül ezt a levelet, semmi nem fog történni.",
+  "One quick thing before you can start planning: confirm this is your email address by pressing the button below.":
+    "Már csak egy dolog van hátra, mielőtt tervezni kezdhetnél: az alábbi gombbal erősítsd meg, hogy ez a te e-mail-címed.",
   "Open the invite": "Meghívó megnyitása",
   "Open the trip": "Utazás megnyitása",
   "Someone tried to register with this email. If it was you, just log in — no new account was created.":
     "Valaki regisztrálni próbált ezzel az e-mail-címmel. Ha te voltál, egyszerűen jelentkezz be — új fiók nem jött létre.",
   Unsubscribe: "Leiratkozás",
+  "Thanks for signing up — welcome aboard!":
+    "Köszönjük a regisztrációt — üdv a fedélzeten!",
   "Verify my email": "E-mail-cím megerősítése",
   "Verify your email": "Erősítsd meg az e-mail-címedet",
-  "Welcome to Group Trip Planner. Confirm your email:":
-    "Üdv a Group Trip Plannerben! Erősítsd meg az e-mail-címedet:",
   "You already have an account": "Már van fiókod",
   "You get this because mention email is on.":
     "Ezt azért kaptad, mert be van kapcsolva a megemlítési értesítő.",
