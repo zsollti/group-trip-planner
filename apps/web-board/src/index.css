@@ -88,11 +88,19 @@
      decision keeps the category's colour, a candidate has most of it drained
      out. Weakening a tint alone would only say "less of the same"; taking the
      saturation down says "not settled yet", which is what the board actually
-     means — full colour is what being chosen earns. */
-  --cat-locked-sat: 56%;
-  --cat-locked-l: 91%;
-  --cat-proposed-sat: 32%;
-  --cat-proposed-l: 95.5%;
+     means — full colour is what being chosen earns.
+
+     The gap between them was too small to do that job: side by side, a decided
+     card and a candidate read as the same card in slightly different light.
+     Widened from both ends — the decision takes more colour and sits a shade
+     deeper, the candidate drains further toward the lane it is in. The pairing
+     with `.lane__card--settled`'s left edge is deliberate: colour carries it at
+     a glance across the board, the edge carries it for anyone the hue does not
+     reach. */
+  --cat-locked-sat: 64%;
+  --cat-locked-l: 86%;
+  --cat-proposed-sat: 26%;
+  --cat-proposed-l: 97%;
   font-family:
     "Inter",
     system-ui,
@@ -139,10 +147,10 @@
     /* The fills invert: on a dark canvas a tint is *lighter* than the surface
        under it, not paler. The gap between them is kept wider than in light,
        because two dark tints a few percent apart are indistinguishable. */
-    --cat-locked-sat: 42%;
-    --cat-locked-l: 23%;
-    --cat-proposed-sat: 24%;
-    --cat-proposed-l: 18%;
+    --cat-locked-sat: 50%;
+    --cat-locked-l: 29%;
+    --cat-proposed-sat: 20%;
+    --cat-proposed-l: 16.5%;
   }
 }
 :root[data-theme="dark"] {
@@ -163,10 +171,10 @@
   --cat-sat: 52%;
   --cat-ink-l: 70%;
   --cat-main-l: 52%;
-  --cat-locked-sat: 42%;
-  --cat-locked-l: 23%;
-  --cat-proposed-sat: 24%;
-  --cat-proposed-l: 18%;
+  --cat-locked-sat: 50%;
+  --cat-locked-l: 29%;
+  --cat-proposed-sat: 20%;
+  --cat-proposed-l: 16.5%;
 }
 
 * {
@@ -3329,8 +3337,22 @@ a.odetail__link:focus-visible {
  * its lane, a solid left edge where a candidate has none, and roughly double the
  * wash. The ✦ Decided line and the "Also proposed" divider carry the rest. */
 .lane__card--settled {
-  border-left: 3px solid var(--cat-main);
+  /* The whole outline takes the category's colour, not just the left edge: a
+     candidate's border is mostly the lane's line with a little hue mixed in, so
+     matching that on a decision left the two cards outlined alike. */
+  border-color: color-mix(in srgb, var(--cat-main) 75%, var(--lane-line));
+  border-left: 5px solid var(--cat-main);
   background: var(--cat-locked);
+}
+/* The padlock on a decision's title line. Sized and coloured as punctuation
+   rather than as an icon with its own weight — it marks the title, it is not a
+   control beside it. */
+.lane__lock {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.3rem;
+  vertical-align: -0.1em;
+  color: var(--cat-ink);
 }
 /* Separates the decision from the options it beat. Not a heading — it labels a
    position in a list, and promoting it would put a second h-level inside a lane

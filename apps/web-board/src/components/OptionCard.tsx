@@ -17,7 +17,7 @@ import { ParticipantDots, VoteDots } from "./optionControls";
 import { useUnlockAction } from "../lib/optionActions";
 import { costLabel, dateRangeLabel } from "./optionFormat";
 import { categoryHueStyle } from "../lib/categoryTheme";
-import { CalendarIcon, MoneyIcon } from "./icons";
+import { CalendarIcon, LockIcon, MoneyIcon } from "./icons";
 import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
 
@@ -186,6 +186,17 @@ export function OptionCard({
     >
       <div className="lane__card-head">
         <strong>
+          {/* The decision, said in words for once. The card's fill and its solid
+              left edge already say it, but only to someone who can see both and
+              has another card to compare against — and a lane read one card at a
+              time, or read aloud, had nothing. Labelled rather than
+              `aria-hidden`, unlike every other glyph on this card: those sit
+              beside a value that already speaks. */}
+          {locked ? (
+            <span className="lane__lock" role="img" aria-label={t("Decided")}>
+              <LockIcon size={12} />
+            </span>
+          ) : null}
           {/* Shortened for the card, full on `title`/`aria-label` — the detail
               view this opens is where the whole title is shown. */}
           <button

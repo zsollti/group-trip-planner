@@ -51,6 +51,25 @@ export function CalendarIcon({ size }: { size?: number }) {
   );
 }
 
+/**
+ * Marks a decision, on the card's own title line.
+ *
+ * The board says "settled" with intensity — a fuller wash and a solid left edge
+ * — which is quick to scan and says nothing at all to a reader who cannot see
+ * it, or who reads the lane one card at a time. This is the same fact in a
+ * second channel, and it is the one channel a screen reader can reach: the card
+ * labels it (see `OptionCard`), so unlike every other glyph here it is not
+ * announced as decoration.
+ */
+export function LockIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+    </Glyph>
+  );
+}
+
 /** Marks a price. A banknote reads as money at 14px where a currency symbol
  *  would just be another character in a line that already has one. */
 export function MoneyIcon({ size }: { size?: number }) {
