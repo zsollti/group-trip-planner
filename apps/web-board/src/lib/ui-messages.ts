@@ -247,7 +247,6 @@ export const UI_MESSAGES = [
   "Loading your settings…",
   "Loading…",
   "Loads the destination suggestions — every populated place over 5,000 people, every region and every country — from the dataset shipped with this build. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.",
-  "Lock a priced option to start the tally.",
   "Lock card",
   "Log out",
   "Looking…",

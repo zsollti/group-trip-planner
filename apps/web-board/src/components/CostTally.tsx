@@ -130,7 +130,10 @@ function TallyBody({
   // Nothing decided and priced yet. The ring still draws, empty: the strip's
   // shape should not change the moment the first option is locked, and a grey
   // circle says "nothing decided" in the same language a part-filled one says
-  // the rest. The figure in its hole is a real zero in the trip's own currency
+  // the rest. It says it *alone* — the line of instruction that used to sit
+  // under it ("Lock a priced option to start the tally") was explaining an
+  // empty ring to someone looking at an empty ring, on a panel whose one job is
+  // to state a figure. The figure in its hole is a real zero in the trip's own currency
   // — the unit the target below is in, so the two can be read together.
   //
   // The target still shows if there is one: hiding it until the first price
@@ -156,9 +159,6 @@ function TallyBody({
             }}
           />
         </div>
-        <p className="board__tally-muted">
-          {t("Lock a priced option to start the tally.")}
-        </p>
         {verdict ? <TargetLine v={verdict} personal={false} /> : null}
       </>
     );
