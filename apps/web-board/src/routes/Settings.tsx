@@ -134,7 +134,13 @@ export function Settings() {
             {t("Profile picture")}
           </h2>
           <ImagePicker
+            // The heading directly above this reads "Profile picture", so a
+            // second line under it reading "Your picture" was two names for one
+            // thing with nothing between them but the gap. Hidden rather than
+            // dropped: it is also the file input's accessible name.
             label={t("Your picture")}
+            labelHidden
+            centred
             shape="square"
             // A `preset:` value is not an address the preview can load, so the
             // uploader is told there is no picture — which is true of the thing
@@ -231,13 +237,15 @@ export function Settings() {
               "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.",
             )}
           </p>
-          <button
-            type="button"
-            className="board__cta board__cta--danger"
-            onClick={() => setDeleteAccountOpen(true)}
-          >
-            {t("Delete account…")}
-          </button>
+          <div className="board__panel-action">
+            <button
+              type="button"
+              className="board__cta board__cta--danger"
+              onClick={() => setDeleteAccountOpen(true)}
+            >
+              {t("Delete account…")}
+            </button>
+          </div>
         </section>
 
         {deleteAccountOpen ? (
