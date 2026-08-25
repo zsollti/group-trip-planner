@@ -27,7 +27,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "(you)": "(te)",
   "+ Add card": "+ Új kártya",
   "/person": "/fő",
-  "A budget per person?": "Fejenkénti költségkeret?",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.":
     "Be van állítva egy árfolyamforrás, de a mentés napok óta nem frissült. Az alkalmazás minden ≈ összege ebből számol.",
   "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.":

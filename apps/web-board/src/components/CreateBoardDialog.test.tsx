@@ -78,7 +78,7 @@ function nextButton(): HTMLButtonElement {
   }) as HTMLButtonElement;
 }
 
-/** Which panel is showing, read from the "n of 5" the dialog states out loud. */
+/** Which panel is showing, read from the "n of 4" the dialog states out loud. */
 function currentStep(): number {
   const m = /(\d+) of \d+/.exec(document.body.textContent ?? "");
   return m ? Number(m[1]) : 0;
@@ -100,7 +100,7 @@ async function advance(n = 1) {
 }
 
 /** Walk to the panel that asks a given question. */
-const STEP = { name: 0, destination: 1, dates: 2, currency: 3, budget: 4 };
+const STEP = { name: 0, destination: 1, dates: 2, currency: 3 };
 async function goTo(step: keyof typeof STEP) {
   await advance(STEP[step]);
 }
@@ -144,7 +144,7 @@ describe("CreateBoardDialog dates", () => {
 
     fill("Trip name", "Someday");
     // Straight through every optional question without answering one.
-    await advance(4);
+    await advance(3);
     fireEvent.click(screen.getByRole("button", { name: "Create board" }));
 
     await waitFor(() => {
@@ -160,7 +160,7 @@ describe("CreateBoardDialog dates", () => {
     fill("Trip name", "Lisbon 2026");
     await goTo("dates");
     const { start, end } = pickAWeek();
-    await advance(2);
+    await advance(1);
     fireEvent.click(screen.getByRole("button", { name: "Create board" }));
 
     await waitFor(() => {
@@ -170,59 +170,6 @@ describe("CreateBoardDialog dates", () => {
       expect(body().startDate).toBe(`${start}T12:00:00.000Z`);
       expect(body().endDate).toBe(`${end}T12:00:00.000Z`);
     });
-  });
-
-  /**
-   * The money field regroups on every keystroke, and this is the only place the
-   * three parts of that meet: the pure regrouping, the caret written back onto
-   * the DOM node, and React re-rendering with the value it was handed. The unit
-   * tests in `lib/money` cover the arithmetic; what is asserted here is that the
-   * component does not throw the caret to the end of the field on the way.
-   */
-  it("groups the target as it is typed, without moving the caret", async () => {
-    renderDialog();
-    fill("Trip name", "Lisbon 2026");
-    await goTo("budget");
-    // By id, not by label: the panel's heading now *is* "A budget per person?",
-    // so a loose label query matches the dialog itself as well as the field.
-    const field = document.getElementById(
-      "budgetPerPerson",
-    ) as HTMLInputElement;
-
-    /** One keystroke, inserted wherever the caret currently is. */
-    function press(digit: string, at = field.selectionStart ?? 0) {
-      fireEvent.change(field, {
-        target: {
-          value: field.value.slice(0, at) + digit + field.value.slice(at),
-          selectionStart: at + 1,
-          selectionEnd: at + 1,
-        },
-      });
-    }
-
-    for (const digit of [..."5000"]) press(digit);
-
-    // Grouped already, four digits in — not on blur.
-    expect(field.value).not.toBe("5000");
-    expect(field.value.replace(/\D/g, "")).toBe("5000");
-
-    // Now the case the caret arithmetic exists for: a keystroke in the middle
-    // of a short number that pushes it over a grouping boundary, so a separator
-    // appears to the *right* of the caret. Retyped from "999" because the
-    // insert has to change the grouping — slipping a digit into an
-    // already-grouped number leaves the separators where they were, and would
-    // assert nothing.
-    fireEvent.change(field, { target: { value: "", selectionStart: 0 } });
-    for (const digit of [..."999"]) press(digit);
-    press("1", 1);
-
-    expect(field.value.replace(/\D/g, "")).toBe("9199");
-    expect(field.value).not.toBe("9199");
-    // The typed "1" is the second digit, so two digits sit to the caret's left
-    // — "9 1|99". Without the handler writing the selection back, the separator
-    // that appeared ahead of the caret leaves it a character short, on "9 |199".
-    const left = field.value.slice(0, field.selectionStart ?? 0);
-    expect(left.replace(/\D/g, "")).toBe("91");
   });
 
   it("says what filling the dates in will do to the board", async () => {
@@ -245,29 +192,36 @@ describe("CreateBoardDialog dates", () => {
   });
 
   /**
-   * The stepper itself. The rules worth pinning are the ones that make five
+   * The stepper itself. The rules worth pinning are the ones that make four
    * short questions safer than one long form rather than merely prettier: the
    * required one gates, an answer survives going back, and Enter cannot create
    * a trip out of the first panel.
    */
-  it("asks one question at a time, and says which of five", () => {
+  it("asks one question at a time, and says which of four", () => {
     renderDialog();
-    expect(screen.getByText(/1 of 5/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 4/)).toBeInTheDocument();
     // Only the current question is mounted, so nothing else is tabbable.
     expect(screen.getByLabelText("Trip name")).toBeInTheDocument();
     expect(screen.queryByLabelText("Destination")).toBeNull();
+  });
+
+  it("never asks for a budget", () => {
+    // It was the fifth panel, and it asked for a target before the board that
+    // would be read against it existed. The trip's edit dialog owns it now.
+    renderDialog();
     expect(document.getElementById("budgetPerPerson")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/budget/i);
   });
 
   it("will not move past the one answer it needs", async () => {
     renderDialog();
     fireEvent.click(nextButton());
-    await waitFor(() => expect(screen.getByText(/1 of 5/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/1 of 4/)).toBeInTheDocument());
     expect(screen.getByLabelText("Trip name")).toBeInTheDocument();
 
     fill("Trip name", "Lisbon 2026");
     await advance();
-    expect(screen.getByText(/2 of 5/)).toBeInTheDocument();
+    expect(screen.getByText(/2 of 4/)).toBeInTheDocument();
   });
 
   it("offers to Skip an empty optional question, and to Next a filled one", async () => {
@@ -292,7 +246,7 @@ describe("CreateBoardDialog dates", () => {
     await advance();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    await waitFor(() => expect(screen.getByText(/2 of 5/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/2 of 4/)).toBeInTheDocument());
     expect(screen.getByLabelText("Destination")).toHaveValue(
       "Lisbon, Portugal",
     );
@@ -306,7 +260,7 @@ describe("CreateBoardDialog dates", () => {
     fill("Trip name", "Lisbon 2026");
     fireEvent.submit(screen.getByLabelText("Trip name").closest("form")!);
 
-    await waitFor(() => expect(screen.getByText(/2 of 5/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/2 of 4/)).toBeInTheDocument());
     expect(body).toThrow(/has not fired yet/);
   });
 });
