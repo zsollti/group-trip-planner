@@ -234,8 +234,8 @@ function LaneHeader({
     if (canBeMultiSelect(category)) {
       laneMenuItems.push({
         label: category.singleChoice
-          ? t("Allow several winners")
-          : t("Keep only one winner"),
+          ? t("Allow multi-select")
+          : t("Allow single-select"),
         onSelect: () => void save({ singleChoice: !category.singleChoice }),
         disabled: update.isPending,
       });
@@ -347,7 +347,7 @@ function LaneHeader({
           </div>
         </div>
         <p className="lane__meta">
-          {category.singleChoice ? "single-choice" : "multi-select"}
+          {category.singleChoice ? t("Single-select") : t("Multi-select")}
         </p>
       </div>
       {error ? (

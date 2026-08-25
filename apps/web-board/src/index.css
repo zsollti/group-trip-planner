@@ -1565,6 +1565,12 @@ body {
   background: transparent;
   border: 2px dashed var(--lane-line);
   box-shadow: none;
+  /* `.lane` sets no top padding, because on a real lane `.lane__pin` owns it so
+     the sticky header's resting and stuck positions coincide. This lane has no
+     header to pin, so without putting it back its button — and the form that
+     replaces it — sat flat against the dashed edge. Matches the padding the
+     lane already carries on its other three sides. */
+  padding-top: var(--board-lane-pad);
 }
 .lane__add-btn {
   width: 100%;
