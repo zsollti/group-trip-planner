@@ -102,7 +102,7 @@ function renderTally(
   );
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <CostTally tripId="t1" myUserId="u-me" />
+      <CostTally tripId="t1" />
     </QueryClientProvider>,
   );
 }
@@ -130,6 +130,14 @@ function locked(over: Partial<DashboardLine> = {}): DashboardLine {
     ...over,
   };
 }
+
+/** One participant row, for an option priced for part of the group. */
+const person = (userId: string, displayName: string) => ({
+  userId,
+  displayName,
+  avatarUrl: null,
+  joinedAt: "2026-01-01T00:00:00.000Z",
+});
 
 const priced = (perPerson: number, currency = "EUR") => ({
   currency,
@@ -678,25 +686,11 @@ describe("the cost composition", () => {
             title: "Airport taxi",
             perPerson: 10,
             effectiveHeadcount: 3,
+            viewerOwes: true,
             participants: [
-              {
-                userId: "u-me",
-                displayName: "Ada",
-                avatarUrl: null,
-                joinedAt: "2026-01-01T00:00:00.000Z",
-              },
-              {
-                userId: "u-2",
-                displayName: "Grace",
-                avatarUrl: null,
-                joinedAt: "2026-01-02T00:00:00.000Z",
-              },
-              {
-                userId: "u-3",
-                displayName: "Edsger",
-                avatarUrl: null,
-                joinedAt: "2026-01-03T00:00:00.000Z",
-              },
+              person("u-me", "Ada"),
+              person("u-2", "Grace"),
+              person("u-3", "Edsger"),
             ],
           }),
         ],
@@ -705,15 +699,18 @@ describe("the cost composition", () => {
     );
     // Ten euros three of five owe cannot join a per-person total everyone is
     // measured by — so it is stated rather than folded in.
-    expect(await screen.findByText("Airport taxi")).toBeInTheDocument();
+    const named = await screen.findByText("Airport taxi");
+    expect(named).toBeInTheDocument();
     expect(screen.queryByText("Transport")).toBeNull();
-    // Who, not how many. The line used to read "for 3 members"; the question a
-    // reader has in front of an option priced for part of the group is which
-    // part, and whether they are in it.
+    // The name is what the row is about — the reader is scanning for which
+    // thing this is, not for a figure printed beside it.
+    expect(named.tagName).toBe("STRONG");
+    // Neither a headcount ("for 3 members") nor the face stack that replaced
+    // it. The list is now only options this reader is in, so a row of
+    // portraits spells out "you, and some others" beside a figure that already
+    // means exactly that.
     expect(screen.queryByText(/for 3 members/)).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /3 in — see who/ }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /in — see who/ })).toBeNull();
 
     // And the ring still says plainly what its figure is. It used to switch to
     // "per person, shared" whenever something was held back — a qualifier
@@ -728,10 +725,13 @@ describe("the cost composition", () => {
     expect(screen.queryByText(/shared/)).toBeNull();
   });
 
-  it("rings the reader's own face among the people an option is priced for", async () => {
-    // It replaces a "· yours" that followed the number. Same fact, said where
-    // the eye already is.
-    const { container } = renderTally(
+  it("leaves out an option priced for a part of the group the reader is not in", async () => {
+    // The aside sits between two of the reader's own numbers — what the chart
+    // charges everyone, and what the target says *they* owe — and exists to be
+    // the arithmetic between them. Somebody else's bill in that gap can only
+    // read as a discrepancy, so a row the reader is not paying into is not a
+    // row this list has any use for.
+    renderTally(
       dashboard({
         memberCount: 5,
         committed: [priced(60)],
@@ -744,30 +744,28 @@ describe("the cost composition", () => {
             perPerson: 10,
             effectiveHeadcount: 2,
             viewerOwes: true,
-            participants: [
-              {
-                userId: "u-me",
-                displayName: "Ada",
-                avatarUrl: null,
-                joinedAt: "2026-01-01T00:00:00.000Z",
-              },
-              {
-                userId: "u-2",
-                displayName: "Grace",
-                avatarUrl: null,
-                joinedAt: "2026-01-02T00:00:00.000Z",
-              },
-            ],
+            participants: [person("u-me", "Ada"), person("u-2", "Grace")],
+          }),
+          locked({
+            categoryId: "cat-go",
+            categoryName: "Transport",
+            title: "Scuba lesson",
+            perPerson: 40,
+            effectiveHeadcount: 2,
+            viewerOwes: false,
+            participants: [person("u-2", "Grace"), person("u-3", "Edsger")],
           }),
         ],
       }),
       LANES,
     );
-    await screen.findByText("Airport taxi");
-    expect(container.querySelectorAll(".lane__voter--mine")).toHaveLength(1);
+    expect(await screen.findByText("Airport taxi")).toBeInTheDocument();
+    expect(screen.queryByText("Scuba lesson")).toBeNull();
   });
 
-  it("rings nobody when the reader is not one of them", async () => {
+  it("drops the aside entirely when the reader is in none of them", async () => {
+    // Not an empty heading over nothing: "PRICED FOR PART OF THE GROUP" with no
+    // list under it is a promise of information the panel then withholds.
     const { container } = renderTally(
       dashboard({
         memberCount: 5,
@@ -781,21 +779,15 @@ describe("the cost composition", () => {
             perPerson: 10,
             effectiveHeadcount: 2,
             viewerOwes: false,
-            participants: [
-              {
-                userId: "u-2",
-                displayName: "Grace",
-                avatarUrl: null,
-                joinedAt: "2026-01-02T00:00:00.000Z",
-              },
-            ],
+            participants: [person("u-2", "Grace")],
           }),
         ],
       }),
       LANES,
     );
-    await screen.findByText("Airport taxi");
-    expect(container.querySelectorAll(".lane__voter--mine")).toHaveLength(0);
+    await screen.findByText(/per person/);
+    expect(screen.queryByText("Airport taxi")).toBeNull();
+    expect(container.querySelector(".cost-comp__aside")).toBeNull();
   });
 
   it("says nothing at all when no locked money is shared by the group", async () => {

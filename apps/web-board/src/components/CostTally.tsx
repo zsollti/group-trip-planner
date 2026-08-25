@@ -65,19 +65,7 @@ function exactParts(locked: LockedCost): string | null {
  *
  * Functional four states: loading, error, nothing-yet, and the tally.
  */
-export function CostTally({
-  tripId,
-  myUserId,
-}: {
-  tripId: string;
-  /**
-   * The reader, so the "priced for part of the group" aside can ring their own
-   * face. Passed down rather than read from `useAuth` for the reason the crew
-   * panel records: a component that renders numbers should not need a session
-   * provider mounted to render them, and every test of this panel would.
-   */
-  myUserId: string | undefined;
-}) {
+export function CostTally({ tripId }: { tripId: string }) {
   const dash = useTripDashboard(tripId);
   // The board has already fetched these, so this costs a cache read rather
   // than a request. The charts need each lane's palette, which the cost lines
@@ -100,29 +88,18 @@ export function CostTally({
           {t("Couldn't load the cost.")}
         </p>
       ) : (
-        <TallyBody
-          tripId={tripId}
-          d={dash.data}
-          categories={categories.data ?? []}
-          myUserId={myUserId}
-        />
+        <TallyBody d={dash.data} categories={categories.data ?? []} />
       )}
     </section>
   );
 }
 
 function TallyBody({
-  tripId,
   d,
   categories,
-  myUserId,
 }: {
-  /** Only to pass on: the excluded aside's face stack opens a panel that counts
-   *  the crew, and the crew is a question only the trip can answer. */
-  tripId: string;
   d: TripDashboardView;
   categories: readonly CategoryView[];
-  myUserId: string | undefined;
 }) {
   const locked = lockedCost(d);
   // The target is per person, so it is read against **this reader's** money —
@@ -183,10 +160,8 @@ function TallyBody({
           cost panel with no money on it at all. */}
       {composition ? (
         <CostComposition
-          tripId={tripId}
           composition={composition}
           categories={categories}
-          myUserId={myUserId}
           headline={{
             headline: figure(
               composition.charted,
@@ -356,10 +331,17 @@ function TargetLine({
       <span className="board__budget-per">{t("/person")}</span>
       <span className="board__budget-verdict">
         {personal ? t("yours: ") : ""}
-        {gap} {v.over ? "over" : t("to spare")}
+        {/* Both halves were bare English literals, and the pair is worth a note:
+            the i18n test reads the source tree for `t()` calls, so a string that
+            never asks to be translated is the one kind it cannot see. On a
+            Hungarian board the verdict read "1 200 Ft over" beside a fully
+            translated label. */}
+        {gap} {v.over ? t("over") : t("to spare")}
         {/* Never silently compare across currencies. */}
         {v.uncounted.length > 0
-          ? ` · ${v.uncounted.join(", ")} not counted`
+          ? ` · ${t("{currencies} not counted", {
+              currencies: v.uncounted.join(", "),
+            })}`
           : ""}
       </span>
     </p>

@@ -84,11 +84,9 @@ const headline = { headline: "€500", caption: "per person" };
 function renderComp(over: Partial<Composition> = {}) {
   return render(
     <CostComposition
-      tripId="t-1"
       composition={composition(over)}
       categories={categories}
       headline={headline}
-      myUserId="u-me"
     />,
   );
 }
