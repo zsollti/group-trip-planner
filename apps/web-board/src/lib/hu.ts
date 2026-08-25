@@ -726,6 +726,5 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Ezt a fájlt nem sikerült képként megnyitni.",
   "That picture couldn't be cropped here. Try another one.":
     "Ezt a képet itt nem sikerült levágni. Próbálj egy másikat.",
-  "Use this": "Ezt választom",
   Zoom: "Nagyítás",
 };

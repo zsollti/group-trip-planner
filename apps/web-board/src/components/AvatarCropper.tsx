@@ -227,7 +227,7 @@ export function AvatarCropper({
             disabled={!image}
             onClick={cut}
           >
-            {t("Use this")}
+            {t("Save")}
           </Button>
         </div>
       </>

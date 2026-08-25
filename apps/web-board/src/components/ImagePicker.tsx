@@ -123,6 +123,20 @@ export function ImagePicker({
           }}
           onCropped={(cropped) => {
             setCropping(null);
+            // Where this picker owns the commit, framing the circle *is* the
+            // commit. It used to stage the crop and then ask again — the
+            // cropper said "Use this", you said yes, and the panel came back
+            // with a Save and a Cancel to answer the same question a second
+            // time. The cropper is already the preview, and it already has a
+            // Cancel; a confirmation after a confirmation is not more caution,
+            // it is a step the reader has to work out the purpose of.
+            //
+            // `onPick` mode keeps staging, because there the commit genuinely
+            // belongs to somebody else: the surrounding form's own Save.
+            if (onSave) {
+              onSave(cropped);
+              return;
+            }
             setPending(cropped);
             onPick?.(cropped);
           }}
