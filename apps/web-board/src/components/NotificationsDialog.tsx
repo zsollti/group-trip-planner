@@ -26,6 +26,13 @@ import { plural, t } from "../lib/i18n";
  * nesting one inside another gives two overlapping dismiss contracts and a
  * focus trap that has to guess which layer Escape meant. The shared
  * {@link Dialog} already answers all of that once.
+ *
+ * It is anchored to the top-right corner rather than centred, though — under
+ * the account menu it opens from, where every other app on the reader's screen
+ * puts one. Centred, it read as a task to complete; a notification list is
+ * something you glance at and dismiss. The "ACCOUNT" eyebrow went with the
+ * move: the corner it hangs from already says whose notifications these are,
+ * and the word was one line of chrome above a two-word heading.
  */
 export function NotificationsDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
@@ -44,7 +51,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Dialog eyebrow="Account" title={t("Notifications")} onClose={onClose}>
+    <Dialog anchor="corner" title={t("Notifications")} onClose={onClose}>
       {unread > 0 ? (
         <div className="bell__head">
           <span className="bell__title">

@@ -174,6 +174,44 @@ describe("Dialog", () => {
  * Written against the whole sheet rather than the known offenders, so the next
  * `.board [data-gtp-…]` somebody adds fails here instead of shipping.
  */
+describe("where the card rests", () => {
+  it("hangs a corner dialog off the backdrop, not the card", () => {
+    render(
+      <Dialog anchor="corner" title="Notifications" onClose={() => {}}>
+        <p>nothing new</p>
+      </Dialog>,
+    );
+    const card = screen.getByRole("dialog");
+    const backdrop = card.parentElement;
+    expect(backdrop).toHaveClass("board__backdrop--corner");
+    // The card is unchanged — it is the frame that decides where it sits, so a
+    // corner panel is still the same card at the same width.
+    expect(card.className).toBe("board__dialog");
+  });
+
+  it("leaves a centred dialog with no modifier at all", () => {
+    render(
+      <Dialog title="Propose an option" onClose={() => {}}>
+        <p>a form</p>
+      </Dialog>,
+    );
+    expect(screen.getByRole("dialog").parentElement?.className).toBe(
+      "board__backdrop",
+    );
+  });
+
+  it("has a rule for every anchor it can render", () => {
+    // The class is inert until the stylesheet has heard of it, and jsdom
+    // applies no stylesheet — so a modifier that is emitted and never defined
+    // renders as a perfectly centred dialog and passes every other test here.
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "index.css"),
+      "utf8",
+    );
+    expect(css).toMatch(/^\.board__backdrop--corner\s*\{/m);
+  });
+});
+
 describe("the stylesheet's side of the portal", () => {
   it("styles the form primitives without a .board ancestor", () => {
     const css = readFileSync(

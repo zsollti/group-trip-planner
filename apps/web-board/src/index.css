@@ -2177,6 +2177,31 @@ body {
 .board__backdrop:has(.board__dialog--wide) {
   padding-top: 3vh;
 }
+/*
+ * A panel that belongs to a control in the corner rather than to the page: the
+ * notification list, hung under the account menu it opens from the way every
+ * other app on the reader's screen hangs one. Centring it made it read as a
+ * task to complete rather than a list to glance at and dismiss.
+ *
+ * Still a modal — same scrim, same trap, same Escape — because it opens *from*
+ * a popover, and a popover inside a popover is two dismiss contracts and a
+ * focus trap guessing which layer Escape meant. Only where it rests changes.
+ */
+.board__backdrop--corner {
+  justify-content: flex-end;
+  /* Clears the page bar on every route without measuring it: the bar is one row
+     of controls at the top of a padded page, and the card sits just under it. */
+  padding: 3.75rem 1rem 2rem;
+}
+@media (max-width: 32rem) {
+  /* Too narrow for a corner to mean anything — the card is nearly the width of
+     the window, so pinning it right only takes it off a centre it already
+     fills, and the top offset strands it under a bar that has wrapped. */
+  .board__backdrop--corner {
+    justify-content: center;
+    padding: 10vh 1rem 2rem;
+  }
+}
 /**
  * Every dialog caps its height and scrolls inside itself.
  *
