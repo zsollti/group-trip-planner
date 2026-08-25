@@ -4124,7 +4124,13 @@ button.cost-comp__row-btn:hover,
 .cost-comp__row--over .cost-comp__share {
   color: inherit;
 }
-.cost-comp__swatch--over {
+/* **Compounded, and it has to be.** `.cost-comp__swatch` sets its own
+   `background: var(--cat-main)` and is declared twenty lines below this — same
+   specificity, later in the cascade, so it won this rule outright and the
+   overshoot's square was painted in whatever hue the last lane happened to be.
+   A reader sees a blue chip beside the words "Over budget". Compounding with
+   the class it has to beat makes the win independent of where either sits. */
+.cost-comp__swatch.cost-comp__swatch--over {
   background: var(--board-danger);
 }
 /* What a lane's money went on, opened under the row the reader is on. Indented
@@ -4200,6 +4206,14 @@ button.cost-comp__row-btn:hover,
  * unrelated colours into one scale. */
 .cost-comp__row--left .cost-comp__amount {
   color: var(--board-ok);
+}
+/* And the overshoot's figure in the danger colour, for the same reason the row
+   above is: `.cost-comp__amount` sets `color: var(--board-fg)` of its own, so
+   the red the row inherits stopped at the one number the row is *about*. The
+   row read half-red, with the amount in the ordinary ink of a lane that is
+   perfectly within budget. */
+.cost-comp__row--over .cost-comp__amount {
+  color: inherit;
 }
 
 /* Money the ring cannot hold, named so it is not simply missing. */
