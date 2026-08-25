@@ -129,8 +129,10 @@ export function DateRangeField({
     // rather than a colour. Keyboard and pointer land here alike, so there is
     // one rule and not two.
     if (iso < today) return;
+    // Always a complete pair now — one tap is a one-day answer, a later second
+    // tap stretches it. See `nextSelection`.
     const next = nextSelection(iso, start, end);
-    onChange({ start: next.start, end: next.end ?? "" });
+    onChange(next);
     setHovered(null);
   }
 
@@ -240,12 +242,16 @@ function RangeGrid({
         >
           ‹
         </button>
-        {/* The instruction, where the question is asked. Two taps is obvious
-            once you have done it and not before. */}
+        {/* The instruction, where the question is asked, and it has to change
+            with the state now that one tap is already an answer: a grid that
+            kept saying "now pick the end" would be asking for a second day the
+            reader may not have. */}
         <p className="drange__prompt" role="status">
-          {start && !end
-            ? t("Now pick the end")
-            : t("Pick a start, then an end")}
+          {!start
+            ? t("Pick a day")
+            : end === start
+              ? t("One day. Pick a later one to stretch it.")
+              : t("Pick any day to start again")}
         </p>
         <button
           type="button"

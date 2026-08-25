@@ -144,13 +144,28 @@ export function within(iso: string, from: string, to: string): boolean {
 export type DayRole = "none" | "start" | "end" | "between" | "single";
 
 /**
+ * Can the next tap lengthen this selection, or will it start a new one?
+ *
+ * The single fact the whole control turns on, and the reason it needs no state
+ * beyond the two days: **a one-day answer is the extendable one**. Nothing
+ * chosen cannot be extended (there is no start to extend from), and a range
+ * already spanning two different days is not extended either — a tap after a
+ * finished range means "start again", which is what stops one stray click
+ * editing an end nobody said they meant.
+ */
+export function extendable(start: string | null, end: string | null): boolean {
+  return start !== null && (end === null || end === start);
+}
+
+/**
  * A day's place in the range being built, including the **hovered** end.
  *
  * The preview is the whole point of a two-tap range: after the first tap the
- * grid has to show what the range *would* be, or the second tap is a guess.
- * A hover earlier than the start previews nothing rather than an inverted
- * range — clicking there restarts the selection, and shading backwards would
- * promise a range that will not be made.
+ * grid has to show what the range *would* be, or the second tap is a guess. So
+ * it previews in exactly the state {@link nextSelection} would extend from, and
+ * in no other — a shaded stretch the next click will not produce is worse than
+ * no preview at all. A hover *earlier* than the start previews nothing for the
+ * same reason: clicking there restarts.
  */
 export function dayRole(
   iso: string,
@@ -159,8 +174,9 @@ export function dayRole(
   hovered: string | null,
 ): DayRole {
   if (!start) return "none";
-  const finish = end ?? (hovered && hovered > start ? hovered : null);
-  if (!finish) return iso === start ? "single" : "none";
+  const previewing =
+    extendable(start, end) && hovered !== null && hovered > start;
+  const finish = previewing ? hovered : (end ?? start);
   if (iso === start && iso === finish) return "single";
   if (iso === start) return "start";
   if (iso === finish) return "end";
@@ -171,21 +187,28 @@ export function dayRole(
  * The next selection after tapping a day — the whole interaction, as a
  * function.
  *
- * Three cases, and the third is the one that makes the control forgiving: with
- * a complete range already chosen, a tap starts a new one rather than editing
- * an end you did not say you meant. A tap *before* the pending start also
- * restarts, because the alternative is refusing the click or silently swapping
- * the ends — and someone clicking an earlier day has plainly changed their mind
- * about where the range begins.
+ * **One tap is already an answer**, and that is the change. The grid used to
+ * treat the first tap as half of something: it set a start, left the end null,
+ * and waited. Which meant a one-day trip — a Saturday, a day return, a single
+ * night out — could only be said by tapping the same square twice, and nothing
+ * on screen changed when you did, so nobody ever discovered it. The form then
+ * turned a single tap away with "Pick both days, or skip this step", which
+ * reads as *a one-day trip is not allowed*, and locking such a Dates option was
+ * refused outright as NO_DATES for the same reason.
+ *
+ * So a tap picks a day, and a second tap on a **later** day stretches it. Every
+ * other tap starts over. The answer is complete after every single tap, which
+ * is what makes one day sayable — and it needs no "pending" flag beside the two
+ * days, because {@link extendable} reads that state off them.
  */
 export function nextSelection(
   iso: string,
   start: string | null,
   end: string | null,
-): { start: string; end: string | null } {
-  if (!start || end) return { start: iso, end: null };
-  if (iso < start) return { start: iso, end: null };
-  return { start, end: iso };
+): { start: string; end: string } {
+  if (extendable(start, end) && iso > start!)
+    return { start: start!, end: iso };
+  return { start: iso, end: iso };
 }
 
 /** Keys a date grid answers to, beyond selecting. */

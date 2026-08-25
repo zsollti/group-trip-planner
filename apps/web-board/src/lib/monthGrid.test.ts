@@ -7,6 +7,7 @@ import {
   isoDay,
   monthGrid,
   moveFocus,
+  extendable,
   nextSelection,
   parseDay,
   weekdayLabels,
@@ -159,16 +160,24 @@ describe("dayRole", () => {
 
   it("previews the range under the pointer before the second tap", () => {
     // The whole point of a two-tap range: without this the second tap is a
-    // guess at what is being selected.
-    expect(dayRole("2026-09-07", A, null, B)).toBe("between");
-    expect(dayRole(B, A, null, B)).toBe("end");
+    // guess at what is being selected. Previewed from a one-day answer, which
+    // is the state one tap now leaves behind.
+    expect(dayRole("2026-09-07", A, A, B)).toBe("between");
+    expect(dayRole(B, A, A, B)).toBe("end");
   });
 
   it("previews nothing for a hover before the start", () => {
     // Shading backwards would promise a range that clicking will not make —
     // an earlier click restarts the selection instead.
-    expect(dayRole("2026-09-04", A, null, "2026-09-04")).toBe("none");
-    expect(dayRole(A, A, null, "2026-09-04")).toBe("single");
+    expect(dayRole("2026-09-04", A, A, "2026-09-04")).toBe("none");
+    expect(dayRole(A, A, A, "2026-09-04")).toBe("single");
+  });
+
+  it("previews nothing once the range spans two days", () => {
+    // A finished range is not extended by the next tap, so shading one under
+    // the pointer would promise something the click will not do.
+    expect(dayRole("2026-09-15", A, B, "2026-09-20")).toBe("none");
+    expect(dayRole(B, A, B, "2026-09-20")).toBe("end");
   });
 
   it("calls a one-day range single, not a start with no end", () => {
@@ -181,32 +190,45 @@ describe("nextSelection", () => {
   const A = "2026-09-06";
   const B = "2026-09-09";
 
-  it("starts a range on the first tap", () => {
-    expect(nextSelection(A, null, null)).toEqual({ start: A, end: null });
+  /**
+   * The bug this model exists to fix: one tap is a complete answer.
+   *
+   * It used to leave the end null and wait, so a one-day trip could only be
+   * said by tapping the same square twice — and nothing on screen changed when
+   * you did, so nobody found it. The form then refused a single tap with "Pick
+   * both days", which reads as *a one-day trip is not allowed*, and locking
+   * such a Dates option was rejected as NO_DATES for the same reason.
+   */
+  it("makes one day out of the first tap", () => {
+    expect(nextSelection(A, null, null)).toEqual({ start: A, end: A });
   });
 
-  it("closes it on the second", () => {
-    expect(nextSelection(B, A, null)).toEqual({ start: A, end: B });
+  it("stretches that day to a range on a later tap", () => {
+    expect(nextSelection(B, A, A)).toEqual({ start: A, end: B });
   });
 
-  it("allows a single-day range", () => {
-    expect(nextSelection(A, A, null)).toEqual({ start: A, end: A });
-  });
-
-  it("restarts rather than inverting when the second tap is earlier", () => {
-    expect(nextSelection("2026-09-04", A, null)).toEqual({
+  it("restarts rather than inverting when the next tap is earlier", () => {
+    expect(nextSelection("2026-09-04", A, A)).toEqual({
       start: "2026-09-04",
-      end: null,
+      end: "2026-09-04",
     });
   });
 
-  it("restarts once a complete range exists", () => {
-    // Editing an end the user did not say they meant is the more surprising
-    // of the two behaviours.
+  it("restarts once a range spans two days", () => {
+    // Editing an end the user did not say they meant is the more surprising of
+    // the two behaviours, so a finished range is not extended either.
     expect(nextSelection("2026-09-20", A, B)).toEqual({
       start: "2026-09-20",
-      end: null,
+      end: "2026-09-20",
     });
+  });
+
+  it("agrees with what the grid previews", () => {
+    // The one invariant tying the two together: the grid shades a stretch only
+    // in the state a tap would actually produce it.
+    expect(extendable(null, null)).toBe(false);
+    expect(extendable(A, A)).toBe(true);
+    expect(extendable(A, B)).toBe(false);
   });
 });
 

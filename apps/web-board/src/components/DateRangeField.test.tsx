@@ -88,13 +88,13 @@ describe("DateRangeField", () => {
   });
 
   it("builds a range from two taps", () => {
-    // Seeded complete, so the first tap starts a new range rather than
-    // closing one against the day already there.
+    // Seeded complete, so the first tap starts a new selection rather than
+    // stretching one to the day already there.
     render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
 
-    // First tap restarts the range; the second closes it.
+    // First tap restarts — as one whole day, not as half an answer.
     fireEvent.click(day("2026-09-06"));
-    expect(value()).toBe("2026-09-06|");
+    expect(value()).toBe("2026-09-06|2026-09-06");
 
     fireEvent.click(day("2026-09-09"));
     expect(value()).toBe("2026-09-06|2026-09-09");
@@ -102,8 +102,38 @@ describe("DateRangeField", () => {
     expect(screen.getAllByRole("table").length).toBe(2);
   });
 
+  /**
+   * The reported bug: "I cannot set a 1 day trip, because I can't select only
+   * 1 day."
+   *
+   * It was selectable, technically — two taps on the same square — but nothing
+   * on screen acknowledged the second one, and a single tap left the form
+   * refusing to go on with "Pick both days, or skip this step", which reads as
+   * a rule against one-day trips. One tap is the answer now, and the grid says
+   * so in words.
+   */
+  it("makes a one-day trip out of a single tap, and says it is one", () => {
+    render(<Harness />);
+    fireEvent.click(day("2026-09-06"));
+
+    expect(value()).toBe("2026-09-06|2026-09-06");
+    expect(day("2026-09-06").className).toMatch(/single/);
+    expect(document.querySelector(".drange__prompt")).toHaveTextContent(
+      /one day/i,
+    );
+  });
+
+  it("stops previewing once the range spans two days", () => {
+    // The next tap on a finished range starts a new one, so shading a stretch
+    // under the pointer would promise something the click will not do.
+    render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
+    fireEvent.mouseEnter(day("2026-09-20"));
+    expect(day("2026-09-15").className).not.toMatch(/between/);
+  });
+
   it("previews the days between as the pointer moves", () => {
     render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
+    // Back to one day, which is the state the next tap stretches.
     fireEvent.click(day("2026-09-06"));
 
     const seventh = day("2026-09-07");
@@ -117,7 +147,7 @@ describe("DateRangeField", () => {
     render(<Harness initial={{ start: "2026-09-06", end: "2026-09-09" }} />);
     fireEvent.click(day("2026-09-09"));
     fireEvent.click(day("2026-09-06"));
-    expect(value()).toBe("2026-09-06|");
+    expect(value()).toBe("2026-09-06|2026-09-06");
   });
 
   it("selects across a month seam without paging first", () => {
@@ -225,7 +255,7 @@ describe("DateRangeField", () => {
     render(<Harness />);
     expect(day(today)).not.toHaveAttribute("aria-disabled");
     fireEvent.click(day(today));
-    expect(value()).toBe(`${today}|`);
+    expect(value()).toBe(`${today}|${today}`);
   });
 
   it("is one tab stop, not eighty-four", () => {
@@ -245,7 +275,7 @@ describe("DateRangeField", () => {
     fireEvent.keyDown(grid, { key: "ArrowDown" });
     expect(day("2026-09-14").tabIndex).toBe(0);
     fireEvent.click(day("2026-09-14"));
-    expect(value()).toBe("2026-09-14|");
+    expect(value()).toBe("2026-09-14|2026-09-14");
   });
 
   it("follows the focus into a month it is not showing", () => {
