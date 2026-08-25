@@ -3096,6 +3096,26 @@ textarea[data-gtp-input] {
   color: var(--board-dim);
   cursor: pointer;
 }
+/* A radio whose label needs a sentence under its name rather than a clause
+   after it — the role picker. The link-type pair above keeps the one-line
+   form, which is why this is a variant of the label's contents and not a
+   change to `.board__radio` itself. */
+.board__radio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.board__radio-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--board-fg);
+}
+.board__radio-note {
+  color: var(--board-dim);
+  line-height: 1.45;
+}
+
 .board__radio input {
   margin-top: 0.15rem;
   accent-color: var(--board-accent);

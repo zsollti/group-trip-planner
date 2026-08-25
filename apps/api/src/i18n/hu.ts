@@ -86,6 +86,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "Ezt a meghívó linket már felhasználták.",
   "This invite link has been disabled.": "Ezt a meghívó linket kikapcsolták.",
   "This invite link is invalid.": "Ez a meghívó link érvénytelen.",
+  "This invite was sent to {email}. Sign in with that address to use it.":
+    "Ezt a meghívót a következő címre küldtük: {email}. Jelentkezz be azzal a címmel a használatához.",
   "This option can no longer be locked. Reload to see the current state.":
     "Ez a javaslat már nem rögzíthető. Töltsd újra, hogy lásd a jelenlegi állapotot.",
   "This option is already locked. Reload to see the current decision.":

@@ -302,12 +302,105 @@ describe("Invites (e2e)", () => {
       .set("Authorization", `Bearer ${coorg.accessToken}`)
       .send({ type: "GLOBAL", role: "PARTICIPANT" })
       .expect(201);
-    // …but NOT a peer Co-organizer link.
+    // …but NOT a peer Co-organizer link. The address is here because a
+    // personal link now requires one and the validation pipe runs first — the
+    // rule under test is the role rank, and a 400 for a missing field would
+    // pass this assertion without ever reaching it.
     await http()
       .post(`/trips/${trip.id}/invites`)
       .set("Authorization", `Bearer ${coorg.accessToken}`)
-      .send({ type: "PERSONAL", role: "CO_ORGANIZER" })
+      .send({
+        type: "PERSONAL",
+        role: "CO_ORGANIZER",
+        email: "peer@example.com",
+      })
       .expect(403);
+  });
+
+  it("binds a personal link to the address it was sent to", async () => {
+    const owner = await makeUser("b-owner", true);
+    const invited = await makeUser("b-invited", true);
+    const other = await makeUser("b-other", true);
+    const trip = await createTrip(owner.accessToken, "Bound Trip");
+
+    const link = await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      // Capitalised on purpose: a domain is not case-sensitive and nobody
+      // types their own capitalisation consistently, so a link that works only
+      // for the exact casing the inviter used is a link that mostly does not.
+      .send({
+        type: "PERSONAL",
+        role: "PARTICIPANT",
+        email: invited.email.toUpperCase(),
+      })
+      .expect(201);
+
+    // Somebody else holding the URL — forwarded, pasted into a group chat,
+    // read out of a shared inbox. Single-use never covered this; it only
+    // decided which stranger got in.
+    const refused = await http()
+      .post(`/join/${link.body.token}`)
+      .set("Authorization", `Bearer ${other.accessToken}`)
+      .expect(403);
+    // And it names the address, because the commonest way to hit this is not
+    // an attack: it is being invited at one address and signed in with
+    // another, where "no" without "try this account" is a dead end.
+    assert.match(String(refused.body.message), /b-invited/i);
+
+    // The refusal leaves the link alone — not consumed, still redeemable by
+    // the person it was actually for.
+    const joined = await http()
+      .post(`/join/${link.body.token}`)
+      .set("Authorization", `Bearer ${invited.accessToken}`)
+      .expect(201);
+    assert.equal(joined.body.role, "PARTICIPANT");
+  });
+
+  it("refuses a personal link with nobody to send it to", async () => {
+    const owner = await makeUser("n-owner", true);
+    const trip = await createTrip(owner.accessToken, "Unaddressed");
+    await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ type: "PERSONAL", role: "PARTICIPANT" })
+      .expect(400);
+    // A global link is broadcast by definition and needs none.
+    await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ type: "GLOBAL", role: "PARTICIPANT" })
+      .expect(201);
+  });
+
+  it("lets a link written before binding stay open", async () => {
+    // Links are sitting in inboxes right now, sent by people who had no way to
+    // know this rule was coming. The bar is for every link written from here
+    // on; refusing the ones already out there breaks a promise the app made.
+    const owner = await makeUser("l-owner", true);
+    const anyone = await makeUser("l-anyone", true);
+    const trip = await createTrip(owner.accessToken, "Legacy Link");
+
+    const link = await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        type: "PERSONAL",
+        role: "PARTICIPANT",
+        email: "someone@example.com",
+      })
+      .expect(201);
+    // Reach behind the contract to make the row look like an old one: the
+    // schema will not write this shape any more, which is the whole point.
+    await prisma.inviteLink.update({
+      where: { id: link.body.id },
+      data: { sentToEmail: null },
+    });
+
+    await http()
+      .post(`/join/${link.body.token}`)
+      .set("Authorization", `Bearer ${anyone.accessToken}`)
+      .expect(201);
   });
 
   it("a History trip refuses new members", async () => {
