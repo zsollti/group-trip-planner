@@ -79,6 +79,7 @@ export function Dialog({
   onClose,
   children,
   size,
+  anchor,
   initialFocusRef,
   describedById,
 }: {
@@ -106,6 +107,19 @@ export function Dialog({
   children: ReactNode;
   /** `tall` scrolls a long list; `wide` is the two-column option form. */
   size?: "wide";
+  /**
+   * Where the card rests. Centred by default, which is right for anything the
+   * reader came here to *do* — a form, a confirm.
+   *
+   * `corner` hangs it off the top-right instead, for a panel that belongs to a
+   * control up there rather than to the page: the notification list, which is
+   * read at a glance and dismissed. It stays a real modal — same scrim, same
+   * focus trap, same Escape — because a second popover opening out of the
+   * account menu's popover would mean two dismiss contracts and a trap that has
+   * to guess which layer Escape meant. This moves where it is drawn and changes
+   * nothing about what it is.
+   */
+  anchor?: "corner";
   /** Control to focus on open. Defaults to the first focusable in the dialog. */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   /** Id of an element describing the dialog, for `aria-describedby`. */
@@ -178,7 +192,12 @@ export function Dialog({
   }
 
   return createPortal(
-    <div className="board__backdrop" role="presentation">
+    <div
+      className={
+        "board__backdrop" + (anchor ? ` board__backdrop--${anchor}` : "")
+      }
+      role="presentation"
+    >
       <div
         ref={cardRef}
         className={"board__dialog" + (size ? ` board__dialog--${size}` : "")}
