@@ -621,6 +621,162 @@ body {
   margin: 0;
 }
 
+/* A label kept for a screen reader and taken off the screen. Same technique as
+   `.board__sr-only`, applied through the primitive's own attribute so a field
+   can ask for it without knowing this app's class names. */
+[data-gtp-label][data-hidden] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Password: the reveal, the bar and the checklist ------------------------
+ *
+ * The reveal sits *inside* the box rather than beside it, which is why the
+ * input needs padding cut for it: a control floating over text it does not
+ * belong to is how a field ends up with a button covering what you typed. */
+.pw__box {
+  position: relative;
+  display: flex;
+}
+
+.pw__box [data-gtp-input] {
+  flex: 1;
+  min-width: 0;
+  padding-inline-end: 2.6rem;
+}
+
+.pw__reveal {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--board-dim);
+  cursor: pointer;
+}
+
+.pw__reveal:hover,
+.pw__reveal[aria-pressed="true"] {
+  color: var(--board-accent);
+}
+
+/* Not `:focus-visible`. The button is out of the tab order, so the only way to
+   focus it is to point at it — and a pointer press that showed no ring at all
+   would leave the one control in this form that changes what is on screen
+   without acknowledging the press. */
+.pw__reveal:focus {
+  outline: 2px solid var(--board-accent);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.pw__meter {
+  margin: -0.5rem 0 1rem;
+}
+
+.pw__strength {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.pw__bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--lane-line);
+  overflow: hidden;
+}
+
+.pw__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  /* The width is a reading of an entropy estimate, so it moves by a character
+     at a time; the transition is what makes that legible rather than jumpy. */
+  transition: width 120ms ease-out;
+}
+
+/* Three colours, and the middle one is the accent rather than an amber.
+ *
+ * Red-amber-green is the reflex, and an amber does not exist in this palette —
+ * inventing one for a 5px bar would put a fourth hue on a page built from
+ * sand, teal and two status colours. The bar's *width* already carries the
+ * progression; these only have to be told apart, and the word beside them
+ * carries the meaning for anyone who cannot. */
+.pw__bar-fill[data-strength="weak"] {
+  background: var(--board-danger);
+}
+.pw__bar-fill[data-strength="normal"] {
+  background: var(--board-accent);
+}
+.pw__bar-fill[data-strength="strong"] {
+  background: var(--board-ok);
+}
+
+.pw__word {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 4.5ch;
+}
+
+.pw__word[data-strength="weak"] {
+  color: var(--board-danger);
+}
+.pw__word[data-strength="normal"] {
+  color: var(--board-accent);
+}
+.pw__word[data-strength="strong"] {
+  color: var(--board-ok);
+}
+
+.pw__rules-head {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+  color: var(--board-dim);
+}
+
+.pw__rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+/* Red until met, and it stays on the list once it is green — a checklist that
+   removed its satisfied lines would take the instruction away at the moment it
+   was being followed. */
+.pw__rule {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--board-danger);
+}
+
+.pw__rule[data-met] {
+  color: var(--board-ok);
+}
+
+.pw__mark {
+  font-weight: 700;
+  width: 1ch;
+}
+
 [data-gtp-button] {
   background: var(--board-accent);
   color: var(--board-on-accent);
