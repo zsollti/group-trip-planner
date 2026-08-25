@@ -8,7 +8,6 @@ import {
 import type {
   AccountDeletionImpact,
   AuthUser,
-  AvatarPreset,
   NotificationPreferences,
   SetAvatarPresetInput,
   UpdateNotificationPreferencesInput,
@@ -140,14 +139,21 @@ export function useSetAvatar(): UseMutationResult<AuthUser, ApiError, File> {
 export function useSetAvatarPreset(): UseMutationResult<
   AuthUser,
   ApiError,
-  AvatarPreset
+  SetAvatarPresetInput
 > {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (preset: AvatarPreset) =>
+    // The whole input, forwarded. It used to name its one field —
+    // `body: { preset } satisfies SetAvatarPresetInput` — and `satisfies`
+    // cannot catch what that costs: adding `colour` to the contract left this
+    // silently sending a body without it, and it still typechecks, because a
+    // value missing an *optional* field satisfies the schema perfectly well.
+    // Passing the argument straight through means the next field added to the
+    // contract arrives here for free.
+    mutationFn: (input: SetAvatarPresetInput) =>
       apiFetch<AuthUser>("/account/avatar/preset", {
         method: "PUT",
-        body: { preset } satisfies SetAvatarPresetInput,
+        body: input,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: memberKeys.all });

@@ -976,32 +976,80 @@ span.board__muted {
 /* --- The drawn marks, to pick one from -------------------------------------- */
 .presets {
   margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.presets__grid {
+
+/* The two answers, combined, at the size an avatar is actually read at. */
+.presets__preview {
+  margin: 0.75rem 0 0.25rem;
+}
+
+.presets__row {
+  width: 100%;
+  margin-top: 0.6rem;
+}
+.presets__row-label {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+  text-align: center;
+}
+
+/*
+ * One row of swatches that scrolls sideways rather than wrapping.
+ *
+ * It was a reflowing grid, which is right for a list you survey and wrong for
+ * one you flick through — and with two of them stacked, a grid that wrapped to
+ * three lines each turned an account panel into a wall of ninety-six circles.
+ *
+ * **The vertical padding is load-bearing.** `overflow-x` clips the other axis
+ * too: a box that scrolls on one axis is `overflow: hidden` on the other, so a
+ * focus ring drawn 2px outside a swatch is cut off at the top and bottom edges
+ * of the strip. The padding is what it is drawn into. This is the same trap
+ * `overflow-y: auto` set on the dialogs, from the opposite direction.
+ */
+.presets__strip {
   list-style: none;
-  margin: 0.6rem 0 0;
-  padding: 0;
-  display: grid;
-  /* Auto-fit rather than a fixed count: the panel is one column on a phone and
-     comfortably wider on a laptop, and twelve marks should reflow rather than
-     scroll. */
-  grid-template-columns: repeat(auto-fit, minmax(3.4rem, 1fr));
+  margin: 0;
+  padding: 0.35rem 0.15rem;
+  display: flex;
   gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* A flick lands on a swatch rather than between two. */
+  scroll-snap-type: x proximity;
 }
+.presets__strip > li {
+  flex: none;
+  scroll-snap-align: center;
+}
+
 .presets__swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 3.4rem;
   aspect-ratio: 1;
   padding: 0;
   border: 2px solid transparent;
   border-radius: 999px;
   cursor: pointer;
-  /* The reader's own generated colour, so the grid previews the real avatar
-     rather than a set of neutral icons that change once chosen. */
+  /* The colour being offered, or — on the marks strip — the one currently
+     chosen, so the row previews the real avatar rather than a set of neutral
+     icons that change the moment they are picked. */
   background: hsl(var(--avatar-hue, 210) 45% 32%);
   color: #fff;
+}
+/* A colour swatch is the colour and nothing else: it carries no mark, so it
+   states one thing where the row above states the other. Smaller, because a
+   flat disc needs no room for a drawing inside it. */
+.presets__swatch--colour {
+  width: 2.4rem;
 }
 .presets__swatch:hover:not(:disabled) {
   transform: scale(1.06);

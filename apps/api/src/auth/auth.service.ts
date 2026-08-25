@@ -10,7 +10,12 @@ import type {
   RegisterInput,
   RegisterResult,
 } from "@gtp/types";
-import { DEFAULT_LOCALE, resolveLocale } from "@gtp/types";
+import {
+  avatarPresetUrl,
+  DEFAULT_LOCALE,
+  randomAvatarLook,
+  resolveLocale,
+} from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -20,6 +25,26 @@ import { assertNotBanned } from "./ban.js";
 import { toAuthUser } from "./auth.mapper.js";
 
 const ARGON2_OPTIONS = { type: argon2.argon2id } as const;
+
+/**
+ * What a brand-new account wears: a drawn mark in one of the board's colours,
+ * picked at random.
+ *
+ * Nobody starts as a blank. Initials on a generated hue remain the *fallback*
+ * and are a good one, but as a starting state they made the first thing a
+ * person contributed to a board look like a form field they had not filled in.
+ * Both ways in get one — email/password and Google alike — because "which door
+ * did you come through" is not a thing anyone else on a crew list can see.
+ *
+ * Accounts that predate this keep their `null` and keep their initials. There
+ * is no backfill on purpose: their crews already recognise them that way, and
+ * changing what an existing person looks like is not a thing to do to somebody
+ * because a default moved.
+ */
+function startingAvatar(): string {
+  const { preset, colour } = randomAvatarLook();
+  return avatarPresetUrl(preset, colour);
+}
 
 /** login/refresh produce the access token + user and a refresh token to set as
  * a cookie by the controller. */
@@ -83,6 +108,7 @@ export class AuthService {
         passwordHash,
         emailVerified: false,
         locale,
+        avatarUrl: startingAvatar(),
       },
     });
     const rawToken = await this.tokens.issueEmailVerificationToken(user.id);
@@ -173,7 +199,12 @@ export class AuthService {
     const displayName =
       profile.displayName.trim() || email.split("@")[0] || "Traveler";
     return this.prisma.user.create({
-      data: { email, displayName, emailVerified: true },
+      data: {
+        email,
+        displayName,
+        emailVerified: true,
+        avatarUrl: startingAvatar(),
+      },
     });
   }
 

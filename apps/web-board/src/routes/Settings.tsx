@@ -11,6 +11,7 @@ import {
 } from "@gtp/api-client";
 import {
   avatarPresetOf,
+  type AvatarColour,
   LOCALES,
   LOCALE_LABEL,
   type AvatarPreset,
@@ -71,10 +72,10 @@ export function Settings() {
     }
   }
 
-  async function wearPreset(preset: AvatarPreset) {
+  async function wearPreset(preset: AvatarPreset, colour: AvatarColour) {
     setAvatarError(null);
     try {
-      applyUser(await setAvatarPreset.mutateAsync(preset));
+      applyUser(await setAvatarPreset.mutateAsync({ preset, colour }));
     } catch (err) {
       setAvatarError(
         err instanceof ApiError
@@ -162,10 +163,11 @@ export function Settings() {
             )}
           </p>
           <AvatarPresetPicker
+            name={user?.displayName ?? ""}
             userId={user?.id}
             currentUrl={user?.avatarUrl ?? null}
             busy={busyAvatar}
-            onPick={(preset) => void wearPreset(preset)}
+            onPick={(preset, colour) => void wearPreset(preset, colour)}
           />
         </section>
 
