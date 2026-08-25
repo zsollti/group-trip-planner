@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  AVATAR_COLOURS,
   AVATAR_PRESETS,
+  avatarColourOf,
   avatarPresetOf,
   avatarPresetUrl,
   isAvatarPresetUrl,
+  randomAvatarLook,
 } from "@gtp/types";
 import { AVATAR_PRESET_NAME } from "./avatarPresets";
 
@@ -57,6 +60,64 @@ describe("isAvatarPresetUrl", () => {
     for (const url of ["https://x.test/a.webp", "/uploads/a.webp", "", null]) {
       expect(isAvatarPresetUrl(url)).toBe(false);
     }
+  });
+});
+
+/**
+ * The colour half of the same string.
+ *
+ * `preset:tent@SKY` has to keep answering "tent" to every caller that only ever
+ * asked which mark, and `preset:tent` — every drawn avatar stored before
+ * colours existed — has to keep working untouched. Those two properties are the
+ * whole of the migration, so they are what is pinned here.
+ */
+describe("avatarColourOf", () => {
+  it("round-trips every colour, without disturbing the mark", () => {
+    for (const colour of AVATAR_COLOURS) {
+      const url = avatarPresetUrl("tent", colour);
+      expect(avatarColourOf(url)).toBe(colour);
+      expect(avatarPresetOf(url)).toBe("tent");
+    }
+  });
+
+  it("reads a mark stored before colours existed", () => {
+    // The one that cannot be allowed to regress: these are live rows.
+    expect(avatarPresetOf("preset:compass")).toBe("compass");
+    expect(avatarColourOf("preset:compass")).toBeNull();
+    // And the builder still writes exactly that shape when given no colour, so
+    // a caller with nothing to say does not invent a colour by accident.
+    expect(avatarPresetUrl("compass")).toBe("preset:compass");
+    expect(avatarPresetUrl("compass", null)).toBe("preset:compass");
+  });
+
+  it("falls back rather than trusting a colour it does not know", () => {
+    // Same safety property the marks have, for the same reason: a value from
+    // another build draws in the generated hue instead of nothing at all.
+    expect(avatarColourOf("preset:tent@CHARTREUSE")).toBeNull();
+    expect(avatarPresetOf("preset:tent@CHARTREUSE")).toBe("tent");
+    expect(avatarColourOf("https://x.test/a.webp")).toBeNull();
+  });
+});
+
+describe("randomAvatarLook", () => {
+  it("only ever names things the contract knows", () => {
+    // It runs on every registration, so a look it cannot draw is an avatar
+    // nobody can see — and it would be seen first by a stranger.
+    for (let i = 0; i < 200; i += 1) {
+      const { preset, colour } = randomAvatarLook();
+      expect(AVATAR_PRESETS).toContain(preset);
+      expect(AVATAR_COLOURS).toContain(colour);
+      // And what it produces has to survive the round trip it was made for.
+      const url = avatarPresetUrl(preset, colour);
+      expect(avatarPresetOf(url)).toBe(preset);
+      expect(avatarColourOf(url)).toBe(colour);
+    }
+  });
+
+  it("takes its randomness from where it is told", () => {
+    const look = randomAvatarLook(() => 0);
+    expect(look.preset).toBe(AVATAR_PRESETS[0]);
+    expect(look.colour).toBe(AVATAR_COLOURS[0]);
   });
 });
 
