@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
-import { avatarPresetOf, isAvatarPresetUrl } from "@gtp/types";
+import { avatarColourOf, avatarPresetOf, isAvatarPresetUrl } from "@gtp/types";
 import { avatarHue, initialsOf } from "../lib/avatar";
+import { paletteHue } from "../lib/categoryTheme";
 import { AvatarPresetMark } from "./AvatarPresetMark";
 
 /**
@@ -16,8 +17,11 @@ import { AvatarPresetMark } from "./AvatarPresetMark";
  * key falls back to initials rather than to an empty circle, which is what
  * makes the list of marks safe to change.
  *
- * A mark takes the **same generated hue** as the initials it replaces, so one
- * person keeps one colour whichever they are wearing.
+ * A mark takes the colour stored beside it, and falls back to the hue generated
+ * from the wearer's id when there is none — which covers a mark worn before
+ * colours were choosable, a colour this build does not know, and initials,
+ * which have no colour of their own to state. So one person still keeps one
+ * colour whichever they are wearing, unless they have said otherwise.
  */
 export function Avatar({
   name,
@@ -51,6 +55,7 @@ export function Avatar({
   // build does not know — an older or newer one — answers yes then null, and
   // has to fall through to the initials rather than to an `<img>`.
   const preset = avatarPresetOf(url);
+  const colour = avatarColourOf(url);
 
   if (url && !isAvatarPresetUrl(url)) {
     return (
@@ -72,7 +77,7 @@ export function Avatar({
 
   const tinted = {
     ...style,
-    "--avatar-hue": avatarHue(userId ?? name),
+    "--avatar-hue": colour ? paletteHue(colour) : avatarHue(userId ?? name),
   } as CSSProperties;
 
   if (preset) {

@@ -122,7 +122,7 @@ export class AccountController {
     @Body(new ZodValidationPipe(SetAvatarPresetInput))
     body: SetAvatarPresetInput,
   ): Promise<AuthUser> {
-    return this.account.setAvatarPreset(user, body.preset);
+    return this.account.setAvatarPreset(user, body.preset, body.colour);
   }
 
   /** Remove the avatar, deleting the stored object with it. */

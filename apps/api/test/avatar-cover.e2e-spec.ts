@@ -7,7 +7,7 @@ import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import sharp from "sharp";
-import { avatarPresetOf, avatarPresetUrl } from "@gtp/types";
+import { avatarColourOf, avatarPresetOf, avatarPresetUrl } from "@gtp/types";
 import type { AuthUser, TripDetail, TripMembersView } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
@@ -310,6 +310,39 @@ describe("Cover + avatar (e2e)", () => {
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .send({ preset: "hovercraft" })
       .expect(400);
+  });
+
+  it("puts a mark on when a picture is removed, rather than an empty circle", async () => {
+    const owner = await makeUser("avatar-remove");
+    const uploaded = (
+      await http()
+        .post("/account/avatar")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .attach("file", await png(), {
+          filename: "me.png",
+          contentType: "image/png",
+        })
+        .expect(201)
+    ).body as AuthUser;
+    const name = nameOf(uploaded.avatarUrl!);
+    stored.push(name);
+
+    const after_ = (
+      await http()
+        .delete("/account/avatar")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body as AuthUser;
+
+    // Removing a photograph is a decision about *that photograph*. What follows
+    // it should be another avatar, not the state a brand-new account no longer
+    // starts in.
+    assert.ok(after_.avatarUrl, "something is worn afterwards");
+    assert.ok(avatarPresetOf(after_.avatarUrl), "and the board can draw it");
+    assert.ok(avatarColourOf(after_.avatarUrl), "in a colour it knows");
+    // The bytes still go. This changes what replaces the picture, not whether
+    // the picture is deleted.
+    assert.equal(await onDisk(name), false, "the picture's bytes are gone");
   });
 
   it("purges the avatar's bytes when the account is erased (GDPR)", async () => {

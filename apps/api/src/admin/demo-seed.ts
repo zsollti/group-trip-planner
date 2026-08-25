@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from "@prisma/client";
-import { BUILTIN_CATEGORIES, placeLabel } from "@gtp/types";
+import { avatarPresetUrl, BUILTIN_CATEGORIES, placeLabel } from "@gtp/types";
 import argon2 from "argon2";
 
 /**
@@ -130,27 +130,55 @@ async function seedDestination(
   };
 }
 
+/**
+ * The demo's five, each in a mark and a colour of their own.
+ *
+ * **Fixed, not random.** Every other account picks its look at sign-up with
+ * `randomAvatarLook`, and this is the one place that must not: the seed is
+ * re-run from the operator console and the whole point of that button is that
+ * it rebuilds the *same* board. A cast that changed faces between runs would
+ * make the demo look broken to the one person most likely to be watching it.
+ *
+ * Chosen so no two sit adjacent on the hue ring — a crew list of five is the
+ * hardest place in the app to tell colours apart, because the marks are small
+ * and they are lined up against each other.
+ */
 const CAST = [
-  { key: "demo", email: DEMO_EMAIL, name: "Demo User", role: "OWNER" },
+  {
+    key: "demo",
+    email: DEMO_EMAIL,
+    name: "Demo User",
+    role: "OWNER",
+    look: { preset: "compass", colour: "SKY" },
+  },
   {
     key: "mira",
     email: "mira@example.com",
     name: "Mira Kovács",
     role: "CO_ORGANIZER",
+    look: { preset: "map", colour: "ROSE" },
   },
   {
     key: "tomas",
     email: "tomas@example.com",
     name: "Tomáš Novák",
     role: "PARTICIPANT",
+    look: { preset: "backpack", colour: "LIME" },
   },
   {
     key: "anna",
     email: "anna@example.com",
     name: "Anna Weber",
     role: "PARTICIPANT",
+    look: { preset: "camera", colour: "VIOLET" },
   },
-  { key: "sam", email: "sam@example.com", name: "Sam Ellis", role: "GUEST" },
+  {
+    key: "sam",
+    email: "sam@example.com",
+    name: "Sam Ellis",
+    role: "GUEST",
+    look: { preset: "tent", colour: "AMBER" },
+  },
 ] as const;
 
 type CastKey = (typeof CAST)[number]["key"];
@@ -241,12 +269,22 @@ export async function seedDemoTrip(
   for (const person of CAST) {
     users[person.key] = await prisma.user.upsert({
       where: { email: person.email },
-      update: { displayName: person.name, emailVerified: true, passwordHash },
+      // The look is written on both paths. A re-seed has to restore the whole
+      // demo, including what its cast look like — leaving it off `update` would
+      // mean the button repaired everything except the thing a visitor sees
+      // first.
+      update: {
+        displayName: person.name,
+        emailVerified: true,
+        passwordHash,
+        avatarUrl: avatarPresetUrl(person.look.preset, person.look.colour),
+      },
       create: {
         email: person.email,
         displayName: person.name,
         emailVerified: true,
         passwordHash,
+        avatarUrl: avatarPresetUrl(person.look.preset, person.look.colour),
       },
       select: { id: true },
     });

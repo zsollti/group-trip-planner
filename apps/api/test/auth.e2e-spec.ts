@@ -4,6 +4,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
+import { avatarColourOf, avatarPresetOf } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
 import { PrismaService } from "../src/prisma/prisma.service.js";
@@ -66,6 +67,16 @@ describe("Auth (e2e)", () => {
     assert.equal(verify.status, 200);
     assert.equal(verify.body.email, email);
     assert.equal(verify.body.emailVerified, true);
+
+    // Nobody starts as a blank. Initials on a generated hue remain the
+    // fallback, but as a *starting state* they made the first thing a person
+    // contributed to a board look like a form field they had not filled in.
+    // Both halves have to be readable by the board, or the avatar is an empty
+    // circle on somebody's very first screen.
+    const look = verify.body.avatarUrl as string | null;
+    assert.ok(look, "a new account is already wearing something");
+    assert.ok(avatarPresetOf(look), "the mark is one the board can draw");
+    assert.ok(avatarColourOf(look), "and it names a colour");
 
     const login = await agent.post("/auth/login").send({ email, password });
     assert.equal(login.status, 200);
