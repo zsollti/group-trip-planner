@@ -53,12 +53,13 @@ function category(n: number, name: string): CategoryView {
   };
 }
 
-function channel(n: number): ChannelView {
+function channel(n: number, lastMessageAt: string | null = null): ChannelView {
   return {
     id: `ch${n}`,
     tripId: TRIP_ID,
     categoryId: `c${n}`,
     type: "CATEGORY",
+    lastMessageAt,
   };
 }
 
@@ -74,7 +75,13 @@ function socket(): TripSocket {
   return {
     status: "connected",
     channels: [
-      { id: "gen", tripId: TRIP_ID, categoryId: null, type: "GENERAL" },
+      {
+        id: "gen",
+        tripId: TRIP_ID,
+        categoryId: null,
+        type: "GENERAL",
+        lastMessageAt: null,
+      },
       channel(1),
       channel(2),
       channel(3),
@@ -88,13 +95,14 @@ function socket(): TripSocket {
   };
 }
 
-function renderPanel() {
+function renderPanel(channels?: ChannelView[]) {
+  const base = socket();
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <ChatPanel
         tripId={TRIP_ID}
         tripName="Lisbon 2026"
-        tripSocket={socket()}
+        tripSocket={channels ? { ...base, channels } : base}
         categories={categories}
         myRole="PARTICIPANT"
         myUserId="u1"
@@ -230,5 +238,106 @@ describe("a deleted message", () => {
     ]);
     await screen.findByText("Demo User deleted Anna Weber's message");
     expect(screen.queryByText("the thing that was said")).toBeNull();
+  });
+});
+
+/**
+ * The order the chips are in. jsdom measures nothing, so the row collapses to a
+ * single chip and the rest go behind the trigger — which suits this fine: the
+ * overflow menu lists the channels in the same order the row would have, so it
+ * is where the ordering can be read without a layout engine.
+ */
+describe("chat channel switcher order", () => {
+  beforeEach(() => {
+    selectedChannels.length = 0;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("[]", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  });
+
+  it("leads with the trip's own channel, then the most recently spoken in", () => {
+    renderPanel([
+      {
+        id: "gen",
+        tripId: TRIP_ID,
+        categoryId: null,
+        type: "GENERAL",
+        // Quiet, and still first: General is a landmark, not a competitor.
+        lastMessageAt: null,
+      },
+      channel(1, "2026-08-25T09:00:00.000Z"),
+      channel(2, "2026-08-25T12:00:00.000Z"),
+      channel(3, "2026-08-25T10:00:00.000Z"),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+
+    // The one chip that fits is General; the rest are in the menu, in order.
+    expect(
+      screen.getByRole("button", { name: "Lisbon 2026" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3 more channels" }));
+    const labels = Array.from(
+      document.querySelectorAll(".menu__item-label"),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual(["Accommodation", "Activities", "Transport"]);
+  });
+
+  it("does not reshuffle while the panel is open", () => {
+    // The chip under the reader's cursor has to stay put. A message landing in
+    // a quiet channel moves its `lastMessageAt` — and must not move its chip
+    // until the row next re-sorts, which is on open or on a channel appearing.
+    const { rerender } = renderPanel([
+      {
+        id: "gen",
+        tripId: TRIP_ID,
+        categoryId: null,
+        type: "GENERAL",
+        lastMessageAt: null,
+      },
+      channel(1, "2026-08-25T09:00:00.000Z"),
+      channel(2, "2026-08-25T12:00:00.000Z"),
+      channel(3, "2026-08-25T10:00:00.000Z"),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+
+    const talkative = {
+      ...socket(),
+      channels: [
+        {
+          id: "gen",
+          tripId: TRIP_ID,
+          categoryId: null,
+          type: "GENERAL" as const,
+          lastMessageAt: null,
+        },
+        // Transport was last and has just become the newest.
+        channel(1, "2026-08-25T13:00:00.000Z"),
+        channel(2, "2026-08-25T12:00:00.000Z"),
+        channel(3, "2026-08-25T10:00:00.000Z"),
+      ],
+    };
+    rerender(
+      <QueryClientProvider client={createQueryClient()}>
+        <ChatPanel
+          tripId={TRIP_ID}
+          tripName="Lisbon 2026"
+          tripSocket={talkative}
+          categories={categories}
+          myRole="PARTICIPANT"
+          myUserId="u1"
+          requestChannelId={null}
+          onRequestHandled={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "3 more channels" }));
+    const labels = Array.from(
+      document.querySelectorAll(".menu__item-label"),
+    ).map((el) => el.textContent);
+    expect(labels).toEqual(["Accommodation", "Activities", "Transport"]);
   });
 });

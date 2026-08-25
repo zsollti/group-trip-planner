@@ -43,11 +43,49 @@ export class ChannelsService {
 
   /** The channels a member of this trip can see, oldest first (General leads). */
   async listForTrip(tripId: string): Promise<ChannelView[]> {
-    const channels = await this.prisma.channel.findMany({
-      where: { tripId },
-      orderBy: { createdAt: "asc" },
+    const [channels, lastMessage] = await Promise.all([
+      this.prisma.channel.findMany({
+        where: { tripId },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.lastMessageByChannel(tripId),
+    ]);
+    return channels.map((c) => toChannelView(c, lastMessage.get(c.id) ?? null));
+  }
+
+  /**
+   * When each of the trip's channels last had something said in it, for
+   * {@link ChannelView.lastMessageAt}. Deleted messages don't count: a channel
+   * whose only message was withdrawn has had nothing said in it.
+   *
+   * One `groupBy` for the whole trip, in the same spirit as the unread aggregate
+   * below — a query per channel would fan out with the board, and channels are
+   * per-category and on-demand.
+   */
+  private async lastMessageByChannel(
+    tripId: string,
+  ): Promise<Map<string, Date>> {
+    const rows = await this.prisma.message.groupBy({
+      by: ["channelId"],
+      where: { channel: { tripId }, deletedAt: null },
+      _max: { createdAt: true },
     });
-    return channels.map(toChannelView);
+    return new Map(
+      rows.flatMap((row) =>
+        row._max.createdAt ? [[row.channelId, row._max.createdAt] as const] : [],
+      ),
+    );
+  }
+
+  /** {@link lastMessageByChannel} for a single channel — the reopen path, which
+   *  has one channel in hand and no reason to aggregate the whole trip. */
+  private async lastMessageIn(channelId: string): Promise<Date | null> {
+    const row = await this.prisma.message.findFirst({
+      where: { channelId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    return row?.createdAt ?? null;
   }
 
   /**
@@ -61,10 +99,13 @@ export class ChannelsService {
     tripId: string,
     userId: string,
   ): Promise<ChatReadyPayload> {
-    const channels = await this.prisma.channel.findMany({
-      where: { tripId },
-      orderBy: { createdAt: "asc" },
-    });
+    const [channels, lastMessage] = await Promise.all([
+      this.prisma.channel.findMany({
+        where: { tripId },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.lastMessageByChannel(tripId),
+    ]);
 
     // One aggregate for the whole trip rather than a count per channel (Phase
     // 7.3). Each channel has its *own* cutoff — the member's read cursor — which
@@ -100,7 +141,12 @@ export class ChannelsService {
       count: byChannel.get(c.id) ?? 0,
     }));
 
-    return { channels: channels.map(toChannelView), unread };
+    return {
+      channels: channels.map((c) =>
+        toChannelView(c, lastMessage.get(c.id) ?? null),
+      ),
+      unread,
+    };
   }
 
   /** Advance the member's read cursor for a channel to now (Phase 4.4). Verifies
@@ -151,7 +197,11 @@ export class ChannelsService {
     const existing = await this.prisma.channel.findUnique({
       where: { categoryId },
     });
-    if (existing) return toChannelView(existing);
+    // Reopening: the channel may well have history, so state it rather than
+    // letting the default null claim the discussion is empty.
+    if (existing) {
+      return toChannelView(existing, await this.lastMessageIn(existing.id));
+    }
 
     try {
       const created = await this.prisma.channel.create({

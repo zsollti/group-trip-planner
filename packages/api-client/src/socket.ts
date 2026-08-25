@@ -135,7 +135,17 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
       setUnread(seeded);
     });
     socket.on(MESSAGE_NEW_EVENT, (msg: MessageView) => {
-      if (cancelled || msg.channelId === activeChannelRef.current) return;
+      if (cancelled) return;
+      // Every message moves its channel's `lastMessageAt`, including one in the
+      // channel being read and including your own: the switcher orders on this,
+      // and an order that ignored the conversation in front of you would put it
+      // back at the bottom the next time it re-sorted.
+      setChannels((prev) =>
+        prev.map((c) =>
+          c.id === msg.channelId ? { ...c, lastMessageAt: msg.createdAt } : c,
+        ),
+      );
+      if (msg.channelId === activeChannelRef.current) return;
       setUnread((u) => ({
         ...u,
         [msg.channelId]: (u[msg.channelId] ?? 0) + 1,

@@ -97,21 +97,36 @@ export function partitionByFit<T>(
  * row re-runs the effect and the measurement happens when there is something to
  * measure.
  *
+ * `reserveRef` goes on a hidden copy of the overflow trigger, so the space held
+ * back for it is **measured rather than guessed**. It used to be a constant, and
+ * the constant was wrong by about half a chip: it was sized for the widest the
+ * trigger ever gets (a two-digit count plus an unread badge) and then charged
+ * for that on every row, including the ones where the trigger reads "＋2" and
+ * carries nothing. Over-reserving does not look like over-reserving — it looks
+ * like a chip that plainly had room refusing to appear, with the empty space
+ * still sitting there beside the trigger. Same argument for the gap, which
+ * {@link cssGap} now reads off the row instead of taking on trust.
+ *
+ * The fallbacks stand in only where there is nothing to measure: before the
+ * trigger exists (a row where everything fits), and in jsdom.
+ *
  * Unmeasured is `null` rather than a number, so "we have not looked yet" cannot
  * be mistaken for "nothing fits" — it reads as the plain row, the same graceful
  * default {@link fitCount} gives a container of unknown width.
  */
 export function useFitCount(
   itemCount: number,
-  reserveWidth: number,
-  gap: number,
+  fallbackReserve: number,
+  fallbackGap: number,
 ): {
   containerRef: React.RefCallback<HTMLDivElement>;
   measureRef: React.RefCallback<HTMLDivElement>;
+  reserveRef: React.RefCallback<HTMLElement>;
   visibleCount: number;
 } {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [measure, setMeasure] = useState<HTMLDivElement | null>(null);
+  const [reserve, setReserve] = useState<HTMLElement | null>(null);
   const [fitted, setFitted] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -120,22 +135,44 @@ export function useFitCount(
       const widths = Array.from(measure.children).map(
         (child) => (child as HTMLElement).offsetWidth,
       );
-      setFitted(fitCount(widths, container.clientWidth, reserveWidth, gap));
+      setFitted(
+        fitCount(
+          widths,
+          container.clientWidth,
+          reserve ? reserve.offsetWidth : fallbackReserve,
+          cssGap(measure, fallbackGap),
+        ),
+      );
     };
     recompute();
     // Not available in jsdom; without it the row simply keeps its first answer.
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(recompute);
     // The container catches a resized panel; the measure row catches the item
-    // list itself changing width (a rename, a new channel).
+    // list itself changing width (a rename, a new channel); the trigger catches
+    // its own label growing ("＋9" to "＋10", a badge appearing).
     observer.observe(container);
     observer.observe(measure);
+    if (reserve) observer.observe(reserve);
     return () => observer.disconnect();
-  }, [container, measure, reserveWidth, gap, itemCount]);
+  }, [container, measure, reserve, fallbackReserve, fallbackGap, itemCount]);
 
   return {
     containerRef: setContainer,
     measureRef: setMeasure,
+    reserveRef: setReserve,
     visibleCount: fitted ?? itemCount,
   };
+}
+
+/**
+ * The row's real flex gap, in pixels, or `fallback` when the browser will not
+ * say (jsdom computes no styles, and `gap` set through the shorthand does not
+ * always resolve). Read rather than passed so the arithmetic cannot drift from
+ * the stylesheet: the constant and the CSS were 5px and 0.3rem, which is the
+ * kind of difference that only shows up as one missing chip.
+ */
+function cssGap(el: HTMLElement, fallback: number): number {
+  const raw = Number.parseFloat(getComputedStyle(el).columnGap);
+  return Number.isFinite(raw) ? raw : fallback;
 }
