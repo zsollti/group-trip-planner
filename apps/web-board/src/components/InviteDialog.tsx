@@ -14,8 +14,9 @@ import {
   useTripInvites,
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
+import { GlobeIcon, LinkIcon } from "./icons";
 import { t, tNode } from "../lib/i18n";
-import { roleLabel } from "../lib/roles";
+import { roleBlurb, roleLabel } from "../lib/roles";
 
 const INVITE_ROLES: InviteRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
 
@@ -114,6 +115,13 @@ export function InviteDialog({
         <form onSubmit={onCreate} noValidate>
           <fieldset className="board__radio-group">
             <legend className="board__field-label">{t("Link type")}</legend>
+            {/* A mark before each kind, because the two differ in exactly one
+                way and the words for it are nearly the same: a globe is "the
+                web can have this", a chain link is "this one, for you". The
+                sentences shrank to match — the old ones spent a clause each on
+                rules (one per role, disable it anytime, used up after the first
+                join) that the list of existing links underneath already shows
+                by being a list of existing links. */}
             <label className="board__radio">
               <input
                 type="radio"
@@ -122,10 +130,10 @@ export function InviteDialog({
                 onChange={() => setType("GLOBAL")}
               />
               <span>
-                {tNode(
-                  "{kind} — one reusable link anyone can use to join. One per role; disable it anytime (members who joined stay).",
-                  { kind: <strong>{t("Global")}</strong> },
-                )}
+                <GlobeIcon size={16} />{" "}
+                {tNode("{kind} — anyone with the link can join.", {
+                  kind: <strong>{t("Global")}</strong>,
+                })}
               </span>
             </label>
             <label className="board__radio">
@@ -136,19 +144,30 @@ export function InviteDialog({
                 onChange={() => setType("PERSONAL")}
               />
               <span>
-                {tNode(
-                  "{kind} — a single-use link for one person, optionally emailed. Used up after the first join.",
-                  { kind: <strong>{t("Personal")}</strong> },
-                )}
+                <LinkIcon size={16} />{" "}
+                {tNode("{kind} — a single-use link for one person.", {
+                  kind: <strong>{t("Personal")}</strong>,
+                })}
               </span>
             </label>
           </fieldset>
 
+          {/*
+           * The role, and — under it — what that role can actually do.
+           *
+           * This picker used to be three words with nothing to choose between
+           * them: an inviter who did not already know the permission matrix was
+           * guessing, and the guess that costs something is handing an
+           * Organizer link to somebody who should have had a Traveler one. The
+           * blurb follows the selection rather than listing all three at once,
+           * so the panel says one thing at a time and stays the height it was.
+           */}
           <Field htmlFor="invite-role" label={t("Role granted")}>
             <select
               id="invite-role"
               className="board__select"
               value={role}
+              aria-describedby="invite-role-blurb"
               onChange={(e) => setRole(e.target.value as InviteRole)}
             >
               {allowedRoles.map((r) => (
@@ -158,6 +177,9 @@ export function InviteDialog({
               ))}
             </select>
           </Field>
+          <p className="board__field-note" id="invite-role-blurb">
+            {roleBlurb(role)}
+          </p>
 
           {type === "PERSONAL" ? (
             <Field

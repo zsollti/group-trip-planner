@@ -21,7 +21,7 @@ import {
 import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { Menu, type MenuItem } from "./Menu";
-import { roleLabel } from "../lib/roles";
+import { byRole, roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 const ASSIGNABLE: AssignableRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
@@ -192,7 +192,10 @@ export function MemberDialog({
         ) : (
           <>
             <ul className="board__invite-items">
-              {members.data.members.map((m) => {
+              {/* Same order as the crew panel behind this dialog — the two are
+                  the same list, and a reader who opened one from the other
+                  should not have to find their place again. */}
+              {byRole(members.data.members).map((m) => {
                 const isSelf = m.userId === user?.id;
                 const manageable =
                   canManage && !isSelf && canActOn(myRole, m.role);

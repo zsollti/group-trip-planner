@@ -1,7 +1,7 @@
 import { can, type TripRole } from "@gtp/types";
 import { useTripMembers } from "@gtp/api-client";
 import { Avatar } from "./Avatar";
-import { roleLabel } from "../lib/roles";
+import { byRole, roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
 
 /**
@@ -122,7 +122,11 @@ export function CrewPanel({
         </>
       ) : (
         <ul className="crew__row">
-          {(roster ?? []).map((m) => (
+          {/* Organizers, then travelers, then guests. The server returns join
+              order, which put the one person who can actually lock a decision
+              anywhere in the row — and "who do I ask?" is this panel's whole
+              job. See `byRole`. */}
+          {byRole(roster ?? []).map((m) => (
             <li key={m.userId} className="crew__member">
               <Avatar
                 name={m.displayName}
