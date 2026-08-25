@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import { createQueryClient, type SessionSocket } from "@gtp/api-client";
 import type { ChannelView } from "@gtp/types";
 import { ChatDockProvider } from "./ChatDock";
@@ -56,13 +57,15 @@ vi.mock("@gtp/api-client", async () => {
   };
 });
 
-function renderDock() {
+function renderDock(path = "/") {
   return render(
-    <QueryClientProvider client={createQueryClient()}>
-      <ChatDockProvider>
-        <div />
-      </ChatDockProvider>
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[path]}>
+      <QueryClientProvider client={createQueryClient()}>
+        <ChatDockProvider>
+          <div />
+        </ChatDockProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -112,6 +115,25 @@ describe("the chat dock", () => {
     expect(screen.queryByRole("button", { name: /Tromsø/ })).toBeNull();
   });
 
+  it("opens on the board you are already looking at", async () => {
+    // The e2e journeys caught this, and they were right to: a reader standing
+    // on a trip should not have to pick that trip out of a list to say
+    // something on it. The list is for reaching the *other* boards.
+    renderDock(`/trips/${TRIP_A}`);
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Trip chat" })).toBeVisible(),
+    );
+  });
+
+  it("falls back to the list on a page that is not a board", () => {
+    renderDock("/settings");
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+    expect(
+      screen.getByRole("dialog", { name: "Conversations" }),
+    ).toBeInTheDocument();
+  });
+
   it("drops into a board's conversation and comes back out", async () => {
     // Two boards would give a Back; this account has one readable, so the
     // panel is the end of the road and there is nothing to go back to.
@@ -122,6 +144,8 @@ describe("the chat dock", () => {
     await waitFor(() =>
       expect(screen.getByRole("dialog", { name: "Trip chat" })).toBeVisible(),
     );
-    expect(screen.queryByRole("button", { name: "All conversations" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "All conversations" }),
+    ).toBeNull();
   });
 });

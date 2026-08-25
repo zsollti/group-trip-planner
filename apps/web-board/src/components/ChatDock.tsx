@@ -2,10 +2,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth, useHomeDashboard, useTripCategories } from "@gtp/api-client";
 import { can, type HomeTripSummary } from "@gtp/types";
 import { ChatPanel } from "./ChatPanel";
@@ -43,32 +45,65 @@ const ChatDockContext = createContext<ChatDockValue | null>(null);
  * would be the thing this replaces, one level worse.
  */
 export function ChatDockProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const [view, setView] = useState<DockView>({ kind: "auto" });
   const [open, setOpen] = useState(false);
-  const [tripId, setTripId] = useState<string | null>(null);
   const [requestChannelId, setRequestChannelId] = useState<string | null>(null);
 
   const openChannel = useCallback((trip: string, channel?: string) => {
-    setTripId(trip);
+    setView({ kind: "trip", tripId: trip });
     setRequestChannelId(channel ?? null);
     setOpen(true);
   }, []);
 
   const value = useMemo<ChatDockValue>(() => ({ openChannel }), [openChannel]);
 
+  function close() {
+    setOpen(false);
+    // Back to following the page. Reopening the dock on a board should land on
+    // that board again, not on wherever it was left three screens ago.
+    setView({ kind: "auto" });
+  }
+
   return (
     <ChatDockContext.Provider value={value}>
       {children}
-      <Dock
-        open={open}
-        setOpen={setOpen}
-        tripId={tripId}
-        setTripId={setTripId}
-        requestChannelId={requestChannelId}
-        onRequestHandled={() => setRequestChannelId(null)}
-      />
+      {/*
+       * Mounted only for a signed-in reader, and the guard has to be *here*.
+       *
+       * It used to be an early `return null` inside `Dock`, below the hooks —
+       * which is not a guard at all: the hooks had already run, so a visitor
+       * sitting on the sign-in page fired `GET /dashboard` with no session on
+       * every render of every public route. The e2e journeys are what caught
+       * it, by failing somewhere else entirely.
+       */}
+      {user ? (
+        <Dock
+          open={open}
+          onClose={close}
+          onOpen={() => setOpen(true)}
+          view={view}
+          setView={setView}
+          requestChannelId={requestChannelId}
+          onRequestHandled={() => setRequestChannelId(null)}
+        />
+      ) : null}
     </ChatDockContext.Provider>
   );
 }
+
+/**
+ * Which conversation the dock is showing.
+ *
+ * `auto` is the resting state and means "whatever the page is about": open the
+ * dock while standing on a board and you get that board's conversation, because
+ * making somebody who is *looking at a trip* pick that trip out of a list is a
+ * step backwards from the panel this replaced. `list` is what Back selects, and
+ * has to be its own state rather than a null trip — otherwise `auto` would
+ * immediately put the reader back where they just left.
+ */
+type DockView =
+  { kind: "auto" } | { kind: "list" } | { kind: "trip"; tripId: string };
 
 /** Open a board's chat from anywhere — the lane's "Discuss" action. */
 export function useChatDock(): ChatDockValue {
@@ -81,21 +116,25 @@ export function useChatDock(): ChatDockValue {
 
 function Dock({
   open,
-  setOpen,
-  tripId,
-  setTripId,
+  onClose,
+  onOpen,
+  view,
+  setView,
   requestChannelId,
   onRequestHandled,
 }: {
   open: boolean;
-  setOpen: (next: boolean) => void;
-  tripId: string | null;
-  setTripId: (next: string | null) => void;
+  onClose: () => void;
+  onOpen: () => void;
+  view: DockView;
+  setView: (next: DockView) => void;
   requestChannelId: string | null;
   onRequestHandled: () => void;
 }) {
+  // The provider mounts this only when signed in; `user` is read for its id.
   const { user } = useAuth();
-  const { channels, unread } = useSessionSocket();
+  const { channels, unread, refreshRooms } = useSessionSocket();
+  const { pathname } = useLocation();
   // The same query the overview runs, so opening the dock on the boards page
   // costs nothing and opening it elsewhere warms a cache that page will want.
   const home = useHomeDashboard();
@@ -130,10 +169,43 @@ function Dock({
     [channels, unread],
   );
 
-  const selected = conversations.find((trip) => trip.id === tripId) ?? null;
+  /**
+   * The board this reader is looking at, if they are looking at one.
+   *
+   * Read off the route rather than passed down, because the dock lives above
+   * the routes and has no props from the page under it. A path that is not a
+   * board, or a board whose chat this reader cannot read, answers null and the
+   * dock falls back to the list.
+   */
+  const routedTripId = useMemo(() => {
+    const m = /^\/trips\/([0-9a-fA-F-]{36})/.exec(pathname);
+    return m?.[1] ?? null;
+  }, [pathname]);
 
-  // Nothing to dock for a signed-out visitor, and nothing to say either.
-  if (!user) return null;
+  /*
+   * And keep the rooms in step with the boards this session knows about.
+   *
+   * `TripDetail` covers the board you are looking at; this covers the rest,
+   * which is what the dock's badges are counting. Keyed on the *set* of ids
+   * rather than on the query's data, which gets a new identity on every
+   * refetch: the rooms must move when membership does and stay put when a name
+   * or a date changes.
+   */
+  const tripIdKey = conversations
+    .map((trip) => trip.id)
+    .sort()
+    .join(",");
+  useEffect(() => {
+    refreshRooms();
+  }, [tripIdKey, refreshRooms]);
+
+  const selectedId =
+    view.kind === "trip"
+      ? view.tripId
+      : view.kind === "auto"
+        ? routedTripId
+        : null;
+  const selected = conversations.find((trip) => trip.id === selectedId) ?? null;
 
   return (
     <>
@@ -147,7 +219,7 @@ function Dock({
             ? t("Chat, {n} unread", { n: totalUnread })
             : t("Chat")
         }
-        onClick={() => setOpen(!open)}
+        onClick={() => (open ? onClose() : onOpen())}
       >
         <span aria-hidden="true">💬 </span>
         {t("Chat")}
@@ -161,21 +233,25 @@ function Dock({
       {open && selected ? (
         <SelectedTripChat
           trip={selected}
-          myUserId={user.id}
+          myUserId={user?.id ?? ""}
           requestChannelId={requestChannelId}
           onRequestHandled={onRequestHandled}
-          onClose={() => setOpen(false)}
+          onClose={onClose}
           // Only where there is a list worth going back to. On an account with
           // one board, "back" leads to a list of one.
-          onBack={conversations.length > 1 ? () => setTripId(null) : undefined}
+          onBack={
+            conversations.length > 1
+              ? () => setView({ kind: "list" })
+              : undefined
+          }
         />
       ) : open ? (
         <TripList
           conversations={conversations}
           loading={home.isPending}
           unreadFor={unreadFor}
-          onPick={setTripId}
-          onClose={() => setOpen(false)}
+          onPick={(id) => setView({ kind: "trip", tripId: id })}
+          onClose={onClose}
         />
       ) : null}
     </>

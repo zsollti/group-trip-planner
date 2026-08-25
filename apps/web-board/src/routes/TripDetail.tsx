@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { intlTag } from "../lib/locale";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -111,6 +111,27 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
   // It hears every board the reader is on now, so the listener filters on the
   // event's own `tripId`; it always did, which is why this line is unchanged.
   useBoardLiveSync(sessionSocket.socket, id);
+
+  /*
+   * Make sure the socket is actually in this board's room.
+   *
+   * A per-trip socket got this by construction: opening a board *was* the
+   * handshake. One socket per session picks its rooms when it connects, so a
+   * board created — or joined — after that point is one the connection has
+   * never heard of, and the board sits there looking live while nothing
+   * reaches it.
+   *
+   * That is not a hypothetical: it is what the end-to-end journey caught. The
+   * owner signs up (socket connects, no trips yet), *then* creates a board,
+   * and a member's proposal never arrived. One emit per board opened, against
+   * the handshake it replaces; the server re-reads the membership table, so it
+   * grants nothing and an unnecessary call is free.
+   */
+  const { refreshRooms } = sessionSocket;
+  useEffect(() => {
+    if (!id) return;
+    refreshRooms();
+  }, [id, refreshRooms]);
 
   async function onDelete() {
     setActionError(null);
