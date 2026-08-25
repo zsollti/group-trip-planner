@@ -343,9 +343,11 @@ describe("CostTally", () => {
     // edit that failed to save.
     renderTally(dashboard({ budgetPerPerson: 800 }));
     expect(await screen.findByText("Target")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Lock a priced option to start the tally/),
-    ).toBeInTheDocument();
+    // The empty ring is the whole of the empty state now: the line of
+    // instruction under it was explaining an empty ring to somebody looking at
+    // an empty ring.
+    expect(document.querySelector(".cost-comp__chart")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/start the tally/);
   });
 
   it("states a locked-but-costless trip once, in the trip's own currency", async () => {
@@ -367,9 +369,9 @@ describe("CostTally", () => {
       }),
     );
 
-    expect(
-      await screen.findByText(/Lock a priced option to start the tally/),
-    ).toBeInTheDocument();
+    // The empty ring, alone: the instruction that used to sit under it is gone.
+    expect(await screen.findByText(/per person/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/start the tally/);
     // The ring's own caption, which is the *only* "per person" left — the
     // headline's separate restatement of the same zero is gone. Two matches at
     // most, both belonging to the ring: its figure and its label.

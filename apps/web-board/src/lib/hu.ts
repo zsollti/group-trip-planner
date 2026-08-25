@@ -254,8 +254,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Loading your boards…": "Tábláid betöltése…",
   "Loading your settings…": "Beállításaid betöltése…",
   "Loading…": "Betöltés…",
-  "Lock a priced option to start the tally.":
-    "Rögzíts egy árazott javaslatot, és elindul az összesítés.",
   "Lock card": "Kártya rögzítése",
   "Log out": "Kijelentkezés",
   "Looking…": "Keresés…",
