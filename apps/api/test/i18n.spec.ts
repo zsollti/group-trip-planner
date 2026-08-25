@@ -346,6 +346,24 @@ describe("the Hungarian catalogue", () => {
     );
   });
 
+  it("carries no translation for a message the API no longer sends", () => {
+    // The direction none of the three above ask. Each checks that some
+    // inventory is covered *by* this file; none checks that this file is
+    // covered by the inventories — so a reworded exception leaves its old
+    // Hungarian behind, translating a sentence nothing can produce any more,
+    // and the next person to reuse that English silently inherits it. The board
+    // catalogue had exactly one of these sitting in it for months.
+    const known = new Set<string>([
+      ...SERVER_MESSAGES,
+      ...EMAIL_MESSAGES,
+      ...SEED_MESSAGES,
+    ]);
+    assert.deepEqual(
+      Object.keys(hu).filter((k) => !known.has(k)),
+      [],
+    );
+  });
+
   it("translates every lane a new trip is seeded with", () => {
     // Seeded data rather than a sentence, and the failure is quieter than the
     // others: a missing entry does not fall back to English *once*, it writes
