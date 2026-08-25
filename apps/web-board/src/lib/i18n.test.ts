@@ -231,6 +231,18 @@ describe("the Hungarian catalogue", () => {
     expect(UI_MESSAGES.filter((m) => !(m in hu))).toEqual([]);
   });
 
+  it("carries no translation for a string the board no longer has", () => {
+    // The direction nothing checked, and it had already let one through: a
+    // `Budget` entry outlived the Budget lane by months, because the checks
+    // above only ever compared `UI_MESSAGES` against the code and this file
+    // against `UI_MESSAGES`. Nothing asked the question the other way round, so
+    // a key could sit here indefinitely translating a sentence the board had
+    // stopped saying — and the next person to reuse that English would silently
+    // inherit whatever it had been translated to years earlier.
+    const known = new Set<string>(UI_MESSAGES);
+    expect(Object.keys(hu).filter((k) => !known.has(k))).toEqual([]);
+  });
+
   it("keeps every placeholder the English carried", () => {
     // The one translator error a reader cannot recover from: drop {n} and the
     // sentence quietly stops naming the number it is about.
