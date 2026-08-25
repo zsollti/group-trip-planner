@@ -9,7 +9,6 @@ import {
   useSetTripMute,
   useTrip,
   useTripCategories,
-  useTripSocket,
 } from "@gtp/api-client";
 import {
   can,
@@ -30,8 +29,9 @@ import { Menu, type MenuItem } from "../components/Menu";
 import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
+import { useSessionSocket } from "../components/SessionSocketProvider";
+import { useChatDock } from "../components/ChatDock";
 import { NotificationToasts } from "../components/NotificationToasts";
-import { ChatPanel } from "../components/ChatPanel";
 import { TourSteps } from "../components/Tour";
 import { boardTourSteps } from "../lib/tour";
 import { Dialog } from "../components/Dialog";
@@ -83,7 +83,9 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // A channel a lane's "Discuss" action asked the chat panel to open (null = idle).
-  const [openChannelId, setOpenChannelId] = useState<string | null>(null);
+  // Opening a lane's discussion is the dock's job now — this screen names the
+  // channel and the dock decides what that means.
+  const { openChannel } = useChatDock();
   const categories = useTripCategories(id);
   /*
    * The tour's steps, built once per mount.
@@ -95,11 +97,20 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
    * component rather than at module scope (see `lib/i18n`).
    */
   const tourSteps = useMemo(boardTourSteps, []);
-  // One trip socket for the whole screen, shared by the live indicator + chat.
-  const tripSocket = useTripSocket(id);
+  /*
+   * The session's socket, not this screen's.
+   *
+   * It used to open one here and close it on the way out, which is exactly what
+   * made the chat belong to this page. The board still needs it — for the live
+   * indicator and for the lane sync below — but it no longer owns it, and
+   * leaving this screen no longer costs a handshake.
+   */
+  const sessionSocket = useSessionSocket();
   // Keep the board live: refetch lanes/cost when anyone proposes, votes, or an
   // organizer locks/unlocks — pushed over the same socket (Phase 4.5 retrofit).
-  useBoardLiveSync(tripSocket.socket, id);
+  // It hears every board the reader is on now, so the listener filters on the
+  // event's own `tripId`; it always did, which is why this line is unchanged.
+  useBoardLiveSync(sessionSocket.socket, id);
 
   async function onDelete() {
     setActionError(null);
@@ -215,15 +226,15 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
        * testing a race. The state exists either way; this is the seam that
        * keeps it observable without spending a corner of the header on it.
        */}
-      <header className="board__bar" data-socket-status={tripSocket.status}>
+      <header className="board__bar" data-socket-status={sessionSocket.status}>
         <Brand />
         <div className="board__bar-actions">
-          {trip.data ? <LiveIndicator status={tripSocket.status} /> : null}
+          {trip.data ? <LiveIndicator status={sessionSocket.status} /> : null}
           {/* Only the toasts sit here now — the list itself is in the account
               menu. The socket's personal room carries notifications for every
               trip the user belongs to, not just this one (Phase 5.1,
               decision 1). */}
-          <NotificationToasts socket={tripSocket.socket} />
+          <NotificationToasts socket={sessionSocket.socket} />
           {/* Invite used to sit here. It is in the crew panel now, beside the
               list of who is already on the trip — the header was a screen away
               from the only thing inviting changes. */}
@@ -387,7 +398,7 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                     myUserId={user?.id}
                     frozen={trip.data.status === "HISTORY"}
                     tripDates={tripDateRange(trip.data)}
-                    onOpenChannel={setOpenChannelId}
+                    onOpenChannel={(channelId) => openChannel(id!, channelId)}
                   />
                 )}
               </div>
@@ -435,24 +446,12 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
            */}
           <TourSteps steps={tourSteps} autoStart />
 
-          {/* No chat surface at all for a role that has no chat (post-launch).
-              Not merely a disabled composer: a Guest cannot read the transcript
-              either, and the server agrees — the message routes are gated on
-              `message.read` and the socket's chat room is one a Guest never
-              joins. Rendering the panel would be a shell asking for data it
-              would be refused. */}
-          {can(trip.data.role, "message.read") ? (
-            <ChatPanel
-              tripId={trip.data.id}
-              tripName={trip.data.name}
-              tripSocket={tripSocket}
-              categories={categories.data ?? []}
-              myRole={trip.data.role}
-              myUserId={user?.id}
-              requestChannelId={openChannelId}
-              onRequestHandled={() => setOpenChannelId(null)}
-            />
-          ) : null}
+          {/* The chat used to be rendered here, gated on `message.read`. Both
+              the rendering and the gate moved to the dock, which is mounted
+              above the routes and applies the same rule per board — a Guest is
+              a member who cannot read the transcript, the server agrees (their
+              channels never reach the ready payload), and a board they cannot
+              read simply does not appear in the dock's list. */}
 
           {confirmingLeave ? (
             <Dialog

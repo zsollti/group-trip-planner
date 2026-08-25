@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import {
   CHANNEL_CREATED_EVENT,
+  ROOMS_REFRESH_EVENT,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
   MESSAGE_NEW_EVENT,
@@ -48,11 +49,17 @@ export type SocketStatus = "idle" | "connecting" | "connected" | "error";
  */
 export type LiveSocket = Socket;
 
-export interface TripSocket {
+export interface SessionSocket {
   status: SocketStatus;
-  /** The channels the member can see, from the server's ready payload. */
+  /**
+   * Every channel the reader can see, across every board they are on.
+   *
+   * It used to be one trip's worth, because the socket was one trip's worth.
+   * Each carries its own `tripId`, which is what lets a caller that only cares
+   * about one board filter for it — and what lets the dock group them.
+   */
   channels: ChannelView[];
-  /** Per-channel unread counts (channelId → count), live. */
+  /** Per-channel unread counts (channelId → count), live and cross-trip. */
   unread: Record<string, number>;
   /** The live socket (null until connecting) — 4.2+ send/receive over this. */
   socket: Socket | null;
@@ -61,35 +68,58 @@ export interface TripSocket {
   /** Set the channel the user is currently viewing (null when none): live
    * messages for it don't bump unread, and it is marked read on focus. */
   setActiveChannel: (channelId: string | null) => void;
+  /**
+   * Re-run the server's room join, after this session's membership has moved.
+   *
+   * The rooms a connection can hear are decided when it connects, and a
+   * session-long connection outlives joining a board or being removed from one.
+   * A per-trip socket never needed this: navigating re-handshook it.
+   */
+  refreshRooms: () => void;
 }
 
 /**
- * Open an authenticated socket to the trip room for the lifetime of the trip
- * screen (Phase 4.1, +unread in 4.4). The in-memory access token authenticates
- * the handshake; if it's rejected (commonly an expired token) we refresh **once**
+ * One authenticated socket for the whole signed-in session.
+ *
+ * It was one per open trip, which made a conversation a property of the page
+ * you were standing on. The handshake carries only the access token now; the
+ * server joins the rooms of every board this reader belongs to and answers with
+ * all of their channels and unread counts at once.
+ *
+ * If the token is rejected — commonly because it expired — we refresh **once**
  * via the cookie and reconnect, mirroring the REST 401-refresh-and-retry.
- * Socket.IO's own bounded reconnection covers transient drops. The ready payload
- * seeds per-channel unread counts (refreshed on every reconnect); an incoming
- * message bumps the unread of any channel the user isn't currently viewing. The
- * socket disconnects and cleans up on unmount or a `tripId` change.
+ * Socket.IO's own bounded reconnection covers transient drops, and the server
+ * re-sends the ready payload on each one, so unread counts are never stale for
+ * longer than a reconnect.
+ *
+ * Mounted once, above the routes: the effect has no dependencies, so navigating
+ * between boards no longer tears a connection down and builds another.
  */
-export function useTripSocket(tripId: string | undefined): TripSocket {
+export function useUserSocket(enabled: boolean): SessionSocket {
   const [status, setStatus] = useState<SocketStatus>("idle");
   const [channels, setChannels] = useState<ChannelView[]>([]);
   const [unread, setUnread] = useState<Record<string, number>>({});
   const socketRef = useRef<Socket | null>(null);
   const activeChannelRef = useRef<string | null>(null);
+  /**
+   * Which board each channel is on, for the read-cursor call.
+   *
+   * The route is `/trips/:tripId/channels/:channelId/read` and the caller only
+   * has a channel id — it used to have the trip because the whole hook did. A
+   * ref rather than reading `channels` directly, so `markChannelRead` keeps a
+   * stable identity: it is a dependency of `setActiveChannel`, which the panel
+   * calls from an effect.
+   */
+  const tripOfChannel = useRef(new Map<string, string>());
 
-  const markChannelRead = useCallback(
-    (channelId: string) => {
-      setUnread((u) => ({ ...u, [channelId]: 0 }));
-      if (!tripId) return;
-      void apiFetch(`/trips/${tripId}/channels/${channelId}/read`, {
-        method: "POST",
-      }).catch(() => undefined);
-    },
-    [tripId],
-  );
+  const markChannelRead = useCallback((channelId: string) => {
+    setUnread((u) => ({ ...u, [channelId]: 0 }));
+    const tripId = tripOfChannel.current.get(channelId);
+    if (!tripId) return;
+    void apiFetch(`/trips/${tripId}/channels/${channelId}/read`, {
+      method: "POST",
+    }).catch(() => undefined);
+  }, []);
 
   const setActiveChannel = useCallback(
     (channelId: string | null) => {
@@ -99,16 +129,29 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
     [markChannelRead],
   );
 
+  const refreshRooms = useCallback(() => {
+    socketRef.current?.emit(ROOMS_REFRESH_EVENT);
+  }, []);
+
+  // Every channel the session knows about, indexed by the board it is on. Kept
+  // in step with `channels` rather than derived at call time, because the
+  // callback that reads it must not change identity when a message arrives.
   useEffect(() => {
-    if (!tripId) {
+    tripOfChannel.current = new Map(channels.map((c) => [c.id, c.tripId]));
+  }, [channels]);
+
+  useEffect(() => {
+    if (!enabled) {
       setStatus("idle");
+      setChannels([]);
+      setUnread({});
       return;
     }
     let cancelled = false;
     let triedRefresh = false;
 
     const socket = io(getApiBaseUrl(), {
-      auth: { token: getAccessToken() ?? "", tripId },
+      auth: { token: getAccessToken() ?? "" },
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -169,7 +212,7 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
         const refreshed = await refreshAccessToken();
         if (cancelled) return;
         if (refreshed) {
-          socket.auth = { token: getAccessToken() ?? "", tripId };
+          socket.auth = { token: getAccessToken() ?? "" };
           socket.connect();
         } else {
           setStatus("error");
@@ -184,7 +227,7 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
       socketRef.current = null;
       setStatus("idle");
     };
-  }, [tripId]);
+  }, [enabled]);
 
   return {
     status,
@@ -193,6 +236,7 @@ export function useTripSocket(tripId: string | undefined): TripSocket {
     socket: socketRef.current,
     markChannelRead,
     setActiveChannel,
+    refreshRooms,
   };
 }
 
@@ -231,8 +275,11 @@ let tempCounter = 0;
  *  - **delete** emits; the server tombstones and broadcasts `message:deleted`
  *    to the whole room, which flips the message to a tombstone in place.
  *
- * `messages` is ordered oldest → newest for display. Passing the socket in (from
- * {@link useTripSocket}) keeps one connection per trip shared with the indicator.
+ * `messages` is ordered oldest → newest for display. The socket is passed in
+ * (from {@link useUserSocket}) — one connection for the session, shared with the
+ * indicator and every other channel. That sharing is why the live handlers below
+ * filter on `channelId`: this controller now hears traffic from every board the
+ * reader is on, and only one channel of it is the one on screen.
  */
 export function useChat(
   socket: Socket | null,

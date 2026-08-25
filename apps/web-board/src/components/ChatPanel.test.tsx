@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { CategoryView, ChannelView } from "@gtp/types";
-import { createQueryClient, type TripSocket } from "@gtp/api-client";
+import { createQueryClient, type SessionSocket } from "@gtp/api-client";
 import { ChatPanel } from "./ChatPanel";
 
 /**
@@ -72,7 +72,7 @@ const categories = [
 
 const selectedChannels: string[] = [];
 
-function socket(): TripSocket {
+function socket(): SessionSocket {
   return {
     status: "connected",
     channels: [
@@ -90,9 +90,10 @@ function socket(): TripSocket {
     unread: {},
     socket: null,
     markChannelRead: () => {},
-    setActiveChannel: (id) => {
+    setActiveChannel: (id: string | null) => {
       if (id) selectedChannels.push(id);
     },
+    refreshRooms: () => {},
   };
 }
 
@@ -103,7 +104,8 @@ function renderPanel(channels?: ChannelView[]) {
       <ChatPanel
         tripId={TRIP_ID}
         tripName="Lisbon 2026"
-        tripSocket={channels ? { ...base, channels } : base}
+        sessionSocket={channels ? { ...base, channels } : base}
+        onClose={() => {}}
         categories={categories}
         myRole="PARTICIPANT"
         myUserId="u1"
@@ -124,7 +126,6 @@ describe("chat channel switcher overflow", () => {
       }),
     );
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
   });
 
   it("collapses every channel that does not fit behind one trigger", () => {
@@ -183,7 +184,6 @@ describe("a deleted message", () => {
       }),
     );
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
   }
 
   function tomb(over: Record<string, unknown>) {
@@ -273,7 +273,6 @@ describe("chat channel switcher order", () => {
       channel(2, "2026-08-25T12:00:00.000Z"),
       channel(3, "2026-08-25T10:00:00.000Z"),
     ]);
-    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
 
     // The one chip that fits is General; the rest are in the menu, in order.
     expect(
@@ -302,7 +301,6 @@ describe("chat channel switcher order", () => {
       channel(2, "2026-08-25T12:00:00.000Z"),
       channel(3, "2026-08-25T10:00:00.000Z"),
     ]);
-    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
 
     const talkative = {
       ...socket(),
@@ -325,7 +323,8 @@ describe("chat channel switcher order", () => {
         <ChatPanel
           tripId={TRIP_ID}
           tripName="Lisbon 2026"
-          tripSocket={talkative}
+          sessionSocket={talkative}
+          onClose={() => {}}
           categories={categories}
           myRole="PARTICIPANT"
           myUserId="u1"
@@ -395,7 +394,6 @@ describe("the @mention list", () => {
 
   it("offers everyone but the person typing", async () => {
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
 
     // Both names begin "Z", so a filter that only matched the query would keep
     // them both — this is the viewer being excluded, not the prefix.

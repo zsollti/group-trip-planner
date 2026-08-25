@@ -117,9 +117,9 @@ export {
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
 export { useStartDiscussion } from "./channels.js";
-export { useTripSocket, useChat, useBoardLiveSync } from "./socket.js";
+export { useUserSocket, useChat, useBoardLiveSync } from "./socket.js";
 export type {
-  TripSocket,
+  SessionSocket,
   SocketStatus,
   ChatMessage,
   ChatController,
