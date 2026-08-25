@@ -882,6 +882,113 @@ body {
   letter-spacing: 0.02em;
   user-select: none;
 }
+/* A drawn mark sits on exactly the same circle as the initials it replaces —
+   same hue, same fill — so one person keeps one colour whichever they wear. */
+.avatar--preset {
+  letter-spacing: 0;
+}
+
+/* --- Choosing which circle of a picture is the avatar ----------------------- */
+.cropper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+.cropper__stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--board-bg);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.cropper__stage:active {
+  cursor: grabbing;
+}
+.cropper__stage:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+.cropper__image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  pointer-events: none;
+}
+/* The circle is a hole in a cover, drawn with one radial stop rather than by
+   clipping the picture: what falls outside stays visible and dimmed, which is
+   the only thing that tells the reader there is more picture to drag. */
+.cropper__mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 0,
+    transparent calc(50% - 1px),
+    rgb(var(--board-shadow) / 0.55) calc(50% - 1px)
+  );
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5);
+}
+.cropper__zoom {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+}
+.cropper__zoom input {
+  width: 100%;
+  accent-color: var(--board-accent);
+}
+
+/* --- The drawn marks, to pick one from -------------------------------------- */
+.presets {
+  margin-top: 1rem;
+}
+.presets__grid {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  /* Auto-fit rather than a fixed count: the panel is one column on a phone and
+     comfortably wider on a laptop, and twelve marks should reflow rather than
+     scroll. */
+  grid-template-columns: repeat(auto-fit, minmax(3.4rem, 1fr));
+  gap: 0.5rem;
+}
+.presets__swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  /* The reader's own generated colour, so the grid previews the real avatar
+     rather than a set of neutral icons that change once chosen. */
+  background: hsl(var(--avatar-hue, 210) 45% 32%);
+  color: #fff;
+}
+.presets__swatch:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+.presets__swatch:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+}
+.presets__swatch--current {
+  border-color: var(--board-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--board-accent) 30%, transparent);
+}
+.presets__swatch:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
 
 .board__member-identity {
   display: flex;

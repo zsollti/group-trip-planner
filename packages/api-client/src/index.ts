@@ -69,6 +69,7 @@ export {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
   useSetAvatar,
+  useSetAvatarPreset,
   useRemoveAvatar,
   useUpdateProfile,
 } from "./account.js";

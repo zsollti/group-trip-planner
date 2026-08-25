@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@gtp/ui-primitives";
+import { AvatarCropper } from "./AvatarCropper";
 import { t } from "../lib/i18n";
 
 /** Mirrors the server's allowlist so the file dialog offers the right filter.
@@ -15,6 +16,12 @@ const ACCEPT = "image/jpeg,image/png,image/webp";
  * replaces what you are looking at. That matters because uploading is the
  * expensive, rate-limited operation — a preview that uploaded first would burn
  * budget on pictures the user was only trying out.
+ *
+ * **The circle is chosen, where there is one.** With `cropCircle`, a picked file
+ * goes through {@link AvatarCropper} before it becomes the pending pick, so what
+ * is previewed and what is uploaded are both the square the reader framed. The
+ * trip cover does not ask for it: a cover is drawn as a wide strip and is not
+ * cropped to a circle by anything, so there would be nothing to choose.
  *
  * **Two shapes, one component.** Given `onSave` it commits its own pick with its
  * own button, which is what the account page wants: the avatar panel is the only
@@ -34,6 +41,7 @@ export function ImagePicker({
   onPick,
   onRemove,
   removed = false,
+  cropCircle = false,
 }: {
   label: string;
   /** How to frame the preview — a round avatar or a wide cover strip. */
@@ -51,10 +59,15 @@ export function ImagePicker({
   onRemove?: () => void;
   /** In `onPick` mode: the existing image is staged for removal on save. */
   removed?: boolean;
+  /** Let the reader choose which circle of the picture this is. */
+  cropCircle?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // A file chosen but not yet framed. Deliberately not `pending`: nothing is
+  // previewed or committed until the reader has said which circle they meant.
+  const [cropping, setCropping] = useState<File | null>(null);
 
   // Object URLs are a manual resource: revoke the old one whenever the pick
   // changes or the component goes away, or the page leaks a blob per attempt.
@@ -73,12 +86,32 @@ export function ImagePicker({
   const shown = previewUrl ?? (removed ? null : currentUrl);
 
   function pick(file: File | null) {
+    if (file && cropCircle) {
+      setCropping(file);
+      return;
+    }
     setPending(file);
     onPick?.(file);
   }
 
   return (
     <div className="picker">
+      {cropping ? (
+        <AvatarCropper
+          file={cropping}
+          onCancel={() => {
+            setCropping(null);
+            // Clear the input too, or choosing the same file again is a change
+            // event the browser never fires and a picker that appears stuck.
+            if (inputRef.current) inputRef.current.value = "";
+          }}
+          onCropped={(cropped) => {
+            setCropping(null);
+            setPending(cropped);
+            onPick?.(cropped);
+          }}
+        />
+      ) : null}
       <p className="picker__label">{label}</p>
 
       <div className={`picker__frame picker__frame--${shape}`}>

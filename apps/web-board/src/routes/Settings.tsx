@@ -6,14 +6,22 @@ import {
   useNotificationPreferences,
   useRemoveAvatar,
   useSetAvatar,
+  useSetAvatarPreset,
   useUpdateNotificationPreferences,
 } from "@gtp/api-client";
-import { LOCALES, LOCALE_LABEL, type Locale } from "@gtp/types";
+import {
+  avatarPresetOf,
+  LOCALES,
+  LOCALE_LABEL,
+  type AvatarPreset,
+  type Locale,
+} from "@gtp/types";
 import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { useLocale } from "../lib/useLocale";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
 import { ImagePicker } from "../components/ImagePicker";
+import { AvatarPresetPicker } from "../components/AvatarPresetPicker";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { t, tNode } from "../lib/i18n";
@@ -33,10 +41,20 @@ export function Settings() {
   const prefs = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
   const setAvatar = useSetAvatar();
+  const setAvatarPreset = useSetAvatarPreset();
   const removeAvatar = useRemoveAvatar();
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  // One column carries both, so the uploader's idea of "the current picture"
+  // has to exclude the drawn marks — `preset:tent` is not an address it could
+  // ever render. See the contract's `avatar.ts`.
+  const uploadedAvatar = avatarPresetOf(user?.avatarUrl)
+    ? null
+    : (user?.avatarUrl ?? null);
+  const busyAvatar =
+    setAvatar.isPending || setAvatarPreset.isPending || removeAvatar.isPending;
 
   // Both avatar paths answer with the updated user, which goes straight into
   // the session so the header, chat and crew list follow without a refetch.
@@ -49,6 +67,19 @@ export function Settings() {
         err instanceof ApiError
           ? err.message
           : t("Couldn't upload that picture. Please try again."),
+      );
+    }
+  }
+
+  async function wearPreset(preset: AvatarPreset) {
+    setAvatarError(null);
+    try {
+      applyUser(await setAvatarPreset.mutateAsync(preset));
+    } catch (err) {
+      setAvatarError(
+        err instanceof ApiError
+          ? err.message
+          : t("Couldn't set that picture. Please try again."),
       );
     }
   }
@@ -105,9 +136,17 @@ export function Settings() {
           <ImagePicker
             label={t("Your picture")}
             shape="square"
-            currentUrl={user?.avatarUrl ?? null}
-            busy={setAvatar.isPending || removeAvatar.isPending}
+            // A `preset:` value is not an address the preview can load, so the
+            // uploader is told there is no picture — which is true of the thing
+            // *it* manages. The mark itself is shown by the grid below, where
+            // it is also the current selection.
+            currentUrl={uploadedAvatar}
+            busy={busyAvatar}
             error={avatarError}
+            // The circle is chosen before the upload: the server resizes to fit
+            // and CSS then crops to the middle, so an off-centre face used to
+            // become a picture of a shoulder.
+            cropCircle
             onSave={(file) => void saveAvatar(file)}
             onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
           />
@@ -116,6 +155,12 @@ export function Settings() {
               "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.",
             )}
           </p>
+          <AvatarPresetPicker
+            userId={user?.id}
+            currentUrl={user?.avatarUrl ?? null}
+            busy={busyAvatar}
+            onPick={(preset) => void wearPreset(preset)}
+          />
         </section>
 
         {prefs.isPending ? (

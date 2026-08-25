@@ -8,7 +8,9 @@ import {
 import type {
   AccountDeletionImpact,
   AuthUser,
+  AvatarPreset,
   NotificationPreferences,
+  SetAvatarPresetInput,
   UpdateNotificationPreferencesInput,
   UpdateProfileInput,
 } from "@gtp/types";
@@ -124,6 +126,29 @@ export function useSetAvatar(): UseMutationResult<AuthUser, ApiError, File> {
         body: form,
       });
     },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: memberKeys.all });
+    },
+  });
+}
+
+/**
+ * Wear one of the drawn marks instead of a picture. Answers with the updated
+ * user, like the upload — and invalidates the member lists for the same reason:
+ * every crew row and chat line shows this mark through a join.
+ */
+export function useSetAvatarPreset(): UseMutationResult<
+  AuthUser,
+  ApiError,
+  AvatarPreset
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (preset: AvatarPreset) =>
+      apiFetch<AuthUser>("/account/avatar/preset", {
+        method: "PUT",
+        body: { preset } satisfies SetAvatarPresetInput,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: memberKeys.all });
     },

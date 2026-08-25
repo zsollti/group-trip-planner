@@ -65,7 +65,7 @@ export function getAccessToken(): string | null {
 }
 
 export interface ApiFetchInit {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 }

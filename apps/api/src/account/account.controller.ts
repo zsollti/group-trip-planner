@@ -8,6 +8,7 @@ import {
   Inject,
   Patch,
   Post,
+  Put,
   Res,
   UploadedFile,
   UseGuards,
@@ -18,6 +19,7 @@ import type { Response } from "express";
 import type { User } from "@prisma/client";
 import {
   DeleteAccountInput,
+  SetAvatarPresetInput,
   UpdateNotificationPreferencesInput,
   UpdateProfileInput,
   type AccountDeletionImpact,
@@ -103,6 +105,24 @@ export class AccountController {
       throw new BadRequestException("No file was uploaded (field name: file).");
     }
     return this.account.setAvatar(user, file);
+  }
+
+  /**
+   * Wear one of the drawn marks instead of a photograph (`AVATAR_PRESETS`).
+   *
+   * A separate route rather than a field on `PATCH /account/profile`: this one
+   * *deletes* whatever picture was there, which is a different kind of act from
+   * the profile patch's plain column writes, and it is the same act the DELETE
+   * below performs. Verified-email gated like the upload it replaces.
+   */
+  @Put("avatar/preset")
+  @UseGuards(JwtAuthGuard, VerifiedEmailGuard)
+  setAvatarPreset(
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(SetAvatarPresetInput))
+    body: SetAvatarPresetInput,
+  ): Promise<AuthUser> {
+    return this.account.setAvatarPreset(user, body.preset);
   }
 
   /** Remove the avatar, deleting the stored object with it. */
