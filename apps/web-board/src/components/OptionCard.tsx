@@ -109,7 +109,13 @@ export function OptionCard({
 
   const items: MenuItem[] = [];
   items.push({ label: t("View details"), onSelect: openView });
-  if (manageable && !frozen && !locked && onEdit) {
+  // Locked is no longer a reason to withhold Edit or Delete. It used to be:
+  // both were hidden on a decided card and the server answered an edit with
+  // "unlock it first", which sounds protective and is really a detour —
+  // correcting the price on a hotel the group has settled on meant throwing
+  // the decision away (and, in the Dates lane, the trip's dates with it) and
+  // rebuilding it afterwards from memory.
+  if (manageable && !frozen && onEdit) {
     items.push({ label: t("Edit"), onSelect: () => onEdit(option) });
   }
   if (canDecide) {
@@ -125,20 +131,29 @@ export function OptionCard({
           },
     );
   }
-  if (manageable && !frozen && !locked && onDelete) {
+  if (manageable && !frozen && onDelete) {
     items.push({
       label: t("Delete"),
       onSelect: () => onDelete(option),
       danger: true,
       disabled: deleting,
+      // Deleting the decision is a bigger act than deleting a candidate, and
+      // in the Dates lane it takes the trip's own dates with it. Say so on the
+      // item, where the reader is about to press it.
+      note: locked
+        ? category.builtinKey === "DATES"
+          ? t("This is the decision — the trip's dates go with it.")
+          : t("This is the decision. The lane goes back to undecided.")
+        : undefined,
     });
   }
 
   // Click-to-edit / click-to-view (Phase 3.5): the shown parameters open the full
-  // form for those who can edit this option (proposer/organizer, not locked/frozen);
-  // everyone else (incl. locked cards, whose notes are clamped on the board) opens
-  // the read-only detail dialog so the option can still be read in full.
-  const editable = Boolean(onEdit) && manageable && !frozen && !locked;
+  // form for those who can edit this option (proposer/organizer, not frozen);
+  // everyone else opens the read-only detail dialog so the option can still be
+  // read in full. A locked card is editable now, so its fields open the form
+  // like any other card's.
+  const editable = Boolean(onEdit) && manageable && !frozen;
   const openEdit = () => onEdit?.(option);
   const field = (className: string, content: ReactNode) => (
     <button

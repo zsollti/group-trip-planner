@@ -74,6 +74,17 @@ describe("Options (e2e)", () => {
     return (res.body as { id: string }[])[0]!.id;
   }
 
+  /** A seeded lane that is *not* Dates — so locking or editing in it has no
+   *  write-back onto the trip to reason about. */
+  async function nonDatesCategoryId(accessToken: string, tripId: string) {
+    const res = await http()
+      .get(`/trips/${tripId}/categories`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const cats = res.body as { id: string; builtinKey: string | null }[];
+    return cats.find((c) => c.builtinKey !== "DATES")!.id;
+  }
+
   function optionsUrl(tripId: string, categoryId: string) {
     return `/trips/${tripId}/categories/${categoryId}/options`;
   }
@@ -244,10 +255,14 @@ describe("Options (e2e)", () => {
       .expect(404);
   });
 
-  it("a locked option cannot be edited; delete is soft", async () => {
+  it("a locked option can still be edited and deleted; delete is soft", async () => {
+    // It used to be a 409 — "unlock it before editing" — which reads as a
+    // safeguard and works as a detour: correcting the price on something the
+    // group has settled on meant discarding the decision and rebuilding it.
+    // A lane with no date write-back, so the edit stands on its own.
     const owner = await makeUser("l-owner");
     const trip = await createTrip(owner.accessToken, "Locked + Delete");
-    const cat = await firstCategoryId(owner.accessToken, trip.id);
+    const cat = await nonDatesCategoryId(owner.accessToken, trip.id);
 
     const created = await http()
       .post(optionsUrl(trip.id, cat))
@@ -256,16 +271,18 @@ describe("Options (e2e)", () => {
       .expect(201);
     const id = created.body.id as string;
 
-    // Simulate the Phase-2.4 lock directly, then editing is rejected (409).
+    // Simulate the Phase-2.4 lock directly, then edit it in place.
     await prisma.option.update({
       where: { id },
       data: { status: "LOCKED" },
     });
-    await http()
+    const edited = await http()
       .patch(`${optionsUrl(trip.id, cat)}/${id}`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ title: "Sneaky edit", currency: "EUR", version: 0 })
-      .expect(409);
+      .send({ title: "Corrected pick", currency: "EUR", version: 0 })
+      .expect(200);
+    assert.equal(edited.body.title, "Corrected pick");
+    assert.equal(edited.body.status, "LOCKED", "editing does not unlock it");
 
     // Soft-delete: it leaves the list but the row survives with deletedAt set.
     await http()

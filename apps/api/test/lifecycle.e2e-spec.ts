@@ -195,6 +195,151 @@ describe("Lifecycle + Dates write-back (e2e)", () => {
     );
   });
 
+  it("moves the trip when the locked Dates decision is edited", async () => {
+    // Editing a locked option used to be a 409 telling you to unlock first,
+    // which in this lane means throwing the trip's dates away and putting them
+    // back afterwards from memory. It is an edit now — and the trip has to
+    // follow it, or the board and the trip disagree about when the trip is.
+    const owner = await makeUser("de-owner");
+    const trip = await createTrip(owner.accessToken, "Dates edit");
+    const cats = await categories(owner.accessToken, trip.id);
+    const dates = cats.DATES!;
+
+    const startsAt = new Date(Date.now() + 30 * DAY).toISOString();
+    const endsAt = new Date(Date.now() + 37 * DAY).toISOString();
+    const opt = await proposeDates(
+      owner.accessToken,
+      trip.id,
+      dates.id,
+      startsAt,
+      endsAt,
+    );
+    await http()
+      .post(`${optionsUrl(trip.id, dates.id)}/${opt.id}/lock`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ optionVersion: opt.version, categoryVersion: dates.version })
+      .expect(201);
+
+    // Two days longer at the end, edited in place.
+    const newEnd = new Date(Date.now() + 39 * DAY).toISOString();
+    const lockedVersion = (
+      await http()
+        .get(optionsUrl(trip.id, dates.id))
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body[0].version as number;
+    await http()
+      .patch(`${optionsUrl(trip.id, dates.id)}/${opt.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        title: "Trip week",
+        currency: "EUR",
+        startsAt,
+        endsAt: newEnd,
+        version: lockedVersion,
+      })
+      .expect(200);
+
+    const moved = (await getTrip(owner.accessToken, trip.id)).body;
+    assert.equal(
+      new Date(moved.endDate).toISOString().slice(0, 10),
+      newEnd.slice(0, 10),
+    );
+    assert.equal(
+      moved.expiresAt,
+      expiryFromEndDate(Date.parse(newEnd)),
+      "expiry follows the edited end date",
+    );
+  });
+
+  it("refuses an edit that locking itself would have refused, and moves nothing", async () => {
+    // The write-back runs the *same* validation as the lock, so a decision
+    // cannot be edited into a range the lane would never have accepted — and a
+    // rejected edit must leave the trip exactly where it was.
+    const owner = await makeUser("dx-owner");
+    const trip = await createTrip(owner.accessToken, "Dates edit refused");
+    const cats = await categories(owner.accessToken, trip.id);
+    const dates = cats.DATES!;
+
+    const startsAt = new Date(Date.now() + 30 * DAY).toISOString();
+    const endsAt = new Date(Date.now() + 37 * DAY).toISOString();
+    const opt = await proposeDates(
+      owner.accessToken,
+      trip.id,
+      dates.id,
+      startsAt,
+      endsAt,
+    );
+    await http()
+      .post(`${optionsUrl(trip.id, dates.id)}/${opt.id}/lock`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ optionVersion: opt.version, categoryVersion: dates.version })
+      .expect(201);
+    const before = (await getTrip(owner.accessToken, trip.id)).body;
+
+    const lockedVersion = (
+      await http()
+        .get(optionsUrl(trip.id, dates.id))
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body[0].version as number;
+
+    // The dates taken off entirely: the trip would be left claiming a range
+    // nothing on the board still proposes.
+    await http()
+      .patch(`${optionsUrl(trip.id, dates.id)}/${opt.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Trip week", currency: "EUR", version: lockedVersion })
+      .expect(400);
+
+    const after = (await getTrip(owner.accessToken, trip.id)).body;
+    assert.equal(after.startDate, before.startDate);
+    assert.equal(after.endDate, before.endDate);
+    assert.equal(after.expiresAt, before.expiresAt);
+  });
+
+  it("takes the trip's dates with the deleted Dates decision", async () => {
+    // Deleting a locked option was always allowed by the server — only the
+    // board hid the action. What was missing was this: the trip kept the start,
+    // end and expiry that decision had written onto it, with nothing on the
+    // board still claiming them.
+    const owner = await makeUser("dd-owner");
+    const trip = await createTrip(owner.accessToken, "Dates delete");
+    const cats = await categories(owner.accessToken, trip.id);
+    const dates = cats.DATES!;
+
+    const beforeExpiry = (await getTrip(owner.accessToken, trip.id)).body
+      .expiresAt as string;
+    const startsAt = new Date(Date.now() + 30 * DAY).toISOString();
+    const endsAt = new Date(Date.now() + 37 * DAY).toISOString();
+    const opt = await proposeDates(
+      owner.accessToken,
+      trip.id,
+      dates.id,
+      startsAt,
+      endsAt,
+    );
+    await http()
+      .post(`${optionsUrl(trip.id, dates.id)}/${opt.id}/lock`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ optionVersion: opt.version, categoryVersion: dates.version })
+      .expect(201);
+
+    await http()
+      .delete(`${optionsUrl(trip.id, dates.id)}/${opt.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(204);
+
+    const after = (await getTrip(owner.accessToken, trip.id)).body;
+    assert.equal(after.startDate, null);
+    assert.equal(after.endDate, null);
+    // The same fallback unlocking reverts to, not the end-date-derived expiry.
+    assert.notEqual(after.expiresAt, expiryFromEndDate(Date.parse(endsAt)));
+    assert.ok(
+      Math.abs(Date.parse(after.expiresAt) - Date.parse(beforeExpiry)) < DAY,
+    );
+  });
+
   it("rejects locking a Dates option with past or over-horizon dates (400)", async () => {
     const owner = await makeUser("dr-owner");
     const trip = await createTrip(owner.accessToken, "Bad dates");

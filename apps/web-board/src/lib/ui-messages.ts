@@ -451,6 +451,8 @@ export const UI_MESSAGES = [
   "This board has ended — it's now read-only. Proposing, dot-voting, and locking are closed.",
   "This deployment",
   "This deployment has no console configured for you.",
+  "This is the decision — the trip's dates go with it.",
+  "This is the decision. The lane goes back to undecided.",
   "This link is invalid or has expired. Sign in to request a new one.",
   "This permanently deletes your account and personal data. It can't be undone.",
   "This permanently removes the board and its membership for everyone. This can't be undone.",

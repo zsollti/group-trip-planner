@@ -518,7 +518,9 @@ export function useBoardLiveSync(
         void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
       }
       if (kind === "decision") {
-        // Only locking or unlocking a Dates option writes the trip's own dates.
+        // The trip's own dates move with the Dates lane's decision — locking or
+        // unlocking one, and now also editing or deleting one that is already
+        // locked, since both of those write the trip's dates too.
         void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       }
     };

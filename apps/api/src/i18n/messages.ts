@@ -85,7 +85,6 @@ export const SERVER_MESSAGES = [
   "This invite link is invalid.",
   "This option can no longer be locked. Reload to see the current state.",
   "This option is already locked. Reload to see the current decision.",
-  "This option is locked. Unlock it before editing.",
   "This option is priced for the whole trip, so everyone is already in.",
   "This option isn't locked as you last saw it. Reload to see the current state.",
   "This option was changed since you opened it. Reload to see the latest.",
