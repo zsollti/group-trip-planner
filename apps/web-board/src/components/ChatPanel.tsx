@@ -674,7 +674,7 @@ export function ChatPanel({
             {chat.messages.length === 0 ? (
               <p className="board__muted">
                 {t(
-                  "No messages yet. Say hello — or @mention someone to pull them in.",
+                  "No messages yet. Say hello, or @mention someone to pull them in.",
                 )}
               </p>
             ) : (

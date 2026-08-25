@@ -56,7 +56,7 @@ export function Login() {
         {oauthFailed ? (
           <p className="board__form-error" role="alert">
             {t(
-              "Google sign-in didn't complete. Your browser may be blocking cookies set by the API — try again, or sign in with your email and password.",
+              "Google sign-in didn't complete. Your browser may be blocking cookies set by the API. Try again, or sign in with your email and password.",
             )}
           </p>
         ) : null}

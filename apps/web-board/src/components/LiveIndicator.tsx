@@ -30,7 +30,7 @@ export function LiveIndicator({ status }: { status: SocketStatus }) {
       aria-live="polite"
     >
       <span className="board__live-dot" aria-hidden="true" />
-      {t("Offline — not updating")}
+      {t("Offline, not updating")}
     </span>
   );
 }

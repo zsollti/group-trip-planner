@@ -142,7 +142,7 @@ export function OptionCard({
       // item, where the reader is about to press it.
       note: locked
         ? category.builtinKey === "DATES"
-          ? t("This is the decision — the trip's dates go with it.")
+          ? t("This is the decision. The trip's dates go with it.")
           : t("This is the decision. The lane goes back to undecided.")
         : undefined,
     });

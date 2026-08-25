@@ -88,7 +88,7 @@ export function Register() {
           </p>
           <p className="board__muted">
             {t(
-              "No sign of it? Have a look in your spam folder — it likes to hide there.",
+              "No sign of it? Have a look in your spam folder. It likes to hide there.",
             )}
           </p>
           <p className="board__alt">

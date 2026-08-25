@@ -89,7 +89,7 @@ export function AvatarPresetPicker({
   return (
     <div className="presets" style={tint}>
       <p className="board__panel-note">
-        {t("Or wear one of these instead — no photo needed.")}
+        {t("Or wear one of these instead. No photo needed.")}
       </p>
 
       {/* The combination, at the size an avatar is actually read at. Two strips

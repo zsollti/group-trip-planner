@@ -36,8 +36,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "Ehhez a szerephez már van általános link. Előbb kapcsold ki, utána csinálhatsz újat.",
   "Category not found": "A sáv nem található",
   "Channel not found": "A csatorna nem található",
-  "Dates has to stay single-choice — the trip runs over one date range.":
-    "A Dátumok sávnak egyválasztósnak kell maradnia — az utazás egyetlen időszakban zajlik.",
+  "Dates has to stay single-choice, because the trip runs over one date range.":
+    "A Dátumok sávnak egyválasztósnak kell maradnia, mert az utazás egy dátumtartományban zajlik.",
   "Google account has no email address.":
     "A Google-fiókhoz nem tartozik e-mail-cím.",
   "Images must be {mb}MB or smaller.": "A kép legfeljebb {mb} MB lehet.",
@@ -75,8 +75,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "A tagnak előbb meg kell erősítenie az e-mail-címét, hogy társszervező lehessen.",
   "That member must verify their email before becoming the owner.":
     "A tagnak előbb meg kell erősítenie az e-mail-címét, hogy tulajdonos lehessen.",
-  "The Dates category can't be deleted — it's the trip's only way to set its dates.":
-    "A Dátumok sáv nem törölhető — csak ezen keresztül lehet megadni az utazás időpontját.",
+  "The Dates category can't be deleted. It's the trip's only way to set its dates.":
+    "A Dátumok sáv nem törölhető. Csak ezen keresztül kaphat dátumot az utazás.",
   "This account has been deleted.": "Ezt a fiókot törölték.",
   "This board is at its limit of {cap} categories. Delete one to add another.":
     "Ez a tábla elérte a {cap} sávos korlátot. Törölj egyet, ha újat szeretnél.",
@@ -143,17 +143,17 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
 
 /** Hungarian for the four emails. Whole sentences, placeholders where values go. */
 export const HU_EMAIL_MESSAGES: Readonly<Record<string, string>> = {
-  "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.":
-    "Nem te regisztráltál? Akkor valaki elgépelte a saját címét — nyugodtan hagyd figyelmen kívül ezt a levelet, semmi nem fog történni.",
+  "Didn't sign up? Then someone mistyped their address. You can ignore this email and nothing will happen.":
+    "Nem te regisztráltál? Akkor valaki elgépelte a címét. Nyugodtan hagyd figyelmen kívül ezt a levelet, nem történik semmi.",
   "One quick thing before you can start planning: confirm this is your email address by pressing the button below.":
     "Már csak egy dolog van hátra, mielőtt tervezni kezdhetnél: az alábbi gombbal erősítsd meg, hogy ez a te e-mail-címed.",
   "Open the invite": "Meghívó megnyitása",
   "Open the trip": "Utazás megnyitása",
-  "Someone tried to register with this email. If it was you, just log in — no new account was created.":
-    "Valaki regisztrálni próbált ezzel az e-mail-címmel. Ha te voltál, egyszerűen jelentkezz be — új fiók nem jött létre.",
+  "Someone tried to register with this email. If it was you, just log in. No new account was created.":
+    "Valaki megpróbált regisztrálni ezzel az e-mail-címmel. Ha te voltál, egyszerűen jelentkezz be. Új fiók nem jött létre.",
   Unsubscribe: "Leiratkozás",
-  "Thanks for signing up — welcome aboard!":
-    "Köszönjük a regisztrációt — üdv a fedélzeten!",
+  "Thanks for signing up, and welcome aboard!":
+    "Köszönjük a regisztrációt, üdv a fedélzeten!",
   "Verify my email": "E-mail-cím megerősítése",
   "Verify your email": "Erősítsd meg az e-mail-címedet",
   "You already have an account": "Már van fiókod",

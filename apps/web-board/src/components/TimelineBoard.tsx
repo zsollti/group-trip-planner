@@ -251,8 +251,8 @@ export function TimelineBoard({
         <p className="tl__banner" role="status">
           {plural(
             days.length,
-            "Showing the first {n} day — something is dated much further out than the rest.",
-            "Showing the first {n} days — something is dated much further out than the rest.",
+            "Showing the first {n} day. Something is dated much further out than the rest.",
+            "Showing the first {n} days. Something is dated much further out than the rest.",
           )}
         </p>
       ) : null}

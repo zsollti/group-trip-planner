@@ -51,7 +51,7 @@ export const SERVER_MESSAGES = [
   "A global link for this role already exists. Disable it first to make a new one.",
   "Category not found",
   "Channel not found",
-  "Dates has to stay single-choice — the trip runs over one date range.",
+  "Dates has to stay single-choice, because the trip runs over one date range.",
   "Google account has no email address.",
   "Images must be {mb}MB or smaller.",
   "Invalid cursor",
@@ -76,7 +76,7 @@ export const SERVER_MESSAGES = [
   "That image couldn't be processed. It may be corrupt.",
   "That member must verify their email before becoming a co-organizer.",
   "That member must verify their email before becoming the owner.",
-  "The Dates category can't be deleted — it's the trip's only way to set its dates.",
+  "The Dates category can't be deleted. It's the trip's only way to set its dates.",
   "This account has been deleted.",
   "This board is at its limit of {cap} categories. Delete one to add another.",
   "This category was changed since you opened it. Reload to see the latest.",
@@ -143,12 +143,12 @@ export const UNTRANSLATED_MESSAGES = ["Cannot "] as const;
  * where a name is bold, the bold travels in the value.
  */
 export const EMAIL_MESSAGES = [
-  "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.",
+  "Didn't sign up? Then someone mistyped their address. You can ignore this email and nothing will happen.",
   "One quick thing before you can start planning: confirm this is your email address by pressing the button below.",
   "Open the invite",
   "Open the trip",
-  "Someone tried to register with this email. If it was you, just log in — no new account was created.",
-  "Thanks for signing up — welcome aboard!",
+  "Someone tried to register with this email. If it was you, just log in. No new account was created.",
+  "Thanks for signing up, and welcome aboard!",
   "Unsubscribe",
   "Verify my email",
   "Verify your email",

@@ -40,7 +40,7 @@ function ParticipantList({
       }
       pendingLabel={t("Not in yet")}
       doneLabel={t("Everyone is in.")}
-      notAskedLabel={t("Guests — not asked to join")}
+      notAskedLabel={t("Guests: not asked to join")}
       onClose={onClose}
     />
   );

@@ -236,7 +236,7 @@ export function OptionForm({
     const found: { description?: string; url?: string } = {};
     if (description.trim().length > OPTION_DESCRIPTION_MAX_LENGTH) {
       found.description = t(
-        "That's {n} characters too long — the notes hold {max}.",
+        "That's {n} characters too long. The notes hold {max}.",
         {
           n: description.trim().length - OPTION_DESCRIPTION_MAX_LENGTH,
           max: OPTION_DESCRIPTION_MAX_LENGTH,
@@ -481,7 +481,7 @@ export function OptionForm({
                 <p className="board__field-note">
                   {participationMode === "OPT_IN"
                     ? tNode(
-                        "The card gets an {control} button, and its cost is split between the people who press it — nobody else pays for it. Everyone can see who is in.",
+                        "The card gets an {control} button, and its cost is split between the people who press it. Nobody else pays for it, and everyone can see who is in.",
                         { control: <strong>{t("I'm in")}</strong> },
                       )
                     : t(

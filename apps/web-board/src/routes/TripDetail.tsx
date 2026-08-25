@@ -342,7 +342,7 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
           {trip.data.status === "HISTORY" ? (
             <p className="board__frozen" role="status">
               {t(
-                "This board has ended — it's now read-only. Proposing, dot-voting, and locking are closed.",
+                "This board has ended and is now read-only. Proposing, dot-voting, and locking are closed.",
               )}
             </p>
           ) : null}

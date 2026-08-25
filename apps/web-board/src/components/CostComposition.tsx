@@ -357,7 +357,7 @@ function Uncounted({ composition }: { composition: Composition }) {
   if (uncounted.length === 0) return null;
   return (
     <p className="cost-comp__uncounted">
-      {t("{currencies} not counted — no rate to convert with", {
+      {t("{currencies} not counted: no rate to convert with", {
         currencies: uncounted.join(", "),
       })}
     </p>

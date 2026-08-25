@@ -25,7 +25,7 @@ export function Unsubscribed() {
             </h1>
             <p className="board__muted">
               {t(
-                "It may have been mistyped or truncated by your mail app. Nothing changed — you can turn mention emails off from notification settings instead.",
+                "It may have been mistyped or truncated by your mail app. Nothing changed. You can turn mention emails off from notification settings instead.",
               )}
             </p>
           </>
@@ -36,7 +36,7 @@ export function Unsubscribed() {
             </h1>
             <p className="board__muted">
               {t(
-                "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails — verifying your address, signing in — are unaffected.",
+                "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails like verifying your address or signing in are unaffected.",
               )}
             </p>
             <p className="board__muted">

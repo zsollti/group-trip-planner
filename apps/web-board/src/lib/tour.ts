@@ -50,7 +50,7 @@ export function boardTourSteps(): readonly TourStep[] {
       anchor: "lane",
       title: t("One lane, one question"),
       body: t(
-        "Every column is something the group has to agree on — when to go, how to get there, where to sleep. Add as many as your trip needs.",
+        "Every column is something the group has to agree on: when to go, how to get there, where to sleep. Add as many as your trip needs.",
       ),
     },
     {
@@ -58,7 +58,7 @@ export function boardTourSteps(): readonly TourStep[] {
       anchor: "propose",
       title: t("Anyone can suggest something"),
       body: t(
-        "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission — you are putting it on the table.",
+        "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission. You are putting it on the table.",
       ),
     },
     {
@@ -98,7 +98,7 @@ export function boardTourSteps(): readonly TourStep[] {
       anchor: "invite",
       title: t("Bring the others in"),
       body: t(
-        "One link is all it takes — no app for them to install. You choose what each link lets someone do.",
+        "One link is all it takes, with no app for them to install. You choose what each link lets someone do.",
       ),
     },
     {
@@ -127,7 +127,7 @@ export function dashboardTourSteps(): readonly TourStep[] {
       anchor: "new-board",
       title: t("A board is one trip"),
       body: t(
-        "Start one here. Everything about that trip — the dates, the flights, the bill, the arguing — lives on its own board.",
+        "Start one here. The dates, the flights, the bill, the arguing: everything about that trip lives on its own board.",
       ),
     },
     {

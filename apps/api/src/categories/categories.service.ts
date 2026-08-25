@@ -160,7 +160,7 @@ export class CategoriesService {
 
     if (!input.singleChoice && !canBeMultiSelect(existing)) {
       throw new ConflictException(
-        "Dates has to stay single-choice — the trip runs over one date range.",
+        "Dates has to stay single-choice, because the trip runs over one date range.",
       );
     }
     if (input.singleChoice && !existing.singleChoice) {
@@ -228,7 +228,7 @@ export class CategoriesService {
     const existing = await this.requireCategory(ctx, categoryId);
     if (!canDeleteCategory(existing)) {
       throw new ConflictException(
-        "The Dates category can't be deleted — it's the trip's only way to set its dates.",
+        "The Dates category can't be deleted. It's the trip's only way to set its dates.",
       );
     }
     await this.prisma.category.delete({ where: { id: existing.id } });

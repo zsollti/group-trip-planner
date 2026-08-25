@@ -75,7 +75,7 @@ export class EmailService {
     const html = renderEmail({
       webAppUrl: this.env.WEB_APP_URL,
       body:
-        p(t("Thanks for signing up — welcome aboard!")) +
+        p(t("Thanks for signing up, and welcome aboard!")) +
         p(
           t(
             "One quick thing before you can start planning: confirm this is your email address by pressing the button below.",
@@ -84,7 +84,7 @@ export class EmailService {
       action: { label: t("Verify my email"), href: link },
       footer: fine(
         t(
-          "Didn't sign up? Then someone mistyped their address — you can ignore this email and nothing will happen.",
+          "Didn't sign up? Then someone mistyped their address. You can ignore this email and nothing will happen.",
         ),
       ),
     });
@@ -163,7 +163,7 @@ export class EmailService {
       // recipient is by definition an address someone else just typed.
       body: p(
         t(
-          "Someone tried to register with this email. If it was you, just log in — no new account was created.",
+          "Someone tried to register with this email. If it was you, just log in. No new account was created.",
         ),
       ),
     });
