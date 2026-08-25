@@ -7,6 +7,7 @@ import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import sharp from "sharp";
+import { avatarPresetOf, avatarPresetUrl } from "@gtp/types";
 import type { AuthUser, TripDetail, TripMembersView } from "@gtp/types";
 import { AppModule } from "../src/app.module.js";
 import { EmailService } from "../src/email/email.service.js";
@@ -169,7 +170,11 @@ describe("Cover + avatar (e2e)", () => {
     const stranger = await makeUser("cover-guard-stranger");
     const trip = await createTrip(owner.accessToken, "Guarded cover");
     await prisma.tripMembership.create({
-      data: { tripId: trip.id, userId: participant.user.id, role: "PARTICIPANT" },
+      data: {
+        tripId: trip.id,
+        userId: participant.user.id,
+        role: "PARTICIPANT",
+      },
     });
 
     await http()
@@ -236,6 +241,75 @@ describe("Cover + avatar (e2e)", () => {
     ).body as AuthUser;
     stored.push(nameOf(second.avatarUrl!));
     assert.equal(await onDisk(firstName), false, "replaced avatar is deleted");
+  });
+
+  it("wears a drawn mark, and deletes the picture it replaces", async () => {
+    // The mark lives in `avatarUrl` behind a `preset:` scheme rather than in a
+    // column of its own — see the contract's `avatar.ts`. Two things have to
+    // hold for that to be safe: the stored value is exactly what the client
+    // will parse back, and choosing a mark is as final as removing the picture,
+    // or the old bytes stay addressable to anyone who kept the URL.
+    const owner = await makeUser("avatar-preset");
+    const trip = await createTrip(owner.accessToken, "Preset trip");
+
+    const uploaded = (
+      await http()
+        .post("/account/avatar")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .attach("file", await png(), {
+          filename: "me.png",
+          contentType: "image/png",
+        })
+        .expect(201)
+    ).body as AuthUser;
+    const uploadedName = nameOf(uploaded.avatarUrl!);
+    stored.push(uploadedName);
+
+    const worn = (
+      await http()
+        .put("/account/avatar/preset")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ preset: "tent" })
+        .expect(200)
+    ).body as AuthUser;
+
+    assert.equal(worn.avatarUrl, avatarPresetUrl("tent"));
+    assert.equal(avatarPresetOf(worn.avatarUrl), "tent");
+    assert.equal(
+      await onDisk(uploadedName),
+      false,
+      "the picture it replaces is deleted",
+    );
+
+    // It reaches the same surfaces an uploaded picture does.
+    const members = (
+      await http()
+        .get(`/trips/${trip.id}/members`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body as TripMembersView;
+    assert.equal(
+      members.members.find((m) => m.userId === owner.user.id)?.avatarUrl,
+      avatarPresetUrl("tent"),
+    );
+
+    // Swapping one mark for another deletes nothing — `discard` is handed a
+    // `preset:` string and `nameFromUrl` makes that a no-op by construction.
+    const swapped = (
+      await http()
+        .put("/account/avatar/preset")
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ preset: "compass" })
+        .expect(200)
+    ).body as AuthUser;
+    assert.equal(swapped.avatarUrl, avatarPresetUrl("compass"));
+
+    // And a key nobody drew is a 400, not a stored value that renders nothing.
+    await http()
+      .put("/account/avatar/preset")
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ preset: "hovercraft" })
+      .expect(400);
   });
 
   it("purges the avatar's bytes when the account is erased (GDPR)", async () => {

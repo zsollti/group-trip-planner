@@ -1,7 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma, User } from "@prisma/client";
 import {
+  avatarPresetUrl,
   planAccountDeletion,
+  type AvatarPreset,
   type AccountDeletionImpact,
   type AuthUser,
   type NotificationPreferences,
@@ -236,6 +238,28 @@ export class AccountService {
         }),
       },
     });
+    return toAuthUser(updated, this.env.ADMIN_EMAILS);
+  }
+
+  /**
+   * Wear one of the drawn marks (`AVATAR_PRESETS`) instead of a picture.
+   *
+   * The preset is stored in `avatarUrl` behind a `preset:` scheme — see the
+   * contract for why there is no second column. The object behind any previous
+   * *upload* is deleted, exactly as removing the avatar would: choosing a tent
+   * is a way of saying "not that photograph any more", and leaving the file on
+   * disk would keep it addressable to anyone who still had the URL.
+   *
+   * `discard` is safe to hand the old value whatever it is — a `preset:` string
+   * is not one of our object URLs, so `nameFromUrl` returns null and it is a
+   * no-op. Switching between two marks deletes nothing.
+   */
+  async setAvatarPreset(user: User, preset: AvatarPreset): Promise<AuthUser> {
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUrl: avatarPresetUrl(preset) },
+    });
+    await this.images.discard(user.avatarUrl);
     return toAuthUser(updated, this.env.ADMIN_EMAILS);
   }
 

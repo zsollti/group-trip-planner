@@ -713,4 +713,18 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Let the fun begin!": "Kezdődjön a móka!",
   "That's the whole thing. Go and plan something.":
     "Ennyi az egész. Menj, és tervezz valamit.",
+  "Choose your circle": "Válaszd ki a kört",
+  "Couldn't set that picture. Please try again.":
+    "Nem sikerült beállítani a képet. Próbáld újra.",
+  "Drag the picture to move it, and use the slider to zoom.":
+    "Húzd a képet a mozgatáshoz, a csúszkával pedig nagyíthatsz.",
+  "Or wear one of these instead — no photo needed.":
+    "Vagy válaszd inkább az egyiket — fotó nélkül is megy.",
+  "Position your picture": "Igazítsd be a képet",
+  "That file couldn't be read as a picture.":
+    "Ezt a fájlt nem sikerült képként megnyitni.",
+  "That picture couldn't be cropped here. Try another one.":
+    "Ezt a képet itt nem sikerült levágni. Próbálj egy másikat.",
+  "Use this": "Ezt választom",
+  Zoom: "Nagyítás",
 };
