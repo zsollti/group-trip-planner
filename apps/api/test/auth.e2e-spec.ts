@@ -22,7 +22,7 @@ describe("Auth (e2e)", () => {
   let capturedToken: string | undefined;
 
   const email = `e2e+${Date.now()}@example.com`;
-  const password = "correct-horse-battery";
+  const password = "Correct-Horse9Battery";
   const displayName = "E2E Traveller";
 
   before(async () => {

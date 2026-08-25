@@ -8,7 +8,13 @@ export interface Account {
   displayName: string;
 }
 
-const PASSWORD = "e2e-password-123";
+/**
+ * One password for every account a run creates, and it clears the sign-up
+ * policy on purpose: registration now wants a lowercase letter, an uppercase
+ * one, a number and a symbol (`@gtp/types` `passwordRules`), so a fixture that
+ * did not would fail at the first form rather than at the thing under test.
+ */
+const PASSWORD = "E2e-Journey9!";
 
 /**
  * Sign in an account that was seeded rather than registered through the form —
@@ -38,9 +44,12 @@ export async function signUpAndIn(
   const email = e2eEmail(displayName.toLowerCase());
 
   await page.goto("/register");
-  await page.getByLabel("Display name").fill(displayName);
+  await page.getByLabel("Nickname").fill(displayName);
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
+  // `exact` on both: the form has "Password" and "Password again", and the
+  // default substring match would find two boxes and refuse to fill either.
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Password again", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(
     page.getByRole("heading", { name: "Check your inbox" }),

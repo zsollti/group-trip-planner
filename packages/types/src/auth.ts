@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { localeSchema } from "./locale.js";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  passwordRules,
+} from "./password.js";
 
 /**
  * Auth contract — the first real shared schemas (Phase 0.3).
@@ -14,8 +19,44 @@ import { localeSchema } from "./locale.js";
 /** Normalised email: trimmed + lower-cased, must be a valid address. */
 export const emailSchema = z.string().trim().toLowerCase().email();
 
-/** Password policy for registration (min length enforced; upper bound guards hashing cost). */
-export const passwordSchema = z.string().min(8).max(128);
+/**
+ * Password policy for registration: at least {@link PASSWORD_MIN_LENGTH}
+ * characters, with a lowercase letter, an uppercase letter, a number and a
+ * character that is neither.
+ *
+ * The rules are not spelled out here — they are {@link passwordRules}, the same
+ * function the sign-up form draws its live checklist from. Written twice they
+ * would drift, and the drift is silent in the direction that matters: a form
+ * showing five green ticks over a server that wanted six.
+ *
+ * `superRefine` rather than a chain of `.regex()` calls so a password that
+ * fails three rules is told about three rules. Zod stops at the first failing
+ * link in a chain, which would make fixing a password a sequence of guesses.
+ *
+ * **Login is deliberately not held to this** (see {@link LoginInput}): the
+ * policy is about the passwords we let people *create*, and applying it at sign
+ * in would both leak the policy to anyone probing and lock out every account
+ * made before it existed.
+ */
+export const passwordSchema = z
+  .string()
+  .max(PASSWORD_MAX_LENGTH)
+  .superRefine((value, ctx) => {
+    const unmet = passwordRules(value).filter((r) => !r.met);
+    for (const rule of unmet) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: MESSAGE[rule.id] });
+    }
+  });
+
+/** What each unmet rule says when the schema is the one doing the telling. */
+const MESSAGE: Record<ReturnType<typeof passwordRules>[number]["id"], string> =
+  {
+    length: `Use at least ${PASSWORD_MIN_LENGTH} characters.`,
+    lowercase: "Add a lowercase letter.",
+    uppercase: "Add an uppercase letter.",
+    number: "Add a number.",
+    special: "Add a special character.",
+  };
 
 /** Human-facing display name. */
 export const displayNameSchema = z.string().trim().min(1).max(80);
