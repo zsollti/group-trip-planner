@@ -726,7 +726,7 @@ export function CategoryLane({
              lane is full, which is a state, not something that just went
              wrong. */
           <p className="lane__full">
-            {t("Full at {cap} options — remove one to add another.", {
+            {t("Full at {cap} options. Remove one to add another.", {
               cap: optionCap,
             })}
           </p>

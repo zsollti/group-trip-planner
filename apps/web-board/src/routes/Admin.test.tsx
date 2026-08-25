@@ -482,7 +482,7 @@ describe("erasing an account", () => {
       await screen.findByText(/stuck@example.com is erased/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Lisbon weekend → Mira/)).toBeInTheDocument();
-    expect(screen.getByText(/Solo hike — deleted/)).toBeInTheDocument();
+    expect(screen.getByText("Solo hike (deleted)")).toBeInTheDocument();
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toMatch(/\/delete$/);
   });

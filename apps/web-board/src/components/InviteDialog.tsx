@@ -129,7 +129,7 @@ export function InviteDialog({
       setCopiedId(link.id);
       window.setTimeout(() => setCopiedId(null), 1500);
     } catch {
-      setFormError(t("Couldn't copy — copy the link manually."));
+      setFormError(t("Couldn't copy. Copy the link manually."));
     }
   }
 
@@ -157,7 +157,7 @@ export function InviteDialog({
               />
               <span>
                 <GlobeIcon size={16} />{" "}
-                {tNode("{kind} — anyone with the link can join.", {
+                {tNode("{kind}: anyone with the link can join.", {
                   kind: <strong>{t("Global")}</strong>,
                 })}
               </span>
@@ -171,7 +171,7 @@ export function InviteDialog({
               />
               <span>
                 <LinkIcon size={16} />{" "}
-                {tNode("{kind} — for one address, and only that address.", {
+                {tNode("{kind}: for one address, and only that address.", {
                   kind: <strong>{t("Personal")}</strong>,
                 })}
               </span>

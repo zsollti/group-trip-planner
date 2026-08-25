@@ -98,7 +98,7 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
                     <ul className="board__impact-list">
                       {impact!.deletions.map((d) => (
                         <li key={d.tripId}>
-                          {tNode("{trip} — you're the only member", {
+                          {tNode("{trip} (you're the only member)", {
                             trip: <strong>{d.tripName}</strong>,
                           })}
                         </li>

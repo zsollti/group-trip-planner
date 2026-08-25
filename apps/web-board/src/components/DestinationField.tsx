@@ -265,7 +265,7 @@ export function DestinationField({
           typed.current &&
           !results.isFetching &&
           places.length === 0
-            ? t("Nothing found — you can write it in yourself.")
+            ? t("Nothing found. You can write it in yourself.")
             : t("Start typing to search, or write anywhere you like.")}
         </p>
       )}

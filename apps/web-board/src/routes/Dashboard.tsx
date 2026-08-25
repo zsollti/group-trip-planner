@@ -183,7 +183,7 @@ function VerifyFirst({ email }: { email?: string }) {
       <div className="board__onboard-gate">
         <p className="board__onboard-note">
           {tNode(
-            "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)",
+            "One thing first: starting a board needs a confirmed email address. We've sent a link to {email}. Open it and you're set. (Check the spam folder if it's taking its time.)",
             {
               email: <strong>{email ?? t("your address")}</strong>,
             },

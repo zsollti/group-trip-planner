@@ -159,7 +159,7 @@ export function Settings() {
           />
           <p className="board__panel-note">
             {t(
-              "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.",
+              "Shown wherever you appear: the crew list and board chat. Without one, your initials stand in.",
             )}
           </p>
           <AvatarPresetPicker
@@ -210,7 +210,7 @@ export function Settings() {
             />
             <p className="board__panel-note">
               {t(
-                "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.",
+                "Account emails are always sent, and these settings never affect them. That covers verifying your address and signing in.",
               )}
             </p>
             <p className="board__panel-note">
@@ -236,7 +236,7 @@ export function Settings() {
           </h2>
           <p className="board__panel-note">
             {t(
-              "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.",
+              "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them. The next screen names them before anything happens.",
             )}
           </p>
           <div className="board__panel-action">

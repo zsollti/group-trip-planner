@@ -132,7 +132,7 @@ function PlacesPanel() {
       <h2 className="admin__panel-title">{t("Place list")}</h2>
       <p className="admin__note">
         {t(
-          "Loads the destination suggestions — every populated place over 5,000 people, every region and every country — from the dataset shipped with this build. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.",
+          "Loads the destination suggestions from the dataset shipped with this build: every populated place over 5,000 people, every region and every country. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.",
         )}
       </p>
 
@@ -150,7 +150,7 @@ function PlacesPanel() {
           and this takes long enough to look stuck. */}
       {seed.isPending ? (
         <p className="admin__note" role="status">
-          {t("Writing tens of thousands of rows — this takes a few seconds.")}
+          {t("Writing tens of thousands of rows. This takes a few seconds.")}
         </p>
       ) : null}
 
@@ -221,7 +221,7 @@ function DemoPanel() {
       <h2 className="admin__panel-title">{t("Demo data")}</h2>
       <p className="admin__note">
         {tNode(
-          "Deletes the trips owned by {account} and rebuilds the published demo board from the seed — five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.",
+          "Deletes the trips owned by {account} and rebuilds the published demo board from the seed: five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.",
           { account: <strong>demo@example.com</strong> },
         )}
       </p>
@@ -274,7 +274,7 @@ function DemoPanel() {
             label={t("Replaced")}
             value={
               result.removedTrips === 0
-                ? t("nothing — there was no demo trip here")
+                ? t("nothing, there was no demo trip here")
                 : `${result.removedTrips} previous demo trip(s)`
             }
           />
@@ -399,7 +399,7 @@ function EmailPanel({ email }: { email: AdminEmail }) {
     <Panel title={t("Email queue")} tone={stuck ? "warn" : undefined}>
       {!email.configured ? (
         <p className="admin__note">
-          {t("No provider key set — mail is logged to the console, not sent.")}
+          {t("No provider key set. Mail is logged to the console, not sent.")}
         </p>
       ) : null}
       <Row label={t("Pending")} value={email.pending} />
@@ -414,8 +414,8 @@ function EmailPanel({ email }: { email: AdminEmail }) {
         <p className="admin__alert" role="alert">
           {plural(
             email.stuckSending,
-            "{n} job claimed longer ago than the reclaim window — a worker probably died mid-send.",
-            "{n} jobs claimed longer ago than the reclaim window — a worker probably died mid-send.",
+            "{n} job claimed longer ago than the reclaim window. A worker probably died mid-send.",
+            "{n} jobs claimed longer ago than the reclaim window. A worker probably died mid-send.",
           )}
         </p>
       ) : null}
@@ -457,7 +457,7 @@ function RatesPanel({ rates }: { rates: AdminRates }) {
       {!rates.configured ? (
         <p className="admin__note">
           {t(
-            "No feed configured — conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.",
+            "No feed configured. Conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.",
           )}
         </p>
       ) : (
@@ -857,7 +857,7 @@ function DeleteAccountConfirm({
             {result.impact.deletions.map((d) => (
               <li key={d.tripId} className="admin__failure">
                 <span className="admin__failure-to">
-                  {t("{trip} — deleted", { trip: d.tripName })}
+                  {t("{trip} (deleted)", { trip: d.tripName })}
                 </span>
               </li>
             ))}
@@ -955,7 +955,7 @@ function SuspendForm({
     // to a missing reason is a validation envelope naming a field, and the
     // person who needs to read it is standing in front of that field.
     if (reason.trim() === "") {
-      setError(t("Say why — the person is shown this."));
+      setError(t("Say why. The person is shown this."));
       return;
     }
     if (!permanent && until === "") {

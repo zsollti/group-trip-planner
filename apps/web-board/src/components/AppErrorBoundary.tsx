@@ -38,7 +38,7 @@ function BoardCrash() {
         <h1 className="board__title">{t("Something broke on this page")}</h1>
         <p className="board__muted">
           {t(
-            "The error has been recorded. Reloading usually clears it — your trips and decisions are stored on the server, so nothing was lost.",
+            "The error has been recorded. Reloading usually clears it. Your trips and decisions are stored on the server, so nothing was lost.",
           )}
         </p>
         <button

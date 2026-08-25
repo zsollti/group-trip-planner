@@ -58,7 +58,7 @@ export function roleBlurb(role: TripRole): string {
     case "OWNER":
     case "CO_ORGANIZER":
       return t(
-        "Runs the trip with you — can add lanes, invite people and lock in the group's decisions.",
+        "Runs the trip with you: can add lanes, invite people and lock in the group's decisions.",
       );
     case "PARTICIPANT":
       return t(
@@ -66,7 +66,7 @@ export function roleBlurb(role: TripRole): string {
       );
     case "GUEST":
       return t(
-        "Just looking — they can see how the plan is coming along, and nothing more.",
+        "Just looking: they can see how the plan is coming along, and nothing more.",
       );
   }
 }

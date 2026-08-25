@@ -316,7 +316,7 @@ export function CreateBoardDialog({ onClose }: { onClose: () => void }) {
             <p className="board__field-note">
               {startDay || endDay
                 ? t(
-                    "The Dates lane starts with this already decided — unlock it any time to let the group pick instead.",
+                    "The Dates lane starts with this already decided. Unlock it any time to let the group pick instead.",
                   )
                 : t(
                     "Know them already? The Dates lane will start decided. Skip to let the group vote on it.",

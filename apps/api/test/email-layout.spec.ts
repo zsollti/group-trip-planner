@@ -106,7 +106,10 @@ describe("the email layout", () => {
       sent[1]!.html,
       /href="https:\/\/trips\.example\.com\/join\/tok-2"/,
     );
-    assert.match(sent[2]!.html, /no new account was created/);
+    // Case-insensitive: the sentence it lives in was split in two, so the
+    // phrase now opens one rather than closing the other. What the assertion is
+    // for is that the template still says it at all.
+    assert.match(sent[2]!.html, /no new account was created/i);
     // The account-exists notice deliberately has no button — see its template.
     assert.doesNotMatch(sent[2]!.html, /bgcolor="#0f766e"/);
   });

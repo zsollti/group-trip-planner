@@ -29,8 +29,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "/person": "/fő",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.":
     "Be van állítva egy árfolyamforrás, de a mentés napok óta nem frissült. Az alkalmazás minden ≈ összege ebből számol.",
-  "Account emails — verifying your address, signing in — are always sent, and these settings never affect them.":
-    "A fiókkal kapcsolatos leveleket — cím megerősítése, bejelentkezés — mindig elküldjük, ezek a beállítások nem érintik őket.",
+  "Account emails are always sent, and these settings never affect them. That covers verifying your address and signing in.":
+    "A fiókkal kapcsolatos leveleket mindig elküldjük, és ezek a beállítások nem érintik őket. Ilyen a cím megerősítése és a bejelentkezés.",
   "Account menu": "Fiók menü",
   "Actions for {card}": "{card} műveletei",
   "Actions for {name}": "{name} műveletei",
@@ -106,8 +106,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Could not update this category": "Ezt a sávot nem sikerült módosítani",
   "Could not vote": "Nem sikerült szavazni",
   "Couldn't change the language.": "A nyelvet nem sikerült módosítani.",
-  "Couldn't copy — copy the link manually.":
-    "Nem sikerült a másolás — másold ki a linket kézzel.",
+  "Couldn't copy. Copy the link manually.":
+    "Nem sikerült a másolás. Másold ki a linket kézzel.",
   "Couldn't join": "Nem sikerült csatlakozni",
   "Couldn't join this board.": "Nem sikerült csatlakozni ehhez a táblához.",
   "Couldn't load chat.": "A csevegést nem sikerült betölteni.",
@@ -164,10 +164,10 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Delete trip": "Utazás törlése",
   "Delete your account": "Fiókod törlése",
   "Delete “{trip}”?": "Törlöd a(z) „{trip}” utazást?",
-  "Deletes the trips owned by {account} and rebuilds the published demo board from the seed — five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.":
+  "Deletes the trips owned by {account} and rebuilds the published demo board from the seed: five members, fourteen options, four decisions, the chat and the votes. No other account is touched, and the demo password is reset to the one in the README.":
     "Törli a(z) {account} tulajdonában lévő utazásokat, és újraépíti a nyilvános demó táblát: öt tag, tizennégy javaslat, négy döntés, a csevegés és a szavazatok. Más fiókot nem érint, a demó jelszava pedig visszaáll a README-ben szereplőre.",
-  "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them — the next screen names them before anything happens.":
-    "A fiók törlése véglegesen eltávolítja a személyes adataidat. A tulajdonodban lévő táblák átszállnak egy másik tagra, vagy törlődnek, ha egyedül vagy rajtuk — a következő képernyő felsorolja őket, mielőtt bármi történne.",
+  "Deleting your account removes your personal data for good. Boards you own pass to another member, or are deleted if you're the only one on them. The next screen names them before anything happens.":
+    "A fiók törlése véglegesen eltávolítja a személyes adataidat. A tulajdonodban lévő táblák átszállnak egy másik tagra, vagy törlődnek, ha egyedül vagy rajtuk. A következő képernyő felsorolja őket, mielőtt bármi történne.",
   "Deleting…": "Törlés…",
   "Deletion impact": "A törlés következményei",
   "Demo data": "Demó adatok",
@@ -210,22 +210,22 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Find: "Keresés",
   "Fill in the fields marked with *": "Töltsd ki a *-gal jelölt mezőket",
   "Find a user": "Felhasználó keresése",
-  "Full at {cap} options — remove one to add another.":
-    "Betelt, {cap} javaslat van benne — törölj egyet, ha újat szeretnél.",
+  "Full at {cap} options. Remove one to add another.":
+    "Betelt, {cap} javaslat van benne. Törölj egyet, ha újat szeretnél.",
   "Give these dates and they'll take their place on the trip. ":
     "Add meg ezeket a dátumokat, és bekerülnek az utazás menetébe. ",
   Global: "Általános",
   "Google only": "Csak Google",
-  "Google sign-in didn't complete. Your browser may be blocking cookies set by the API — try again, or sign in with your email and password.":
-    "A Google-bejelentkezés nem fejeződött be. Lehet, hogy a böngésződ blokkolja az API sütijeit — próbáld újra, vagy jelentkezz be e-mail-címmel és jelszóval.",
+  "Google sign-in didn't complete. Your browser may be blocking cookies set by the API. Try again, or sign in with your email and password.":
+    "A Google-bejelentkezés nem fejeződött be. Lehet, hogy a böngésződ blokkolja az API sütijeit. Próbáld újra, vagy jelentkezz be e-mail-címmel és jelszóval.",
   "Group Trip Planner": "Group Trip Planner",
   Guest: "Vendég",
   History: "Lezárva",
   "I'm in": "Én jövök",
   Invite: "Meghívás",
   "Invite people to this board": "Hívj meg másokat erre a táblára",
-  "It may have been mistyped or truncated by your mail app. Nothing changed — you can turn mention emails off from notification settings instead.":
-    "Elképzelhető, hogy elírták, vagy a levelezőprogramod levágta. Semmi nem változott — a megemlítési értesítőket az értesítési beállításokban is kikapcsolhatod.",
+  "It may have been mistyped or truncated by your mail app. Nothing changed. You can turn mention emails off from notification settings instead.":
+    "Elképzelhető, hogy elírták, vagy a levelezőprogramod levágta. Semmi nem változott. A megemlítési értesítőket az értesítési beállításokban is kikapcsolhatod.",
   "Joining board…": "Csatlakozás a táblához…",
   "Know them already? The Dates lane will start decided. Skip to let the group vote on it.":
     "Már tudod őket? Akkor a Dátumok sáv eldöntve indul. Hagyd ki, ha a csapat szavazzon róla.",
@@ -281,20 +281,20 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "No committed cost": "Nincs rögzített költség",
   "No dates chosen": "Nincs dátum kiválasztva",
   "No destination yet": "Még nincs úti cél",
-  "No feed configured — conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.":
-    "Nincs árfolyamforrás beállítva — az átváltás ki van kapcsolva, és minden áttekintő csak a pontos, pénznem szerinti összegeket mutatja. Ez érvényes beállítás.",
+  "No feed configured. Conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.":
+    "Nincs árfolyamforrás beállítva. Az átváltás ki van kapcsolva, és minden áttekintő csak a pontos, pénznem szerinti összegeket mutatja. Ez érvényes beállítás.",
   "No image yet": "Még nincs kép",
   "No links yet. Create one above.":
     "Még nincs link. Hozz létre egyet fentebb.",
   "No mail has been queued for this account.":
     "Ehhez a fiókhoz nem került levél a várólistára.",
-  "No messages yet. Say hello — or @mention someone to pull them in.":
-    "Még nincs üzenet. Köszönj be — vagy @említs valakit, hogy bekapcsolódjon.",
+  "No messages yet. Say hello, or @mention someone to pull them in.":
+    "Még nincs üzenet. Köszönj be, vagy @említs valakit, hogy bekapcsolódjon.",
   "No need to wait around, though. If someone has already invited you to their board you can join it right now, and propose, vote and chat like everyone else.":
     "Várni viszont nem kell. Ha valaki már meghívott a táblájára, most azonnal csatlakozhatsz, és ugyanúgy javasolhatsz, szavazhatsz és cseveghetsz, mint bárki más.",
   "No options yet": "Még nincs javaslat",
-  "No provider key set — mail is logged to the console, not sent.":
-    "Nincs szolgáltatói kulcs beállítva — a levelek a konzolra kerülnek, nem mennek ki.",
+  "No provider key set. Mail is logged to the console, not sent.":
+    "Nincs szolgáltatói kulcs beállítva. A levelek a konzolra kerülnek, nem mennek ki.",
   "Nobody matches “{query}”.": "Senki nem felel meg ennek: „{query}”.",
   Node: "Node",
   "Not on the timeline": "Nincs az idővonalon",
@@ -314,10 +314,10 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Notifications: "Értesítések",
   "Nowhere booked for this night": "Erre az éjszakára nincs szállás",
   Off: "Ki",
-  "Offline — not updating": "Nincs kapcsolat — nem frissül",
+  "Offline, not updating": "Nincs kapcsolat, nem frissül",
   On: "Be",
-  "One thing first: starting a board needs a confirmed email address. We've sent a link to {email} — open it and you're set. (Check the spam folder if it's taking its time.)":
-    "Egy dolog még: tábla indításához megerősített e-mail-cím kell. Küldtünk egy linket ide: {email} — nyisd meg, és készen vagy. (Ha késik, nézd meg a spam mappát is.)",
+  "One thing first: starting a board needs a confirmed email address. We've sent a link to {email}. Open it and you're set. (Check the spam folder if it's taking its time.)":
+    "Egy dolog még: tábla indításához megerősített e-mail-cím kell. Küldtünk egy linket ide: {email}. Nyisd meg, és készen vagy. (Ha késik, nézd meg a spam mappát is.)",
   "Only people who opt in": "Csak aki jelentkezik rá",
   "Operations · signed in as {email}": "Üzemeltetés · bejelentkezve: {email}",
   "Operator log": "Üzemeltetői napló",
@@ -381,12 +381,12 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Set {name} as {role}": "{name} legyen {role}",
   Settings: "Beállítások",
   "Show proposals": "Javaslatok mutatása",
-  "Showing the first {n} day — something is dated much further out than the rest.":
-    "Csak az első {n} napot mutatjuk — valami sokkal későbbre van dátumozva, mint a többi.",
-  "Showing the first {n} days — something is dated much further out than the rest.":
-    "Csak az első {n} napot mutatjuk — valami sokkal későbbre van dátumozva, mint a többi.",
-  "Shown wherever you appear — the crew list and board chat. Without one, your initials stand in.":
-    "Ott jelenik meg, ahol te is — a csapatlistában és a tábla csevegésében. Ha nincs, a monogramod helyettesíti.",
+  "Showing the first {n} day. Something is dated much further out than the rest.":
+    "Csak az első {n} napot mutatjuk. Valami sokkal későbbre van dátumozva, mint a többi.",
+  "Showing the first {n} days. Something is dated much further out than the rest.":
+    "Csak az első {n} napot mutatjuk. Valami sokkal későbbre van dátumozva, mint a többi.",
+  "Shown wherever you appear: the crew list and board chat. Without one, your initials stand in.":
+    "Ott jelenik meg, ahol te is: a csapatlistában és a tábla csevegésében. Ha nincs, a monogramod helyettesíti.",
   "Sign in": "Bejelentkezés",
   "Sign-in": "Bejelentkezés",
   "Signed up": "Regisztrált",
@@ -411,25 +411,25 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "That start date has already passed.": "Ez a kezdődátum már elmúlt.",
   "That's further ahead than a trip can be planned.":
     "Ez messzebb van, mint ameddig egy utazás előre tervezhető.",
-  "The Dates lane starts with this already decided — unlock it any time to let the group pick instead.":
-    "A Dátumok sáv ezzel eldöntve indul — bármikor feloldhatod, és akkor a csapat dönt.",
-  "The card gets an {control} button, and its cost is split between the people who press it — nobody else pays for it. Everyone can see who is in.":
-    "A kártyára kerül egy {control} gomb, és a költséget azok osztják el, akik megnyomják — más nem fizet érte. Azt is látja mindenki, ki jön.",
-  "The error has been recorded. Reloading usually clears it — your trips and decisions are stored on the server, so nothing was lost.":
-    "A hibát rögzítettük. Az újratöltés általában megoldja — az utazásaid és döntéseid a szerveren vannak, tehát semmi nem vesztett el.",
+  "The Dates lane starts with this already decided. Unlock it any time to let the group pick instead.":
+    "A Dátumok sáv ezzel eldöntve indul. Bármikor feloldhatod, és akkor a csapat dönt.",
+  "The card gets an {control} button, and its cost is split between the people who press it. Nobody else pays for it, and everyone can see who is in.":
+    "A kártyára kerül egy {control} gomb, és a költséget azok osztják el, akik megnyomják. Más nem fizet érte, és azt is látja mindenki, ki jön.",
+  "The error has been recorded. Reloading usually clears it. Your trips and decisions are stored on the server, so nothing was lost.":
+    "A hibát rögzítettük. Az újratöltés általában megoldja. Az utazásaid és döntéseid a szerveren vannak, tehát semmi nem veszett el.",
   "The last day can't come before the first.":
     "Az utolsó nap nem lehet korábban, mint az első.",
   "This app is in {language}. It is the only language available so far.":
     "Ez az alkalmazás {language} nyelven van. Egyelőre csak ez a nyelv érhető el.",
   "This board changed since you opened it. Reload to see the latest, then re-apply your edit.":
     "Ez a tábla megváltozott, mióta megnyitottad. Töltsd újra a legfrissebb állapothoz, majd írd be újra a módosításodat.",
-  "This board has ended — it's now read-only. Proposing, dot-voting, and locking are closed.":
-    "Ez a tábla lezárult — mostantól csak olvasható. A javaslás, a szavazás és a rögzítés le van zárva.",
+  "This board has ended and is now read-only. Proposing, dot-voting, and locking are closed.":
+    "Ez a tábla lezárult, és mostantól csak olvasható. A javaslás, a szavazás és a rögzítés le van zárva.",
   "This deployment": "Ez a telepítés",
   "This deployment has no console configured for you.":
     "Ebben a telepítésben nincs konzol beállítva neked.",
-  "This is the decision — the trip's dates go with it.":
-    "Ez a döntés — az utazás dátumai is eltűnnek vele.",
+  "This is the decision. The trip's dates go with it.":
+    "Ez a döntés. Az utazás dátumai is eltűnnek vele.",
   "This is the decision. The lane goes back to undecided.":
     "Ez a döntés. A sáv visszatér az eldöntetlen állapotba.",
   "This link is invalid or has expired. Sign in to request a new one.":
@@ -472,8 +472,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "View details": "Részletek",
   Volume: "Mennyiség",
   Votes: "Szavazatok",
-  "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails — verifying your address, signing in — are unaffected.":
-    "Nem küldünk e-mailt, ha valaki @megemlít. A megemlítéseket az alkalmazásban továbbra is látod, a fiókkal kapcsolatos leveleket — cím megerősítése, bejelentkezés — pedig ez nem érinti.",
+  "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails like verifying your address or signing in are unaffected.":
+    "Nem küldünk e-mailt, ha valaki @megemlít. A megemlítéseket az alkalmazásban továbbra is látod, és ez nem érinti a fiókkal kapcsolatos leveleket, például a cím megerősítését vagy a bejelentkezést.",
   "What are prices quoted in?": "Milyen pénznemben vannak az árak?",
   "What's the trip called?": "Mi az utazás neve?",
   When: "Mikor",
@@ -499,7 +499,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "nobody yet": "még senki",
   "not sent": "nincs elküldve",
   "nothing planned": "nincs terv",
-  "nothing — there was no demo trip here": "semmit — itt nem volt demó utazás",
+  "nothing, there was no demo trip here": "semmit, itt nem volt demó utazás",
   or: "vagy",
   "outside the trip's dates": "az utazás dátumain kívül",
   "per person": "fejenként",
@@ -516,8 +516,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{card} — view details": "{card} — részletek",
   "{currencies} not converted": "{currencies} nincs átváltva",
   "{currencies} not counted": "{currencies} nincs beszámítva",
-  "{currencies} not counted — no rate to convert with":
-    "{currencies} nincs beszámítva — nincs árfolyam az átváltáshoz",
+  "{currencies} not counted: no rate to convert with":
+    "{currencies} nincs beszámítva: nincs árfolyam az átváltáshoz",
   "{date}: {count}": "{date}: {count}",
   "{emoji} {n}": "{emoji} {n}",
   "{label} — choose a file": "{label} — válassz fájlt",
@@ -532,10 +532,10 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{n} decisions placed": "{n} döntés elhelyezve",
   "{n} in": "{n} jön",
   "{n} in — see who": "{n} jön — nézd meg, kik",
-  "{n} job claimed longer ago than the reclaim window — a worker probably died mid-send.":
-    "{n} feladat régebben van lefoglalva, mint a visszaigénylési idő — valószínűleg elhalt egy feldolgozó küldés közben.",
-  "{n} jobs claimed longer ago than the reclaim window — a worker probably died mid-send.":
-    "{n} feladat régebben van lefoglalva, mint a visszaigénylési idő — valószínűleg elhalt egy feldolgozó küldés közben.",
+  "{n} job claimed longer ago than the reclaim window. A worker probably died mid-send.":
+    "{n} feladat régebben van lefoglalva, mint a visszaigénylési idő. Valószínűleg elhalt egy feldolgozó küldés közben.",
+  "{n} jobs claimed longer ago than the reclaim window. A worker probably died mid-send.":
+    "{n} feladat régebben van lefoglalva, mint a visszaigénylési idő. Valószínűleg elhalt egy feldolgozó küldés közben.",
   "{n} member": "{n} tag",
   "{n} members": "{n} tag",
   "{n} night": "{n} éjszaka",
@@ -551,7 +551,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "{n} / {total} voted": "{n} / {total} szavazott",
   "{n} voted": "{n} szavazott",
   "{n} votes — see who": "{n} szavazat — nézd meg, kik",
-  "{trip} — you're the only member": "{trip} — egyedül te vagy a tagja",
+  "{trip} (you're the only member)": "{trip} (egyedül te vagy a tagja)",
   "· outside the trip’s dates": "· az utazás dátumain kívül",
   "· 🔕 Email muted": "· 🔕 E-mailek némítva",
   "— exactly {amount}": "— pontosan {amount}",
@@ -579,18 +579,18 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Elveszíti a hozzáférést. Később újra meghívhatod.",
   "They take over the trip and you become a co-organizer.":
     "Ő veszi át az utat, te pedig társszervező leszel.",
-  "Nothing found — you can write it in yourself.":
-    "Nincs találat — beírhatod magad is.",
+  "Nothing found. You can write it in yourself.":
+    "Nincs találat. Beírhatod magad is.",
   "Start typing to search, or write anywhere you like.":
     "Kezdj írni a kereséshez, vagy írj be bármit.",
   "Place names from {source}, CC BY 4.0": "Helynévadatok: {source}, CC BY 4.0",
   "Place list": "Helyek listája",
-  "Loads the destination suggestions — every populated place over 5,000 people, every region and every country — from the dataset shipped with this build. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.":
-    "Betölti az úticél-javaslatokat — minden 5000 főnél nagyobb települést, minden régiót és országot — a buildéel szállított adathalmazból. Környezetenként egyszer kell; semmi más nem használja és semmi nem függ tőle, így újra futtatni is biztonságos. Amíg le nem fut, az új utazás űrlap úticél mezője nem kínál semmit.",
+  "Loads the destination suggestions from the dataset shipped with this build: every populated place over 5,000 people, every region and every country. Needed once per environment; nothing else uses it and nothing depends on it, so re-running is safe. Until it has run, the destination field on the create-trip form simply offers nothing.":
+    "Betölti az úticél-javaslatokat a buildhez csomagolt adathalmazból: minden 5000 főnél nagyobb települést, minden régiót és országot. Környezetenként egyszer kell; semmi más nem használja és semmi nem függ tőle, így újra futtatni is biztonságos. Amíg le nem fut, az új utazás űrlap úticél mezője nem kínál semmit.",
   "Loading places…": "Helyek betöltése…",
   "Load the place list": "Helyek listájának betöltése",
-  "Writing tens of thousands of rows — this takes a few seconds.":
-    "Tízezernyi sor írása — ez elég néhány másodpercet vesz igénybe.",
+  "Writing tens of thousands of rows. This takes a few seconds.":
+    "Tízezernyi sor írása. Ez elég néhány másodpercet vesz igénybe.",
   "Places loaded.": "A helyek betöltődtek.",
   Places: "Helyek",
   "Account suspended.": "A fiók felfüggesztve.",
@@ -600,8 +600,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Pick an end date, or choose permanent.":
     "Válassz záró dátumot, vagy jelöld véglegesnek.",
   "Reason given": "Megadott indok",
-  "Say why — the person is shown this.":
-    "Írd le az indokot — ezt látja majd az érintett.",
+  "Say why. The person is shown this.":
+    "Írd le az indokot. Ezt látja majd az érintett.",
   Suspend: "Felfüggesztés",
   "Suspend account": "Fiók felfüggesztése",
   Suspended: "Felfüggesztve",
@@ -621,14 +621,14 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Yes, erase this account": "Igen, töröljük ezt a fiókot",
   "{email} is erased.": "{email} törölve.",
   "{trip} → {name}": "{trip} → {name}",
-  "{trip} — deleted": "{trip} — törölve",
+  "{trip} (deleted)": "{trip} (törölve)",
   "Delete “{lane}”?": "Törlöd a(z) „{lane}” sávot?",
   "This removes the lane and every card in it. This can’t be undone.":
     "Ez eltávolítja a sávot és minden kártyáját. Ez nem vonható vissza.",
   "Crew — manage members and roles": "Csapat — tagok és szerepkörök kezelése",
   "Crew — see members and roles": "Csapat — tagok és szerepkörök megtekintése",
-  "Guests — not asked to vote": "Vendégek — őket nem kérdezzük",
-  "Guests — not asked to join": "Vendégek — ők nem csatlakoznak",
+  "Guests: not asked to vote": "Vendégek: őket nem kérdezzük",
+  "Guests: not asked to join": "Vendégek: ők nem csatlakoznak",
   Lane: "Sáv",
   "Propose something at {time} on {day}": "Javasolj valamit ide: {day} {time}",
   "Still being decided": "Még döntés alatt",
@@ -650,8 +650,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Done:": "Kész:",
   "Hide password": "Jelszó elrejtése",
   Nickname: "Becenév",
-  "No sign of it? Have a look in your spam folder — it likes to hide there.":
-    "Nem találod? Nézd meg a spam mappát is — szeret ott megbújni.",
+  "No sign of it? Have a look in your spam folder. It likes to hide there.":
+    "Nem találod? Nézd meg a spam mappát is. Szeret ott megbújni.",
   Normal: "Közepes",
   "Password again": "Jelszó még egyszer",
   "Show password": "Jelszó megjelenítése",
@@ -668,25 +668,25 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Pick any day to start again": "Bármelyik napra kattintva kezdheted újra",
   Organizer: "Szervező",
   Traveler: "Utazó",
-  "Runs the trip with you — can add lanes, invite people and lock in the group's decisions.":
-    "Veled együtt szervezi az utazást — sávokat adhat hozzá, meghívhat másokat, és rögzítheti a csoport döntéseit.",
+  "Runs the trip with you: can add lanes, invite people and lock in the group's decisions.":
+    "Veled együtt szervezi az utazást: sávokat adhat hozzá, meghívhat másokat, és rögzítheti a csoport döntéseit.",
   "Coming along: they can suggest options, vote on everything and join the chat.":
     "Ő is jön: javaslatokat tehet, mindenre szavazhat, és beszélgethet a többiekkel.",
-  "Just looking — they can see how the plan is coming along, and nothing more.":
-    "Csak nézelődik — láthatja, hogyan halad a terv, de semmi többet.",
-  "{kind} — anyone with the link can join.":
-    "{kind} — bárki csatlakozhat, akinek megvan a link.",
+  "Just looking: they can see how the plan is coming along, and nothing more.":
+    "Csak nézelődik: láthatja, hogyan halad a terv, de semmi többet.",
+  "{kind}: anyone with the link can join.":
+    "{kind}: bárki csatlakozhat, akinek megvan a link.",
   "Show me around": "Mutasd meg a programot",
   "Skip the tour": "Kihagyom a bemutatót",
   "Let's go": "Vágjunk bele",
   "{step} of {total}": "{step} / {total}",
   "One lane, one question": "Egy sáv, egy kérdés",
-  "Every column is something the group has to agree on — when to go, how to get there, where to sleep. Add as many as your trip needs.":
+  "Every column is something the group has to agree on: when to go, how to get there, where to sleep. Add as many as your trip needs.":
     "Minden oszlop egy kérdés, amiben meg kell egyezni: mikor induljatok, mivel menjetek, hol aludjatok. Annyit veszel fel, amennyire szükség van.",
   "Anyone can suggest something": "Bárki javasolhat valamit",
   "Are you sure?": "Biztos vagy benne?",
-  "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission — you are putting it on the table.":
-    "Dobj be egy ötletet a sávba árral, linkkel és időponttal. Nem engedélyt kérsz — leteszed az asztalra.",
+  "Drop an idea into a lane with a price, a link and the dates it runs. You are not asking permission. You are putting it on the table.":
+    "Dobj be egy ötletet a sávba árral, linkkel és időponttal. Nem engedélyt kérsz. Leteszed az asztalra.",
   "Everyone votes": "Mindenki szavaz",
   "Say what you think of each idea and see at a glance who agrees. When the group has made up its mind, an organizer locks the winner in and it stays at the top of its lane.":
     "Mondd el, mit gondolsz az ötletekről, és láthatod, ki ért egyet. Ha megvan a döntés, egy szervező rögzíti a győztest, és az a sáv tetején marad.",
@@ -700,14 +700,14 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Everyone on the trip, and what each of them can do. Organizers lock decisions in; travelers propose and vote.":
     "Mindenki, aki jön, és hogy ki mit tehet. A szervezők rögzítik a döntéseket, az utazók javasolnak és szavaznak.",
   "Bring the others in": "Hívd meg a többieket",
-  "One link is all it takes — no app for them to install. You choose what each link lets someone do.":
-    "Elég egyetlen link — nekik semmit sem kell telepíteniük. Te döntöd el, mit tehet, aki vele érkezik.",
+  "One link is all it takes, with no app for them to install. You choose what each link lets someone do.":
+    "Elég egyetlen link, és nekik semmit sem kell telepíteniük. Te döntöd el, mit tehet, aki vele érkezik.",
   "Talk it over here": "Itt beszéljétek meg",
   "Every lane gets its own conversation, so the reason behind a decision stays next to the decision instead of scrolling away in a group chat.":
     "Minden sávnak saját beszélgetése van, így a döntés indoklása a döntés mellett marad, nem vész el egy csoportos csevegésben.",
   "A board is one trip": "Egy tábla egy utazás",
-  "Start one here. Everything about that trip — the dates, the flights, the bill, the arguing — lives on its own board.":
-    "Itt hozhatsz létre egyet. Az utazás minden része — az időpont, a repülőjegy, a számla, a vita — a saját tábláján él.",
+  "Start one here. The dates, the flights, the bill, the arguing: everything about that trip lives on its own board.":
+    "Itt hozhatsz létre egyet. Az időpont, a repülőjegy, a számla, a vita: az utazás minden része a saját tábláján él.",
   "Everything else is in here": "Minden más itt található",
   "Your picture, the app's language, and this tour again whenever you want it.":
     "A képed, az alkalmazás nyelve, és ez a bemutató, amikor csak újra szeretnéd.",
@@ -719,8 +719,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Nem sikerült beállítani a képet. Próbáld újra.",
   "Drag the picture to move it, and use the slider to zoom.":
     "Húzd a képet a mozgatáshoz, a csúszkával pedig nagyíthatsz.",
-  "Or wear one of these instead — no photo needed.":
-    "Vagy válaszd inkább az egyiket — fotó nélkül is megy.",
+  "Or wear one of these instead. No photo needed.":
+    "Vagy válaszd inkább az egyiket. Fotó nélkül is megy.",
   "Position your picture": "Igazítsd be a képet",
   "That file couldn't be read as a picture.":
     "Ezt a fájlt nem sikerült képként megnyitni.",
@@ -732,12 +732,12 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "A personal link needs the address it is for.":
     "A személyes linkhez meg kell adni a címzett e-mail-címét.",
   "That link is too long.": "Ez a link túl hosszú.",
-  "That's {n} characters too long — the notes hold {max}.":
-    "Ez {n} karakterrel hosszabb a megengedettnél — a jegyzet {max} karaktert tárol.",
+  "That's {n} characters too long. The notes hold {max}.":
+    "Ez {n} karakterrel hosszabb a megengedettnél. A jegyzet {max} karaktert tárol.",
   "We'll email the link, and only this address can use it.":
     "Elküldjük a linket e-mailben, és csak ez a cím használhatja.",
-  "{kind} — for one address, and only that address.":
-    "{kind} — egyetlen címre, és csak arra.",
+  "{kind}: for one address, and only that address.":
+    "{kind}: egyetlen címre, és csak arra.",
   "{n}/{max}": "{n}/{max}",
   "All conversations": "Összes beszélgetés",
   Conversations: "Beszélgetések",
