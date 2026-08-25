@@ -236,7 +236,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Leave trip": "Kilépés az utazásból",
   "Leave “{trip}”?": "Kilépsz a(z) „{trip}” utazásból?",
   "Leaving…": "Kilépés…",
-  "Let's plan something": "Tervezzünk valamit",
   Link: "Link",
   "Link type": "Link típusa",
   "Link ↗": "Link ↗",
@@ -279,8 +278,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Next: "Tovább",
   "Next month": "Következő hónap",
   "No account? {link}": "Nincs még fiókod? {link}",
-  "No boards yet — so here's the idea. A board is one place for one trip, with a lane for each thing you have to agree on: when to go, how to get there, where to sleep, what to do. Anyone can add an option to a lane, everyone votes, and when the group has made its mind up an organiser locks the winner in. It stays at the top of its lane, the cost adds itself up as you go, and nobody has to scroll back through a group chat to remember what was decided.":
-    "Még nincs egy táblád sem — akkor lássuk az ötletet. Egy tábla egy utazás helye, és minden eldöntendő dologhoz tartozik egy sáv: mikor menjünk, hogyan jussunk el, hol aludjunk, mit csináljunk. Bárki beírhat egy javaslatot egy sávba, mindenki szavaz, és ha a csapat döntött, egy szervező rögzíti a győztest. Az a sáv tetején marad, a költség menet közben összeadódik, és senkinek nem kell visszaolvasnia egy csoportos csevegést, hogy eszébe jusson, mit döntöttek.",
   "No committed cost": "Nincs rögzített költség",
   "No dates chosen": "Nincs dátum kiválasztva",
   "No destination yet": "Még nincs úti cél",
@@ -343,7 +340,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Pick both days, or skip this step.":
     "Válaszd ki mindkét napot, vagy hagyd ki ezt a lépést.",
   Plan: "Terv",
-  "Plan your first trip": "Tervezd meg az első utazásod",
   "Previous month": "Előző hónap",
   "Priced for": "Az ára erre szól:",
   "Priced for part of the group": "A csapat egy részére szóló ár",
@@ -404,8 +400,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Source: "Forrás",
   "Still to spend": "Még elkölthető",
   "Start time": "Kezdés időpontja",
-  "Takes about a minute. You'll be the owner, and you can bring everyone else in with a single link — no accounts to set up for them, no app to install.":
-    "Körülbelül egy perc. Te lesz a tulajdonos, a többieket pedig egyetlen linkkel behívhatod — nekik nem kell fiókot létrehozniuk, és alkalmazást sem kell telepíteniük.",
   Target: "Cél",
   "That board doesn't exist or you're not a member.":
     "Ez a tábla nem létezik, vagy nem vagy a tagja.",
@@ -473,7 +467,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Votes: "Szavazatok",
   "We won't email you when someone @mentions you. You'll still see mentions in the app, and account emails — verifying your address, signing in — are unaffected.":
     "Nem küldünk e-mailt, ha valaki @megemlít. A megemlítéseket az alkalmazásban továbbra is látod, a fiókkal kapcsolatos leveleket — cím megerősítése, bejelentkezés — pedig ez nem érinti.",
-  "Welcome, {name}": "Üdv, {name}",
   "What are prices quoted in?": "Milyen pénznemben vannak az árak?",
   "What's the trip called?": "Mi az utazás neve?",
   When: "Mikor",
@@ -663,4 +656,5 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Küldtünk egy linket az e-mail-címed megerősítéséhez.",
   Weak: "Gyenge",
   "Your password needs": "A jelszavadhoz kell",
+  "Welcome on board! :)": "Üdv a fedélzeten! :)",
 };

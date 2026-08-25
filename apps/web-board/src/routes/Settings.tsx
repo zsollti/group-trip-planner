@@ -91,7 +91,9 @@ export function Settings() {
       {/* The measure, off the <main> so the bar above it spans the window
           on every page alike — see `.board__measure`. */}
       <div className="board__measure">
-        <h1 className="board__title">{t("Your settings")}</h1>
+        <h1 className="board__title board__title--center">
+          {t("Your settings")}
+        </h1>
 
         <NameSection />
         <LanguageSection />

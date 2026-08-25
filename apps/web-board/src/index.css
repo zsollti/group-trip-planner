@@ -397,6 +397,14 @@ body {
   margin: 0.25rem 0 0.75rem;
 }
 
+/* Over a centred column of content — the boards overview and settings. Opt-in
+   rather than the default for `.board__title`, because the auth cards use the
+   same class and a heading centred over a left-aligned form reads as a mistake
+   in a box that narrow. */
+.board__title--center {
+  text-align: center;
+}
+
 .board__muted {
   color: var(--board-dim);
   line-height: 1.5;
@@ -1851,9 +1859,26 @@ body {
 }
 
 /* --- Trip-board tiles (overview) --- */
+/*
+ * The wall of boards, centred under a centred heading.
+ *
+ * It was `auto-fill` with `1fr` tracks, and both halves of that were working
+ * against the page: `auto-fill` keeps making empty tracks to the right edge of
+ * the measure, and `1fr` makes every track eat the leftover width — so two
+ * boards and a ghost frame sat hard against the left of a 912px column with a
+ * quarter of it blank beside them, which on a wide monitor reads as a page
+ * that forgot to centre itself.
+ *
+ * `auto-fit` collapses the tracks nothing occupies, and a `16rem` ceiling stops
+ * the survivors from swelling to fill the gap instead. What is left over then
+ * belongs to the row, and `justify-content` puts it on both sides. A single
+ * ghost frame on a new account lands in the middle of the page rather than in
+ * its top-left corner.
+ */
 .board__tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 16rem));
+  justify-content: center;
   gap: 1rem;
 }
 
@@ -3863,8 +3888,11 @@ button.cost-comp__row-btn:hover,
   font-size: 0.72rem;
   font-weight: 600;
 }
+/* Centred with the wall it labels — a left-aligned eyebrow over a centred row
+   of tiles points at nothing. */
 .board__history-head {
   margin-top: 1.5rem;
+  text-align: center;
 }
 
 /* --- Mobile reflow (Phase 3.5) ---------------------------------------------
