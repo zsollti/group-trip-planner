@@ -42,6 +42,8 @@ export function ImagePicker({
   onRemove,
   removed = false,
   cropCircle = false,
+  labelHidden = false,
+  centred = false,
 }: {
   label: string;
   /** How to frame the preview — a round avatar or a wide cover strip. */
@@ -61,6 +63,20 @@ export function ImagePicker({
   removed?: boolean;
   /** Let the reader choose which circle of the picture this is. */
   cropCircle?: boolean;
+  /**
+   * Take the label off the screen and leave it to assistive technology.
+   *
+   * Never a way to drop it: `label` is also what names the file input
+   * (`"{label} — choose a file"`), which is the control a voice user asks for
+   * by name, so the string still has to be here and still has to be right. For
+   * the case where the panel's own heading directly above already says it —
+   * "Profile picture", then "Your picture" underneath — which is two names for
+   * one thing and the reader has to read both to find out they are the same.
+   */
+  labelHidden?: boolean;
+  /** Centre the frame and its controls in the panel, for a picker that is the
+   *  whole of what a panel is about rather than one field of a form. */
+  centred?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
@@ -95,7 +111,7 @@ export function ImagePicker({
   }
 
   return (
-    <div className="picker">
+    <div className={"picker" + (centred ? " picker--centred" : "")}>
       {cropping ? (
         <AvatarCropper
           file={cropping}
@@ -112,7 +128,9 @@ export function ImagePicker({
           }}
         />
       ) : null}
-      <p className="picker__label">{label}</p>
+      <p className={"picker__label" + (labelHidden ? " board__sr-only" : "")}>
+        {label}
+      </p>
 
       <div className={`picker__frame picker__frame--${shape}`}>
         {shown ? (

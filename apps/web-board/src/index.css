@@ -1099,6 +1099,25 @@ span.board__muted {
   padding: 0 0.5rem;
 }
 
+/*
+ * A picker that is the whole of what its panel is about.
+ *
+ * The avatar panel holds a circle and the two or three things you can do to
+ * it, and nothing else — so the column reads as one object, centred under a
+ * centred heading. The trip-cover picker is the opposite case (one field of an
+ * edit form, beside other fields that start at the left edge), which is why
+ * this is a modifier and not how every picker behaves.
+ */
+.picker--centred {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.picker--centred .picker__actions {
+  justify-content: center;
+}
+
 /* The label that stands in for the browser's own file button — see
    `ImagePicker`. Dressed as this app's secondary button, because that is what
    it is: a thing you press that opens something, next to the primary that
@@ -2572,6 +2591,11 @@ span.board__muted {
 }
 .settings__name > :first-child {
   flex: 1 1 14rem;
+  /* `[data-gtp-field]` carries a rem of bottom margin for stacked forms. In a
+     row aligned to `flex-end` that margin is what the button lines up against,
+     so the input floated a rem clear of it. Nothing about the field is wrong;
+     it is simply not in a stack here. */
+  margin-bottom: 0;
 }
 
 /* --- Language picker --------------------------------------------------------
@@ -4329,7 +4353,12 @@ button.cost-comp__row-btn:hover,
 
 /* --- Settings panel + switches (Phase 5.3) --------------------------------- */
 .board__panel {
-  margin-top: 1rem;
+  /* Centred in the measure, not parked against its left edge. The settings
+     page puts a centred `h1` over a column of these, and a 42rem box inside a
+     wider measure has to be told to sit under it — otherwise the heading is
+     centred on the page and everything it introduces is not, which reads as a
+     layout that was never finished. */
+  margin: 1rem auto 0;
   max-width: 42rem;
   padding: 1rem 1.1rem;
   border-radius: 14px;
@@ -4341,6 +4370,16 @@ button.cost-comp__row-btn:hover,
   margin: 0 0 0.75rem;
   font-size: 0.95rem;
   font-weight: 700;
+  text-align: center;
+}
+
+/* A panel's own action, on a line of its own and centred under the note that
+   explains it. A flex line rather than `margin-inline: auto` on the button:
+   `.board__cta` is `inline-block`, so centring it would mean making it a block
+   and it would then run the full width of the panel. */
+.board__panel-action {
+  display: flex;
+  justify-content: center;
 }
 
 .board__panel-note {

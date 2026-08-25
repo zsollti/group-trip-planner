@@ -35,6 +35,29 @@ describe("ImagePicker", () => {
     expect(screen.getByText("Choose a file")).toBeInTheDocument();
   });
 
+  it("takes the label off the screen without taking it out of the name", () => {
+    // The avatar panel's heading already reads "Profile picture", so a line
+    // under it reading "Your picture" is two names for one thing. Dropping the
+    // prop instead of hiding it would have taken the file input's accessible
+    // name with it — the string is what a voice user asks for by name.
+    const { container } = render(
+      <ImagePicker
+        label="Your picture"
+        labelHidden
+        currentUrl={null}
+        onSave={() => undefined}
+      />,
+    );
+    expect(screen.getByLabelText(/Your picture/)).toHaveAttribute(
+      "type",
+      "file",
+    );
+    // Present in the tree, and clipped out of the page rather than removed.
+    expect(container.querySelector(".picker__label")).toHaveClass(
+      "board__sr-only",
+    );
+  });
+
   it("keeps its own Save where it owns the commit", () => {
     render(
       <ImagePicker
