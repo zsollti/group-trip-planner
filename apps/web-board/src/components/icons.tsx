@@ -52,6 +52,80 @@ export function CalendarIcon({ size }: { size?: number }) {
 }
 
 /**
+ * The crew panel's per-person actions, as marks.
+ *
+ * Six controls on a strip you scan past cannot be six words — the row would
+ * stop being a list of people and become a toolbar. Every one carries its own
+ * name on `title` and `aria-label`, which is where the word goes: these are
+ * buttons, not labels for a value beside them, so unlike the rest of this file
+ * they are announced.
+ *
+ * Chosen so the three roles read as *what that person does* rather than as a
+ * rank: a key unlocks decisions, a pin plans a trip, an eye only watches.
+ */
+
+/** Organizer: the one who can lock a decision. */
+export function KeyIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12.5 20 3.5M17.5 6l2.5 2.5M15 8.5l2.5 2.5" />
+    </Glyph>
+  );
+}
+
+/** Traveler: proposes and votes — the ordinary member of a trip. */
+export function PinIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </Glyph>
+  );
+}
+
+/** Guest: reads the board and nothing else. */
+export function EyeIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </Glyph>
+  );
+}
+
+/** Hand the trip over. A crown, because ownership is held rather than done. */
+export function CrownIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M3 7.5 7 12l5-6.5 5 6.5 4-4.5-1.5 11h-15Z" />
+      <path d="M4.5 20h15" />
+    </Glyph>
+  );
+}
+
+/** Remove from the trip. An open door, not a cross: they can be invited back. */
+export function ExitIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M14 3.5H6.5A1.5 1.5 0 0 0 5 5v14a1.5 1.5 0 0 0 1.5 1.5H14" />
+      <path d="M11 12h9M16.5 8l4 4-4 4" />
+    </Glyph>
+  );
+}
+
+/** Remove **and** bar from rejoining. The universal "no", which is the one
+ *  glyph a reader will not mistake for the door beside it. */
+export function BanIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m6 6 12 12" />
+    </Glyph>
+  );
+}
+
+/**
  * Marks a decision, on the card's own title line.
  *
  * The board says "settled" with intensity — a fuller wash and a solid left edge
