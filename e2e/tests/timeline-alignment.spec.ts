@@ -102,13 +102,11 @@ async function decide(
   // a wall-clock value is filled in two halves. The `at()` helper still writes
   // one string, because that is what the assertions are about.
   await pickDays(page, starts.slice(0, 10), ends.slice(0, 10));
-  // `selectOption`, not `fill`: the times are a quarter-hour list now rather
-  // than a free-text clock. `at()` only ever builds whole hours, so every value
-  // these journeys ask for is on that grid.
-  await page
-    .getByLabel("Start time")
-    .selectOption(starts.slice(11, 16));
-  await page.getByLabel("End time").selectOption(ends.slice(11, 16));
+  // `fill`, not `selectOption`: the times are typed again — four digits and a
+  // colon, settled to "HH:MM" on the way out. The field commits on every
+  // keystroke that parses, so a filled "09:00" is already the form's value.
+  await page.getByLabel("Start time").fill(starts.slice(11, 16));
+  await page.getByLabel("End time").fill(ends.slice(11, 16));
   await page.getByRole("button", { name: "Propose option" }).click();
 
   await lane
