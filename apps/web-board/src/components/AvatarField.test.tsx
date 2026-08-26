@@ -224,4 +224,29 @@ describe("the avatar field", () => {
     renderField(avatarPresetUrl("tent", "SKY"));
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
   });
+
+  it("keeps the picture and its file control in one column, apart from the sliders", () => {
+    // The panel reads left to right now: what you are wearing on one side, what
+    // you can change it to on the other. jsdom lays nothing out, so what is
+    // asserted is the grouping the two columns are built from — the preview and
+    // the uploader together, and the strips not among them. Flatten it back to
+    // one stack and this is what goes first.
+    const { container } = render(
+      <AvatarField
+        name="Ada Lovelace"
+        userId="u-1"
+        currentUrl={null}
+        busy={false}
+        error={null}
+        onWear={vi.fn()}
+        onUpload={vi.fn()}
+      />,
+    );
+
+    const current = container.querySelector(".avatarfield__current");
+    expect(current).not.toBeNull();
+    expect(current!.querySelector(".avatarfield__preview")).not.toBeNull();
+    expect(current!.querySelector("input[type=file]")).not.toBeNull();
+    expect(current!.querySelector(".presets")).toBeNull();
+  });
 });

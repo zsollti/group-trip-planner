@@ -987,40 +987,70 @@ span.board__muted {
 
 /* --- The avatar field: one picture, and the ways to change it ---------------- */
 /*
- * Read top to bottom as one answer. The circle is what you are wearing, the
- * button under it replaces the whole thing with a photograph, and the two
- * strips build a drawn one. The circle stays put while the strips change under
- * it, which is what makes it a preview rather than a fourth control.
+ * Two columns, read left to right. On the left, what you are wearing and the
+ * button that replaces the whole thing with a photograph; on the right, the two
+ * strips that build a drawn one. The circle stays level with the strips while
+ * they change it, which is what makes it a preview rather than a fourth
+ * control — stacked, it was above the fold the strips were below.
+ *
+ * `auto` and not a fixed left column: the circle is 96px and the file button
+ * under it is as wide as its own label, which is a translated string. The
+ * strips take what is left, down to nothing, which is what `minmax(0, 1fr)`
+ * buys over a bare `1fr` — a grid track's default `min-width: auto` refuses to
+ * go under the content's minimum, and a horizontal scroller's minimum is its
+ * whole scrolled length.
  */
 .avatarfield {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem 1.3rem;
+}
+/* The panel's own lines — an error, a hint — belong to both columns. */
+.avatarfield__wide {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+.avatarfield__current {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 .avatarfield__preview {
   margin: 0.35rem 0 0.15rem;
 }
+/* One column where two will not fit: the circle over the strips, which is the
+   order they are written in. */
+@media (max-width: 34rem) {
+  .avatarfield {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .avatarfield__wide {
+    grid-column: auto;
+  }
+}
 
 /*
- * The two sliders, side by side.
+ * The two sliders, one above the other.
  *
  * They are the two halves of one answer — a drawn avatar is a mark *and* a
  * colour — so a reader building one goes back and forth between them rather
- * than finishing one and moving on. Stacked, that was a scroll apart on a
- * phone-height panel. They wrap back to a column when there is genuinely no
- * room for two.
+ * than finishing one and moving on: what matters is that they are within a
+ * glance of each other and of the circle they are changing, which is what the
+ * two-column panel buys and what a full-width stack under the preview did not.
+ *
+ * Held short of the column's full width. A slider as wide as the panel reads as
+ * a band of swatches rather than as a control, and the arrows at its ends end
+ * up a hand's travel apart.
  */
 .presets {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem 1.1rem;
+  flex-direction: column;
+  gap: 0.55rem;
   width: 100%;
+  max-width: 19rem;
   margin-top: 0.4rem;
-  /* Top-aligned, so the two labels sit on one line whatever the sliders under
-     them come out to. */
-  align-items: start;
 }
 
 /*
@@ -1032,7 +1062,7 @@ span.board__muted {
  * other direction, and here it is unavoidable because the box has to scroll.
  */
 .presets__row {
-  flex: 1 1 14rem;
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;

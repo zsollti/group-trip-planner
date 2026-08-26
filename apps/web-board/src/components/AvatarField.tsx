@@ -56,10 +56,18 @@ const PAN_SLOP = 4;
  * along by exactly one swatch. Every colour and every mark is in the strip the
  * whole time; the box just shows the part of it you have scrolled to.
  *
- * The two sit next to each other rather than stacked, with their labels above
- * them, because they are the two halves of one answer: a drawn avatar is a mark
- * *and* a colour, and a reader building one is going back and forth between
- * them rather than finishing one and moving on.
+ * The two sit together, with their labels above them, because they are the two
+ * halves of one answer: a drawn avatar is a mark *and* a colour, and a reader
+ * building one is going back and forth between them rather than finishing one
+ * and moving on.
+ *
+ * **Two columns: what you are wearing, and what you can change it to.** The
+ * panel used to read top to bottom — circle, file button, then the strips side
+ * by side under them — which is a tall column on a settings page that has room
+ * beside it, and it put the preview a scroll away from the strips that change
+ * it. Now the circle and its file button hold the left, the two strips stack
+ * down the right, and the thing you are changing stays level with the controls
+ * that change it. It folds back to one column where two will not fit.
  */
 export function AvatarField({
   name,
@@ -158,40 +166,47 @@ export function AvatarField({
 
   return (
     <div className="avatarfield" style={tint}>
-      {/* The one circle, drawn by `Avatar` from a composed value rather than by
-          hand, so what this shows and what a crew list shows cannot drift. */}
-      <div className="avatarfield__preview">
-        <Avatar name={name} userId={userId} url={shown} size={96} />
-      </div>
-
+      {/* Across both columns, above everything: a failure belongs to the panel
+          rather than to the half of it that happened to cause it. */}
       {error ? (
-        <p className="board__form-error" role="alert">
+        <p className="board__form-error avatarfield__wide" role="alert">
           {error}
         </p>
       ) : null}
 
-      {/* The uploader, without its own frame: the circle above is the preview
-          for every way of having an avatar, not just for the uploaded one. */}
-      <ImagePicker
-        // Still the file input's accessible name, which is why it is a real
-        // string and not dropped — see `labelHidden`.
-        label={t("Your picture")}
-        labelHidden
-        framed={false}
-        centred
-        shape="square"
-        currentUrl={wearsPhoto ? currentUrl : null}
-        busy={busy}
-        // The circle is chosen before the upload: the server resizes to fit and
-        // CSS then crops to the middle, so an off-centre face used to become a
-        // picture of a shoulder.
-        cropCircle
-        onSave={onUpload}
-        onRemove={onRemovePhoto}
-      />
+      {/* Left: what you are wearing, and the one control that replaces the
+          whole thing with a photograph. */}
+      <div className="avatarfield__current">
+        {/* The one circle, drawn by `Avatar` from a composed value rather than
+            by hand, so what this shows and what a crew list shows cannot
+            drift. */}
+        <div className="avatarfield__preview">
+          <Avatar name={name} userId={userId} url={shown} size={96} />
+        </div>
 
-      {/* The two strips as one row (see the note above): two halves of one
-          answer, each labelled over its own slider. */}
+        {/* The uploader, without its own frame: the circle above is the preview
+            for every way of having an avatar, not just for the uploaded one. */}
+        <ImagePicker
+          // Still the file input's accessible name, which is why it is a real
+          // string and not dropped — see `labelHidden`.
+          label={t("Your picture")}
+          labelHidden
+          framed={false}
+          centred
+          shape="square"
+          currentUrl={wearsPhoto ? currentUrl : null}
+          busy={busy}
+          // The circle is chosen before the upload: the server resizes to fit
+          // and CSS then crops to the middle, so an off-centre face used to
+          // become a picture of a shoulder.
+          cropCircle
+          onSave={onUpload}
+          onRemove={onRemovePhoto}
+        />
+      </div>
+
+      {/* Right: the two strips, stacked (see the note above) — two halves of
+          one answer, each labelled over its own slider. */}
       <div className="presets">
         <Strip
           label={t("Colour")}
@@ -258,7 +273,7 @@ export function AvatarField({
 
       {/* Only where it is true, and only for as long as it is. */}
       {!wornPreset && stagedColour ? (
-        <p className="board__panel-note" role="status">
+        <p className="board__panel-note avatarfield__wide" role="status">
           {t("Pick a mark to wear it in this colour.")}
         </p>
       ) : null}
