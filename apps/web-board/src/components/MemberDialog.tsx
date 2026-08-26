@@ -17,6 +17,7 @@ import { Avatar } from "./Avatar";
 import { Dialog } from "./Dialog";
 import { MemberConfirm } from "./MemberConfirm";
 import { Menu, type MenuItem } from "./Menu";
+import { BanIcon, CrownIcon, ExitIcon } from "./icons";
 import { useMemberActions } from "../lib/memberActions";
 import { byRole, roleLabel } from "../lib/roles";
 import { t } from "../lib/i18n";
@@ -92,18 +93,27 @@ export function MemberDialog({
    * "Remove" and "Block" are the same act with a different afterwards, and no
    * verb pair tells a reader that on its own — the difference is whether the
    * person can come back, so that is what the notes say, in those words.
+   *
+   * **And each carries the mark it wears on the crew strip.** The strip's hover
+   * panel offers these same three acts as icons and nothing else, so a reader
+   * who has used it once knows the door for "block" as a shape before they know
+   * it as a word. Repeating the shape here means the two surfaces teach each
+   * other instead of being two unrelated ways to do the same thing — see
+   * `MemberQuickActions`, which is where these three are drawn.
    */
   function memberMenuItems(m: TripMemberView): MenuItem[] {
     const items: MenuItem[] = [
       {
         label: t("Remove from trip"),
         note: t("They lose access. You can invite them back."),
+        icon: <ExitIcon size={15} />,
         danger: true,
         onSelect: () => actions.ask("kick", m),
       },
       {
         label: t("Remove and block"),
         note: t("They lose access and can't rejoin, even with a link."),
+        icon: <BanIcon size={15} />,
         danger: true,
         onSelect: () => actions.ask("block", m),
       },
@@ -112,6 +122,7 @@ export function MemberDialog({
       items.push({
         label: t("Make owner"),
         note: t("They take over the trip and you become a co-organizer."),
+        icon: <CrownIcon size={15} />,
         danger: true,
         separated: true,
         onSelect: () => actions.ask("transfer", m),
