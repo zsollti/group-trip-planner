@@ -4572,6 +4572,12 @@ button.cost-comp__row-btn:hover,
 /* The "this board's email is muted" flag in the trip header. */
 .board__mutedflag {
   color: var(--board-dim);
+  /* The bell rides on the text baseline otherwise — see the note on
+     `.board__radio > span > svg:first-child` for why that reads as high. */
+  white-space: nowrap;
+}
+.board__mutedflag svg {
+  vertical-align: -0.15em;
 }
 
 /* --- Activity feed (Phase 5.4) --------------------------------------------- */
@@ -4730,6 +4736,11 @@ button.cost-comp__row-btn:hover,
 /* A count on a menu item — unread messages on a collapsed chat channel. */
 .menu__badge {
   flex: 0 0 auto;
+  /* Pushed to the far end by its own margin rather than by `space-between` on
+     the row: with a mark before the label there are three children, and
+     `space-between` would spread all three — putting the words in the middle
+     of the item instead of next to the thing that marks them. */
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4773,10 +4784,14 @@ button.cost-comp__row-btn:hover,
 .menu__item-label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
   flex: 1 1 auto;
   min-width: 0;
+}
+.menu__item-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--board-dim);
 }
 .menu__note {
   display: block;

@@ -27,6 +27,7 @@ import { TimelineCanvas } from "../components/TimelineCanvas";
 import { ViewToggle, type TripView } from "../components/ViewToggle";
 import { Menu, type MenuItem } from "../components/Menu";
 import { Brand } from "../components/Brand";
+import { BellIcon, BellOffIcon } from "../components/icons";
 import { UserMenu } from "../components/UserMenu";
 import { LiveIndicator } from "../components/LiveIndicator";
 import { useSessionSocket } from "../components/SessionSocketProvider";
@@ -203,7 +204,15 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
         : []),
       { label: t("Activity"), onSelect: () => setViewingActivity(true) },
       {
-        label: trip_.viewerMuted ? t("🔔 Unmute email") : t("🔕 Mute email"),
+        // The mark carries the state and the word carries the act, which is
+        // why this one item has an icon at all: "Mute" and "Unmute" differ by
+        // two letters in a list read at a glance.
+        icon: trip_.viewerMuted ? (
+          <BellIcon size={14} />
+        ) : (
+          <BellOffIcon size={14} />
+        ),
+        label: trip_.viewerMuted ? t("Unmute email") : t("Mute email"),
         onSelect: () => void onToggleMute(!trip_.viewerMuted),
       },
     ];
@@ -332,7 +341,8 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                     did it and wonder why the inbox is quiet (Phase 5.3). */}
                 {trip.data.viewerMuted ? (
                   <span className="board__mutedflag">
-                    {t("· 🔕 Email muted")}
+                    {"· "}
+                    <BellOffIcon size={12} /> {t("Email muted")}
                   </span>
                 ) : null}
               </p>

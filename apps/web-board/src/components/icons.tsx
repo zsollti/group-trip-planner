@@ -188,3 +188,37 @@ export function PeopleIcon({ size }: { size?: number }) {
     </Glyph>
   );
 }
+
+/**
+ * Email for this trip, on or off.
+ *
+ * Drawn rather than typed because the emoji this replaces had no grey in it:
+ * 🔔 and 🔕 are yellow by definition on every platform that ships them, so a
+ * menu of otherwise plain text carried one gold pictogram, and the muted state
+ * was a *second* gold one. These take `currentColor` like the rest of the set,
+ * which means they are the same grey as the words beside them and go dim with
+ * a disabled row.
+ *
+ * The muted one is the same bell with a stroke through it: the pair has to read
+ * as one thing in two states, and two different drawings would read as two
+ * different subjects.
+ */
+export function BellIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M18 9a6 6 0 0 0-12 0c0 4-1.5 5.5-2 6.5h16c-.5-1-2-2.5-2-6.5" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </Glyph>
+  );
+}
+
+/** The bell above, silenced. See {@link BellIcon}. */
+export function BellOffIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <path d="M18 9a6 6 0 0 0-12 0c0 4-1.5 5.5-2 6.5h16c-.5-1-2-2.5-2-6.5" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+      <path d="M4 4l16 16" />
+    </Glyph>
+  );
+}
