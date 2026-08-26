@@ -3317,11 +3317,20 @@ textarea[data-gtp-input] {
   flex-direction: column;
   gap: 0.3rem;
 }
+/* The title on one side, the tools on the other, on one line. `center` rather
+   than `flex-start`: the padlock, the grip and the "⋯" are all in the tools now,
+   and a title that shares a line with them should sit level with them. */
 .lane__card-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+/* The title has to be allowed to be narrower than its own text, or a long one
+   pushes the tools off the card instead of ending itself. */
+.lane__card-head > strong {
+  min-width: 0;
 }
 .lane__card-tools {
   display: flex;
@@ -3374,9 +3383,6 @@ textarea[data-gtp-input] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.lane__lock {
-  color: var(--board-accent);
 }
 .lane__cost {
   margin: 0;
@@ -3565,13 +3571,6 @@ textarea[data-gtp-input] {
 .lane__vote-btn:disabled {
   opacity: 0.6;
   cursor: default;
-}
-.lane__lock {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.35rem;
 }
 /* `.lane__decided` was the "✦ Decided" line at the top of the option detail
    dialog. That panel says it in a tinted band now (`.odetail__state`), which is
@@ -3779,14 +3778,26 @@ a.odetail__link:focus-visible {
   border-left: 5px solid var(--cat-main);
   background: var(--cat-locked);
 }
-/* The padlock on a decision's title line. Sized and coloured as punctuation
-   rather than as an icon with its own weight — it marks the title, it is not a
-   control beside it. */
+/* The padlock on a decision, up in the card's tools beside the grip and the
+   "⋯" — the corner that holds what is true *of* a card rather than what is
+   written on it. It sat before the title until then, inside the run of text
+   that names the card, so a long title wrapped around it and the two read as
+   one phrase.
+
+   There were three `.lane__lock` rules by that point, left behind by two
+   earlier layouts, and because they all had the same selector and the same
+   specificity the card was drawn from whichever of them declared each property
+   last — including a `margin-top` from a row that no longer exists. This is the
+   whole of it now. */
 .lane__lock {
   display: inline-flex;
   align-items: center;
-  margin-right: 0.3rem;
-  vertical-align: -0.1em;
+  /* Same box as the grip and the menu trigger beside it, so the three sit on
+     one rhythm rather than at three heights. */
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
   color: var(--cat-ink);
 }
 /* Separates the decision from the options it beat. Not a heading — it labels a

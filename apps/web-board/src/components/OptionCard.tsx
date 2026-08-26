@@ -185,20 +185,9 @@ export function OptionCard({
       data-tour="card"
     >
       <div className="lane__card-head">
+        {/* Shortened for the card, full on `title`/`aria-label` — the detail
+            view this opens is where the whole title is shown. */}
         <strong>
-          {/* The decision, said in words for once. The card's fill and its solid
-              left edge already say it, but only to someone who can see both and
-              has another card to compare against — and a lane read one card at a
-              time, or read aloud, had nothing. Labelled rather than
-              `aria-hidden`, unlike every other glyph on this card: those sit
-              beside a value that already speaks. */}
-          {locked ? (
-            <span className="lane__lock" role="img" aria-label={t("Decided")}>
-              <LockIcon size={12} />
-            </span>
-          ) : null}
-          {/* Shortened for the card, full on `title`/`aria-label` — the detail
-              view this opens is where the whole title is shown. */}
           <button
             type="button"
             className="lane__field-btn"
@@ -215,6 +204,27 @@ export function OptionCard({
         </strong>
         <div className="lane__card-tools">
           {grip}
+          {/*
+           * The decision, said in words for once. The card's fill and its solid
+           * left edge already say it, but only to someone who can see both and
+           * has another card to compare against — and a lane read one card at a
+           * time, or read aloud, had nothing. Labelled rather than
+           * `aria-hidden`, unlike every other glyph on this card: those sit
+           * beside a value that already speaks.
+           *
+           * **In the tools, not before the title.** It used to lead the title,
+           * which put a mark that is about the card's *state* inside the run of
+           * text that names it — so a long title wrapped around the padlock and
+           * the two read as one phrase. Over here it lines up with the grip and
+           * the "⋯" in the corner every card keeps for the things that are true
+           * *of* the card rather than written *on* it, and the title gets the
+           * whole of its own line.
+           */}
+          {locked ? (
+            <span className="lane__lock" role="img" aria-label={t("Decided")}>
+              <LockIcon size={13} />
+            </span>
+          ) : null}
           {items.length > 0 ? (
             <Menu
               label={t("Actions for {card}", { card: option.title })}
