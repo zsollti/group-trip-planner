@@ -44,27 +44,26 @@ function joinUrl(token: string): string {
 }
 
 /**
- * A link's state as a **code**, which the list also branches on. Deliberately not
- * translated: the moment it is, `linkStatus(link) === "Active"` starts depending on
- * the reader's language. {@link linkStatusLabel} is the half that is read.
+ * Whether a link can still be used, which is now the only thing the list asks
+ * about one.
+ *
+ * It used to be three states with a word for each — Active, Used, Disabled —
+ * printed beside every row. Two of those three describe a link that can never
+ * do anything again: a revoked link is refused and a personal link is spent the
+ * moment its one recipient joins. Kept on screen they were a growing list of
+ * things you cannot act on, sitting above the handful you can, with the useful
+ * rows pushed further down every time somebody accepted an invite. So the list
+ * shows what is live and nothing else — which also means the row no longer
+ * needs a word for a state it is now guaranteed to be in.
+ *
+ * The rows are not deleted on the server. A spent link is the record of how
+ * somebody got here and the activity feed refers to it; this is a filter, not a
+ * cleanup.
  */
-type LinkStatus = "Disabled" | "Used" | "Active";
-
-function linkStatus(link: InviteLinkView): LinkStatus {
-  if (link.disabledAt) return "Disabled";
-  if (link.type === "PERSONAL" && link.consumedAt) return "Used";
-  return "Active";
-}
-
-function linkStatusLabel(status: LinkStatus): string {
-  switch (status) {
-    case "Disabled":
-      return t("Disabled");
-    case "Used":
-      return t("Used");
-    case "Active":
-      return t("Active");
-  }
+function isLive(link: InviteLinkView): boolean {
+  if (link.disabledAt) return false;
+  if (link.type === "PERSONAL" && link.consumedAt) return false;
+  return true;
 }
 
 /**
@@ -85,6 +84,10 @@ export function InviteDialog({
   const invites = useTripInvites(tripId);
   const createInvite = useCreateInvite(tripId);
   const disableInvite = useDisableInvite(tripId);
+  // Read once, in one place: the heading, the empty state and the list are the
+  // same fact three times, and filtering separately is how they come to
+  // disagree about whether there is anything here.
+  const live = (invites.data ?? []).filter(isLive);
 
   const allowedRoles = INVITE_ROLES.filter(
     (r) => ROLE_RANK[r] < ROLE_RANK[myRole],
@@ -256,7 +259,11 @@ export function InviteDialog({
         </form>
 
         <div className="board__invite-list">
-          <p className="board__eyebrow">{t("Existing links")}</p>
+          {/* The heading only where there is a list under it. With nothing to
+              show it was a label over an apology. */}
+          {live.length > 0 ? (
+            <p className="board__eyebrow">{t("Existing links")}</p>
+          ) : null}
           {invites.isPending ? (
             <p className="board__muted" role="status">
               {t("Loading links…")}
@@ -274,50 +281,46 @@ export function InviteDialog({
                 {t("Try again")}
               </button>
             </>
-          ) : invites.data.length === 0 ? (
+          ) : live.length === 0 ? (
             <p className="board__muted">
-              {t("No links yet. Create one above.")}
+              {t("No links to show. Create one above.")}
             </p>
           ) : (
             <ul className="board__invite-items">
-              {invites.data.map((link) => {
-                const active = linkStatus(link) === "Active";
-                return (
-                  <li key={link.id} className="board__invite-item">
-                    <div>
-                      <strong>{roleLabel(link.role)}</strong>{" "}
-                      <span className="board__muted">
-                        {link.type === "GLOBAL" ? t("Global") : t("Personal")} ·{" "}
-                        {linkStatusLabel(linkStatus(link))}
-                        {link.sentToEmail ? ` · ${link.sentToEmail}` : ""}
-                      </span>
-                    </div>
-                    <div className="board__invite-item-actions">
-                      {active ? (
-                        <>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => onCopy(link)}
-                          >
-                            {copiedId === link.id
-                              ? t("Copied!")
-                              : t("Copy link")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            disabled={disableInvite.isPending}
-                            onClick={() => disableInvite.mutate(link.id)}
-                          >
-                            {t("Disable")}
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
+              {live.map((link) => (
+                <li key={link.id} className="board__invite-item">
+                  <div>
+                    <strong>{roleLabel(link.role)}</strong>{" "}
+                    <span className="board__muted">
+                      {link.type === "GLOBAL" ? t("Global") : t("Personal")}
+                      {link.sentToEmail ? ` · ${link.sentToEmail}` : ""}
+                    </span>
+                  </div>
+                  <div className="board__invite-item-actions">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => onCopy(link)}
+                    >
+                      {copiedId === link.id ? t("Copied!") : t("Copy link")}
+                    </Button>
+                    {/* "Remove", because the row goes when it is pressed. It
+                        said "Disable" while the disabled rows stayed on screen
+                        wearing the word; now that they do not, the name of the
+                        button and what the reader sees happen are the same
+                        thing. The link itself is revoked rather than deleted —
+                        see `isLive`. */}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={disableInvite.isPending}
+                      onClick={() => disableInvite.mutate(link.id)}
+                    >
+                      {t("Remove")}
+                    </Button>
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </div>

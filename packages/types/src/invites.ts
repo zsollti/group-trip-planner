@@ -62,7 +62,8 @@ export type CreateInviteInput = z.infer<typeof CreateInviteInput>;
 /**
  * An invite link as shown in the management UI. `token` is included so a global
  * link can be re-displayed and copied; the front-end composes the shareable URL
- * from it. `disabledAt`/`consumedAt` drive the link's status chips.
+ * from it. `disabledAt`/`consumedAt` are what the board reads to decide a link
+ * is spent and stops listing it.
  */
 export const InviteLinkView = z.object({
   id: z.string().uuid(),
