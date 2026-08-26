@@ -5428,6 +5428,129 @@ button.cost-comp__row-btn:hover,
   flex-shrink: 0;
 }
 
+/* Searching the board's transcript (post-launch): the "..." menu in the panel
+   header, and the result list that stands in for the log while it is open. */
+
+/* The trigger only needs sizing. `menu__trigger` already carries the look, and
+   this matches it to the back arrow and the close beside it so the header's
+   controls read as one row rather than as three borrowed pieces. */
+.board__chat-menu {
+  font-size: 1.1rem;
+  flex: none;
+  padding: 0.1rem 0.3rem;
+}
+
+/* Takes the log's place, so it inherits the log's job of being the part that
+   scrolls: the bar stays put and only the results move under it. */
+.board__chat-search {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.board__chat-searchbar {
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--lane-line);
+}
+.board__chat-searchfield {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--lane-line);
+  background: var(--board-bg);
+  color: var(--board-fg);
+}
+.board__chat-searchfield:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+.board__chat-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.6rem 0.8rem;
+}
+.board__chat-count {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  color: var(--board-dim);
+}
+.board__chat-hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+/* The whole hit is the control, so the target is the row and not a link inside
+   it: everything in the row is about the one message it would open. */
+.board__chat-hitrow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.35rem 0.4rem;
+  color: inherit;
+}
+.board__chat-hitrow:hover {
+  border-color: var(--lane-line);
+  background: color-mix(in srgb, var(--board-accent) 6%, transparent);
+}
+.board__chat-hitrow:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 1px;
+}
+.board__chat-hithead {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* Which conversation the line was said in. Pushed to its own chip because it is
+   the column a reader scans when the hits come from several channels at once. */
+.board__chat-hitchannel {
+  font-size: 0.66rem;
+  color: var(--board-accent);
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 9rem;
+}
+/* The time goes to the far end, as it does on a message in the log. */
+.board__chat-hithead .board__msg-time {
+  margin-left: auto;
+  flex: none;
+}
+/* Two lines at most: a hit is a pointer to a message, not the message. */
+.board__chat-hitbody {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* The match itself. The UA default for <mark> is black on yellow, which is a
+   light-mode assumption baked into the browser — in dark mode it puts black
+   text on a bright block in the middle of a pale line. Both colours are stated
+   here so the mark follows the board's theme instead of the browser's. */
+.board__chat-hit {
+  background: color-mix(in srgb, var(--board-accent) 28%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}
+
 /* Reactions + @mentions (Phase 4.3). */
 .board__mention {
   color: var(--board-accent);

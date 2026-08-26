@@ -118,6 +118,7 @@ export {
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
 export { useStartDiscussion } from "./channels.js";
+export { messageSearchKeys, useMessageSearch } from "./messages.js";
 export { useUserSocket, useChat, useBoardLiveSync } from "./socket.js";
 export type {
   SessionSocket,

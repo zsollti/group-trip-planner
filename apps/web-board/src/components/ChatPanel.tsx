@@ -16,6 +16,7 @@ import {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
+import { ChatSearch } from "./ChatSearch";
 import { Menu } from "./Menu";
 import { partitionByFit, useFitCount } from "../lib/fitTabs";
 import { applyOrder, orderChannels } from "../lib/channelOrder";
@@ -397,6 +398,20 @@ export function ChatPanel({
     0,
   );
 
+  /*
+   * Searching, as a mode of this panel rather than a surface of its own.
+   *
+   * The results take the log's place, so exactly one of the two is on screen
+   * and the state that decides which lives here — the "..." menu opens it, a
+   * hit closes it, and the body reads it. A `ChatSearch` that owned its own
+   * visibility would have to be told about both.
+   *
+   * Reset when the reader changes board: the term was asked of the board they
+   * were on, and its hits are not answers about this one.
+   */
+  const [searching, setSearching] = useState(false);
+  useEffect(() => setSearching(false), [tripId]);
+
   function selectChannel(id: string) {
     setActiveId(id);
     setActiveChannel(id);
@@ -565,6 +580,25 @@ export function ChatPanel({
             {activeChannel ? channelName(activeChannel) : t("Chat")}
           </strong>
         </button>
+        {/*
+         * The conversation's own menu, left of the close button.
+         *
+         * Everything in here acts on this *board's* chat rather than on the
+         * channel in front of the reader, which is why it hangs off the panel
+         * header and not off the channel row.
+         */}
+        <Menu
+          label={t("Chat menu")}
+          align="right"
+          triggerClassName="board__chat-menu"
+          items={[
+            {
+              label: searching ? t("Close search") : t("Search chat"),
+              onSelect: () => setSearching((was) => !was),
+              selected: searching,
+            },
+          ]}
+        />
         <button
           type="button"
           className="board__chat-close"
@@ -697,102 +731,120 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      <div className="board__chat-log" ref={logRef}>
-        {chat.status === "loading" ? (
-          <p className="board__muted" role="status">
-            {t("Loading messages…")}
-          </p>
-        ) : chat.status === "error" ? (
-          <>
-            <p className="board__form-error" role="alert">
-              {t("Couldn't load chat.")}
+      {searching ? (
+        <ChatSearch
+          tripId={tripId}
+          channels={listed}
+          channelName={channelName}
+          onPick={(channelId) => {
+            selectChannel(channelId);
+            setSearching(false);
+          }}
+        />
+      ) : (
+        <div className="board__chat-log" ref={logRef}>
+          {chat.status === "loading" ? (
+            <p className="board__muted" role="status">
+              {t("Loading messages…")}
             </p>
-            <button
-              type="button"
-              className="board__chat-older"
-              onClick={chat.reload}
-            >
-              {t("Try again")}
-            </button>
-          </>
-        ) : (
-          <>
-            {chat.hasMore ? (
+          ) : chat.status === "error" ? (
+            <>
+              <p className="board__form-error" role="alert">
+                {t("Couldn't load chat.")}
+              </p>
               <button
                 type="button"
                 className="board__chat-older"
-                disabled={chat.loadingOlder}
-                onClick={chat.loadOlder}
+                onClick={chat.reload}
               >
-                {chat.loadingOlder ? t("Loading…") : t("Load older messages")}
+                {t("Try again")}
               </button>
-            ) : null}
-            {chat.messages.length === 0 ? (
-              <p className="board__muted">
-                {t(
-                  "No messages yet. Say hello, or @mention someone to pull them in.",
-                )}
-              </p>
-            ) : (
-              <ul className="board__msg-list">
-                {chat.messages.map((m) => (
-                  <MessageRow
-                    key={m.id}
-                    message={m}
-                    myRole={myRole}
-                    myUserId={myUserId}
-                    onDelete={chat.remove}
-                    onToggleReaction={chat.toggleReaction}
-                  />
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-
-      <form className="board__chat-composer" onSubmit={onSubmit}>
-        {suggestions.length > 0 ? (
-          <ul className="board__mention-menu" role="listbox">
-            {suggestions.map((mem) => (
-              <li key={mem.userId}>
+            </>
+          ) : (
+            <>
+              {chat.hasMore ? (
                 <button
                   type="button"
-                  role="option"
-                  aria-selected="false"
-                  onClick={() => insertMention(mem.displayName)}
+                  className="board__chat-older"
+                  disabled={chat.loadingOlder}
+                  onClick={chat.loadOlder}
                 >
-                  @{mem.displayName}
+                  {chat.loadingOlder ? t("Loading…") : t("Load older messages")}
                 </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <textarea
-          ref={inputRef}
-          data-gtp-input
-          className="board__chat-input"
-          rows={2}
-          placeholder={t("Message the group… @ to mention")}
-          aria-label={t("Message")}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setCaret(e.target.selectionStart);
-          }}
-          onKeyUp={(e) => setCaret(e.currentTarget.selectionStart)}
-          onClick={(e) => setCaret(e.currentTarget.selectionStart)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && suggestions.length === 0) {
-              e.preventDefault();
-              onSubmit(e);
-            }
-          }}
-        />
-        <Button type="submit" variant="primary" disabled={!draft.trim()}>
-          {t("Send")}
-        </Button>
-      </form>
+              ) : null}
+              {chat.messages.length === 0 ? (
+                <p className="board__muted">
+                  {t(
+                    "No messages yet. Say hello, or @mention someone to pull them in.",
+                  )}
+                </p>
+              ) : (
+                <ul className="board__msg-list">
+                  {chat.messages.map((m) => (
+                    <MessageRow
+                      key={m.id}
+                      message={m}
+                      myRole={myRole}
+                      myUserId={myUserId}
+                      onDelete={chat.remove}
+                      onToggleReaction={chat.toggleReaction}
+                    />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {searching ? null : (
+        <form className="board__chat-composer" onSubmit={onSubmit}>
+          {suggestions.length > 0 ? (
+            <ul className="board__mention-menu" role="listbox">
+              {suggestions.map((mem) => (
+                <li key={mem.userId}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    onClick={() => insertMention(mem.displayName)}
+                  >
+                    @{mem.displayName}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <textarea
+            ref={inputRef}
+            data-gtp-input
+            className="board__chat-input"
+            rows={2}
+            placeholder={t("Message the group… @ to mention")}
+            aria-label={t("Message")}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setCaret(e.target.selectionStart);
+            }}
+            onKeyUp={(e) => setCaret(e.currentTarget.selectionStart)}
+            onClick={(e) => setCaret(e.currentTarget.selectionStart)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                suggestions.length === 0
+              ) {
+                e.preventDefault();
+                onSubmit(e);
+              }
+            }}
+          />
+          <Button type="submit" variant="primary" disabled={!draft.trim()}>
+            {t("Send")}
+          </Button>
+        </form>
+      )}
     </section>
   );
 }
