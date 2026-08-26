@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { AnchoredPanel, holdsNode } from "./AnchoredPanel";
 import { t } from "../lib/i18n";
 
 /** One action in a {@link Menu}. */
@@ -75,6 +76,14 @@ export function Menu({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLButtonElement>(null);
+  /*
+   * The list is portalled to `document.body` (see {@link AnchoredPanel}), so it
+   * is no longer inside `rootRef` and "did that click land outside the menu?"
+   * has two boxes to check rather than one. Getting this wrong does not look
+   * like a positioning bug: the first click on any item would land as an
+   * *outside* click and close the menu before the item could fire.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -82,9 +91,10 @@ export function Menu({
     // Captured for the cleanup below: reading a ref there is unreliable, since
     // React may have detached it by the time the cleanup runs.
     const root = rootRef.current;
+    const list = listRef.current;
     const trigger = triggerRef.current;
     const onPointer = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+      if (!holdsNode(e.target as Node, rootRef.current, listRef.current)) {
         setOpen(false);
       }
     };
@@ -108,7 +118,7 @@ export function Menu({
       if (
         active === null ||
         active === document.body ||
-        (active instanceof HTMLElement && (root?.contains(active) ?? false))
+        (active instanceof HTMLElement && holdsNode(active, root, list))
       ) {
         trigger?.focus();
       }
@@ -132,7 +142,12 @@ export function Menu({
         {trigger ?? "⋯"}
       </button>
       {open ? (
-        <div
+        <AnchoredPanel
+          anchorRef={triggerRef}
+          panelRef={listRef}
+          place="below"
+          align={align}
+          gap={4}
           className={
             "menu__list" + (align === "left" ? " menu__list--left" : "")
           }
@@ -179,7 +194,7 @@ export function Menu({
               ) : null}
             </button>
           ))}
-        </div>
+        </AnchoredPanel>
       ) : null}
     </div>
   );

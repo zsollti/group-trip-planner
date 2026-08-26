@@ -1598,11 +1598,11 @@ span.board__muted {
 /* Above the person, not below: the crew strip sits at the top of the board, so
    a panel dropping down would land on the lanes and cover the first card of
    whichever one it happened to open over. */
+/* Placed by `AnchoredPanel`, which portals it to <body>: the crew strip scrolls
+   sideways, and an absolutely-positioned panel inside a scroller is cut off at
+   its edge — which is what "half of it is hidden" was. */
 .crew__quick {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 30;
+  z-index: 60;
   display: flex;
   align-items: center;
   gap: 0.15rem;
@@ -1622,7 +1622,7 @@ span.board__muted {
   left: 0;
   right: 0;
   top: 100%;
-  height: 8px;
+  height: 10px;
 }
 .crew__quick-btn {
   display: inline-flex;
@@ -4706,11 +4706,13 @@ button.cost-comp__row-btn:hover,
   outline: 2px solid var(--board-accent);
   outline-offset: 1px;
 }
+/* Positioned by `AnchoredPanel`, which portals this to <body> and sets `top`
+   and `left` in viewport coordinates — inside the crew dialog's scrolling list
+   an absolutely-positioned menu was clipped by the scroller. The `--left`
+   variant below is now only a marker for the alignment the panel was placed
+   with; the offsets it used to carry would fight the inline style. */
 .menu__list {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 30;
+  z-index: 60;
   min-width: 10.5rem;
   display: flex;
   flex-direction: column;
@@ -4727,8 +4729,9 @@ button.cost-comp__row-btn:hover,
   box-shadow: 0 12px 30px rgb(var(--board-shadow) / 0.22);
 }
 .menu__list--left {
-  right: auto;
-  left: 0;
+  /* Alignment lives in the placement now; kept as a hook for anything that
+     wants to know which edge this list was hung from. */
+  text-align: left;
 }
 .menu__item {
   display: flex;
