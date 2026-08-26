@@ -248,6 +248,42 @@ export type MessagePage = z.infer<typeof MessagePage>;
 /** Longest a chat message may be (characters). */
 export const MESSAGE_MAX_LENGTH = 4000;
 
+/**
+ * Searching a board's transcript (`GET /trips/:id/messages/search?q=`).
+ *
+ * **The whole board, not the channel you are standing in.** A trip's talking is
+ * spread across its lane discussions by design, so "did anyone ever mention the
+ * airport transfer" is a question about the board — and the one channel the
+ * reader happens to have open is the least useful place to answer it. Every
+ * `MessageView` already names its `channelId`, so a hit says where it was said
+ * without a wrapper type.
+ *
+ * **Substring, not words.** People search chat for fragments: half a hotel
+ * name, a price, a flight number. Postgres full-text would tokenize those away.
+ *
+ * Deleted messages never match: a tombstone has no body to search, and
+ * surfacing one would be a way to read around a deletion.
+ */
+export const MESSAGE_SEARCH_MIN_LENGTH = 2;
+export const MESSAGE_SEARCH_MAX_LENGTH = 200;
+
+/**
+ * Most hits one search returns.
+ *
+ * A cap rather than a page, because this is a *find*, not a second transcript:
+ * a search worth more than fifty hits is a search that needs different words,
+ * and `truncated` says so plainly instead of offering to paginate through the
+ * board's whole history.
+ */
+export const MESSAGE_SEARCH_LIMIT = 50;
+
+/** The hits, newest first, and whether the cap cut the list short. */
+export const MessageSearchView = z.object({
+  messages: z.array(MessageView),
+  truncated: z.boolean(),
+});
+export type MessageSearchView = z.infer<typeof MessageSearchView>;
+
 /** Client → server: post a message to a channel (Phase 4.2). Emitted over the
  * socket with an ack callback; the server persists and replies with the stored
  * {@link MessageView}, which the client reconciles against its optimistic copy. */

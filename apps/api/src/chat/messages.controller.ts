@@ -1,5 +1,18 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
-import type { MessagePage, MessageView } from "@gtp/types";
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  MESSAGE_SEARCH_MAX_LENGTH,
+  MESSAGE_SEARCH_MIN_LENGTH,
+  type MessagePage,
+  type MessageSearchView,
+  type MessageView,
+} from "@gtp/types";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { RequirePermission } from "../authz/require-permission.decorator.js";
@@ -62,5 +75,44 @@ export class MessagesController {
       channelId,
       requireIdParam(after, "after"),
     );
+  }
+}
+
+/**
+ * Searching a board's whole transcript (post-launch).
+ *
+ * Its own controller because it has its own path: a search is about the *trip*,
+ * not about one channel, so it cannot hang off the channel-scoped routes above
+ * — and the reader asking it usually cannot say which channel the answer is in,
+ * which is the reason they are searching.
+ *
+ * Same guard spine and the same permission as reading history, because it is
+ * reading history: anything this returns, a `GET .../messages` would have
+ * returned to the same caller eventually.
+ */
+@Controller("trips/:id/messages")
+export class MessageSearchController {
+  constructor(private readonly messages: MessagesService) {}
+
+  @Get("search")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("message.read")
+  search(
+    @TripCtx() ctx: TripContext,
+    @Query("q") q?: string,
+  ): Promise<MessageSearchView> {
+    const term = (q ?? "").trim();
+    // An empty box is not an error and must not be a query: matching everything
+    // would hand back the board's whole transcript for a keystroke.
+    if (term.length === 0) {
+      return Promise.resolve({ messages: [], truncated: false });
+    }
+    if (term.length < MESSAGE_SEARCH_MIN_LENGTH) {
+      return Promise.resolve({ messages: [], truncated: false });
+    }
+    if (term.length > MESSAGE_SEARCH_MAX_LENGTH) {
+      throw new BadRequestException("That search is too long.");
+    }
+    return this.messages.search(ctx.trip.id, term);
   }
 }

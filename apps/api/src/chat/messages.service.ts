@@ -6,7 +6,9 @@ import {
 import type { TripRole } from "@prisma/client";
 import {
   canDeleteMessage,
+  MESSAGE_SEARCH_LIMIT,
   type MessagePage,
+  type MessageSearchView,
   type MessageView,
   type ReactionUpdate,
   resolveMentions,
@@ -312,5 +314,53 @@ export class MessagesService {
       messages: page.map(toMessageView),
       nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
     };
+  }
+
+  /**
+   * Every message on this board whose text contains `term`, newest first.
+   *
+   * **The matching is raw SQL, the loading is not.** `ILIKE` is the right
+   * operator and Prisma's `contains` compiles to it, but it interpolates the
+   * search term into the pattern *unescaped* — so a reader searching for "50%"
+   * or "a_b" is handing LIKE its own wildcards, and searching for "%" alone
+   * returns the entire transcript. There is no escape option on `contains`, so
+   * the ids come from a query that escapes the term itself and says `ESCAPE`,
+   * and the rows are then loaded through the same `messageInclude` every other
+   * read here uses. Two queries, one mapper, no second definition of what a
+   * message is.
+   *
+   * Scoped by `tripId` in the SQL rather than by a channel list gathered
+   * beforehand: the caller's permission is checked against the trip, so the
+   * trip is the boundary, and a channel created between the two queries cannot
+   * open a hole.
+   */
+  async search(tripId: string, term: string): Promise<MessageSearchView> {
+    // The character class puts the backslash first for readability only — a
+    // class matches each character once, so the escapes cannot escape each
+    // other the way a chain of string replacements would.
+    const pattern = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const found = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT m."id"
+      FROM "messages" m
+      JOIN "channels" c ON c."id" = m."channelId"
+      WHERE c."tripId" = ${tripId}::uuid
+        AND m."deletedAt" IS NULL
+        AND m."body" ILIKE ${pattern} ESCAPE '\\'
+      ORDER BY m."seq" DESC
+      LIMIT ${MESSAGE_SEARCH_LIMIT + 1}
+    `;
+
+    const truncated = found.length > MESSAGE_SEARCH_LIMIT;
+    const ids = (truncated ? found.slice(0, MESSAGE_SEARCH_LIMIT) : found).map(
+      (row) => row.id,
+    );
+    if (ids.length === 0) return { messages: [], truncated: false };
+
+    const rows = await this.prisma.message.findMany({
+      where: { id: { in: ids } },
+      orderBy: { seq: "desc" },
+      include: messageInclude,
+    });
+    return { messages: rows.map(toMessageView), truncated };
   }
 }

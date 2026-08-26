@@ -75,6 +75,7 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "A tagnak előbb meg kell erősítenie az e-mail-címét, hogy társszervező lehessen.",
   "That member must verify their email before becoming the owner.":
     "A tagnak előbb meg kell erősítenie az e-mail-címét, hogy tulajdonos lehessen.",
+  "That search is too long.": "Ez a keresés túl hosszú.",
   "The Dates category can't be deleted. It's the trip's only way to set its dates.":
     "A Dátumok sáv nem törölhető. Csak ezen keresztül kaphat dátumot az utazás.",
   "This account has been deleted.": "Ezt a fiókot törölték.",

@@ -76,6 +76,7 @@ export const SERVER_MESSAGES = [
   "That image couldn't be processed. It may be corrupt.",
   "That member must verify their email before becoming a co-organizer.",
   "That member must verify their email before becoming the owner.",
+  "That search is too long.",
   "The Dates category can't be deleted. It's the trip's only way to set its dates.",
   "This account has been deleted.",
   "This board is at its limit of {cap} categories. Delete one to add another.",
