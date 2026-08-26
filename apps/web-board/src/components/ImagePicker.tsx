@@ -44,6 +44,7 @@ export function ImagePicker({
   cropCircle = false,
   labelHidden = false,
   centred = false,
+  framed = true,
 }: {
   label: string;
   /** How to frame the preview — a round avatar or a wide cover strip. */
@@ -77,6 +78,17 @@ export function ImagePicker({
   /** Centre the frame and its controls in the panel, for a picker that is the
    *  whole of what a panel is about rather than one field of a form. */
   centred?: boolean;
+  /**
+   * Draw the preview frame, or leave it to the caller.
+   *
+   * The account page shows *one* picture — whatever the reader is actually
+   * wearing, photograph or drawn mark — and this picker only knows about half
+   * of that. Two frames side by side, one of them saying "No image yet" to
+   * somebody who plainly has an image, was the panel asking its own question
+   * twice. So there the frame belongs to {@link AvatarField} and this keeps the
+   * part that is genuinely its own: choosing a file, framing it, removing it.
+   */
+  framed?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
@@ -146,13 +158,15 @@ export function ImagePicker({
         {label}
       </p>
 
-      <div className={`picker__frame picker__frame--${shape}`}>
-        {shown ? (
-          <img className="picker__preview" src={shown} alt="" />
-        ) : (
-          <span className="picker__empty">{t("No image yet")}</span>
-        )}
-      </div>
+      {framed ? (
+        <div className={`picker__frame picker__frame--${shape}`}>
+          {shown ? (
+            <img className="picker__preview" src={shown} alt="" />
+          ) : (
+            <span className="picker__empty">{t("No image yet")}</span>
+          )}
+        </div>
+      ) : null}
 
       {error ? (
         <p className="board__form-error" role="alert">
