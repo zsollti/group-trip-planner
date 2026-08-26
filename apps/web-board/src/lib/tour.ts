@@ -113,12 +113,18 @@ export function boardTourSteps(): readonly TourStep[] {
 }
 
 /**
- * The overview tour: two steps, because an overview has two things on it.
+ * The overview tour — the first thing a new account sees.
  *
  * It exists so "Show me around" answers about whatever the reader is actually
- * looking at. Someone with no boards yet has nothing on the board tour to point
- * at, and sending them to a trip they have not created would be a strange
- * answer to a request for help.
+ * looking at, and it auto-starts here for the reader who has nothing else: a
+ * brand new account lands on this page with no trips, so the board tour has
+ * nothing to point at and would never run.
+ *
+ * The chat step is on this page as well as on a board because the chat is on
+ * this page as well: the dock spans every trip and follows the reader around.
+ * It says out loud that there is nothing in it yet, which is the honest
+ * description of a dock belonging to somebody with no trips — the alternative
+ * is pointing at a button and letting them find the emptiness themselves.
  */
 export function dashboardTourSteps(): readonly TourStep[] {
   return [
@@ -128,6 +134,14 @@ export function dashboardTourSteps(): readonly TourStep[] {
       title: t("A board is one trip"),
       body: t(
         "Start one here. The dates, the flights, the bill, the arguing: everything about that trip lives on its own board.",
+      ),
+    },
+    {
+      id: "chat",
+      anchor: "chat",
+      title: t("The talking goes with you"),
+      body: t(
+        "Chat is here on every page, not just inside one board. You will have someone to talk to once you make a trip or join one.",
       ),
     },
     {
@@ -141,8 +155,32 @@ export function dashboardTourSteps(): readonly TourStep[] {
   ];
 }
 
-/** The last panel's word, said once the reader has been through the lot. */
-export function tourFinale(): { title: string; body: string } {
+/**
+ * Which tour is running. It decides two things: the last panel's words, and
+ * which of the account's two "seen it" marks the exit sets.
+ */
+export type TourKind = "board" | "overview";
+
+/**
+ * The last panel's word, said once the reader has been through the lot.
+ *
+ * The two tours end differently because they are at different points of the
+ * same evening. A reader who has just been shown a board has everything they
+ * need and should be left alone with it. A reader on an empty overview has been
+ * shown a button, a chat with nobody in it and their own account menu — telling
+ * *them* to go and enjoy themselves would be sending them off with nothing, so
+ * this one ends by asking for the one thing that makes the rest work, and says
+ * what happens when they do it.
+ */
+export function tourFinale(kind: TourKind): { title: string; body: string } {
+  if (kind === "overview") {
+    return {
+      title: t("Now make one"),
+      body: t(
+        "Create your first trip and I will show you around the board itself.",
+      ),
+    };
+  }
   return {
     title: t("Let the fun begin!"),
     body: t("That's the whole thing. Go and plan something."),

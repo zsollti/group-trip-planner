@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { TourStep } from "./tour";
+import type { TourKind, TourStep } from "./tour";
 
 /**
  * The guided tour's controls, as the tree sees them.
@@ -9,8 +9,15 @@ import type { TourStep } from "./tour";
  * defeats fast refresh, so the provider file exports only components.
  */
 export interface TourApi {
-  /** Offer the tour for the current route. Called by `TourSteps`. */
-  readonly offer: (steps: readonly TourStep[]) => void;
+  /**
+   * Offer the tour for the current route. Called by `TourSteps`.
+   *
+   * The kind rides along with the steps because the two are one fact: which
+   * tour this is decides how it signs off and which of the account's two marks
+   * its exit sets, and a route that offered steps without saying which tour
+   * they belong to would leave the overlay guessing.
+   */
+  readonly offer: (steps: readonly TourStep[], kind: TourKind) => void;
   /** Run it now — the account menu's "Show me around". */
   readonly start: () => void;
   /** Whether this route has anything to point at. Keeps the menu item honest. */

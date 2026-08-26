@@ -279,13 +279,17 @@ export function Dashboard() {
           on the <main> so the page bar can span the window like the trip
           board's does — see `.board__measure`. */}
       {/*
-       * The overview's own two steps, and no `autoStart`: the tour proper runs
-       * on a board, which is where there is something to show. These exist so
-       * "Show me around" answers about whatever the reader is looking at —
-       * somebody with no boards yet would otherwise ask for help and be told
-       * there is none.
+       * The overview's own steps, and they auto-start.
+       *
+       * This is where a new account lands, and it used to be a page that
+       * offered nothing: the tour only started on a board, so somebody who had
+       * just registered — who by definition has no board — signed in, saw an
+       * empty wall, and was never shown anything at all. The board tour still
+       * auto-starts on their first board, because the two are counted
+       * separately (see `TourSteps`), which is what lets this one end by
+       * promising exactly that.
        */}
-      <TourSteps steps={tourSteps} />
+      <TourSteps steps={tourSteps} kind="overview" autoStart />
 
       <div className="board__measure">
         {/*

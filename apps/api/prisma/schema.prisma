@@ -53,6 +53,11 @@ model User {
   // rather than a boolean because the two cost the same and only one of them can
   // answer a question later.
   tourCompletedAt DateTime?
+  // The same for the overview's two-step tour, counted separately: the two are
+  // different tours, and the overview's last word is a promise to show the
+  // reader around the first board they make. One shared flag would have the
+  // overview tour switch the board tour off on its way out.
+  overviewTourCompletedAt DateTime?
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
   anonymizedAt   DateTime?
   createdAt      DateTime  @default(now())

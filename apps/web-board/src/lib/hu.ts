@@ -734,4 +734,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Unmute email": "E-mailek visszakapcsolása",
   "Email muted": "E-mailek némítva",
   "No links to show. Create one above.": "Nincs megjeleníthető link. Készíts egyet fent.",
+  "The talking goes with you": "A beszélgetés veled tart",
+  "Chat is here on every page, not just inside one board. You will have someone to talk to once you make a trip or join one.": "A csevegés minden oldalon itt van, nem csak egy táblán belül. Akkor lesz kivel beszélgetned, ha létrehozol egy utat vagy csatlakozol egyhez.",
+  "Now make one": "Most készíts egyet",
+  "Create your first trip and I will show you around the board itself.": "Hozd létre az első utadat, és körbevezetlek magán a táblán is.",
 };
