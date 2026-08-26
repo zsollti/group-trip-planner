@@ -34,7 +34,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Account menu": "Fiók menü",
   "Actions for {card}": "{card} műveletei",
   "Actions for {name}": "{name} műveletei",
-  Active: "Aktív",
   Activity: "Előzmények",
   Add: "Hozzáadás",
   "Add reaction": "Reakció hozzáadása",
@@ -173,8 +172,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Demo data": "Demó adatok",
   "Demo rebuilt.": "A demó újraépült.",
   Destination: "Úti cél",
-  Disable: "Kikapcsolás",
-  Disabled: "Kikapcsolva",
   Discuss: "Megbeszélés",
   Discussion: "Beszélgetés",
   "Dismiss notification": "Értesítés elvetése",
@@ -281,8 +278,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "No feed configured. Conversion is off, and every dashboard reports exact per-currency figures only. This is a valid deployment.":
     "Nincs árfolyamforrás beállítva. Az átváltás ki van kapcsolva, és minden áttekintő csak a pontos, pénznem szerinti összegeket mutatja. Ez érvényes beállítás.",
   "No image yet": "Még nincs kép",
-  "No links yet. Create one above.":
-    "Még nincs link. Hozz létre egyet fentebb.",
   "No mail has been queued for this account.":
     "Ehhez a fiókhoz nem került levél a várólistára.",
   "No messages yet. Say hello, or @mention someone to pull them in.":
@@ -460,7 +455,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Up since": "Fut ekkortól",
   "Uploading…": "Feltöltés…",
   Uploads: "Feltöltések",
-  Used: "Felhasználva",
   Users: "Felhasználók",
   "Verification email sent.": "Megerősítő levél elküldve.",
   "Verification failed": "A megerősítés nem sikerült",
@@ -739,4 +733,5 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Invite people": "Hívj meg másokat",
   "Unmute email": "E-mailek visszakapcsolása",
   "Email muted": "E-mailek némítva",
+  "No links to show. Create one above.": "Nincs megjeleníthető link. Készíts egyet fent.",
 };
