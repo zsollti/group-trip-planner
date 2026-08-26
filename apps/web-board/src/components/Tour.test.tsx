@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TourProvider, TourSteps } from "./Tour";
@@ -261,6 +264,36 @@ describe("two tours, two marks", () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    expect(screen.queryByText("First thing")).toBeNull();
+  });
+});
+
+describe("the tour's own modality", () => {
+  it("takes every click that is not on the bubble", () => {
+    /*
+     * jsdom applies no stylesheet, so nothing rendered here can show that a
+     * click is swallowed — `pointer-events` is a paint-time rule and the class
+     * is inert without the sheet that defines it. The rule *is* the behaviour,
+     * so the rule is what is read.
+     *
+     * Worth pinning rather than trusting: this file's own history is a layer
+     * that deliberately let clicks through, and turning that back on is a
+     * one-word edit that no other test in this suite would notice.
+     */
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "index.css"),
+      "utf8",
+    );
+    const layer = /^\.tour \{([^}]*)\}/m.exec(
+      css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    );
+    expect(layer?.[1]).toMatch(/pointer-events:\s*auto/);
+  });
+
+  it("still lets the bubble's own buttons be pressed", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Show me around" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip the tour" }));
     expect(screen.queryByText("First thing")).toBeNull();
   });
 });
