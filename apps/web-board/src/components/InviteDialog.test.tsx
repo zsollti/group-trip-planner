@@ -98,3 +98,52 @@ describe("the list of invite links", () => {
     });
   });
 });
+
+/**
+ * The two questions on this form are the same question, so they are the same
+ * control — a mark, a name, a colon, a sentence, on one line each.
+ *
+ * The role picker used to stack the name over the sentence, which made a list
+ * of three options look like a different kind of control from the list of two
+ * directly above it. Asserted on the shape rather than the words: what broke
+ * before was the layout, and the words are already pinned by the catalogue.
+ */
+describe("the two pickers on the invite form", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("asks both questions in the same shape", () => {
+    renderWith([]);
+
+    const label = (name: RegExp) =>
+      screen.getByRole("radio", { name }).closest("label")!;
+
+    // Each radio's label is one run of text with the name inside it, not a
+    // name and a note as two blocks.
+    for (const [name, blurb] of [
+      [/^Global/, /anyone with the link can join/],
+      [/^Organizer/, /runs the trip with you/],
+      [/^Traveler/, /comes along/],
+      [/^Guest/, /just looks/],
+    ] as const) {
+      const text = label(name).textContent ?? "";
+      expect(text).toMatch(blurb);
+      // The colon is the join, and there is exactly one of them: the blurbs
+      // used to open with a clause and a colon of their own, which put two in
+      // a row the moment the name led the line.
+      expect(text.match(/:/g) ?? []).toHaveLength(1);
+    }
+
+    // And the mark leads the line, in both groups.
+    expect(
+      label(/^Global/).querySelector("span > svg:first-child"),
+    ).not.toBeNull();
+    expect(
+      label(/^Organizer/).querySelector("span > svg:first-child"),
+    ).not.toBeNull();
+  });
+});

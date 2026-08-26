@@ -654,12 +654,12 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Pick any day to start again": "Bármelyik napra kattintva kezdheted újra",
   Organizer: "Szervező",
   Traveler: "Utazó",
-  "Runs the trip with you: can add lanes, invite people and lock in the group's decisions.":
-    "Veled együtt szervezi az utazást: sávokat adhat hozzá, meghívhat másokat, és rögzítheti a csoport döntéseit.",
-  "Coming along: they can suggest options, vote on everything and join the chat.":
-    "Ő is jön: javaslatokat tehet, mindenre szavazhat, és beszélgethet a többiekkel.",
-  "Just looking: they can see how the plan is coming along, and nothing more.":
-    "Csak nézelődik: láthatja, hogyan halad a terv, de semmi többet.",
+  "runs the trip with you, adding lanes, inviting people and locking in decisions.":
+    "veled együtt szervezi az utazást, sávokat ad hozzá, másokat hív meg, és rögzíti a döntéseket.",
+  "comes along, suggesting options, voting on everything and joining the chat.":
+    "ő is jön, javaslatokat tesz, mindenre szavaz, és beszélget a többiekkel.",
+  "just looks, and can do nothing else.": "csak nézelődik, mást nem tehet.",
+  "{kind}: {blurb}": "{kind}: {blurb}",
   "{kind}: anyone with the link can join.":
     "{kind}: bárki csatlakozhat, akinek megvan a link.",
   "Show me around": "Mutasd meg a programot",
