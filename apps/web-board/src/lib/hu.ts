@@ -223,7 +223,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   History: "Lezárva",
   "I'm in": "Én jövök",
   Invite: "Meghívás",
-  "Invite people to this board": "Hívj meg másokat erre a táblára",
   "It may have been mistyped or truncated by your mail app. Nothing changed. You can turn mention emails off from notification settings instead.":
     "Elképzelhető, hogy elírták, vagy a levelezőprogramod levágta. Semmi nem változott. A megemlítési értesítőket az értesítési beállításokban is kikapcsolhatod.",
   "Joining board…": "Csatlakozás a táblához…",
@@ -740,4 +739,5 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "All conversations": "Összes beszélgetés",
   Conversations: "Beszélgetések",
   "No boards to talk on yet.": "Még nincs tábla, ahol beszélgethetnél.",
+  "Invite people": "Hívj meg másokat",
 };
