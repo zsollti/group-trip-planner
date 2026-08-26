@@ -38,6 +38,7 @@ export function toTripSummary(
     role,
     memberCount: trip._count.memberships,
     createdAt: trip.createdAt.toISOString(),
+    chatImageUrl: trip.chatImageUrl,
   };
 }
 
@@ -65,6 +66,7 @@ export function toTripDetail(
     destinationLat: trip.destinationLat,
     destinationLon: trip.destinationLon,
     coverImageUrl: trip.coverImageUrl,
+    chatImageUrl: trip.chatImageUrl,
     defaultCurrency: trip.defaultCurrency,
     // Prisma hands Decimal back as its own object; the wire carries a number,
     // the same normalisation `toOptionView` does for an option's amount.

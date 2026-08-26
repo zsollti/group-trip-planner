@@ -124,6 +124,7 @@ export class HomeDashboardService {
         cost,
         pendingDecisionCount,
         createdAt: trip.createdAt.toISOString(),
+        chatImageUrl: trip.chatImageUrl,
       };
     });
 

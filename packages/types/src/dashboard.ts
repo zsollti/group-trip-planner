@@ -235,6 +235,14 @@ export const HomeTripSummary = z.object({
   cost: z.array(HomeTripCost),
   pendingDecisionCount: z.number().int().nonnegative(),
   createdAt: z.string(),
+  /**
+   * The picture this board's chat wears (post-launch).
+   *
+   * Here as well as on the trip detail because the chat dock is drawn from this
+   * list and never loads a trip's detail to do it. Null renders the initials
+   * the avatar has always drawn.
+   */
+  chatImageUrl: z.string().nullable(),
 });
 export type HomeTripSummary = z.infer<typeof HomeTripSummary>;
 

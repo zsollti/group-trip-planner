@@ -122,6 +122,49 @@ export function useRemoveTripCover(
   });
 }
 
+/**
+ * Set or replace the picture the board's chat wears (post-launch, organizers).
+ *
+ * The cover's shape exactly, down to sending the file rather than a URL — see
+ * {@link useSetTripCover}. The dashboard is invalidated as well as the detail
+ * written, because the chat dock draws its list of boards from the dashboard's
+ * summaries and this picture is what those rows show.
+ */
+export function useSetChatImage(
+  id: string,
+): UseMutationResult<TripDetail, ApiError, File> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return apiFetch<TripDetail>(`/trips/${id}/chat-image`, {
+        method: "POST",
+        body: form,
+      });
+    },
+    onSuccess: (trip) => {
+      qc.setQueryData(tripKeys.detail(id), trip);
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
+    },
+  });
+}
+
+/** Remove the chat picture; the stored image goes with it. */
+export function useRemoveChatImage(
+  id: string,
+): UseMutationResult<TripDetail, ApiError, void> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<TripDetail>(`/trips/${id}/chat-image`, { method: "DELETE" }),
+    onSuccess: (trip) => {
+      qc.setQueryData(tripKeys.detail(id), trip);
+      void qc.invalidateQueries({ queryKey: dashboardKeys.all });
+    },
+  });
+}
+
 /** Delete a trip (Owner only). Clears its cached detail, refreshes the dashboard. */
 export function useDeleteTrip(
   id: string,

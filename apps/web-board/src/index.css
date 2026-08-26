@@ -5122,9 +5122,23 @@ button.cost-comp__row-btn:hover,
    "Stay" as a heading does not say which trip's Stay. */
 .board__chat-title {
   display: flex;
-  flex-direction: column;
+  /* A row now, holding the board's picture and the two lines beside it. The
+     lines themselves are still a column — they moved into their own element so
+     the picture could sit beside both rather than above one. */
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
   line-height: 1.25;
+}
+.board__chat-titletext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* The circle keeps its size while the names take what is left; without this a
+   long board name squeezes the picture into an ellipse. */
+.board__chat-title > .avatar {
+  flex: none;
 }
 /* The same block, as the button that folds the panel away. Unstyled to the
    point of being invisible as a control on purpose: it is the panel's heading
@@ -5139,7 +5153,7 @@ button.cost-comp__row-btn:hover,
   background: none;
   cursor: pointer;
 }
-.board__chat-title--btn:hover > strong {
+.board__chat-title--btn:hover strong {
   text-decoration: underline;
 }
 .board__chat-title--btn:focus-visible {
@@ -5147,7 +5161,7 @@ button.cost-comp__row-btn:hover,
   outline-offset: 2px;
   border-radius: 6px;
 }
-.board__chat-title > strong {
+.board__chat-titletext > strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5192,6 +5206,8 @@ button.cost-comp__row-btn:hover,
   outline-offset: -2px;
 }
 .board__chat-tripname {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

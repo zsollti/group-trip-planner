@@ -294,6 +294,16 @@ const PROBES: Probe[] = [
     method: "put",
     url: (i) => `/trips/${i.trip}/chat-mute`,
   },
+  {
+    route: "/trips/:id/chat-image",
+    method: "post",
+    url: (i) => `/trips/${i.trip}/chat-image`,
+  },
+  {
+    route: "/trips/:id/chat-image",
+    method: "delete",
+    url: (i) => `/trips/${i.trip}/chat-image`,
+  },
 ];
 
 /** `"GET /trips/:id"` — the key both discovery and the table agree on. */

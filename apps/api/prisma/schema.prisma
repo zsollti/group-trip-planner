@@ -185,6 +185,13 @@ model Trip {
   // The safe upload pipeline is Phase 6; the column exists now so nothing has
   // to be retrofitted. Always null until then.
   coverImageUrl       String?
+  /// The picture the board's chat wears (post-launch): on the collapsed bubble,
+  /// in the panel header, and on the row in the conversation list. Separate from
+  /// the cover because they answer different questions — the cover is what the
+  /// trip looks like on its own page, this is what the conversation looks like
+  /// among a dozen others in a list, at 28 pixels across. Organizers set it,
+  /// through the same upload pipeline the cover uses.
+  chatImageUrl        String?
   defaultCurrency     String     @default("EUR")
   // What the group is aiming to spend each, in `defaultCurrency`. A target the
   // totals are read against, never a constraint — nothing validates against it

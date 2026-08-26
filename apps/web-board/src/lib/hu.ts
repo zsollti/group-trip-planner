@@ -768,4 +768,9 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Mute chat for a day": "Csevegés némítása egy napra",
   "Mute chat until I turn it back on": "Csevegés némítása, amíg vissza nem kapcsolom",
   "Silences this board's badges and mention pop-ups.": "Elnémítja a tábla jelzéseit és az említési buborékokat.",
+  "Chat picture": "Csevegés képe",
+  "Everyone on this board sees it, wherever the chat appears.": "A tábla minden tagja látja, bárhol jelenik meg a csevegés.",
+  "Change chat picture": "Csevegés képének cseréje",
+  "Add a chat picture": "Kép hozzáadása a csevegéshez",
+  "Shown on the bubble and in the conversation list.": "A buborékon és a beszélgetéslistán jelenik meg.",
 };

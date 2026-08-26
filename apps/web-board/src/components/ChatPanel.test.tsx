@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { CategoryView, ChannelView } from "@gtp/types";
+import type { CategoryView, ChannelView, TripRole } from "@gtp/types";
 import { createQueryClient, type SessionSocket } from "@gtp/api-client";
 import { ChatPanel } from "./ChatPanel";
 
@@ -436,9 +436,16 @@ describe("the board's name above the conversation", () => {
     // It used to be cut to 15 characters wherever it appeared, which on a
     // header this wide read as "Lisbon long wee…" with room to spare. The box
     // ends it now, and nothing in the DOM is missing.
-    const eyebrow = screen.getAllByTitle(name)[0];
-    expect(eyebrow).toBeInTheDocument();
-    expect(eyebrow?.textContent).toBe(name);
+    //
+    // The heading, asked for by where it is rather than by its title. This
+    // panel opens on the board's own channel, where the eyebrow is deliberately
+    // suppressed and the heading carries the name — and the board's avatar now
+    // carries the same `title` and sits before both, so "the first thing titled
+    // with the board's name" stopped naming the line under test.
+    const heading = document.querySelector(".board__chat-titletext > strong");
+    expect(heading).toBeInTheDocument();
+    expect(heading?.getAttribute("title")).toBe(name);
+    expect(heading?.textContent).toBe(name);
   });
   it("says it once, not once over itself", () => {
     const name = "Lisbon 2026";
@@ -644,5 +651,81 @@ describe("muting a board's chat", () => {
     expect(
       screen.getByText("Muted until you turn it back on"),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * The picture a board's chat wears.
+ *
+ * The panel's share is the menu entry and who gets it. Whether the upload works
+ * is the API's, and the picture appearing on the bubble and in the list is the
+ * dock's — both have their own tests.
+ */
+describe("the board's chat picture", () => {
+  function renderAs(role: TripRole, chatImageUrl: string | null = null) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <ChatPanel
+          tripId={TRIP_ID}
+          tripName="Lisbon 2026"
+          tripImageUrl={chatImageUrl}
+          sessionSocket={socket()}
+          onClose={() => {}}
+          onCollapse={() => {}}
+          categories={categories}
+          myRole={role}
+          myUserId="u1"
+          requestChannelId={null}
+          onRequestHandled={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Chat menu" }));
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers the picture to an organizer", () => {
+    renderAs("OWNER");
+    expect(
+      screen.getByRole("button", { name: /^Add a chat picture/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("says 'change' once there is one to change", () => {
+    renderAs("OWNER", "https://example.test/pic.png");
+    expect(
+      screen.getByRole("button", { name: /^Change chat picture/ }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * The rule the feature is built on: this picture is how the board looks to
+   * everyone on it, so it is an organizer's call and not a member's. A traveler
+   * still gets the whole of the rest of the menu.
+   */
+  it("does not offer it to a traveler, who still gets the rest of the menu", () => {
+    renderAs("PARTICIPANT");
+    expect(screen.queryByRole("button", { name: /chat picture/i })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Search chat" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Mute chat for an hour/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("wears the picture in the panel header", () => {
+    renderAs("PARTICIPANT", "https://example.test/pic.png");
+    const img = document.querySelector(
+      ".board__chat-title img",
+    ) as HTMLImageElement | null;
+    expect(img?.src).toBe("https://example.test/pic.png");
   });
 });

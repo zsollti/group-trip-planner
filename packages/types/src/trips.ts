@@ -180,6 +180,15 @@ export const TripSummary = z.object({
   role: TripRole,
   memberCount: z.number().int().nonnegative(),
   createdAt: z.string(),
+  /**
+   * The picture this board's chat wears (post-launch).
+   *
+   * On the summary as well as the detail because the chat dock draws every
+   * board the reader can talk on from this list, and it never loads a trip's
+   * detail to do it. Null is the ordinary case and renders the same initials
+   * the avatar has always drawn.
+   */
+  chatImageUrl: z.string().nullable(),
 });
 export type TripSummary = z.infer<typeof TripSummary>;
 
@@ -204,6 +213,8 @@ export const TripDetail = z.object({
   destinationLat: z.number().nullable(),
   destinationLon: z.number().nullable(),
   coverImageUrl: z.string().nullable(),
+  /** The picture this board's chat wears; see {@link TripSummary}. */
+  chatImageUrl: z.string().nullable(),
   defaultCurrency: z.string(),
   /** The per-person spending target, in `defaultCurrency`. Null = none set. */
   budgetPerPerson: z.number().nullable(),

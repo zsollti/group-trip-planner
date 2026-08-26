@@ -32,6 +32,7 @@ const trip = (over: Partial<HomeTripSummary> = {}): HomeTripSummary => ({
   cost: [],
   pendingDecisionCount: 0,
   createdAt: new Date().toISOString(),
+  chatImageUrl: null,
   ...over,
 });
 

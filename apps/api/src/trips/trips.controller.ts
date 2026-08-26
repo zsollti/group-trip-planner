@@ -132,4 +132,38 @@ export class TripsController {
   removeCover(@TripCtx() ctx: TripContext): Promise<TripDetail> {
     return this.trips.removeCover(ctx);
   }
+
+  /**
+   * Set or replace the picture the board's chat wears (post-launch, organizers).
+   *
+   * Multipart in one step for the same reason the cover is: a client that could
+   * name the image's URL could point it at any address on the internet, and the
+   * chat dock renders this picture on every page.
+   *
+   * Gated `trip.edit` — the owner's call. The picture is how the board appears
+   * to everyone on it, so it belongs with the things organizers decide about
+   * the trip rather than with the things a member decides about their own view.
+   */
+  @Post(":id/chat-image")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.edit")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadChatImage(
+    @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
+    @UploadedFile() file: UploadedImageFile | undefined,
+  ): Promise<TripDetail> {
+    if (!file) {
+      throw new BadRequestException("No file was uploaded (field name: file).");
+    }
+    return this.trips.setChatImage(ctx, file, user.id);
+  }
+
+  /** Remove the chat picture, deleting the stored object with it. */
+  @Delete(":id/chat-image")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("trip.edit")
+  removeChatImage(@TripCtx() ctx: TripContext): Promise<TripDetail> {
+    return this.trips.removeChatImage(ctx);
+  }
 }
