@@ -425,6 +425,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Ez a döntés. Az utazás dátumai is eltűnnek vele.",
   "This is the decision. The lane goes back to undecided.":
     "Ez a döntés. A sáv visszatér az eldöntetlen állapotba.",
+  "This lane wasn’t changed": "A sáv nem változott",
   "This link is invalid or has expired. Sign in to request a new one.":
     "Ez a link érvénytelen vagy lejárt. Jelentkezz be, és kérj újat.",
   "This permanently deletes your account and personal data. It can't be undone.":
