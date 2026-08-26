@@ -205,17 +205,19 @@ export function InviteDialog({
                   checked={role === r}
                   onChange={() => setRole(r)}
                 />
-                {/* Two lines, where the link-type radios above manage one.
-                    Those distinguish themselves in a clause ("anyone with the
-                    link can join"); a role needs a sentence, and the sentences
-                    carry dashes of their own — so "{name} — {blurb}" would put
-                    two different dashes in one line doing two different jobs.
-                    The name leads, the sentence sits under it. */}
-                <span className="board__radio-stack">
-                  <span className="board__radio-name">
-                    <RoleIcon role={r} /> <strong>{roleLabel(r)}</strong>
-                  </span>
-                  <span className="board__radio-note">{roleBlurb(r)}</span>
+                {/* One line, in the shape the link-type radios above already
+                    use: a mark, the name, a colon, the sentence. It used to be
+                    two — the name on its own line with the sentence stacked
+                    under it — which made two questions that are the same
+                    question look like two different kinds of control, one
+                    listing options and one listing paragraphs. The blurbs are
+                    written to be read after the colon (see `roleBlurb`). */}
+                <span>
+                  <RoleIcon role={r} />{" "}
+                  {tNode("{kind}: {blurb}", {
+                    kind: <strong>{roleLabel(r)}</strong>,
+                    blurb: roleBlurb(r),
+                  })}
                 </span>
               </label>
             ))}

@@ -52,22 +52,26 @@ export function roleLabel(role: TripRole): string {
  * matrix in prose: it names the one thing that distinguishes this role from the
  * one below it and stops, because a reader picking an invite link is deciding
  * how much they trust somebody, not auditing an ACL.
+ *
+ * **It reads as the second half of "Organizer: …", and is written that way.**
+ * Lower case, no repeated subject, and no colon of its own — these used to open
+ * with a clause and a colon ("Runs the trip with you: can add lanes…"), which
+ * was right when the name sat on a line above and wrong now the two are one
+ * sentence. Two colons in a row is a line nobody can parse.
  */
 export function roleBlurb(role: TripRole): string {
   switch (role) {
     case "OWNER":
     case "CO_ORGANIZER":
       return t(
-        "Runs the trip with you: can add lanes, invite people and lock in the group's decisions.",
+        "runs the trip with you, adding lanes, inviting people and locking in decisions.",
       );
     case "PARTICIPANT":
       return t(
-        "Coming along: they can suggest options, vote on everything and join the chat.",
+        "comes along, suggesting options, voting on everything and joining the chat.",
       );
     case "GUEST":
-      return t(
-        "Just looking: they can see how the plan is coming along, and nothing more.",
-      );
+      return t("just looks, and can do nothing else.");
   }
 }
 

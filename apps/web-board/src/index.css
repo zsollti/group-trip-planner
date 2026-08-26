@@ -3213,35 +3213,18 @@ textarea[data-gtp-input] {
   color: var(--board-dim);
   cursor: pointer;
 }
-/* A radio whose label needs a sentence under its name rather than a clause
-   after it — the role picker. The link-type pair above keeps the one-line
-   form, which is why this is a variant of the label's contents and not a
-   change to `.board__radio` itself. */
-.board__radio-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-.board__radio-name {
-  display: inline-flex;
-  /* Centred, not on the baseline. An inline SVG's baseline is its *bottom*
-     edge, so a 16px mark aligned that way stands its full height above the
-     text's baseline while the capitals reach about two-thirds of it — the mark
-     floats a few pixels high and the row reads as a typo. `center` puts it
-     against the middle of the line box, which is where the eye expects it. */
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--board-fg);
-}
-/* The same correction for the rows above, where the mark leads a sentence
-   rather than a name and is therefore inline rather than a flex item —
-   `vertical-align` is ignored on a flex item and is the only lever here. */
+/* Every radio on this form is one line — a mark, the name, a colon, the
+   sentence — so the mark is inline text rather than a flex item, and
+   `vertical-align` is the only lever that moves it. An inline SVG's baseline is
+   its *bottom* edge, so a 16px mark left alone stands its full height above the
+   text's baseline while the capitals reach about two-thirds of it: the mark
+   floats a few pixels high and the row reads as a typo.
+
+   The role picker used to stack its name over its sentence and had a set of
+   rules of its own for it. It does not any more: the two questions on this form
+   are the same question, so they are the same control, in the same shape. */
 .board__radio > span > svg:first-child {
   vertical-align: -0.15em;
-}
-.board__radio-note {
-  color: var(--board-dim);
-  line-height: 1.45;
 }
 
 .board__radio input {
