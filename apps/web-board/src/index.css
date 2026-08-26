@@ -99,8 +99,20 @@
      reach. */
   --cat-locked-sat: 64%;
   --cat-locked-l: 86%;
-  --cat-proposed-sat: 26%;
-  --cat-proposed-l: 97%;
+  /* Drained, not erased. At 26%/97% the candidate fill was two points of
+     lightness off `--lane-bg` with almost no chroma left, and in light mode
+     that crushed the whole ring together: the furthest-apart pair of the eight
+     hues measured about 7 units of RGB distance, so a Transport card and a Stay
+     card were the same card. Dark never had the problem — its candidate sits at
+     20%/16.5%, and the same measurement there is about 28, because chroma
+     survives at low lightness in a way it does not at high.
+
+     So light is set to the separation dark already has (48%/93% measures ~29)
+     rather than to a number picked by eye. Still well under the decided fill,
+     which measures ~80 apart: the candidate reads as this lane's colour with
+     the life taken out of it, which is the distinction the pair exists for. */
+  --cat-proposed-sat: 48%;
+  --cat-proposed-l: 93%;
   font-family:
     "Inter",
     system-ui,
