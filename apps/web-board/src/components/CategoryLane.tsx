@@ -25,7 +25,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { isTruncated, truncateName } from "../lib/truncate";
 import { CSS } from "@dnd-kit/utilities";
 import { OptionForm } from "./OptionForm";
@@ -89,7 +89,7 @@ function SortableOptionCard({
     <button
       type="button"
       className="lane__grip"
-      aria-label={t("Drag {card} — reorder or drop on Decided to lock", {
+      aria-label={t("Drag {card} — reorder it, or drop it above to lock", {
         card: option.title,
       })}
       {...attributes}
@@ -115,6 +115,80 @@ function SortableOptionCard({
       style={style}
       grip={grip}
       dragging={isDragging}
+    />
+  );
+}
+
+/**
+ * One **settled** card, made draggable so it can be dropped on the lane's unlock
+ * strip.
+ *
+ * `useDraggable` rather than `useSortable`, which is the whole difference
+ * between this and {@link SortableOptionCard}: a decision is pinned above the
+ * lane's candidates and takes no part in their ordering, so there is nothing for
+ * it to sort against and exactly one thing its drag can end in. Dropped
+ * anywhere else it simply goes back, which is the right answer to an
+ * overshoot — nothing on a settled card should be reachable by accident.
+ */
+function DraggableLockedCard({
+  tripId,
+  category,
+  option,
+  myRole,
+  myUserId,
+  frozen,
+  tripDates,
+  dndEnabled,
+}: {
+  tripId: string;
+  category: CategoryView;
+  option: OptionView;
+  myRole: TripRole;
+  myUserId: string | undefined;
+  frozen: boolean;
+  tripDates: TripDateRange | null;
+  dndEnabled: boolean;
+}) {
+  const { setNodeRef, transform, attributes, listeners, isDragging } =
+    useDraggable({
+      id: option.id,
+      data: { type: "locked", categoryId: category.id },
+      disabled: !dndEnabled,
+    });
+  const style: CSSProperties = {
+    // `Translate`, not `Transform`: a sortable is also scaled to the gap it is
+    // moving into, and this card has no gap to move into.
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : undefined,
+  };
+  const grip = dndEnabled ? (
+    <button
+      type="button"
+      className="lane__grip"
+      aria-label={t("Drag {card} — drop it below to unlock", {
+        card: option.title,
+      })}
+      {...attributes}
+      {...listeners}
+    >
+      ⠿
+    </button>
+  ) : undefined;
+
+  return (
+    <OptionCard
+      tripId={tripId}
+      category={category}
+      option={option}
+      myRole={myRole}
+      myUserId={myUserId}
+      frozen={frozen}
+      tripDates={tripDates}
+      cardRef={setNodeRef}
+      style={style}
+      grip={grip}
+      dragging={isDragging}
+      settled
     />
   );
 }
@@ -394,6 +468,7 @@ export function CategoryLane({
   tripDates = null,
   dndEnabled = false,
   decideTarget = false,
+  unlockTarget = false,
   onOpenChannel,
 }: {
   tripId: string;
@@ -444,6 +519,15 @@ export function CategoryLane({
    * cheap to trigger by mistake.
    */
   decideTarget?: boolean;
+  /**
+   * Show this lane's "drop to unlock" target — true only while one of *its own*
+   * settled cards is in hand.
+   *
+   * The mirror of {@link decideTarget}, and mutually exclusive with it: a card
+   * in hand is either locked or it is not, so a lane never offers both strips
+   * at once and neither is ever on at rest.
+   */
+  unlockTarget?: boolean;
   /** Open the chat panel on this category's discussion channel (Phase 4.5). */
   onOpenChannel: (channelId: string) => void;
 }) {
@@ -539,6 +623,21 @@ export function CategoryLane({
     disabled: !decideTarget,
   });
 
+  /**
+   * Where a settled card is dropped to reopen the question.
+   *
+   * Below the decisions and above "Also proposed", because that is the seam
+   * between the two halves of the lane and the card is about to cross it: drag
+   * it down out of the settled block and it lands among the candidates again.
+   * Like the decide strip it exists only for the length of its own drag, so a
+   * lane at rest is unchanged and a decision still cannot be undone by a slip.
+   */
+  const unlockDrop = useDroppable({
+    id: `unlock:${category.id}`,
+    data: { type: "unlock", categoryId: category.id },
+    disabled: !unlockTarget,
+  });
+
   const cardIds = options.map((o) => o.id);
   const laneGrip = dndEnabled ? (
     <button
@@ -619,7 +718,13 @@ export function CategoryLane({
       ) : null}
 
       {/* Above the settled cards, because that is where the dropped card is
-          about to appear. Rendered only mid-drag (see `decideTarget`). */}
+          about to appear. Rendered only mid-drag (see `decideTarget`).
+
+          One word for both kinds of lane. It used to say "decide" on a
+          single-select lane and "lock" on a multi-select one, which named the
+          consequence rather than the gesture and left the board with two words
+          for the padlock the card is about to wear. The lane already states
+          how it picks a winner, one line under its own name. */}
       {decideTarget ? (
         <div
           ref={decideDrop.setNodeRef}
@@ -629,21 +734,18 @@ export function CategoryLane({
           }
           aria-hidden="true"
         >
-          {decideDrop.isOver
-            ? t("Drop to decide")
-            : category.singleChoice
-              ? t("Drop here to decide")
-              : t("Drop here to lock")}
+          {decideDrop.isOver ? t("Drop to lock") : t("Drop here to lock")}
         </div>
       ) : null}
 
       {/* Settled first, and outside the SortableContext: a decision is no longer
-          a candidate, so it takes no part in the lane's ordering and carries no
-          drag grip. Unlock is on its own "⋯" — with the rail gone, that menu is
-          the only way to reopen a decision, which is why every settled card
-          carries it whether or not drag is available. */}
+          a candidate, so it takes no part in the lane's ordering. It does carry
+          a grip — dragging it onto the strip below reopens the question — but
+          that grip is not a sortable one, and every settled card keeps Unlock
+          on its "⋯" whether or not drag is available. Drag stays the second
+          way to do a thing, never the only one. */}
       {decided.map((o) => (
-        <OptionCard
+        <DraggableLockedCard
           key={o.id}
           tripId={tripId}
           category={category}
@@ -652,10 +754,28 @@ export function CategoryLane({
           myUserId={myUserId}
           frozen={frozen}
           tripDates={tripDates}
-          settled
+          dndEnabled={dndEnabled}
         />
       ))}
-      {decided.length > 0 && options.length > 0 ? (
+
+      {/* Between the two halves of the lane, so the drop reads as the card
+          crossing back over. Rendered only mid-drag (see `unlockTarget`), and
+          it stands in for the "Also proposed" label while it is there rather
+          than pushing it down: they mark the same seam. */}
+      {unlockTarget ? (
+        <div
+          ref={unlockDrop.setNodeRef}
+          className={
+            "lane__decide-drop lane__decide-drop--unlock" +
+            (unlockDrop.isOver ? " lane__decide-drop--over" : "")
+          }
+          aria-hidden="true"
+        >
+          {unlockDrop.isOver ? t("Drop to unlock") : t("Drop here to unlock")}
+        </div>
+      ) : null}
+
+      {decided.length > 0 && options.length > 0 && !unlockTarget ? (
         <p className="lane__alt-head">{t("Also proposed")}</p>
       ) : null}
 

@@ -335,14 +335,41 @@ export function useBoardLock(
   });
 }
 
-/*
- * `useBoardUnlock` lived here — a trip-scoped unlock whose category was only
- * known at drop time, for dragging a chip out of the Decided rail. The rail is
- * gone and with it the only caller: unlocking now happens from a settled card's
- * "⋯" menu, inside a lane that already knows its category, which is what
- * `useUnlockOption` is for. Removed rather than kept warm — an exported hook
- * nothing calls reads as a supported entry point.
+/**
+ * Unlock an option by dragging it out of its lane's settled block (Organizers).
+ *
+ * This hook lived here once before, for dragging a chip out of the Decided
+ * rail, and was deleted with the rail: unlocking became a settled card's "⋯"
+ * menu, inside a lane that already knows its category, which is what
+ * {@link useUnlockOption} is for. It is back because the gesture is back — a
+ * locked card is draggable again and drops on a strip inside its own lane — and
+ * the reason for a trip-scoped variant is unchanged: the board owns one
+ * `DndContext` and only learns the category at drop time.
  */
+export function useBoardUnlock(
+  tripId: string,
+): UseMutationResult<
+  OptionView,
+  ApiError,
+  { categoryId: string; optionId: string; version: number }
+> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, optionId, version }) =>
+      apiFetch<OptionView>(
+        `${optionsPath(tripId, categoryId)}/${optionId}/unlock`,
+        { method: "POST", body: { version } },
+      ),
+    onSettled: (_d, _e, vars) => {
+      void qc.invalidateQueries({
+        queryKey: optionKeys.list(tripId, vars.categoryId),
+      });
+      void qc.invalidateQueries({ queryKey: categoryKeys.list(tripId) });
+      void qc.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
+    },
+  });
+}
 
 /** Reorder a lane's options by dragging a card within it (Organizers). */
 export function useBoardReorderOptions(

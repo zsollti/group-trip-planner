@@ -261,4 +261,40 @@ describe("the decided card's mark", () => {
     expect(mark.closest(".lane__card-tools")).not.toBeNull();
     expect(mark.closest("strong")).toBeNull();
   });
+
+  it("leads the tools, with the grip between it and the menu", () => {
+    // The order the tools are meant to read in: what this card is, how to move
+    // it, what else can be done to it. It matters now that a settled card has a
+    // grip at all — the padlock and the grip are the two marks that tell a
+    // reader which half of the lane they are looking at.
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <OptionCard
+          tripId="t1"
+          category={category}
+          option={opt({ status: "LOCKED" })}
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          grip={
+            <button type="button" aria-label="Drag Beach House">
+              ⠿
+            </button>
+          }
+        />
+      </QueryClientProvider>,
+    );
+
+    const mark = screen.getByRole("img", { name: "Decided" });
+    const grip = screen.getByRole("button", { name: "Drag Beach House" });
+    const menu = screen.getByRole("button", {
+      name: /actions for beach house/i,
+    });
+    expect(
+      mark.compareDocumentPosition(grip) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      grip.compareDocumentPosition(menu) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

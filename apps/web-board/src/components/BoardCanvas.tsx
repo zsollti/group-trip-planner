@@ -27,12 +27,14 @@ import {
 } from "@gtp/types";
 import {
   useBoardLock,
+  useBoardUnlock,
   useBoardReorderOptions,
   useCategoriesOptions,
   useReorderCategories,
 } from "@gtp/api-client";
 import { AddCategoryLane } from "./AddCategoryLane";
 import { CategoryLane } from "./CategoryLane";
+import { categoryHueStyleById } from "../lib/categoryTheme";
 import { costLabel } from "./optionFormat";
 import { applyOrder } from "../lib/pendingOrder";
 import { truncateName } from "../lib/truncate";
@@ -40,7 +42,14 @@ import { t } from "../lib/i18n";
 
 /** What a draggable/droppable carries so the drop handler can branch (Phase 3.5). */
 interface DndData {
-  type: "lane" | "card" | "decide";
+  /**
+   * `card` and `locked` are both option cards and are told apart here rather
+   * than by looking the option up, because the two drags have nothing in
+   * common: a candidate sorts among its neighbours and may be locked, a
+   * decision does neither and may only be reopened. One type with a status
+   * check would make every branch below ask the same question twice.
+   */
+  type: "lane" | "card" | "locked" | "decide" | "unlock";
   categoryId?: string;
 }
 
@@ -59,11 +68,11 @@ const pointerFirst: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
   if (hits.length === 0) return closestCorners(args);
   // A lane is itself a droppable (it sorts among the other lanes), so a pointer
-  // over the decide strip is inside two targets at once. The strip is the
+  // over one of the strips is inside two targets at once. A strip is the
   // specific one and it only exists while it is wanted, so it wins outright
   // rather than relying on whose centre happens to be nearer.
-  const decide = hits.filter((h) => String(h.id).startsWith("decide:"));
-  return decide.length > 0 ? decide : hits;
+  const strips = hits.filter((h) => /^(decide|unlock):/.test(String(h.id)));
+  return strips.length > 0 ? strips : hits;
 };
 
 /**
@@ -78,15 +87,18 @@ const pointerFirst: CollisionDetection = (args) => {
  * next to it.
  *
  * It owns the single `DndContext` for the whole board (organizers, active trip
- * only). Three gestures, all reusing existing endpoints — no new server action:
- *  - drag a card onto its lane's decide strip → **lock**;
+ * only). Four gestures, all reusing existing endpoints — no new server action:
+ *  - drag a card onto its lane's lock strip → **lock**;
+ *  - drag a settled card onto its lane's unlock strip → **unlock**;
  *  - drag a card within its lane → **reorder options** (same category only);
  *  - drag a lane by its header grip → **reorder categories**.
  *
- * **Unlock is no longer a drag.** It was "drag a chip out of the Decided rail",
- * and the rail is gone; a settled card's "⋯" menu now carries it alone. That is
- * the same menu it always offered, so nothing became unreachable — the board
- * simply stopped having two ways to do it.
+ * **Unlock is a drag again.** It was "drag a chip out of the Decided rail", and
+ * it went when the rail did, leaving a settled card's "⋯" as the only way to
+ * reopen a decision — a card that could be locked with the mouse and unlocked
+ * only from a menu. The gesture is back inside the lane the card is already in,
+ * with a strip of its own that appears for the length of that drag, and the
+ * menu item stays exactly where it was.
  *
  * **The lanes are in one order: the stored one.** A per-browser "sort by
  * undecided first" view used to sit above the row, and it cost more than it
@@ -134,6 +146,7 @@ export function BoardCanvas({
   const opts = useCategoriesOptions(tripId, catIds);
   const reorderCats = useReorderCategories(tripId);
   const boardLock = useBoardLock(tripId);
+  const boardUnlock = useBoardUnlock(tripId);
   const boardReorder = useBoardReorderOptions(tripId);
 
   /**
@@ -235,7 +248,7 @@ export function BoardCanvas({
 
   function handleDragStart(e: DragStartEvent) {
     const a = e.active.data.current as DndData | undefined;
-    if (a?.type === "card") {
+    if (a?.type === "card" || a?.type === "locked") {
       setDragging(optionById.get(String(e.active.id)) ?? null);
     }
   }
@@ -268,6 +281,22 @@ export function BoardCanvas({
         { orderedIds },
         { onSettled: () => setLaneOrder(null) },
       );
+      return;
+    }
+
+    if (a.type === "locked") {
+      const cat = categoryById.get(a.categoryId ?? "");
+      const opt = optionById.get(String(active.id));
+      if (!cat || !opt) return;
+      // The unlock strip is the only target this drag has. Dropped anywhere
+      // else — including on a candidate, which would otherwise read as a
+      // reorder — the card goes back and nothing is written.
+      if (o?.type !== "unlock") return;
+      boardUnlock.mutate({
+        categoryId: cat.id,
+        optionId: opt.id,
+        version: opt.version,
+      });
       return;
     }
 
@@ -346,7 +375,14 @@ export function BoardCanvas({
                 // lock endpoint is category-scoped and a card cannot change
                 // lanes, so any other lane's target would be a promise the
                 // board could not keep.
-                decideTarget={dragging?.categoryId === category.id}
+                decideTarget={
+                  dragging?.categoryId === category.id &&
+                  dragging.status !== "LOCKED"
+                }
+                unlockTarget={
+                  dragging?.categoryId === category.id &&
+                  dragging.status === "LOCKED"
+                }
                 onOpenChannel={onOpenChannel}
               />
             ))}
@@ -363,7 +399,16 @@ export function BoardCanvas({
             duplicate its mutations and its dialog. */}
         <DragOverlay dropAnimation={null}>
           {dragging ? (
-            <article className="lane__card lane__card--option lane__card--dragging">
+            <article
+              className={
+                "lane__card lane__card--option lane__card--dragging" +
+                (dragging.status === "LOCKED" ? " lane__card--settled" : "")
+              }
+              // The preview is portalled out of the lane, so there is no
+              // hue to inherit — and a settled card drawn without one paints
+              // the fallback colour rather than the lane's.
+              style={categoryHueStyleById(dragging.categoryId, categories)}
+            >
               <div className="lane__card-head">
                 <strong>{truncateName(dragging.title)}</strong>
               </div>

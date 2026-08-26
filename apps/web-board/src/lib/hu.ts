@@ -176,13 +176,16 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Discussion: "Beszélgetés",
   "Dismiss notification": "Értesítés elvetése",
   "Drag to reorder the {lane} lane": "Fogd meg a(z) {lane} sáv átrendezéséhez",
-  "Drag {card} — reorder or drop on Decided to lock":
-    "Fogd meg: {card} — rendezd át, vagy húzd az Eldöntve sávra a rögzítéshez",
+  "Drag {card} — drop it below to unlock":
+    "Fogd meg: {card} — húzd az alatta lévő sávra a feloldáshoz",
+  "Drag {card} — reorder it, or drop it above to lock":
+    "Fogd meg: {card} — rendezd át, vagy húzd a fölötte lévő sávra a rögzítéshez",
   "Draw the options still being decided, under the ones that are settled.":
     "Mutasd a még eldöntendő javaslatokat is, az eldöntöttek alatt.",
-  "Drop here to decide": "Húzd ide a döntéshez",
   "Drop here to lock": "Húzd ide a rögzítéshez",
-  "Drop to decide": "Húzd ide a döntéshez",
+  "Drop here to unlock": "Húzd ide a feloldáshoz",
+  "Drop to lock": "Engedd el a rögzítéshez",
+  "Drop to unlock": "Engedd el a feloldáshoz",
   Edit: "Szerkesztés",
   "Edit option": "Javaslat szerkesztése",
   "Edit trip": "Utazás szerkesztése",
