@@ -21,8 +21,7 @@ import { Brand } from "../components/Brand";
 import { UserMenu } from "../components/UserMenu";
 import { useLocale } from "../lib/useLocale";
 import { DeleteAccountDialog } from "../components/DeleteAccountDialog";
-import { ImagePicker } from "../components/ImagePicker";
-import { AvatarPresetPicker } from "../components/AvatarPresetPicker";
+import { AvatarField } from "../components/AvatarField";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { Button, Field, Input } from "@gtp/ui-primitives";
 import { t, tNode } from "../lib/i18n";
@@ -137,40 +136,20 @@ export function Settings() {
           <h2 className="board__panel-title" id="avatar-heading">
             {t("Profile picture")}
           </h2>
-          <ImagePicker
-            // The heading directly above this reads "Profile picture", so a
-            // second line under it reading "Your picture" was two names for one
-            // thing with nothing between them but the gap. Hidden rather than
-            // dropped: it is also the file input's accessible name.
-            label={t("Your picture")}
-            labelHidden
-            centred
-            shape="square"
-            // A `preset:` value is not an address the preview can load, so the
-            // uploader is told there is no picture — which is true of the thing
-            // *it* manages. The mark itself is shown by the grid below, where
-            // it is also the current selection.
-            currentUrl={uploadedAvatar}
-            busy={busyAvatar}
-            error={avatarError}
-            // The circle is chosen before the upload: the server resizes to fit
-            // and CSS then crops to the middle, so an off-centre face used to
-            // become a picture of a shoulder.
-            cropCircle
-            onSave={(file) => void saveAvatar(file)}
-            onRemove={user?.avatarUrl ? () => void clearAvatar() : undefined}
-          />
-          <p className="board__panel-note">
-            {t(
-              "Shown wherever you appear: the crew list and board chat. Without one, your initials stand in.",
-            )}
-          </p>
-          <AvatarPresetPicker
+          {/* One field for all three ways of having an avatar — see
+              `AvatarField`, which owns the preview, the uploader and the two
+              strips because they are three answers to one question. */}
+          <AvatarField
             name={user?.displayName ?? ""}
             userId={user?.id}
             currentUrl={user?.avatarUrl ?? null}
             busy={busyAvatar}
-            onPick={(preset, colour) => void wearPreset(preset, colour)}
+            error={avatarError}
+            onWear={(preset, colour) => void wearPreset(preset, colour)}
+            onUpload={(file) => void saveAvatar(file)}
+            onRemovePhoto={
+              uploadedAvatar ? () => void clearAvatar() : undefined
+            }
           />
         </section>
 

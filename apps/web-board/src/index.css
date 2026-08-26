@@ -985,25 +985,49 @@ span.board__muted {
   accent-color: var(--board-accent);
 }
 
-/* --- The drawn marks, to pick one from -------------------------------------- */
-.presets {
-  margin-top: 1rem;
+/* --- The avatar field: one picture, and the ways to change it ---------------- */
+/*
+ * Read top to bottom as one answer. The circle is what you are wearing, the
+ * button under it replaces the whole thing with a photograph, and the two
+ * strips build a drawn one. The circle stays put while the strips change under
+ * it, which is what makes it a preview rather than a fourth control.
+ */
+.avatarfield {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.5rem;
+}
+.avatarfield__preview {
+  margin: 0.35rem 0 0.15rem;
 }
 
-/* The two answers, combined, at the size an avatar is actually read at. */
-.presets__preview {
-  margin: 0.75rem 0 0.25rem;
-}
-
+/*
+ * One strip: a label, an arrow, three items, an arrow.
+ *
+ * A grid of all twelve marks and all eight colours was a wall of swatches on a
+ * page that is otherwise a short list of settings, and a strip that scrolled
+ * carried a scrollbar and hid how much was left. Three at a time with an arrow
+ * either side says "there are more, one step that way" in a shape everybody
+ * knows — and the list wraps, so neither arrow is ever a dead end.
+ *
+ * **The vertical padding is load-bearing.** A focus ring is drawn 2px outside a
+ * swatch, and without room for it the ring is clipped by whatever the row sits
+ * in — the same trap `overflow-y: auto` set on the dialogs, from the other
+ * direction.
+ */
 .presets__row {
   width: 100%;
-  margin-top: 0.6rem;
+  margin-top: 0.4rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  justify-items: center;
+  gap: 0.3rem;
 }
 .presets__row-label {
-  margin: 0 0 0.3rem;
+  grid-column: 1 / -1;
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -1011,34 +1035,33 @@ span.board__muted {
   color: var(--board-dim);
   text-align: center;
 }
-
-/*
- * One row of swatches that scrolls sideways rather than wrapping.
- *
- * It was a reflowing grid, which is right for a list you survey and wrong for
- * one you flick through — and with two of them stacked, a grid that wrapped to
- * three lines each turned an account panel into a wall of ninety-six circles.
- *
- * **The vertical padding is load-bearing.** `overflow-x` clips the other axis
- * too: a box that scrolls on one axis is `overflow: hidden` on the other, so a
- * focus ring drawn 2px outside a swatch is cut off at the top and bottom edges
- * of the strip. The padding is what it is drawn into. This is the same trap
- * `overflow-y: auto` set on the dialogs, from the opposite direction.
- */
-.presets__strip {
-  list-style: none;
-  margin: 0;
-  padding: 0.35rem 0.15rem;
+.presets__window {
   display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  /* A flick lands on a swatch rather than between two. */
-  scroll-snap-type: x proximity;
+  padding: 0.35rem 0.15rem;
 }
-.presets__strip > li {
-  flex: none;
-  scroll-snap-align: center;
+.presets__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--lane-line);
+  border-radius: 999px;
+  background: var(--lane-bg);
+  color: var(--board-dim);
+  cursor: pointer;
+}
+.presets__arrow:hover {
+  color: var(--board-fg);
+  border-color: var(--board-accent);
+}
+.presets__arrow:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
 }
 
 .presets__swatch {

@@ -377,8 +377,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Csak az első {n} napot mutatjuk. Valami sokkal későbbre van dátumozva, mint a többi.",
   "Showing the first {n} days. Something is dated much further out than the rest.":
     "Csak az első {n} napot mutatjuk. Valami sokkal későbbre van dátumozva, mint a többi.",
-  "Shown wherever you appear: the crew list and board chat. Without one, your initials stand in.":
-    "Ott jelenik meg, ahol te is: a csapatlistában és a tábla csevegésében. Ha nincs, a monogramod helyettesíti.",
   "Sign in": "Bejelentkezés",
   "Sign-in": "Bejelentkezés",
   "Signed up": "Regisztrált",
@@ -707,8 +705,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "Nem sikerült beállítani a képet. Próbáld újra.",
   "Drag the picture to move it, and use the slider to zoom.":
     "Húzd a képet a mozgatáshoz, a csúszkával pedig nagyíthatsz.",
-  "Or wear one of these instead. No photo needed.":
-    "Vagy válaszd inkább az egyiket. Fotó nélkül is megy.",
   "Position your picture": "Igazítsd be a képet",
   "That file couldn't be read as a picture.":
     "Ezt a fájlt nem sikerült képként megnyitni.",
@@ -738,4 +734,12 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Chat is here on every page, not just inside one board. You will have someone to talk to once you make a trip or join one.": "A csevegés minden oldalon itt van, nem csak egy táblán belül. Akkor lesz kivel beszélgetned, ha létrehozol egy utat vagy csatlakozol egyhez.",
   "Now make one": "Most készíts egyet",
   "Create your first trip and I will show you around the board itself.": "Hozd létre az első utadat, és körbevezetlek magán a táblán is.",
+  "Previous colour": "Előző szín",
+  "Next colour": "Következő szín",
+  "Previous mark": "Előző jel",
+  "Next mark": "Következő jel",
+  "Replace your photo?": "Lecseréled a fotódat?",
+  "A drawn avatar takes the place of your uploaded picture, and the picture is deleted. You can always upload another one.": "A rajzolt avatar a feltöltött képed helyére lép, a képet pedig töröljük. Bármikor feltölthetsz egy újat.",
+  "Use a drawn avatar": "Rajzolt avatart használok",
+  "Keep my photo": "Marad a fotóm",
 };
