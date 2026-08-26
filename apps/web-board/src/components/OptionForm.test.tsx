@@ -125,6 +125,15 @@ describe("what the option form says is wrong", () => {
     expect(screen.getByText("21/2000")).toBeInTheDocument();
   });
 
+  it("stops the notes and the link at the length the contract holds", () => {
+    renderForm();
+    // The check on save stays — it measures the *trimmed* text, which a box
+    // padded out with newlines can pass while the server's would not — but the
+    // box itself no longer lets someone type past the cap and find out on save.
+    expect(screen.getByLabelText("Notes")).toHaveAttribute("maxlength", "2000");
+    expect(screen.getByLabelText("Link")).toHaveAttribute("maxlength", "2000");
+  });
+
   it("names the box and the overshoot instead of saying 'Validation failed'", () => {
     renderForm();
     fireEvent.change(screen.getByLabelText(/^Title/), {
