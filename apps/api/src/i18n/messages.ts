@@ -78,6 +78,7 @@ export const SERVER_MESSAGES = [
   "That member must verify their email before becoming the owner.",
   "That search is too long.",
   "The Dates category can't be deleted. It's the trip's only way to set its dates.",
+  "The board's own conversation can't be deleted.",
   "This account has been deleted.",
   "This board is at its limit of {cap} categories. Delete one to add another.",
   "This category was changed since you opened it. Reload to see the latest.",

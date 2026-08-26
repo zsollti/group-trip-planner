@@ -11,6 +11,7 @@ import {
 import type { User } from "@prisma/client";
 import {
   ChatMuteInput,
+  DeleteChannelsInput,
   StartDiscussionInput,
   type ChannelView,
   type ChatMuteView,
@@ -51,6 +52,30 @@ export class ChannelsController {
     body: StartDiscussionInput,
   ): Promise<ChannelView> {
     return this.channels.startCategoryDiscussion(ctx.trip.id, body.categoryId);
+  }
+
+  /**
+   * Delete discussions from this board (post-launch, organizers).
+   *
+   * `POST .../delete` rather than a `DELETE` carrying a body. The control is a
+   * list of checkboxes and one button, so the request is about a *set* — and a
+   * body on a DELETE is the one shape proxies and caches are entitled to drop
+   * on the floor. One id per request would have avoided both, at the price of
+   * making a five-tick deletion five requests that can half-fail.
+   *
+   * Gated `message.deleteAny`, which is the Owner/Co-organizer set. Deleting a
+   * discussion is deleting everyone's messages in it at once, and that is the
+   * same authority as deleting one of them, exercised wholesale.
+   */
+  @Post("delete")
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("message.deleteAny")
+  deleteChannels(
+    @TripCtx() ctx: TripContext,
+    @Body(new ZodValidationPipe(DeleteChannelsInput))
+    body: DeleteChannelsInput,
+  ): Promise<string[]> {
+    return this.channels.deleteChannels(ctx.trip.id, body.channelIds);
   }
 
   // A read cursor is a chat fact, so it is gated with the rest of chat rather

@@ -5567,6 +5567,42 @@ button.cost-comp__row-btn:hover,
   border-radius: 3px;
 }
 
+/* A list of things to tick, then act on together (post-launch): the discussions
+   an organizer is closing. Scrolls on its own, so a board with a lane per day
+   cannot push the Delete button off the bottom of the dialog. */
+.board__checklist {
+  list-style: none;
+  margin: 0.6rem 0;
+  padding: 0;
+  max-height: 15rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+/* The whole row is the label, so the name is part of the hit area rather than
+   a word sitting next to a 13-pixel target. */
+.board__checkline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.board__checkline:hover {
+  background: var(--board-bg);
+}
+.board__checkline input {
+  flex: none;
+  cursor: pointer;
+}
+.board__checkline span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Reactions + @mentions (Phase 4.3). */
 .board__mention {
   color: var(--board-accent);

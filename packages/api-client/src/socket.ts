@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import {
   CHANNEL_CREATED_EVENT,
+  CHANNELS_DELETED_EVENT,
   ROOMS_REFRESH_EVENT,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
@@ -223,6 +224,27 @@ export function useUserSocket(enabled: boolean): SessionSocket {
         prev.some((c) => c.id === channel.id) ? prev : [...prev, channel],
       );
     });
+    /*
+     * An organizer deleted discussions (post-launch).
+     *
+     * Dropped from the channel list *and* from the unread map. Leaving a count
+     * behind for a channel nothing renders any more would keep the launcher's
+     * badge lit with a number the reader could never open, and no amount of
+     * reading would clear it.
+     */
+    socket.on(
+      CHANNELS_DELETED_EVENT,
+      ({ channelIds }: { channelIds: string[] }) => {
+        if (cancelled) return;
+        const gone = new Set(channelIds);
+        setChannels((prev) => prev.filter((c) => !gone.has(c.id)));
+        setUnread((prev) => {
+          const next = { ...prev };
+          for (const id of gone) delete next[id];
+          return next;
+        });
+      },
+    );
     socket.on("connect_error", () => {
       void (async () => {
         if (triedRefresh) {

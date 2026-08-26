@@ -304,6 +304,11 @@ const PROBES: Probe[] = [
     method: "delete",
     url: (i) => `/trips/${i.trip}/chat-image`,
   },
+  {
+    route: "/trips/:id/channels/delete",
+    method: "post",
+    url: (i) => `/trips/${i.trip}/channels/delete`,
+  },
 ];
 
 /** `"GET /trips/:id"` — the key both discovery and the table agree on. */

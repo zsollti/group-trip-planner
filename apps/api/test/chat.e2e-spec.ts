@@ -8,6 +8,7 @@ import request from "supertest";
 import { io, type Socket } from "socket.io-client";
 import {
   CHANNEL_CREATED_EVENT,
+  CHANNELS_DELETED_EVENT,
   MESSAGE_DELETE_EVENT,
   MESSAGE_DELETED_EVENT,
   MESSAGE_NEW_EVENT,
@@ -1256,5 +1257,119 @@ describe("Chat gateway (e2e)", () => {
       .set("Authorization", `Bearer ${guest.token}`)
       .send({ duration: "HOUR" })
       .expect(403);
+  });
+  /**
+   * Deleting a board's discussions.
+   *
+   * The rule the owner set is the one worth pinning hardest: the trip-wide
+   * channel is not deletable. Everything else here is the shape that rule lives
+   * in — a set in one request, a board boundary the ids cannot cross, and the
+   * messages going with the channel.
+   */
+  async function laneChannel(tripId: string, name: string) {
+    const category = await prisma.category.create({
+      data: { tripId, name, position: 0 },
+    });
+    return prisma.channel.create({
+      data: { tripId, type: "CATEGORY", categoryId: category.id },
+    });
+  }
+
+  it("deletes the discussions it was given, and their messages with them", async () => {
+    const owner = await makeUser("del-owner");
+    const trip = await makeTrip(owner.user.id);
+    const stay = await laneChannel(trip.id, "Stay");
+    await prisma.message.create({
+      data: { channelId: stay.id, authorId: owner.user.id, body: "in here" },
+    });
+
+    const res = await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels/delete`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ channelIds: [stay.id] })
+      .expect(201);
+
+    assert.deepEqual(res.body, [stay.id]);
+    assert.equal(
+      await prisma.channel.findUnique({ where: { id: stay.id } }),
+      null,
+    );
+    // By FK cascade, the same one that takes a discussion when its category goes.
+    assert.equal(
+      await prisma.message.count({ where: { channelId: stay.id } }),
+      0,
+    );
+  });
+
+  it("refuses to delete the board's own conversation", async () => {
+    const owner = await makeUser("del-general");
+    const trip = await makeTrip(owner.user.id);
+    const general = await generalChannelId(trip.id);
+    const stay = await laneChannel(trip.id, "Stay");
+
+    const res = await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels/delete`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ channelIds: [stay.id, general] })
+      .expect(400);
+    assert.match(res.body.message, /can't be deleted/);
+
+    // Refused, not partly done: the lane in the same request survives too.
+    // Nothing recreates a General, so a half-applied delete here is the one
+    // outcome there is no way back from.
+    assert.ok(await prisma.channel.findUnique({ where: { id: general } }));
+    assert.ok(await prisma.channel.findUnique({ where: { id: stay.id } }));
+  });
+
+  it("cannot reach a channel on another board", async () => {
+    const owner = await makeUser("del-cross");
+    const mine = await makeTrip(owner.user.id);
+    const theirs = await makeTrip(owner.user.id);
+    const stay = await laneChannel(theirs.id, "Stay");
+
+    // Scoped by tripId in the same `where` that names the id, so an id from
+    // elsewhere matches nothing rather than deleting somebody else's talk.
+    const res = await request(app.getHttpServer())
+      .post(`/trips/${mine.id}/channels/delete`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ channelIds: [stay.id] })
+      .expect(201);
+
+    assert.deepEqual(res.body, []);
+    assert.ok(await prisma.channel.findUnique({ where: { id: stay.id } }));
+  });
+
+  it("is refused to a member who cannot delete other people's messages", async () => {
+    const owner = await makeUser("del-guard-owner");
+    const traveler = await makeUser("del-guard-traveler");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, traveler.user.id, "PARTICIPANT");
+    const stay = await laneChannel(trip.id, "Stay");
+
+    // Deleting a discussion is deleting everyone's messages in it at once.
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels/delete`)
+      .set("Authorization", `Bearer ${traveler.token}`)
+      .send({ channelIds: [stay.id] })
+      .expect(403);
+  });
+
+  it("tells the room, so the chip goes from everyone's switcher", async () => {
+    const owner = await makeUser("del-broadcast");
+    const trip = await makeTrip(owner.user.id);
+    const stay = await laneChannel(trip.id, "Stay");
+    const socket = await connect({ token: owner.token, tripId: trip.id });
+    const heard = once<{ channelIds: string[] }>(
+      socket,
+      CHANNELS_DELETED_EVENT,
+    );
+
+    await request(app.getHttpServer())
+      .post(`/trips/${trip.id}/channels/delete`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ channelIds: [stay.id] })
+      .expect(201);
+
+    assert.deepEqual((await heard).channelIds, [stay.id]);
   });
 });
