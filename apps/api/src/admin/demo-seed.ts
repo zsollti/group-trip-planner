@@ -327,7 +327,7 @@ export async function seedDemoTrip(
       name: DEMO_TRIP_NAME,
       ...lisbon,
       description:
-        "Five of us, three nights, one long weekend. Flights, the flat and a couple of the activities are settled — the rest is still being argued about.",
+        "Five of us, three nights, one long weekend. Flights, the flat and a couple of the activities are settled. The rest is still being argued about.",
       defaultCurrency: "EUR",
       // A target, not a limit — nothing is refused for exceeding it. Set on the
       // demo because the cost panel is half a feature without one: the donut
@@ -772,7 +772,7 @@ export async function seedDemoTrip(
     {
       ch: general.id,
       by: "mira",
-      body: "Right — Lisbon. Everyone put your dates in before Friday please.",
+      body: "Right, Lisbon. Everyone put your dates in before Friday please.",
       ago: 60 * 34,
     },
     {
@@ -796,7 +796,7 @@ export async function seedDemoTrip(
     {
       ch: general.id,
       by: "demo",
-      body: "Dates locked — 22nd to the 25th. Flights next.",
+      body: "Dates locked: 22nd to the 25th. Flights next.",
       ago: 60 * 26,
     },
     {
@@ -808,19 +808,19 @@ export async function seedDemoTrip(
     {
       ch: general.id,
       by: "demo",
-      body: "Both TAP legs locked — out Friday morning, back Monday evening — and the van for the airport runs. Activities still open.",
+      body: "Both TAP legs locked: out Friday morning, back Monday evening. The van for the airport runs is in too. Activities still open.",
       ago: 60 * 21,
     },
     {
       ch: general.id,
       by: "tomas",
-      body: "Surf lesson is winning the activities vote — it's booked in sterling, so it shows as its own total.",
+      body: "Surf lesson is winning the activities vote. It's booked in sterling, so it shows as its own total.",
       ago: 60 * 4,
     },
     {
       ch: general.id,
       by: "mira",
-      body: "Also putting the 7am tram walk in — I'm going either way, join if you're up.",
+      body: "Also putting the 7am tram walk in. I'm going either way, join if you're up.",
       ago: 60 * 3,
     },
     {
@@ -836,13 +836,13 @@ export async function seedDemoTrip(
     {
       ch: general.id,
       by: "mira",
-      body: "Surf lesson is locked in — four of us are in the water, £48 each.",
+      body: "Surf lesson is locked in. Four of us are in the water, £48 each.",
       ago: 60 * 3,
     },
     {
       ch: general.id,
       by: "demo",
-      body: "And the Fado dinner. Sintra, the tram walk and the market are still open — vote when you get a minute.",
+      body: "And the Fado dinner. Sintra, the tram walk and the market are still open, so vote when you get a minute.",
       ago: 60 * 2,
     },
     {
@@ -983,7 +983,7 @@ async function seedHistoryTrip(
       name: DEMO_HISTORY_TRIP_NAME,
       ...tallinn,
       description:
-        "Last winter's one. Three nights, a lot of mulled wine, and the flights were the cheapest we have ever found. Ended — the board is read-only now.",
+        "Last winter's one. Three nights, a lot of mulled wine, and the flights were the cheapest we have ever found. Ended, so the board is read-only now.",
       defaultCurrency: "EUR",
       // Under what it cost, on purpose. A finished trip that came in over its
       // target is the more interesting of the two readings, and it is the one
@@ -1047,7 +1047,7 @@ async function seedHistoryTrip(
           // One that lost, so the finished board still shows that a choice was
           // made rather than that there was only ever one answer.
           title: "19 – 22 December",
-          description: "Too close to Christmas — half of us had family things.",
+          description: "Too close to Christmas. Half of us had family things.",
           currency: "EUR",
           position: 1,
           by: "sam",
@@ -1232,7 +1232,7 @@ async function seedHistoryTrip(
       // Written after they got home, which is what makes the board feel ended
       // rather than merely expired.
       by: "tomas",
-      body: "Home. Cold, expensive, worth it — the submarine especially.",
+      body: "Home. Cold, expensive, worth it. The submarine especially.",
       ago: -4,
     },
   ];
