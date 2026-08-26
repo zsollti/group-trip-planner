@@ -106,6 +106,7 @@ function renderPanel(channels?: ChannelView[], tripName = "Lisbon 2026") {
         tripName={tripName}
         sessionSocket={channels ? { ...base, channels } : base}
         onClose={() => {}}
+        onCollapse={() => {}}
         categories={categories}
         myRole="PARTICIPANT"
         myUserId="u1"
@@ -325,6 +326,7 @@ describe("chat channel switcher order", () => {
           tripName="Lisbon 2026"
           sessionSocket={talkative}
           onClose={() => {}}
+          onCollapse={() => {}}
           categories={categories}
           myRole="PARTICIPANT"
           myUserId="u1"

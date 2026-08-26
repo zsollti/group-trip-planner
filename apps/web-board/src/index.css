@@ -5016,11 +5016,20 @@ button.cost-comp__row-btn:hover,
 }
 
 /* Trip chat (Phase 4.2): a collapsible docked panel + its launcher. */
-.board__chat-fab {
+/* The launcher and the folded conversations, as one row in the corner.
+   Positioning moved up here off the button when the bubbles arrived: they have
+   to sit beside it whatever the button's own width comes out to, and that width
+   is a translated word plus a badge that may or may not be there. */
+.board__chat-launcher {
   position: fixed;
   right: 1.1rem;
   bottom: 1.1rem;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.board__chat-fab {
   font: inherit;
   font-weight: 700;
   font-size: 0.85rem;
@@ -5031,6 +5040,23 @@ button.cost-comp__row-btn:hover,
   background: var(--board-accent);
   color: var(--board-on-accent);
   box-shadow: 0 4px 14px rgb(var(--board-shadow) / 0.22);
+}
+/* A conversation folded down to its board's circle. The ring is the page's own
+   background, so bubbles sitting shoulder to shoulder stay separate circles
+   rather than one run of colour. */
+.board__chat-bubble {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: 2px solid var(--board-bg);
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(var(--board-shadow) / 0.22);
+}
+.board__chat-bubble:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
 }
 .board__chat-badge {
   display: inline-flex;
@@ -5046,6 +5072,13 @@ button.cost-comp__row-btn:hover,
   font-size: 0.68rem;
   font-weight: 800;
   vertical-align: middle;
+}
+/* On a bubble the badge has no line to sit on, so it hangs off the circle. */
+.board__chat-badge--bubble {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  margin-left: 0;
 }
 .board__chat {
   position: fixed;
@@ -5092,6 +5125,27 @@ button.cost-comp__row-btn:hover,
   flex-direction: column;
   min-width: 0;
   line-height: 1.25;
+}
+/* The same block, as the button that folds the panel away. Unstyled to the
+   point of being invisible as a control on purpose: it is the panel's heading
+   first, and it says what it does on hover and to a screen reader. */
+.board__chat-title--btn {
+  flex: 1 1 auto;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.board__chat-title--btn:hover > strong {
+  text-decoration: underline;
+}
+.board__chat-title--btn:focus-visible {
+  outline: 2px solid var(--board-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 .board__chat-title > strong {
   overflow: hidden;
