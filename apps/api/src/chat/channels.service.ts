@@ -4,7 +4,11 @@ import {
   CHANNEL_CREATED_EVENT,
   type ChannelUnread,
   type ChannelView,
+  CHAT_MUTE_MINUTES,
+  type ChatMuteDuration,
+  type ChatMuteView,
   type ChatReadyPayload,
+  type TripChatMute,
 } from "@gtp/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { RealtimeGateway } from "../realtime/realtime.gateway.js";
@@ -105,14 +109,15 @@ export class ChannelsService {
     // `IN ()` reach Postgres: a member of no board with chat is an ordinary
     // state (a brand-new account, or one that is Guest everywhere), not a
     // degenerate one.
-    if (tripIds.length === 0) return { channels: [], unread: [] };
+    if (tripIds.length === 0) return { channels: [], unread: [], mutes: [] };
 
-    const [channels, lastMessage] = await Promise.all([
+    const [channels, lastMessage, mutes] = await Promise.all([
       this.prisma.channel.findMany({
         where: { tripId: { in: [...tripIds] } },
         orderBy: { createdAt: "asc" },
       }),
       this.lastMessageByChannel(tripIds),
+      this.mutesFor(tripIds, userId),
     ]);
 
     // One aggregate for every board the reader is on, rather than a count per
@@ -158,6 +163,92 @@ export class ChannelsService {
         toChannelView(c, lastMessage.get(c.id) ?? null),
       ),
       unread,
+      mutes,
+    };
+  }
+
+  /**
+   * The boards this reader has silenced, of the ones asked about.
+   *
+   * **Only the muted ones are returned**, so the payload is the size of the
+   * exception rather than the size of the membership list. An absent trip is an
+   * unmuted trip, which is also what a client that has never heard of mutes
+   * would assume.
+   *
+   * A lapsed timed mute is filtered out here rather than being cleared from the
+   * row. Writing on a read would turn every socket connect into a write, and
+   * the row is harmless: `chatMutedUntil` in the past means the same thing as
+   * no mute at all, and the next mute overwrites it. The client is sent the
+   * instant as well as the flag so it can let a mute lapse mid-session without
+   * waiting for a reconnect.
+   */
+  private async mutesFor(
+    tripIds: readonly string[],
+    userId: string,
+  ): Promise<TripChatMute[]> {
+    const rows = await this.prisma.tripMembership.findMany({
+      where: { userId, tripId: { in: [...tripIds] }, chatMuted: true },
+      select: { tripId: true, chatMutedUntil: true },
+    });
+    const now = Date.now();
+    return rows
+      .filter((r) => !r.chatMutedUntil || r.chatMutedUntil.getTime() > now)
+      .map((r) => ({
+        tripId: r.tripId,
+        muted: true,
+        mutedUntil: r.chatMutedUntil?.toISOString() ?? null,
+      }));
+  }
+
+  /**
+   * Silence this board's chat for this member, or let it speak again.
+   *
+   * A single route for both directions, because they are one setting: a null
+   * duration is "not muted", and the alternative — a POST to mute and a DELETE
+   * to unmute — makes the client hold a state machine to decide which verb its
+   * own menu item means.
+   *
+   * The expiry is computed here and stored as an instant, not as a duration
+   * counted down from `updatedAt`. "Muted for an hour" asked at 14:00 means
+   * quiet until 15:00 whatever happens in between, and a stored instant is the
+   * only shape that stays true across a restart, a clock change on the reader's
+   * device, or a second mute set while the first is running.
+   */
+  async setMute(
+    tripId: string,
+    userId: string,
+    duration: ChatMuteDuration | null,
+  ): Promise<ChatMuteView> {
+    const until =
+      duration === "HOUR" || duration === "DAY"
+        ? new Date(Date.now() + CHAT_MUTE_MINUTES[duration] * 60_000)
+        : null;
+    // `updateMany` rather than `update`: the membership is addressed by the
+    // pair, and a caller who is somehow not a member updates nothing instead of
+    // raising a Prisma error about a record it should never have reached. The
+    // guard already refused them; this simply does not depend on that.
+    await this.prisma.tripMembership.updateMany({
+      where: { tripId, userId },
+      data: { chatMuted: duration !== null, chatMutedUntil: until },
+    });
+    return {
+      muted: duration !== null,
+      mutedUntil: until?.toISOString() ?? null,
+    };
+  }
+
+  /** The mute as it stands, with a lapsed one read as no mute. */
+  async getMute(tripId: string, userId: string): Promise<ChatMuteView> {
+    const row = await this.prisma.tripMembership.findFirst({
+      where: { tripId, userId },
+      select: { chatMuted: true, chatMutedUntil: true },
+    });
+    const lapsed =
+      !!row?.chatMutedUntil && row.chatMutedUntil.getTime() <= Date.now();
+    if (!row?.chatMuted || lapsed) return { muted: false, mutedUntil: null };
+    return {
+      muted: true,
+      mutedUntil: row.chatMutedUntil?.toISOString() ?? null,
     };
   }
 

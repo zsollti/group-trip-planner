@@ -264,7 +264,10 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
               menu. The socket's personal room carries notifications for every
               trip the user belongs to, not just this one (Phase 5.1,
               decision 1). */}
-          <NotificationToasts socket={sessionSocket.socket} />
+          <NotificationToasts
+            socket={sessionSocket.socket}
+            isTripMuted={sessionSocket.isTripMuted}
+          />
           {/* Invite used to sit here. It is in the crew panel now, beside the
               list of who is already on the trip — the header was a screen away
               from the only thing inviting changes. */}

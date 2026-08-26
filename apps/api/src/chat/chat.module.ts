@@ -7,7 +7,10 @@ import { RealtimeModule } from "../realtime/realtime.module.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { ChatGateway } from "./chat.gateway.js";
 import { ChannelsService } from "./channels.service.js";
-import { ChannelsController } from "./channels.controller.js";
+import {
+  ChannelsController,
+  ChatMuteController,
+} from "./channels.controller.js";
 import { MessagesService } from "./messages.service.js";
 import {
   MessageSearchController,
@@ -27,6 +30,7 @@ import {
     MessagesController,
     MessageSearchController,
     ChannelsController,
+    ChatMuteController,
   ],
   providers: [
     ChatGateway,

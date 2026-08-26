@@ -761,4 +761,11 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "The first {n} matches. Narrow the search to see fewer.": "Az első {n} találat. Szűkítsd a keresést, ha kevesebbet szeretnél.",
   "{n} matching": "{n} találat",
   "{author} in {channel}: {body}": "{author} a {channel} beszélgetésben: {body}",
+  "Unmute chat": "Csevegés némításának feloldása",
+  "Muted until {time}": "Némítva eddig: {time}",
+  "Muted until you turn it back on": "Némítva, amíg vissza nem kapcsolod",
+  "Mute chat for an hour": "Csevegés némítása egy órára",
+  "Mute chat for a day": "Csevegés némítása egy napra",
+  "Mute chat until I turn it back on": "Csevegés némítása, amíg vissza nem kapcsolom",
+  "Silences this board's badges and mention pop-ups.": "Elnémítja a tábla jelzéseit és az említési buborékokat.",
 };

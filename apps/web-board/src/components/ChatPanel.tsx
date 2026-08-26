@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { intlTag } from "../lib/locale";
+import type { ChatMuteDuration } from "@gtp/types";
 import {
   useChat,
+  useSetChatMute,
   useTripMembers,
   type ChatMessage,
   type SessionSocket,
@@ -17,7 +19,8 @@ import {
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
 import { ChatSearch } from "./ChatSearch";
-import { Menu } from "./Menu";
+import { BellIcon, BellOffIcon } from "./icons";
+import { Menu, type MenuItem } from "./Menu";
 import { partitionByFit, useFitCount } from "../lib/fitTabs";
 import { applyOrder, orderChannels } from "../lib/channelOrder";
 import { truncateName } from "../lib/truncate";
@@ -287,8 +290,16 @@ export function ChatPanel({
    *  choose between. Absent when there is nothing to go back to. */
   onBack?: () => void;
 }) {
-  const { socket, channels, unread, markChannelRead, setActiveChannel } =
-    sessionSocket;
+  const {
+    socket,
+    channels,
+    unread,
+    markChannelRead,
+    setActiveChannel,
+    isTripMuted,
+    tripMutedUntil,
+    setTripMute,
+  } = sessionSocket;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -412,6 +423,25 @@ export function ChatPanel({
   const [searching, setSearching] = useState(false);
   useEffect(() => setSearching(false), [tripId]);
 
+  /*
+   * Muting, held by the socket rather than by this panel.
+   *
+   * The badges it silences are drawn by the dock, which outlives this panel —
+   * so the state lives with them and the mutation only has to report back. The
+   * reply is handed straight to `setTripMute`, so the launcher goes quiet on
+   * the same frame rather than at the next reconnect.
+   */
+  const muted = isTripMuted(tripId);
+  const mutedUntil = tripMutedUntil(tripId);
+  const setMute = useSetChatMute(tripId);
+
+  function mute(duration: ChatMuteDuration | null) {
+    setMute.mutate(
+      { duration },
+      { onSuccess: (view) => setTripMute(tripId, view) },
+    );
+  }
+
   function selectChannel(id: string) {
     setActiveId(id);
     setActiveChannel(id);
@@ -507,6 +537,51 @@ export function ChatPanel({
     setDraft("");
   }
 
+  /*
+   * Mute, as three rows rather than a submenu.
+   *
+   * The durations are the choice, so they are the items: a submenu would hide
+   * three short labels behind a fourth and add a second thing to open before
+   * anything happens. Muted, they collapse to the one row that is now true —
+   * you cannot mute what is already muted, and the only question left is when
+   * it stops.
+   *
+   * The mark carries the state and the word carries the act, exactly as in the
+   * trip menu's email mute: "Mute" and "Unmute" differ by two letters in a list
+   * read at a glance.
+   */
+  const muteItems: MenuItem[] = muted
+    ? [
+        {
+          icon: <BellIcon size={14} />,
+          label: t("Unmute chat"),
+          note: mutedUntil
+            ? t("Muted until {time}", { time: timeLabel(mutedUntil) })
+            : t("Muted until you turn it back on"),
+          separated: true,
+          onSelect: () => mute(null),
+        },
+      ]
+    : [
+        {
+          icon: <BellOffIcon size={14} />,
+          label: t("Mute chat for an hour"),
+          separated: true,
+          onSelect: () => mute("HOUR"),
+        },
+        {
+          label: t("Mute chat for a day"),
+          onSelect: () => mute("DAY"),
+        },
+        {
+          label: t("Mute chat until I turn it back on"),
+          // The one that needs saying: the other two answer "how long" in the
+          // label, and this one's consequence is that nothing will answer it.
+          note: t("Silences this board's badges and mention pop-ups."),
+          onSelect: () => mute("ALWAYS"),
+        },
+      ];
+
   return (
     <section className="board__chat" role="dialog" aria-label={t("Trip chat")}>
       <header className="board__chat-head">
@@ -597,6 +672,7 @@ export function ChatPanel({
               onSelect: () => setSearching((was) => !was),
               selected: searching,
             },
+            ...muteItems,
           ]}
         />
         <button

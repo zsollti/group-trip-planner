@@ -19,7 +19,9 @@ import {
   type ReactionUpdate,
   SOCKET_READY_EVENT,
   type ChannelView,
+  type ChatMuteView,
   type ChatReadyPayload,
+  type TripChatMute,
 } from "@gtp/types";
 import {
   apiFetch,
@@ -61,6 +63,21 @@ export interface SessionSocket {
   channels: ChannelView[];
   /** Per-channel unread counts (channelId → count), live and cross-trip. */
   unread: Record<string, number>;
+  /**
+   * Whether this board's chat is silenced for the reader right now.
+   *
+   * A function rather than a set, because "right now" is load-bearing: a timed
+   * mute has to lapse mid-session, and a `Set` handed out at render time would
+   * be a snapshot of the moment it was built. The hook re-renders when the
+   * earliest mute expires, so callers get a fresh answer without polling.
+   */
+  isTripMuted: (tripId: string) => boolean;
+  /** When this board's mute lapses; null if it stands until lifted, or if the
+   *  board is not muted at all. Used to say so in the menu. */
+  tripMutedUntil: (tripId: string) => string | null;
+  /** Record a mute the reader just set, so the badges go quiet immediately
+   *  rather than at the next reconnect. */
+  setTripMute: (tripId: string, mute: ChatMuteView) => void;
   /** The live socket (null until connecting) — 4.2+ send/receive over this. */
   socket: Socket | null;
   /** Mark a channel read: clears its unread badge + advances the server cursor. */
@@ -99,6 +116,7 @@ export function useUserSocket(enabled: boolean): SessionSocket {
   const [status, setStatus] = useState<SocketStatus>("idle");
   const [channels, setChannels] = useState<ChannelView[]>([]);
   const [unread, setUnread] = useState<Record<string, number>>({});
+  const [mutes, setMutes] = useState<TripChatMute[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const activeChannelRef = useRef<string | null>(null);
   /**
@@ -176,6 +194,9 @@ export function useUserSocket(enabled: boolean): SessionSocket {
           u.channelId === activeChannelRef.current ? 0 : u.count;
       }
       setUnread(seeded);
+      // Sent with the channels rather than fetched per board, so the first
+      // frame already knows which badges are meant to be quiet.
+      setMutes(payload.mutes ?? []);
     });
     socket.on(MESSAGE_NEW_EVENT, (msg: MessageView) => {
       if (cancelled) return;
@@ -229,10 +250,76 @@ export function useUserSocket(enabled: boolean): SessionSocket {
     };
   }, [enabled]);
 
+  /*
+   * Let a timed mute lapse without a reconnect.
+   *
+   * One timer, set for the earliest expiry rather than one per mute or a
+   * ticking interval: when it fires, every mute that has run out is dropped in
+   * the same pass and the next earliest is scheduled. A session left open
+   * overnight therefore costs one timeout per mute that actually expires, and
+   * nothing at all while none is running.
+   *
+   * `setTimeout` is clamped to a 32-bit delay, so a mute more than ~24.8 days
+   * out would fire immediately and be re-scheduled; the longest this app offers
+   * is a day, and the guard below re-checks the clock rather than trusting the
+   * timer, so an early wake-up simply reschedules.
+   */
+  useEffect(() => {
+    const timed = mutes
+      .map((m) => (m.mutedUntil ? Date.parse(m.mutedUntil) : null))
+      .filter((at): at is number => at !== null);
+    if (timed.length === 0) return;
+    const next = Math.min(...timed);
+    const delay = Math.max(0, next - Date.now());
+    const id = setTimeout(() => {
+      const now = Date.now();
+      setMutes((prev) =>
+        prev.filter((m) => !m.mutedUntil || Date.parse(m.mutedUntil) > now),
+      );
+    }, delay);
+    return () => clearTimeout(id);
+  }, [mutes]);
+
+  /** The mute in force for a board, or undefined. Re-checks the clock, so an
+   *  answer is never staler than the moment it was asked for. */
+  const muteFor = useCallback(
+    (tripId: string) => {
+      const mute = mutes.find((m) => m.tripId === tripId);
+      if (!mute) return undefined;
+      if (mute.mutedUntil && Date.parse(mute.mutedUntil) <= Date.now()) {
+        return undefined;
+      }
+      return mute;
+    },
+    [mutes],
+  );
+
+  const isTripMuted = useCallback(
+    (tripId: string) => muteFor(tripId) !== undefined,
+    [muteFor],
+  );
+
+  const tripMutedUntil = useCallback(
+    (tripId: string) => muteFor(tripId)?.mutedUntil ?? null,
+    [muteFor],
+  );
+
+  const setTripMute = useCallback((tripId: string, mute: ChatMuteView) => {
+    setMutes((prev) => {
+      const rest = prev.filter((m) => m.tripId !== tripId);
+      return mute.muted
+        ? [...rest, { tripId, muted: true, mutedUntil: mute.mutedUntil }]
+        : rest;
+    });
+  }, []);
+
   return {
     status,
     channels,
     unread,
+    isTripMuted,
+    tripMutedUntil,
+    setTripMute,
     socket: socketRef.current,
     markChannelRead,
     setActiveChannel,

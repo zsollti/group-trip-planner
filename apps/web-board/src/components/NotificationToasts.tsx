@@ -25,12 +25,42 @@ const TOAST_MS = 6000;
  * Renders nothing at all until something lands, so it is free to mount anywhere
  * a socket exists.
  */
-export function NotificationToasts({ socket }: { socket?: LiveSocket | null }) {
+export function NotificationToasts({
+  socket,
+  isTripMuted,
+}: {
+  socket?: LiveSocket | null;
+  /**
+   * Whether a board's chat is silenced for this reader (post-launch).
+   *
+   * Optional so the component still mounts anywhere a socket exists — a caller
+   * that does not pass it gets the old behaviour, which is every toast.
+   */
+  isTripMuted?: (tripId: string) => boolean;
+}) {
   const navigate = useNavigate();
   const markRead = useMarkNotificationRead();
   const [toast, setToast] = useState<NotificationView | null>(null);
 
-  const onArrive = useCallback((n: NotificationView) => setToast(n), []);
+  /*
+   * A muted board does not interrupt.
+   *
+   * Only `MENTION` is dropped, because only `MENTION` is chat: the option
+   * triggers are the board deciding things, and "mute chat" is not a request to
+   * stop being told that a decision was locked while you were away.
+   *
+   * Dropped at the toast, not at the notification. The row is still written,
+   * still unread, and still in the bell — muting silences the interruption, it
+   * does not withhold the fact. That is the same promise the unread badges
+   * make: still counted, just not shouted.
+   */
+  const onArrive = useCallback(
+    (n: NotificationView) => {
+      if (n.type === "MENTION" && isTripMuted?.(n.tripId)) return;
+      setToast(n);
+    },
+    [isTripMuted],
+  );
   useNotificationLiveSync(socket ?? null, onArrive);
 
   useEffect(() => {

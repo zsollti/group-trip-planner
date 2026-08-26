@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fireEvent,
   render,
@@ -84,6 +84,10 @@ describe("the chat dock", () => {
       socket: null,
       markChannelRead: () => {},
       setActiveChannel: () => {},
+      // Nothing is muted in these fixtures; the mute has its own tests.
+      isTripMuted: () => false,
+      tripMutedUntil: () => null,
+      setTripMute: () => {},
       refreshRooms: () => {},
     };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -212,5 +216,61 @@ describe("the chat dock", () => {
         screen.queryByRole("button", { name: "Lisbon 2026 chat" }),
       ).toBeNull();
     });
+  });
+});
+
+/**
+ * What a muted board does to the badges.
+ *
+ * The mute is a statement about what gets *shown*: the counts still arrive and
+ * are still counted, so the launcher must simply stop adding a quieted board in
+ * — and must still add every other one, which is the half a blanket "hide the
+ * badge" would get wrong.
+ */
+describe("a muted board's badges", () => {
+  beforeEach(() => {
+    socketValue = {
+      status: "connected",
+      channels: [channel("a-gen", TRIP_A), channel("b-gen", TRIP_B)],
+      unread: { "a-gen": 2, "b-gen": 3 },
+      socket: null,
+      markChannelRead: () => {},
+      setActiveChannel: () => {},
+      isTripMuted: (tripId: string) => tripId === TRIP_A,
+      tripMutedUntil: () => null,
+      setTripMute: () => {},
+      refreshRooms: () => {},
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("leaves the muted board out of the launcher's count", () => {
+    renderDock();
+    // 3, not 5: board A is quiet, board B is not.
+    expect(
+      screen.getByRole("button", { name: "Chat, 3 unread" }),
+    ).toBeInTheDocument();
+  });
+
+  it("still counts every board that is not muted", () => {
+    socketValue = { ...socketValue, isTripMuted: () => false };
+    renderDock();
+    expect(
+      screen.getByRole("button", { name: "Chat, 5 unread" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing at all when every board is muted", () => {
+    socketValue = { ...socketValue, isTripMuted: () => true };
+    renderDock();
+    // Back to the plain launcher: no count in the name at all.
+    expect(screen.getByRole("button", { name: "Chat" })).toBeInTheDocument();
   });
 });

@@ -51,7 +51,10 @@ interface Ids {
   invite: string;
 }
 
-type Method = "get" | "post" | "patch" | "delete";
+// `put` joined the list when the chat mute arrived: it replaces the whole
+// setting on every call, so it is a PUT rather than a PATCH. Supertest
+// dispatches it the same way the other four are dispatched.
+type Method = "get" | "post" | "put" | "patch" | "delete";
 
 interface Probe {
   /** The route template exactly as Nest registers it with Express. */
@@ -280,6 +283,16 @@ const PROBES: Probe[] = [
     route: "/trips/:id/messages/search",
     method: "get",
     url: (i) => `/trips/${i.trip}/messages/search`,
+  },
+  {
+    route: "/trips/:id/chat-mute",
+    method: "get",
+    url: (i) => `/trips/${i.trip}/chat-mute`,
+  },
+  {
+    route: "/trips/:id/chat-mute",
+    method: "put",
+    url: (i) => `/trips/${i.trip}/chat-mute`,
   },
 ];
 

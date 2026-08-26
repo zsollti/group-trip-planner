@@ -1113,4 +1113,148 @@ describe("Chat gateway (e2e)", () => {
       .set("Authorization", `Bearer ${guest.token}`)
       .expect(403);
   });
+  /**
+   * Muting a board's chat.
+   *
+   * The three that matter: a timed mute is stored as an instant and lapses by
+   * itself, the ready payload carries it so the badges are right from the first
+   * frame, and it is a different switch from the trip's email mute — which is
+   * the whole reason it is a different column.
+   */
+  it("mutes for an hour, and says when that lapses", async () => {
+    const owner = await makeUser("mute-hour");
+    const trip = await makeTrip(owner.user.id);
+
+    const before = Date.now();
+    const res = await request(app.getHttpServer())
+      .put(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ duration: "HOUR" })
+      .expect(200);
+
+    assert.equal(res.body.muted, true);
+    const until = new Date(res.body.mutedUntil).getTime();
+    // An instant an hour out, not a duration counted from some later "now".
+    assert.ok(until >= before + 59 * 60_000, "at least an hour away");
+    assert.ok(until <= Date.now() + 61 * 60_000, "not much more than an hour");
+  });
+
+  it("mutes until lifted, with no expiry at all", async () => {
+    const owner = await makeUser("mute-always");
+    const trip = await makeTrip(owner.user.id);
+
+    const res = await request(app.getHttpServer())
+      .put(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ duration: "ALWAYS" })
+      .expect(200);
+
+    // The distinction the two columns exist for: muted, with nothing to expire.
+    assert.deepEqual(res.body, { muted: true, mutedUntil: null });
+  });
+
+  it("lifts the mute when asked for no duration at all", async () => {
+    const owner = await makeUser("mute-lift");
+    const trip = await makeTrip(owner.user.id);
+    const put = (duration: string | null) =>
+      request(app.getHttpServer())
+        .put(`/trips/${trip.id}/chat-mute`)
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send({ duration })
+        .expect(200);
+
+    await put("DAY");
+    const lifted = await put(null);
+    assert.deepEqual(lifted.body, { muted: false, mutedUntil: null });
+
+    const read = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.deepEqual(read.body, { muted: false, mutedUntil: null });
+  });
+
+  it("reads a lapsed mute as no mute, without rewriting the row", async () => {
+    const owner = await makeUser("mute-lapsed");
+    const trip = await makeTrip(owner.user.id);
+    // A mute that ran out a minute ago, as a socket connecting now would find.
+    await prisma.tripMembership.updateMany({
+      where: { tripId: trip.id, userId: owner.user.id },
+      data: { chatMuted: true, chatMutedUntil: new Date(Date.now() - 60_000) },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.deepEqual(res.body, { muted: false, mutedUntil: null });
+
+    // Reading did not clear it: every socket connect would otherwise be a
+    // write, and a row that says "muted until a moment in the past" already
+    // means exactly what it needs to mean.
+    const row = await prisma.tripMembership.findFirstOrThrow({
+      where: { tripId: trip.id, userId: owner.user.id },
+    });
+    assert.equal(row.chatMuted, true);
+  });
+
+  it("is a different switch from the trip's email mute", async () => {
+    // The reason for a second column rather than a reused one: a member may
+    // want their inbox quiet and their badges live, or the reverse.
+    const owner = await makeUser("mute-separate");
+    const trip = await makeTrip(owner.user.id);
+    await prisma.tripMembership.updateMany({
+      where: { tripId: trip.id, userId: owner.user.id },
+      data: { muted: true },
+    });
+
+    await request(app.getHttpServer())
+      .put(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ duration: null })
+      .expect(200);
+
+    const row = await prisma.tripMembership.findFirstOrThrow({
+      where: { tripId: trip.id, userId: owner.user.id },
+    });
+    assert.equal(row.muted, true, "lifting the chat mute left the email mute");
+    assert.equal(row.chatMuted, false);
+  });
+
+  it("tells a connecting socket which boards are muted", async () => {
+    const owner = await makeUser("mute-ready");
+    const quiet = await makeTrip(owner.user.id);
+    const loud = await makeTrip(owner.user.id);
+    await request(app.getHttpServer())
+      .put(`/trips/${quiet.id}/chat-mute`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({ duration: "ALWAYS" })
+      .expect(200);
+
+    const { ready } = await connectReady({
+      token: owner.token,
+      tripId: quiet.id,
+    });
+
+    // Only the muted board is listed: an absent trip is an unmuted trip.
+    assert.deepEqual(
+      ready.mutes.map((m) => m.tripId),
+      [quiet.id],
+    );
+    assert.equal(ready.mutes[0]?.mutedUntil, null);
+    assert.ok(!ready.mutes.some((m) => m.tripId === loud.id));
+  });
+
+  it("refuses the mute to a Guest, who has no chat to silence", async () => {
+    const owner = await makeUser("mute-guard-owner");
+    const guest = await makeUser("mute-guard-guest");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, guest.user.id, "GUEST");
+
+    await request(app.getHttpServer())
+      .put(`/trips/${trip.id}/chat-mute`)
+      .set("Authorization", `Bearer ${guest.token}`)
+      .send({ duration: "HOUR" })
+      .expect(403);
+  });
 });
