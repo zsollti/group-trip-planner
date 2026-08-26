@@ -985,4 +985,132 @@ describe("Chat gateway (e2e)", () => {
     await new Promise((r) => setTimeout(r, 100));
     assert.equal(heard, false, "a Guest must not receive chat broadcasts");
   });
+
+  /**
+   * Searching the board's transcript.
+   *
+   * The three that matter: it crosses channels (which is the whole reason it is
+   * trip-scoped), it never surfaces a deleted message, and it treats the
+   * reader's text as text — a search for "%" is a search for a percent sign,
+   * not a request for the entire history.
+   */
+  it("finds a message in any of the board's channels, newest first", async () => {
+    const owner = await makeUser("search-owner");
+    const trip = await makeTrip(owner.user.id);
+    const general = await generalChannelId(trip.id);
+    const category = await prisma.category.create({
+      data: { tripId: trip.id, name: "Stay", position: 0 },
+    });
+    const lane = await prisma.channel.create({
+      data: { tripId: trip.id, type: "CATEGORY", categoryId: category.id },
+    });
+
+    let base = Date.now() - 10_000;
+    const write = async (channelId: string, body: string) => {
+      const row = await prisma.message.create({
+        data: {
+          channelId,
+          authorId: owner.user.id,
+          body,
+          createdAt: new Date(base),
+        },
+      });
+      base += 1000;
+      return row;
+    };
+    await write(general, "the AIRPORT transfer is booked");
+    await write(lane.id, "airport is 40 minutes away");
+    await write(general, "nothing to do with it");
+    const gone = await write(general, "airport, but withdrawn");
+    await prisma.message.update({
+      where: { id: gone.id },
+      data: { deletedAt: new Date(), deletedById: owner.user.id },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/messages/search?q=airport`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+
+    const bodies = (res.body.messages as MessageView[]).map((m) => m.body);
+    // Case-insensitive, both channels, newest first, and the tombstone absent —
+    // a deleted message has no body to match, and returning one would be a way
+    // to read around a deletion.
+    assert.deepEqual(bodies, [
+      "airport is 40 minutes away",
+      "the AIRPORT transfer is booked",
+    ]);
+    assert.equal(res.body.truncated, false);
+    const channels = new Set(
+      (res.body.messages as MessageView[]).map((m) => m.channelId),
+    );
+    assert.equal(channels.size, 2);
+  });
+
+  it("treats a LIKE wildcard as text, not as a wildcard", async () => {
+    // The bug this exists for: Prisma's `contains` interpolates the term into
+    // the pattern unescaped, so LIKE reads the reader's own punctuation as
+    // wildcards. Both terms below are chosen to tell the two apart: escaped they
+    // match one message each way, unescaped they would drag the decoy in.
+    const owner = await makeUser("search-wildcard");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    for (const body of ["a 50% deposit", "10 people are coming"]) {
+      await prisma.message.create({
+        data: { channelId, authorId: owner.user.id, body },
+      });
+    }
+
+    // Escaped, "0%" is a zero followed by a percent sign. Unescaped it is
+    // "a zero, then anything", which "10 people are coming" also satisfies.
+    const percent = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/messages/search?q=0%25`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.deepEqual(
+      (percent.body.messages as MessageView[]).map((m) => m.body),
+      ["a 50% deposit"],
+    );
+
+    // `_` is LIKE's single-character wildcard, so unescaped "50_" would match
+    // the percent sign in "a 50% deposit". Nothing contains it literally.
+    const underscore = await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/messages/search?q=50_`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    assert.equal(underscore.body.messages.length, 0);
+  });
+
+  it("answers an empty box with nothing rather than with everything", async () => {
+    const owner = await makeUser("search-empty");
+    const trip = await makeTrip(owner.user.id);
+    const channelId = await generalChannelId(trip.id);
+    await prisma.message.create({
+      data: { channelId, authorId: owner.user.id, body: "something" },
+    });
+
+    for (const q of ["", "%20%20", "a"]) {
+      const res = await request(app.getHttpServer())
+        .get(`/trips/${trip.id}/messages/search?q=${q}`)
+        .set("Authorization", `Bearer ${owner.token}`)
+        .expect(200);
+      assert.deepEqual(res.body, { messages: [], truncated: false });
+    }
+  });
+
+  it("refuses the transcript to a Guest, who has no chat at all", async () => {
+    const owner = await makeUser("search-guard-owner");
+    const guest = await makeUser("search-guard-guest");
+    const trip = await makeTrip(owner.user.id);
+    await addMember(trip.id, guest.user.id, "GUEST");
+    const channelId = await generalChannelId(trip.id);
+    await prisma.message.create({
+      data: { channelId, authorId: owner.user.id, body: "organizers only" },
+    });
+
+    await request(app.getHttpServer())
+      .get(`/trips/${trip.id}/messages/search?q=organizers`)
+      .set("Authorization", `Bearer ${guest.token}`)
+      .expect(403);
+  });
 });

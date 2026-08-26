@@ -276,6 +276,11 @@ const PROBES: Probe[] = [
     method: "get",
     url: (i) => `/trips/${i.trip}/channels/${i.channel}/messages/since`,
   },
+  {
+    route: "/trips/:id/messages/search",
+    method: "get",
+    url: (i) => `/trips/${i.trip}/messages/search`,
+  },
 ];
 
 /** `"GET /trips/:id"` — the key both discovery and the table agree on. */

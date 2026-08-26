@@ -9,7 +9,10 @@ import { ChatGateway } from "./chat.gateway.js";
 import { ChannelsService } from "./channels.service.js";
 import { ChannelsController } from "./channels.controller.js";
 import { MessagesService } from "./messages.service.js";
-import { MessagesController } from "./messages.controller.js";
+import {
+  MessageSearchController,
+  MessagesController,
+} from "./messages.controller.js";
 
 /**
  * Real-time chat (Phase 4). 4.1 wired the authenticated per-trip WebSocket
@@ -20,7 +23,11 @@ import { MessagesController } from "./messages.controller.js";
  */
 @Module({
   imports: [AuthModule, RealtimeModule, NotificationsModule],
-  controllers: [MessagesController, ChannelsController],
+  controllers: [
+    MessagesController,
+    MessageSearchController,
+    ChannelsController,
+  ],
   providers: [
     ChatGateway,
     ChannelsService,
