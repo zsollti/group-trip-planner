@@ -279,8 +279,6 @@ export const UI_MESSAGES = [
   "Mark all read",
   "Mark verified",
   "Marked verified.",
-  "Members",
-  "Members & roles",
   "Message",
   "Message the group… @ to mention",
   "Messages",

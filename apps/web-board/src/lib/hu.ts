@@ -262,8 +262,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Mark all read": "Összes megjelölése olvasottként",
   "Mark verified": "Megerősítettnek jelöl",
   "Marked verified.": "Megerősítettnek jelölve.",
-  Members: "Tagok",
-  "Members & roles": "Tagok és szerepek",
   Message: "Üzenet",
   "Message the group… @ to mention": "Írj a csapatnak… @ a megemlítéshez",
   Messages: "Üzenetek",

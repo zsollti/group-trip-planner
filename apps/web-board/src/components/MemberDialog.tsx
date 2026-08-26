@@ -121,7 +121,7 @@ export function MemberDialog({
   }
 
   return (
-    <Dialog title={t("Members & roles")} onClose={onClose}>
+    <Dialog title={t("Crew")} onClose={onClose}>
       <>
         {members.isPending ? (
           <p className="board__muted" role="status">
