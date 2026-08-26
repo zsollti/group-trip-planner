@@ -103,12 +103,18 @@ export const UpdateProfileInput = z
      * dismissed would be an advert rather than an offer.
      */
     tourCompleted: z.boolean().optional(),
+    /**
+     * The same, for the overview's own tour. See `overviewTourCompletedAt` in
+     * the session for why the two are counted separately.
+     */
+    overviewTourCompleted: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.displayName !== undefined ||
       v.locale !== undefined ||
-      v.tourCompleted !== undefined,
+      v.tourCompleted !== undefined ||
+      v.overviewTourCompleted !== undefined,
     { message: "Nothing to change." },
   );
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;

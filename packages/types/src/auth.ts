@@ -133,6 +133,16 @@ export const AuthUser = z.object({
    * question later.
    */
   tourCompletedAt: z.string().datetime().nullable(),
+  /**
+   * The same, for the overview's own short tour.
+   *
+   * Two columns rather than one flag, because they are two tours and the whole
+   * point of the second one is what it promises at the end: *make a trip and I
+   * will show you around it*. With one flag the overview tour would finish, set
+   * it, and the board tour would then never auto-start — the app would have
+   * broken its own promise on the very next screen.
+   */
+  overviewTourCompletedAt: z.string().datetime().nullable(),
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 

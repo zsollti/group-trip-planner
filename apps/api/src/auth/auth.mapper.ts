@@ -32,5 +32,7 @@ export function toAuthUser(
     // ISO, or null for an account that has never been shown the tour. The board
     // reads exactly that: null means offer it on the first board they open.
     tourCompletedAt: user.tourCompletedAt?.toISOString() ?? null,
+    overviewTourCompletedAt:
+      user.overviewTourCompletedAt?.toISOString() ?? null,
   };
 }

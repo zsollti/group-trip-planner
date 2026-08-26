@@ -375,6 +375,43 @@ describe("Display name (e2e)", () => {
     );
   });
 
+  /**
+   * The overview's own tour is counted on its own column, and this is the fact
+   * that keeps them apart on the server side.
+   *
+   * Two columns because the overview tour ends by promising the reader that
+   * making a trip will get them shown around the board. One shared flag would
+   * have the overview tour set it and the board tour then never auto-start,
+   * which breaks that promise on the very next screen.
+   */
+  it("counts the overview's tour separately from the board's", async () => {
+    const u = await makeUser("overviewtour");
+
+    const done = await http()
+      .patch("/account/profile")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .send({ overviewTourCompleted: true })
+      .expect(200);
+    const body = done.body as {
+      overviewTourCompletedAt: string;
+      tourCompletedAt: unknown;
+    };
+    assert.ok(body.overviewTourCompletedAt, "an instant was recorded");
+    // The board's own mark is untouched, which is the whole point of there
+    // being two of them.
+    assert.equal(body.tourCompletedAt, null);
+
+    const after = await http()
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${u.accessToken}`)
+      .expect(200);
+    assert.equal(
+      (after.body as { overviewTourCompletedAt: string })
+        .overviewTourCompletedAt,
+      body.overviewTourCompletedAt,
+    );
+  });
+
   it("marks the tour done without being told the name again", async () => {
     // The same property the language switch has, and for the same reason: a
     // form that resubmits a field it does not own is how one screen quietly

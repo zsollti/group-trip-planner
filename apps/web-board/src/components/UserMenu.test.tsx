@@ -58,6 +58,7 @@ const ada: AuthUser = {
   isAdmin: false,
   locale: "en",
   tourCompletedAt: null,
+  overviewTourCompletedAt: null,
 };
 
 describe("UserMenu", () => {

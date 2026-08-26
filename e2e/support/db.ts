@@ -60,7 +60,9 @@ export async function markVerified(email: string): Promise<void> {
 export async function skipTour(email: string): Promise<void> {
   await prisma.user.update({
     where: { email },
-    data: { tourCompletedAt: new Date() },
+    // Both tours: the overview has one of its own now, and it is the one that
+    // opens first — on the page a freshly registered account lands on.
+    data: { tourCompletedAt: new Date(), overviewTourCompletedAt: new Date() },
   });
 }
 
@@ -100,6 +102,10 @@ export async function createVerifiedUser(
        * (`guided-tour.spec.ts`) which seeds a user *without* it.
        */
       tourCompletedAt: opts.tourSeen === false ? null : new Date(),
+      // The overview's own tour, which auto-starts on the page every journey
+      // begins on — so leaving this null would put a bubble over the "New
+      // board" button for the whole cast rather than just for the tourist.
+      overviewTourCompletedAt: opts.tourSeen === false ? null : new Date(),
       // Matches the argon2id configuration the auth service hashes with, so the
       // real login route verifies this password normally.
       passwordHash: await argon2.hash(password, { type: argon2.argon2id }),

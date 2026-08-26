@@ -34,6 +34,7 @@ const ada: AuthUser = {
   isAdmin: false,
   locale: "en",
   tourCompletedAt: null,
+  overviewTourCompletedAt: null,
 };
 
 /** Reads the language the way a pure formatter does: at render, from the module. */

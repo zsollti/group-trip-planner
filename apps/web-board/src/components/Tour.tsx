@@ -15,6 +15,7 @@ import {
   tourFinale,
   visibleSteps,
   type Placement,
+  type TourKind,
   type TourStep,
 } from "../lib/tour";
 import { TourContext, useTour, type TourApi } from "../lib/useTour";
@@ -46,13 +47,15 @@ import { t } from "../lib/i18n";
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const [steps, setSteps] = useState<readonly TourStep[]>([]);
+  const [kind, setKind] = useState<TourKind>("board");
   const [running, setRunning] = useState(false);
 
   // Identity-stable, because `TourSteps` calls it from an effect: a new
   // function every render would re-offer on every render and, with `steps` in
   // that effect's own dependencies, never stop.
-  const offer = useCallback((next: readonly TourStep[]) => {
+  const offer = useCallback((next: readonly TourStep[], nextKind: TourKind) => {
     setSteps((current) => (sameSteps(current, next) ? current : next));
+    setKind(nextKind);
   }, []);
 
   const api = useMemo<TourApi>(
@@ -68,7 +71,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     <TourContext.Provider value={api}>
       {children}
       {running ? (
-        <TourOverlay steps={steps} onClose={() => setRunning(false)} />
+        <TourOverlay
+          steps={steps}
+          kind={kind}
+          onClose={() => setRunning(false)}
+        />
       ) : null}
     </TourContext.Provider>
   );
@@ -92,14 +99,27 @@ function sameSteps(a: readonly TourStep[], b: readonly TourStep[]): boolean {
  */
 export function TourSteps({
   steps,
+  kind = "board",
   autoStart = false,
 }: {
   steps: readonly TourStep[];
+  /** Which tour these steps are — see {@link TourKind}. */
+  kind?: TourKind;
   autoStart?: boolean;
 }) {
   const { offer, start } = useTour();
   const { user } = useAuth();
-  const seen = Boolean(user?.tourCompletedAt);
+  /*
+   * Each tour is counted on its own mark.
+   *
+   * With one shared flag, the overview tour would finish, set it, and the board
+   * tour would then never auto-start — so the app would break the promise the
+   * overview's own last panel makes ("make a trip and I will show you around
+   * the board itself") on the very next screen the reader opens.
+   */
+  const seen = Boolean(
+    kind === "overview" ? user?.overviewTourCompletedAt : user?.tourCompletedAt,
+  );
   /*
    * Set when the tour has actually **started**, not when one has been
    * scheduled — and that distinction is the whole of a bug this had.
@@ -113,8 +133,8 @@ export function TourSteps({
   const opened = useRef(false);
 
   useEffect(() => {
-    offer(steps);
-  }, [offer, steps]);
+    offer(steps, kind);
+  }, [offer, steps, kind]);
 
   useEffect(() => {
     if (!autoStart || seen || opened.current) return;
@@ -145,9 +165,11 @@ const BUBBLE_WIDTH = 320;
 
 function TourOverlay({
   steps,
+  kind,
   onClose,
 }: {
   steps: readonly TourStep[];
+  kind: TourKind;
   onClose: () => void;
 }) {
   const { applyUser } = useAuth();
@@ -170,7 +192,7 @@ function TourOverlay({
   // The last panel is the send-off, and it is a step of its own rather than a
   // line appended to the last real one: "here is the chat" and "off you go" are
   // different things to say, and running them together buries the second.
-  const finale = tourFinale();
+  const finale = tourFinale(kind);
   const total = live.length + 1;
   const step = live[index];
   const onFinale = index >= live.length;
@@ -189,7 +211,9 @@ function TourOverlay({
      * is not worth an error message over a page the reader has just left.
      */
     update.mutate(
-      { tourCompleted: true },
+      kind === "overview"
+        ? { overviewTourCompleted: true }
+        : { tourCompleted: true },
       {
         onSuccess: applyUser,
         onError: (err) => {
@@ -197,7 +221,7 @@ function TourOverlay({
         },
       },
     );
-  }, [applyUser, onClose, update]);
+  }, [applyUser, kind, onClose, update]);
 
   const next = useCallback(() => {
     if (onFinale) finish();

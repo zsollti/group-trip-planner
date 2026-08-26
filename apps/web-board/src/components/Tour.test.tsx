@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TourProvider, TourSteps } from "./Tour";
 import { useTour } from "../lib/useTour";
 import type { TourStep } from "../lib/tour";
@@ -18,13 +18,21 @@ import type { TourStep } from "../lib/tour";
 
 const saved: unknown[] = [];
 
+/** The session the tour reads, mutable so a test can be somebody else. */
+let currentUser: Record<string, unknown> = {
+  id: "u1",
+  displayName: "Ada",
+  tourCompletedAt: null,
+  overviewTourCompletedAt: null,
+};
+
 vi.mock("@gtp/api-client", async () => {
   const actual =
     await vi.importActual<typeof import("@gtp/api-client")>("@gtp/api-client");
   return {
     ...actual,
     useAuth: () => ({
-      user: { id: "u1", displayName: "Ada", tourCompletedAt: null },
+      user: currentUser,
       applyUser: () => undefined,
     }),
     useUpdateProfile: () => ({
@@ -41,12 +49,20 @@ const STEPS: readonly TourStep[] = [
 ];
 
 /** A page with two of the three anchors on it, plus a way to start the tour. */
-function Harness({ steps = STEPS }: { steps?: readonly TourStep[] }) {
+function Harness({
+  steps = STEPS,
+  kind,
+  autoStart,
+}: {
+  steps?: readonly TourStep[];
+  kind?: "board" | "overview";
+  autoStart?: boolean;
+}) {
   return (
     <TourProvider>
       <div data-tour="alpha">alpha</div>
       <div data-tour="beta">beta</div>
-      <TourSteps steps={steps} />
+      <TourSteps steps={steps} kind={kind} autoStart={autoStart} />
       <StartButton />
     </TourProvider>
   );
@@ -180,5 +196,71 @@ describe("leaving the tour", () => {
     expect(screen.getByText("Third thing")).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     expect(screen.getByText("First thing")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The two tours are counted separately, and this is the pair of facts that says
+ * so. It is worth pinning because getting it wrong is silent: with one shared
+ * mark, everything still runs — the overview tour simply switches the board
+ * tour off on its way out, and the board one never appears for anybody who was
+ * shown the overview first, which is every new account.
+ */
+describe("two tours, two marks", () => {
+  beforeEach(() => {
+    saved.length = 0;
+    currentUser = {
+      id: "u1",
+      displayName: "Ada",
+      tourCompletedAt: null,
+      overviewTourCompletedAt: null,
+    };
+    vi.useRealTimers();
+  });
+
+  it("signs the overview tour off with its own promise", () => {
+    render(<Harness kind="overview" />);
+    start();
+    next();
+    next();
+
+    expect(screen.getByText("Now make one")).toBeInTheDocument();
+    expect(screen.queryByText("Let the fun begin!")).toBeNull();
+  });
+
+  it("marks the overview tour done without touching the board's", () => {
+    render(<Harness kind="overview" />);
+    start();
+    fireEvent.click(screen.getByRole("button", { name: "Skip the tour" }));
+    expect(saved).toEqual([{ overviewTourCompleted: true }]);
+  });
+
+  it("still opens the board tour for somebody who has done the overview one", () => {
+    vi.useFakeTimers();
+    currentUser = {
+      ...currentUser,
+      overviewTourCompletedAt: "2026-08-26T00:00:00.000Z",
+    };
+    render(<Harness autoStart />);
+
+    // The tour waits a beat for the board's own requests to land before it
+    // decides which steps have anchors — see `TourSteps`.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText("First thing")).toBeInTheDocument();
+  });
+
+  it("does not open the same tour twice", () => {
+    vi.useFakeTimers();
+    currentUser = {
+      ...currentUser,
+      tourCompletedAt: "2026-08-26T00:00:00.000Z",
+    };
+    render(<Harness autoStart />);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByText("First thing")).toBeNull();
   });
 });

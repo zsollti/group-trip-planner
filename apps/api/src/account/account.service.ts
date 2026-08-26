@@ -238,6 +238,11 @@ export class AccountService {
         ...(input.tourCompleted !== undefined && {
           tourCompletedAt: input.tourCompleted ? new Date() : null,
         }),
+        ...(input.overviewTourCompleted !== undefined && {
+          overviewTourCompletedAt: input.overviewTourCompleted
+            ? new Date()
+            : null,
+        }),
       },
     });
     return toAuthUser(updated, this.env.ADMIN_EMAILS);

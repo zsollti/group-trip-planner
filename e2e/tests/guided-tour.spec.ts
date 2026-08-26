@@ -18,6 +18,12 @@ import { createBoard, seedAndSignInWithTour } from "../support/actions";
  * crew, an invite and a chat has all eight steps plus the send-off; if a step
  * has quietly stopped finding its anchor, the number changes and this fails
  * with the number it changed to.
+ *
+ * It now walks **two** tours, in the order a real new account meets them: the
+ * overview's, on the page they land on with no trips at all, and then the
+ * board's, on the first board they make. That order is the whole reason the two
+ * are counted on separate columns — the overview one ends by promising the
+ * second, and a single flag would have the first switch the second off.
  */
 
 test.afterAll(async () => {
@@ -32,11 +38,30 @@ test("opens itself for a new account and walks the whole board", async ({
   // `createVerifiedUser`, which marks every other seeded user as having seen it
   // so their journeys are not interrupted by a walkthrough.
   await seedAndSignInWithTour(page, "Tourist");
+
+  // The overview first, and unprompted. A brand new account has no board, so
+  // this is the only page it can be shown anything on — which is exactly what
+  // used to make it the page where nothing happened.
+  const bubble = page.locator(".tour__bubble");
+  await expect(bubble).toBeVisible({ timeout: 10_000 });
+  await expect(bubble).toContainText("A board is one trip");
+
+  const overviewCount = await page.locator(".tour__count").textContent();
+  const overviewTotal = Number(/of (\d+)/.exec(overviewCount ?? "")?.[1]);
+  for (let i = 1; i < overviewTotal; i += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  // It ends by asking for a trip rather than wishing them well, because there
+  // is nothing yet to wish them well about.
+  await expect(bubble).toContainText("Now make one");
+  await page.getByRole("button", { name: "Let's go" }).click();
+  await expect(bubble).toBeHidden();
+
   await createBoard(page, "Tour of Lisbon");
 
-  // It opens on its own, after a beat: most anchors are still fetching on the
-  // first paint, and the tour waits for them rather than shrinking to fit.
-  const bubble = page.locator(".tour__bubble");
+  // And the promise is kept: the board's own tour opens on its own, after a
+  // beat — most anchors are still fetching on the first paint, and the tour
+  // waits for them rather than shrinking to fit.
   await expect(bubble).toBeVisible({ timeout: 10_000 });
   await expect(bubble).toContainText("One lane, one question");
 
