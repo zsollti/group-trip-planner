@@ -12,7 +12,6 @@ import { useAuth, useHomeDashboard, useTripCategories } from "@gtp/api-client";
 import { can, type HomeTripSummary } from "@gtp/types";
 import { ChatPanel } from "./ChatPanel";
 import { useSessionSocket } from "./SessionSocketProvider";
-import { truncateName } from "../lib/truncate";
 import { t } from "../lib/i18n";
 
 /**
@@ -310,8 +309,10 @@ function TripList({
                   className="board__chat-tripbtn"
                   onClick={() => onPick(trip.id)}
                 >
-                  <span className="board__chat-tripname">
-                    {truncateName(trip.name)}
+                  {/* Ended by the width of the row rather than at a fixed
+                      character count — see the note in `ChatPanel`. */}
+                  <span className="board__chat-tripname" title={trip.name}>
+                    {trip.name}
                   </span>
                   {badge > 0 ? (
                     <span className="board__chat-tabbadge">{badge}</span>
