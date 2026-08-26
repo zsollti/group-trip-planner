@@ -4893,6 +4893,13 @@ button.cost-comp__row-btn:hover,
   flex: 0 0 auto;
   color: var(--board-dim);
 }
+/* Except on a destructive item, where a grey mark beside red words reads as a
+   picture that belongs to some other row. These marks are the same three the
+   crew strip's hover panel uses (see `MemberQuickActions`), and there they take
+   the colour of the act. */
+.menu__item--danger .menu__item-icon {
+  color: inherit;
+}
 .menu__note {
   display: block;
   margin-top: 0.1rem;

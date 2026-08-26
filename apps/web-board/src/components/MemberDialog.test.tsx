@@ -136,6 +136,21 @@ describe("MemberDialog", () => {
     expect(noteOf(block)).toMatch(/can't rejoin/i);
   });
 
+  it("wears the same marks the crew strip's quick actions do", async () => {
+    // The strip's hover panel offers these three acts as icons and nothing
+    // else, so a reader who has used it knows "block" as a shape before they
+    // know it as a word. Repeating the shape here means the two surfaces teach
+    // each other rather than being two unrelated ways to the same place.
+    mockFetch();
+    renderDialog();
+    await openMenuFor("Grace Hopper");
+
+    for (const name of [/Remove from trip/, /Remove and block/]) {
+      const item = screen.getByRole("button", { name });
+      expect(item.querySelector(".menu__item-icon svg")).not.toBeNull();
+    }
+  });
+
   it("changes a role from the row", async () => {
     const fetchMock = mockFetch();
     renderDialog();
