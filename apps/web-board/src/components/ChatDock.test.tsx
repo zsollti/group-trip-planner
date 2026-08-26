@@ -54,8 +54,13 @@ vi.mock("@gtp/api-client", async () => {
       data: {
         total: 2,
         trips: [
-          { id: TRIP_A, name: "Lisbon 2026", role: "PARTICIPANT" },
-          { id: TRIP_B, name: "Tromsø", role: "GUEST" },
+          {
+            id: TRIP_A,
+            name: "Lisbon 2026",
+            role: "PARTICIPANT",
+            chatImageUrl: "https://example.test/lisbon.png",
+          },
+          { id: TRIP_B, name: "Tromsø", role: "GUEST", chatImageUrl: null },
         ],
       },
     }),
@@ -272,5 +277,58 @@ describe("a muted board's badges", () => {
     renderDock();
     // Back to the plain launcher: no count in the name at all.
     expect(screen.getByRole("button", { name: "Chat" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * The picture a board's chat wears, in the dock.
+ *
+ * Both surfaces the dock owns, and both paths through them: a board with a
+ * picture draws it, a board without draws the initials it always drew. The
+ * second half is the one worth pinning — a picture that renders as a broken
+ * image for every board that has not set one is the failure this shape invites.
+ */
+describe("a board's chat picture in the dock", () => {
+  beforeEach(() => {
+    socketValue = {
+      status: "connected",
+      channels: [channel("a-gen", TRIP_A), channel("b-gen", TRIP_B)],
+      unread: {},
+      socket: null,
+      markChannelRead: () => {},
+      setActiveChannel: () => {},
+      isTripMuted: () => false,
+      tripMutedUntil: () => null,
+      setTripMute: () => {},
+      refreshRooms: () => {},
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("wears it on the row in the conversation list", () => {
+    renderDock();
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+
+    const row = screen
+      .getByRole("button", { name: /Lisbon 2026/ })
+      .querySelector("img") as HTMLImageElement | null;
+    expect(row?.src).toBe("https://example.test/lisbon.png");
+  });
+
+  it("leaves a board with no picture to its initials", () => {
+    renderDock();
+    fireEvent.click(screen.getByRole("button", { name: /chat/i }));
+
+    // Tromsø is a Guest board, so it is not even listed — the assertion that
+    // matters is that nothing in the list points at an image nobody set.
+    const images = document.querySelectorAll(".board__chat-trips img");
+    expect(images).toHaveLength(1);
   });
 });

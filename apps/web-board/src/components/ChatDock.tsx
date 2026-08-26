@@ -314,7 +314,12 @@ function Dock({
               {/* The board's own circle, so a folded conversation is
                   recognisable at 38px without a name under it. It takes a
                   picture through the same `url` every other avatar does. */}
-              <Avatar name={trip.name} userId={trip.id} size={38} />
+              <Avatar
+                name={trip.name}
+                userId={trip.id}
+                url={trip.chatImageUrl}
+                size={38}
+              />
               {badge > 0 ? (
                 <span
                   className="board__chat-badge board__chat-badge--bubble"
@@ -429,6 +434,14 @@ function TripList({
                   className="board__chat-tripbtn"
                   onClick={() => onPick(trip.id)}
                 >
+                  {/* The same circle the bubble wears, so a board looks
+                      like itself whether it is folded or listed. */}
+                  <Avatar
+                    name={trip.name}
+                    userId={trip.id}
+                    url={trip.chatImageUrl}
+                    size={24}
+                  />
                   {/* Ended by the width of the row rather than at a fixed
                       character count — see the note in `ChatPanel`. */}
                   <span className="board__chat-tripname" title={trip.name}>
@@ -477,6 +490,7 @@ function SelectedTripChat({
     <ChatPanel
       tripId={trip.id}
       tripName={trip.name}
+      tripImageUrl={trip.chatImageUrl}
       sessionSocket={sessionSocket}
       categories={categories.data ?? []}
       myRole={trip.role}

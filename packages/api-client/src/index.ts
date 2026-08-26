@@ -27,6 +27,8 @@ export {
   useCreateTrip,
   useUpdateTrip,
   useDeleteTrip,
+  useSetChatImage,
+  useRemoveChatImage,
   useSetTripCover,
   useRemoveTripCover,
 } from "./trips.js";

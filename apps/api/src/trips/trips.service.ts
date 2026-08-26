@@ -268,6 +268,47 @@ export class TripsService {
     return toTripDetail(updated, ctx.role, ctx.muted);
   }
 
+  /**
+   * Set or replace the picture the board's chat wears.
+   *
+   * The cover's pipeline exactly: `replace` stores the new object and discards
+   * the one being replaced in the same step, so a board cannot accumulate
+   * orphaned uploads by having its picture changed a dozen times. Separate
+   * column from the cover, because they are separate pictures answering
+   * separate questions.
+   */
+  async setChatImage(
+    ctx: TripContext,
+    file: UploadedImageFile,
+    userId: string,
+  ): Promise<TripDetail> {
+    const stored = await this.images.replace(
+      file,
+      userId,
+      ctx.trip.chatImageUrl,
+    );
+    const updated = await this.prisma.trip.update({
+      where: { id: ctx.trip.id },
+      data: { chatImageUrl: stored.url },
+      include: { _count: { select: { memberships: true } } },
+    });
+    return toTripDetail(updated, ctx.role, ctx.muted);
+  }
+
+  /** Clear the chat picture and delete the object it pointed at. */
+  async removeChatImage(ctx: TripContext): Promise<TripDetail> {
+    const updated = await this.prisma.trip.update({
+      where: { id: ctx.trip.id },
+      data: { chatImageUrl: null },
+      include: { _count: { select: { memberships: true } } },
+    });
+    // Discarded after the column is cleared, never before: a failed delete then
+    // leaves an unreferenced object, which is waste. The other order leaves a
+    // row pointing at a file that is gone, which is a broken image.
+    await this.images.discard(ctx.trip.chatImageUrl);
+    return toTripDetail(updated, ctx.role, ctx.muted);
+  }
+
   /** Clear the cover and delete the object it pointed at. */
   async removeCover(ctx: TripContext): Promise<TripDetail> {
     const updated = await this.prisma.trip.update({

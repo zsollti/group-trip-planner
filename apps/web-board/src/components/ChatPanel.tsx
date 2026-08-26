@@ -9,6 +9,7 @@ import {
   type SessionSocket,
 } from "@gtp/api-client";
 import {
+  can,
   canDeleteMessage,
   REACTION_EMOJIS,
   type CategoryView,
@@ -18,6 +19,7 @@ import {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
+import { ChatImageDialog } from "./ChatImageDialog";
 import { ChatSearch } from "./ChatSearch";
 import { BellIcon, BellOffIcon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
@@ -246,6 +248,7 @@ function MessageRow({
 export function ChatPanel({
   tripId,
   tripName,
+  tripImageUrl = null,
   sessionSocket,
   categories,
   myRole,
@@ -260,6 +263,8 @@ export function ChatPanel({
   /** Labels the trip-wide channel — it is this trip's conversation, so the chip
    *  reads the board's name rather than a generic "General". */
   tripName: string;
+  /** The picture this board's chat wears, or null for its initials. */
+  tripImageUrl?: string | null;
   /**
    * The session's socket, carrying every board's channels.
    *
@@ -431,6 +436,7 @@ export function ChatPanel({
    * reply is handed straight to `setTripMute`, so the launcher goes quiet on
    * the same frame rather than at the next reconnect.
    */
+  const [pickingImage, setPickingImage] = useState(false);
   const muted = isTripMuted(tripId);
   const mutedUntil = tripMutedUntil(tripId);
   const setMute = useSetChatMute(tripId);
@@ -550,6 +556,28 @@ export function ChatPanel({
    * trip menu's email mute: "Mute" and "Unmute" differ by two letters in a list
    * read at a glance.
    */
+  /*
+   * The board's picture, for the people who decide how the board looks.
+   *
+   * `trip.edit` rather than a chat permission: this picture is what everyone on
+   * the board sees, in their dock, on every page. That makes it one of the
+   * things organizers decide about the trip, not one of the things a member
+   * decides about their own view — which is exactly the line the mute above
+   * sits on the other side of.
+   */
+  const imageItems: MenuItem[] = can(myRole, "trip.edit")
+    ? [
+        {
+          label: tripImageUrl
+            ? t("Change chat picture")
+            : t("Add a chat picture"),
+          note: t("Shown on the bubble and in the conversation list."),
+          separated: true,
+          onSelect: () => setPickingImage(true),
+        },
+      ]
+    : [];
+
   const muteItems: MenuItem[] = muted
     ? [
         {
@@ -640,20 +668,33 @@ export function ChatPanel({
            * CSS ends it exactly where the space does, and the full name is on
            * `title` for anyone who wants the rest.
            */}
-          {activeChannel && channelName(activeChannel) === tripName ? null : (
-            <small className="board__chat-trip" title={tripName}>
-              {tripName}
-            </small>
-          )}
-          {/* The heading takes the whole name — it has a line to itself and
+          {/* The board's circle, so the panel is recognisably the same
+              conversation as the bubble it unfolded from. Inside the title
+              button rather than beside it: the whole block is the collapse
+              control, and a picture sitting outside it would be the one part of
+              the header that looks like the board and does not fold it. */}
+          <Avatar
+            name={tripName}
+            userId={tripId}
+            url={tripImageUrl}
+            size={26}
+          />
+          <span className="board__chat-titletext">
+            {activeChannel && channelName(activeChannel) === tripName ? null : (
+              <small className="board__chat-trip" title={tripName}>
+                {tripName}
+              </small>
+            )}
+            {/* The heading takes the whole name — it has a line to itself and
               already ends itself with an ellipsis when the box runs out. The
               chips below still count characters, because that is what decides
               how many of them fit (see `useFitCount`). */}
-          <strong
-            title={activeChannel ? channelName(activeChannel) : undefined}
-          >
-            {activeChannel ? channelName(activeChannel) : t("Chat")}
-          </strong>
+            <strong
+              title={activeChannel ? channelName(activeChannel) : undefined}
+            >
+              {activeChannel ? channelName(activeChannel) : t("Chat")}
+            </strong>
+          </span>
         </button>
         {/*
          * The conversation's own menu, left of the close button.
@@ -673,6 +714,7 @@ export function ChatPanel({
               selected: searching,
             },
             ...muteItems,
+            ...imageItems,
           ]}
         />
         <button
@@ -921,6 +963,14 @@ export function ChatPanel({
           </Button>
         </form>
       )}
+      {pickingImage ? (
+        <ChatImageDialog
+          tripId={tripId}
+          tripName={tripName}
+          currentUrl={tripImageUrl}
+          onClose={() => setPickingImage(false)}
+        />
+      ) : null}
     </section>
   );
 }

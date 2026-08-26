@@ -396,4 +396,83 @@ describe("Cover + avatar (e2e)", () => {
       .attach("file", evil, { filename: "x.png", contentType: "image/png" })
       .expect(400);
   });
+
+  /**
+   * The picture the board's chat wears.
+   *
+   * It rides the cover's pipeline, so the orphan-free replacement above already
+   * covers the storage half. What is worth pinning here is the half that is new:
+   * it is a *second* picture, and setting or clearing one must leave the other
+   * exactly where it was. A single reused column would pass every test that only
+   * ever looked at one of them.
+   */
+  it("keeps the chat picture and the cover apart", async () => {
+    const owner = await makeUser("chatimg-owner");
+    const trip = await createTrip(owner.accessToken, "Chat picture trip");
+    const put = async (path: string) =>
+      http()
+        .post(`/trips/${trip.id}/${path}`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .attach("file", await png(), {
+          filename: "a.png",
+          contentType: "image/png",
+        })
+        .expect(201);
+
+    const withCover = (await put("cover")).body as TripDetail;
+    const withBoth = (await put("chat-image")).body as TripDetail;
+
+    assert.ok(withBoth.chatImageUrl, "the chat picture is set");
+    assert.equal(
+      withBoth.coverImageUrl,
+      withCover.coverImageUrl,
+      "setting the chat picture left the cover alone",
+    );
+    assert.notEqual(
+      withBoth.chatImageUrl,
+      withBoth.coverImageUrl,
+      "two pictures, not one column read twice",
+    );
+    stored.push(nameOf(withCover.coverImageUrl!));
+    stored.push(nameOf(withBoth.chatImageUrl!));
+
+    // And clearing one leaves the other, which is the same mistake in reverse.
+    const cleared = (
+      await http()
+        .delete(`/trips/${trip.id}/chat-image`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .expect(200)
+    ).body as TripDetail;
+    assert.equal(cleared.chatImageUrl, null);
+    assert.equal(cleared.coverImageUrl, withCover.coverImageUrl);
+    assert.equal(
+      await onDisk(nameOf(withBoth.chatImageUrl!)),
+      false,
+      "clearing it deleted the object it pointed at",
+    );
+  });
+
+  it("refuses the chat picture to a member who cannot edit the trip", async () => {
+    const owner = await makeUser("chatimg-org");
+    const traveler = await makeUser("chatimg-traveler");
+    const trip = await createTrip(owner.accessToken, "Chat picture guard");
+    await prisma.tripMembership.create({
+      data: {
+        tripId: trip.id,
+        userId: traveler.user.id,
+        role: "PARTICIPANT",
+      },
+    });
+
+    // The picture is how the board looks to everyone on it, so it is an
+    // organizer's call — the same gate the cover sits behind.
+    await http()
+      .post(`/trips/${trip.id}/chat-image`)
+      .set("Authorization", `Bearer ${traveler.accessToken}`)
+      .attach("file", await png(), {
+        filename: "a.png",
+        contentType: "image/png",
+      })
+      .expect(403);
+  });
 });
