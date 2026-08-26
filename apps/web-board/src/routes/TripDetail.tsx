@@ -185,13 +185,13 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
   }
 
   /**
-   * The trip "⋯" menu — Members + mute (any member) + Edit/Delete (role-gated).
+   * The trip "⋯" menu — Crew + mute (any member) + Edit/Delete (role-gated).
    */
   function tripMenuItems(trip_: TripDetailData): MenuItem[] {
     const role = trip_.role;
     const items: MenuItem[] = [
-      { label: t("Members"), onSelect: () => setManagingMembers(true) },
-      // Directly under Members, because it is the same subject: the list of who
+      { label: t("Crew"), onSelect: () => setManagingMembers(true) },
+      // Directly under Crew, because it is the same subject: the list of who
       // is here, and the way to make that list longer. Inviting already has a
       // home in the crew panel, and this is the second one on purpose — the
       // panel is halfway down the board and scrolls away with it, while the
