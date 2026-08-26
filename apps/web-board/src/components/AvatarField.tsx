@@ -1,4 +1,10 @@
-import { useState, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   AVATAR_COLOURS,
   AVATAR_PRESETS,
@@ -19,8 +25,8 @@ import { avatarHue } from "../lib/avatar";
 import { paletteHue, paletteLabel } from "../lib/categoryTheme";
 import { t } from "../lib/i18n";
 
-/** How many of a strip's items are on screen at once. */
-const WINDOW = 3;
+/** How far a pan has to travel before it stops being a tap on a swatch. */
+const PAN_SLOP = 4;
 
 /**
  * What you are wearing, and the three ways to change it.
@@ -40,12 +46,20 @@ const WINDOW = 3;
  * is chosen, because a colour on its own is not something the account can
  * store (see `AVATAR_COLOURS` — the mark is the required half).
  *
- * **Three at a time, and it wraps.** Twelve marks and eight colours as two full
- * rows was a wall of swatches on a settings page, and a row that scrolled had a
- * scrollbar under it and hid the fact that there was more. A window of three
- * with an arrow either side says "there are more, one step that way" in a shape
- * everybody already knows, and going off one end comes back on the other so
- * there is no dead end to hit.
+ * **Two sliders, side by side.** Twelve marks and eight colours as two full
+ * grids was a wall of swatches on a settings page, so the strips used to show a
+ * window of three and swap all three items on every arrow press. That is not
+ * what an arrow beside a row of things means: it reads as "move along by one",
+ * and a control that instead re-deals its whole contents gives a reader no way
+ * to keep their place. Each strip is a real horizontal scroller now — drag it,
+ * flick it, swipe two fingers across a touchpad, or press an arrow to slide it
+ * along by exactly one swatch. Every colour and every mark is in the strip the
+ * whole time; the box just shows the part of it you have scrolled to.
+ *
+ * The two sit next to each other rather than stacked, with their labels above
+ * them, because they are the two halves of one answer: a drawn avatar is a mark
+ * *and* a colour, and a reader building one is going back and forth between
+ * them rather than finishing one and moving on.
  */
 export function AvatarField({
   name,
@@ -176,67 +190,71 @@ export function AvatarField({
         onRemove={onRemovePhoto}
       />
 
-      <Strip
-        label={t("Colour")}
-        count={AVATAR_COLOURS.length}
-        currentIndex={colour ? AVATAR_COLOURS.indexOf(colour) : -1}
-        previousLabel={t("Previous colour")}
-        nextLabel={t("Next colour")}
-        render={(i) => {
-          const key = AVATAR_COLOURS[i]!;
-          const label = paletteLabel(key);
-          return (
-            <button
-              key={key}
-              type="button"
-              className={
-                "presets__swatch presets__swatch--colour" +
-                (key === colour ? " presets__swatch--current" : "")
-              }
-              style={
-                { "--avatar-hue": String(paletteHue(key)) } as CSSProperties
-              }
-              aria-pressed={key === colour}
-              disabled={busy}
-              title={label}
-              aria-label={label}
-              onClick={() => chooseColour(key)}
-            />
-          );
-        }}
-      />
+      {/* The two strips as one row (see the note above): two halves of one
+          answer, each labelled over its own slider. */}
+      <div className="presets">
+        <Strip
+          label={t("Colour")}
+          count={AVATAR_COLOURS.length}
+          currentIndex={colour ? AVATAR_COLOURS.indexOf(colour) : -1}
+          previousLabel={t("Previous colour")}
+          nextLabel={t("Next colour")}
+          render={(i) => {
+            const key = AVATAR_COLOURS[i]!;
+            const label = paletteLabel(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                className={
+                  "presets__swatch presets__swatch--colour" +
+                  (key === colour ? " presets__swatch--current" : "")
+                }
+                style={
+                  { "--avatar-hue": String(paletteHue(key)) } as CSSProperties
+                }
+                aria-pressed={key === colour}
+                disabled={busy}
+                title={label}
+                aria-label={label}
+                onClick={() => chooseColour(key)}
+              />
+            );
+          }}
+        />
 
-      <Strip
-        label={t("Mark")}
-        count={AVATAR_PRESETS.length}
-        currentIndex={wornPreset ? AVATAR_PRESETS.indexOf(wornPreset) : -1}
-        previousLabel={t("Previous mark")}
-        nextLabel={t("Next mark")}
-        render={(i) => {
-          const preset = AVATAR_PRESETS[i]!;
-          const label = AVATAR_PRESET_NAME[preset];
-          return (
-            <button
-              key={preset}
-              type="button"
-              className={
-                "presets__swatch" +
-                (preset === wornPreset ? " presets__swatch--current" : "")
-              }
-              // Marked rather than disabled: pressing the one you already wear
-              // is a no-op, not something to be stopped from doing, and a
-              // disabled swatch in a row reads as unavailable.
-              aria-pressed={preset === wornPreset}
-              disabled={busy}
-              title={label}
-              aria-label={label}
-              onClick={() => choosePreset(preset)}
-            >
-              <AvatarPresetMark preset={preset} size={40} />
-            </button>
-          );
-        }}
-      />
+        <Strip
+          label={t("Mark")}
+          count={AVATAR_PRESETS.length}
+          currentIndex={wornPreset ? AVATAR_PRESETS.indexOf(wornPreset) : -1}
+          previousLabel={t("Previous mark")}
+          nextLabel={t("Next mark")}
+          render={(i) => {
+            const preset = AVATAR_PRESETS[i]!;
+            const label = AVATAR_PRESET_NAME[preset];
+            return (
+              <button
+                key={preset}
+                type="button"
+                className={
+                  "presets__swatch" +
+                  (preset === wornPreset ? " presets__swatch--current" : "")
+                }
+                // Marked rather than disabled: pressing the one you already wear
+                // is a no-op, not something to be stopped from doing, and a
+                // disabled swatch in a row reads as unavailable.
+                aria-pressed={preset === wornPreset}
+                disabled={busy}
+                title={label}
+                aria-label={label}
+                onClick={() => choosePreset(preset)}
+              >
+                <AvatarPresetMark preset={preset} size={34} />
+              </button>
+            );
+          }}
+        />
+      </div>
 
       {/* Only where it is true, and only for as long as it is. */}
       {!wornPreset && stagedColour ? (
@@ -274,13 +292,29 @@ export function AvatarField({
 }
 
 /**
- * One labelled row of three, with an arrow either side.
+ * One labelled slider: an arrow, a scrolling strip of every item, an arrow.
  *
- * The window is an offset into the list and the list is read modulo its own
- * length, which is the whole of "it spins": there is no clone of the items at
- * either end, no scroll position to keep, and no scrollbar to hide. It opens on
- * the item that is currently worn, so a reader whose mark is the eleventh does
- * not have to go looking for it to see it is theirs.
+ * **It is a scroller, not a window into a list.** Every item is rendered and in
+ * the box the whole time; what changes is where the box is scrolled to. That
+ * costs nothing here — twenty small buttons between the two strips — and it
+ * buys the three gestures a row of things is expected to answer to: a drag, a
+ * two-finger swipe across a touchpad, and a flick on a phone, all of them the
+ * browser's own scrolling rather than anything reimplemented here.
+ *
+ * The arrows move it **by one swatch**, measured off the items themselves
+ * rather than from a constant, so the step stays right when the swatches change
+ * size (a colour disc is smaller than a mark). The old strip re-dealt all three
+ * of its items per press, which is the one thing an arrow beside a row does not
+ * mean.
+ *
+ * **A drag is not a tap.** Panning with a mouse moves the strip under the
+ * pointer, and the pointer is over a swatch the whole time — so a pan that
+ * travels more than {@link PAN_SLOP} swallows the click it would otherwise end
+ * with. Without that, letting go of a drag would silently change the reader's
+ * avatar to whatever they happened to release over.
+ *
+ * It opens scrolled to the item being worn, so a reader whose mark is the
+ * eleventh does not have to go looking for it to see it is theirs.
  */
 function Strip({
   label,
@@ -292,46 +326,150 @@ function Strip({
 }: {
   label: string;
   count: number;
-  /** Index of the item being worn, or -1. Decides where the window opens. */
+  /** Index of the item being worn, or -1. Decides where the strip opens. */
   currentIndex: number;
   previousLabel: string;
   nextLabel: string;
   render: (index: number) => React.ReactNode;
 }) {
-  // Centred on the worn item where there is one: with a window of three, that
-  // is the item before it.
-  const [first, setFirst] = useState(() =>
-    currentIndex < 0 ? 0 : (currentIndex - 1 + count) % count,
-  );
+  const scroller = useRef<HTMLDivElement>(null);
+  /** The pan in progress: where it started, and whether it has become a pan. */
+  const pan = useRef<{ x: number; from: number; moved: boolean } | null>(null);
+  /** Set by a pan that moved, read and cleared by the click it has to swallow. */
+  const panned = useRef(false);
 
-  const step = (by: number) => setFirst((f) => (f + by + count) % count);
-  const shown = Array.from(
-    { length: Math.min(WINDOW, count) },
-    (_, i) => (first + i) % count,
-  );
+  // Scrolled to the worn item on the first paint, before the browser shows the
+  // strip at zero. `useLayoutEffect` rather than an effect for exactly that: in
+  // an ordinary effect the first frame is drawn at the left end and the strip
+  // visibly jumps. Runs once — re-running would drag the strip back under a
+  // reader who had scrolled away from their own avatar.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el || currentIndex < 0) return;
+    const item = el.children[currentIndex];
+    if (!(item instanceof HTMLElement)) return;
+    el.scrollLeft = item.offsetLeft - (el.clientWidth - item.offsetWidth) / 2;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function step(by: number) {
+    const el = scroller.current;
+    if (!el) return;
+    const left = el.scrollLeft + by * itemPitch(el);
+    // Guarded, and the guard is not defensive dressing: jsdom implements none
+    // of the scroll methods, so a bare call would take every test of this field
+    // down with it. Assigning `scrollLeft` is the same move without the easing.
+    if (typeof el.scrollTo === "function") {
+      el.scrollTo({ left, behavior: "smooth" });
+    } else {
+      el.scrollLeft = left;
+    }
+  }
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    panned.current = false;
+    // Touch is left to the browser: it already pans this box, with the inertia
+    // and the rubber-banding the platform gives every other scroller.
+    if (e.pointerType === "touch" || !scroller.current) return;
+    pan.current = {
+      x: e.clientX,
+      from: scroller.current.scrollLeft,
+      moved: false,
+    };
+  }
+
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const started = pan.current;
+    const el = scroller.current;
+    if (!started || !el) return;
+    const dx = e.clientX - started.x;
+    if (!started.moved && Math.abs(dx) < PAN_SLOP) return;
+    started.moved = true;
+    panned.current = true;
+    // Captured once the drag is real, so the strip keeps following a pointer
+    // that has left the box — a pan that stopped dead at the edge of a control
+    // this narrow would be unusable.
+    el.setPointerCapture?.(e.pointerId);
+    // Snapping is off for the length of the pan, and that is not a nicety: CSS
+    // scroll snapping applies to programmatic scrolls too, so with `mandatory`
+    // left on the line below is snapped back on every pointer move and the
+    // strip never follows the pointer at all. Written straight onto the element
+    // rather than through state — it lasts exactly as long as the gesture, and
+    // a re-render per pointer move to carry a class would be the expensive way
+    // to say the same thing.
+    el.style.scrollSnapType = "none";
+    el.scrollLeft = started.from - dx;
+  }
+
+  function endPan(e: ReactPointerEvent<HTMLDivElement>) {
+    const el = scroller.current;
+    if (pan.current?.moved && el) {
+      el.releasePointerCapture?.(e.pointerId);
+      // Back to the stylesheet's `mandatory`, which is what settles the strip on
+      // a whole swatch after a pan that ended between two.
+      el.style.scrollSnapType = "";
+    }
+    pan.current = null;
+  }
 
   return (
     <div className="presets__row" role="group" aria-label={label}>
       <p className="presets__row-label">{label}</p>
-      <button
-        type="button"
-        className="presets__arrow"
-        aria-label={previousLabel}
-        onClick={() => step(-1)}
-      >
-        <Chevron direction="left" />
-      </button>
-      <div className="presets__window">{shown.map((i) => render(i))}</div>
-      <button
-        type="button"
-        className="presets__arrow"
-        aria-label={nextLabel}
-        onClick={() => step(1)}
-      >
-        <Chevron direction="right" />
-      </button>
+      <div className="presets__track">
+        <button
+          type="button"
+          className="presets__arrow"
+          aria-label={previousLabel}
+          onClick={() => step(-1)}
+        >
+          <Chevron direction="left" />
+        </button>
+        <div
+          ref={scroller}
+          className="presets__window"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPan}
+          onPointerCancel={endPan}
+          // Capture, so it runs before the swatch's own handler rather than
+          // after it — by the bubble phase the avatar would already have changed.
+          onClickCapture={(e) => {
+            if (!panned.current) return;
+            panned.current = false;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          {Array.from({ length: count }, (_, i) => render(i))}
+        </div>
+        <button
+          type="button"
+          className="presets__arrow"
+          aria-label={nextLabel}
+          onClick={() => step(1)}
+        >
+          <Chevron direction="right" />
+        </button>
+      </div>
     </div>
   );
+}
+
+/**
+ * How far one swatch is from the next, in pixels.
+ *
+ * Taken from the gap between the first two items where there are two, which
+ * counts the flex gap without having to know it; from the item's own width
+ * otherwise. Zero on a strip that has not been laid out, which is what makes
+ * the arrows no-ops in jsdom rather than a crash.
+ */
+function itemPitch(el: HTMLElement): number {
+  const first = el.firstElementChild;
+  if (!(first instanceof HTMLElement)) return 0;
+  const second = first.nextElementSibling;
+  const pitch =
+    second instanceof HTMLElement ? second.offsetLeft - first.offsetLeft : 0;
+  return pitch > 0 ? pitch : first.offsetWidth;
 }
 
 /** The arrow on a strip's end. Drawn, like the rest of the set, so it is the
