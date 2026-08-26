@@ -97,13 +97,13 @@ function socket(): SessionSocket {
   };
 }
 
-function renderPanel(channels?: ChannelView[]) {
+function renderPanel(channels?: ChannelView[], tripName = "Lisbon 2026") {
   const base = socket();
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <ChatPanel
         tripId={TRIP_ID}
-        tripName="Lisbon 2026"
+        tripName={tripName}
         sessionSocket={channels ? { ...base, channels } : base}
         onClose={() => {}}
         categories={categories}
@@ -410,5 +410,28 @@ describe("the @mention list", () => {
     expect(
       screen.queryByRole("option", { name: "@Zsolt Pinter" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("the board's name above the conversation", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  });
+
+  it("is written out whole, however long it is", () => {
+    const name = "Lisbon long weekend with everyone";
+    renderPanel(undefined, name);
+
+    // It used to be cut to 15 characters wherever it appeared, which on a
+    // header this wide read as "Lisbon long wee…" with room to spare. The box
+    // ends it now, and nothing in the DOM is missing.
+    const eyebrow = screen.getAllByTitle(name)[0];
+    expect(eyebrow).toBeInTheDocument();
+    expect(eyebrow?.textContent).toBe(name);
   });
 });

@@ -4958,6 +4958,12 @@ button.cost-comp__row-btn:hover,
 .board__chat-trip {
   font-size: 0.7rem;
   color: var(--board-dim);
+  /* The eyebrow ends where the header does. Its `<strong>` sibling has said
+     this since the dock was built; the trip name above it was being cut to 15
+     characters in JS instead, which is a shorter line than this box needs. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board__chat-trips {
