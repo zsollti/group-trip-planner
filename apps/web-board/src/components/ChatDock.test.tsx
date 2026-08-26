@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { createQueryClient, type SessionSocket } from "@gtp/api-client";
@@ -147,5 +153,64 @@ describe("the chat dock", () => {
     expect(
       screen.queryByRole("button", { name: "All conversations" }),
     ).toBeNull();
+  });
+
+  /**
+   * Folding a conversation down, rather than closing it.
+   *
+   * Closing ends the reading; collapsing parks it. The distinction only pays
+   * for itself if the parked board keeps counting what arrives — otherwise it
+   * is a slower close — so that is what these pin, along with the invariant
+   * that a board is never both open in the panel and sitting beside the
+   * launcher as a bubble.
+   */
+  describe("folding a conversation down to a bubble", () => {
+    it("parks the board beside the launcher and goes on counting it", async () => {
+      socketValue = { ...socketValue, unread: { "a-gen": 2 } };
+      renderDock(`/trips/${TRIP_A}`);
+      fireEvent.click(screen.getByRole("button", { name: "Chat, 2 unread" }));
+
+      const panel = await screen.findByRole("dialog", { name: "Trip chat" });
+      // The name at the top is the control: it is what a reader points at when
+      // they mean "this conversation", and it was the one part of that header
+      // doing nothing.
+      fireEvent.click(
+        within(panel).getByRole("button", {
+          name: "Collapse Lisbon 2026 to a bubble",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Trip chat" })).toBeNull(),
+      );
+      expect(
+        screen.getByRole("button", { name: "Lisbon 2026 chat, 2 unread" }),
+      ).toBeInTheDocument();
+    });
+
+    it("reopens from the bubble, which then stops being one", async () => {
+      renderDock(`/trips/${TRIP_A}`);
+      fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+      const panel = await screen.findByRole("dialog", { name: "Trip chat" });
+      fireEvent.click(
+        within(panel).getByRole("button", {
+          name: "Collapse Lisbon 2026 to a bubble",
+        }),
+      );
+
+      const bubble = await screen.findByRole("button", {
+        name: "Lisbon 2026 chat",
+      });
+      fireEvent.click(bubble);
+
+      await waitFor(() =>
+        expect(screen.getByRole("dialog", { name: "Trip chat" })).toBeVisible(),
+      );
+      // A board is never both open and folded away: the bubble would otherwise
+      // sit beside the launcher pointing at the panel covering it.
+      expect(
+        screen.queryByRole("button", { name: "Lisbon 2026 chat" }),
+      ).toBeNull();
+    });
   });
 });

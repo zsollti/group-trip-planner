@@ -10,6 +10,7 @@ import {
 import { useLocation } from "react-router-dom";
 import { useAuth, useHomeDashboard, useTripCategories } from "@gtp/api-client";
 import { can, type HomeTripSummary } from "@gtp/types";
+import { Avatar } from "./Avatar";
 import { ChatPanel } from "./ChatPanel";
 import { useSessionSocket } from "./SessionSocketProvider";
 import { t } from "../lib/i18n";
@@ -48,6 +49,29 @@ export function ChatDockProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<DockView>({ kind: "auto" });
   const [open, setOpen] = useState(false);
   const [requestChannelId, setRequestChannelId] = useState<string | null>(null);
+  /**
+   * The boards whose chat is folded down to a bubble beside the launcher, in
+   * the order they were folded.
+   *
+   * Ids and not trips: the list has to survive the dashboard refetching, and a
+   * board this reader has just left should drop out of it rather than sit there
+   * as a bubble onto nothing. `Dock` resolves them against the conversations it
+   * can actually open.
+   */
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+
+  const collapse = useCallback((trip: string) => {
+    setCollapsed((prev) => (prev.includes(trip) ? prev : [...prev, trip]));
+    // Shut, and following the page again: a collapsed panel is not a panel the
+    // reader is still in, so reopening the launcher should land where opening
+    // it fresh would.
+    setOpen(false);
+    setView({ kind: "auto" });
+  }, []);
+
+  const restore = useCallback((trip: string) => {
+    setCollapsed((prev) => prev.filter((id) => id !== trip));
+  }, []);
 
   const openChannel = useCallback((trip: string, channel?: string) => {
     setView({ kind: "trip", tripId: trip });
@@ -83,6 +107,9 @@ export function ChatDockProvider({ children }: { children: ReactNode }) {
           onOpen={() => setOpen(true)}
           view={view}
           setView={setView}
+          collapsed={collapsed}
+          onCollapse={collapse}
+          onRestore={restore}
           requestChannelId={requestChannelId}
           onRequestHandled={() => setRequestChannelId(null)}
         />
@@ -119,6 +146,9 @@ function Dock({
   onOpen,
   view,
   setView,
+  collapsed,
+  onCollapse,
+  onRestore,
   requestChannelId,
   onRequestHandled,
 }: {
@@ -127,6 +157,9 @@ function Dock({
   onOpen: () => void;
   view: DockView;
   setView: (next: DockView) => void;
+  collapsed: string[];
+  onCollapse: (tripId: string) => void;
+  onRestore: (tripId: string) => void;
   requestChannelId: string | null;
   onRequestHandled: () => void;
 }) {
@@ -206,28 +239,94 @@ function Dock({
         : null;
   const selected = conversations.find((trip) => trip.id === selectedId) ?? null;
 
+  /**
+   * The bubbles, in the order they were folded, and only for boards this reader
+   * can still open — a board left in another tab drops its bubble rather than
+   * leaving one that opens onto a 404.
+   */
+  const collapsedTrips = useMemo(
+    () =>
+      collapsed.flatMap((id) => {
+        const trip = conversations.find((c) => c.id === id);
+        return trip ? [trip] : [];
+      }),
+    [collapsed, conversations],
+  );
+
+  /*
+   * A board is never both open in the panel and folded into a bubble.
+   *
+   * Collapsing puts the dock back to following the page, so standing *on* the
+   * board you just folded and pressing the launcher would otherwise reopen it
+   * with its own bubble still sitting beside the button. One rule here rather
+   * than a `restore` call on each of the three ways in, which is the kind of
+   * list that grows a fourth entry and forgets.
+   */
+  useEffect(() => {
+    if (open && selectedId && collapsed.includes(selectedId)) {
+      onRestore(selectedId);
+    }
+  }, [open, selectedId, collapsed, onRestore]);
+
   return (
     <>
-      <button
-        type="button"
-        className="board__chat-fab"
-        data-tour="chat"
-        aria-expanded={open}
-        aria-label={
-          totalUnread > 0 && !open
-            ? t("Chat, {n} unread", { n: totalUnread })
-            : t("Chat")
-        }
-        onClick={() => (open ? onClose() : onOpen())}
-      >
-        <span aria-hidden="true">💬 </span>
-        {t("Chat")}
-        {!open && totalUnread > 0 ? (
-          <span className="board__chat-badge" aria-hidden="true">
-            {totalUnread}
-          </span>
-        ) : null}
-      </button>
+      {/* The launcher and whatever has been folded down beside it, as one row.
+          The bubbles sit to the left of the button, which is the direction the
+          panel they came from opens in. */}
+      <div className="board__chat-launcher">
+        {collapsedTrips.map((trip) => {
+          const badge = unreadFor(trip.id);
+          return (
+            <button
+              key={trip.id}
+              type="button"
+              className="board__chat-bubble"
+              aria-label={
+                badge > 0
+                  ? t("{trip} chat, {n} unread", { trip: trip.name, n: badge })
+                  : t("{trip} chat", { trip: trip.name })
+              }
+              onClick={() => {
+                setView({ kind: "trip", tripId: trip.id });
+                onOpen();
+              }}
+            >
+              {/* The board's own circle, so a folded conversation is
+                  recognisable at 38px without a name under it. It takes a
+                  picture through the same `url` every other avatar does. */}
+              <Avatar name={trip.name} userId={trip.id} size={38} />
+              {badge > 0 ? (
+                <span
+                  className="board__chat-badge board__chat-badge--bubble"
+                  aria-hidden="true"
+                >
+                  {badge}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className="board__chat-fab"
+          data-tour="chat"
+          aria-expanded={open}
+          aria-label={
+            totalUnread > 0 && !open
+              ? t("Chat, {n} unread", { n: totalUnread })
+              : t("Chat")
+          }
+          onClick={() => (open ? onClose() : onOpen())}
+        >
+          <span aria-hidden="true">💬 </span>
+          {t("Chat")}
+          {!open && totalUnread > 0 ? (
+            <span className="board__chat-badge" aria-hidden="true">
+              {totalUnread}
+            </span>
+          ) : null}
+        </button>
+      </div>
 
       {open && selected ? (
         <SelectedTripChat
@@ -236,6 +335,7 @@ function Dock({
           requestChannelId={requestChannelId}
           onRequestHandled={onRequestHandled}
           onClose={onClose}
+          onCollapse={() => onCollapse(selected.id)}
           // Only where there is a list worth going back to. On an account with
           // one board, "back" leads to a list of one.
           onBack={
@@ -340,6 +440,7 @@ function SelectedTripChat({
   requestChannelId,
   onRequestHandled,
   onClose,
+  onCollapse,
   onBack,
 }: {
   trip: HomeTripSummary;
@@ -347,6 +448,7 @@ function SelectedTripChat({
   requestChannelId: string | null;
   onRequestHandled: () => void;
   onClose: () => void;
+  onCollapse: () => void;
   onBack?: () => void;
 }) {
   const sessionSocket = useSessionSocket();
@@ -362,6 +464,7 @@ function SelectedTripChat({
       requestChannelId={requestChannelId}
       onRequestHandled={onRequestHandled}
       onClose={onClose}
+      onCollapse={onCollapse}
       onBack={onBack}
     />
   );

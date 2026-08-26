@@ -249,6 +249,7 @@ export function ChatPanel({
   requestChannelId,
   onRequestHandled,
   onClose,
+  onCollapse,
   onBack,
 }: {
   tripId: string;
@@ -272,6 +273,15 @@ export function ChatPanel({
   onRequestHandled: () => void;
   /** Shut the whole dock. */
   onClose: () => void;
+  /**
+   * Fold this board's conversation down to a bubble beside the launcher.
+   *
+   * Distinct from {@link onClose}, and the distinction is the point: closing
+   * ends the reading, collapsing parks it. A reader following two boards can
+   * put one out of the way without losing the fact that they are following it,
+   * and the bubble goes on counting what arrives.
+   */
+  onCollapse: () => void;
   /** Back to the list of conversations, where there is more than one board to
    *  choose between. Absent when there is nothing to go back to. */
   onBack?: () => void;
@@ -499,9 +509,28 @@ export function ChatPanel({
             ‹
           </button>
         ) : null}
-        {/* The board's name above the channel's. On a dock that spans every
-                trip, "Stay" as a heading does not say which trip's Stay. */}
-        <span className="board__chat-title">
+        {/*
+         * The board's name above the channel's. On a dock that spans every
+         * trip, "Stay" as a heading does not say which trip's Stay.
+         *
+         * **And the whole block is the collapse control.** Pressing the name
+         * folds the panel down to a bubble beside the launcher. The name is
+         * what a reader points at when they mean "this conversation", and it is
+         * the one part of this header that was not already a control — the ‹
+         * goes back, the ✕ closes, and between them sat the thing the panel is
+         * *about*, doing nothing.
+         *
+         * A button around both lines rather than around the trip name alone,
+         * because which line carries the trip's name depends on the channel:
+         * the trip-wide one is named after the board, so its small line is
+         * suppressed and the heading is the trip name. One target either way.
+         */}
+        <button
+          type="button"
+          className="board__chat-title board__chat-title--btn"
+          aria-label={t("Collapse {trip} to a bubble", { trip: tripName })}
+          onClick={onCollapse}
+        >
           {/*
            * Except where the channel *is* the trip.
            *
@@ -535,7 +564,7 @@ export function ChatPanel({
           >
             {activeChannel ? channelName(activeChannel) : t("Chat")}
           </strong>
-        </span>
+        </button>
         <button
           type="button"
           className="board__chat-close"
