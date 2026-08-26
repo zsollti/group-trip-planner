@@ -1003,30 +1003,43 @@ span.board__muted {
 }
 
 /*
- * One strip: a label, an arrow, three items, an arrow.
+ * The two sliders, side by side.
  *
- * A grid of all twelve marks and all eight colours was a wall of swatches on a
- * page that is otherwise a short list of settings, and a strip that scrolled
- * carried a scrollbar and hid how much was left. Three at a time with an arrow
- * either side says "there are more, one step that way" in a shape everybody
- * knows — and the list wraps, so neither arrow is ever a dead end.
- *
- * **The vertical padding is load-bearing.** A focus ring is drawn 2px outside a
- * swatch, and without room for it the ring is clipped by whatever the row sits
- * in — the same trap `overflow-y: auto` set on the dialogs, from the other
- * direction.
+ * They are the two halves of one answer — a drawn avatar is a mark *and* a
+ * colour — so a reader building one goes back and forth between them rather
+ * than finishing one and moving on. Stacked, that was a scroll apart on a
+ * phone-height panel. They wrap back to a column when there is genuinely no
+ * room for two.
  */
-.presets__row {
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem 1.1rem;
   width: 100%;
   margin-top: 0.4rem;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* Top-aligned, so the two labels sit on one line whatever the sliders under
+     them come out to. */
+  align-items: start;
+}
+
+/*
+ * One slider: a label over an arrow, a scrolling strip, an arrow.
+ *
+ * **The vertical padding on the strip is load-bearing.** A focus ring is drawn
+ * 2px outside a swatch, and without room for it the ring is clipped by the
+ * scroller — the same trap `overflow-y: auto` set on the dialogs, from the
+ * other direction, and here it is unavoidable because the box has to scroll.
+ */
+.presets__row {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-items: center;
-  gap: 0.3rem;
+  gap: 0.15rem;
 }
 .presets__row-label {
-  grid-column: 1 / -1;
   margin: 0;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1035,15 +1048,67 @@ span.board__muted {
   color: var(--board-dim);
   text-align: center;
 }
-.presets__window {
+/* The arrows sit outside the strip, spaced from it exactly as the swatches are
+   spaced from each other, so the row reads as one run of things at one rhythm
+   rather than as a box with two buttons stuck to its sides. */
+.presets__track {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+/*
+ * The strip itself: an ordinary horizontal scroller.
+ *
+ * Everything the reader can do to it — drag, flick, two-finger swipe — is the
+ * browser's own scrolling. `scroll-snap` is what makes it feel like a slider
+ * rather than a panel that stops wherever it likes, and it is also what puts
+ * the strip back on a whole swatch after a pan that ended between two.
+ *
+ * **`mandatory` is switched off for the length of a mouse pan.** Snapping
+ * applies to programmatic scrolls as well as gestures, and a pan is a run of
+ * `scrollLeft` writes — so with it left on, the strip snaps back on every
+ * pointer move and refuses to follow the pointer at all. `Strip` clears it on
+ * the element for the duration of the drag and restores it on release, which is
+ * where the snap is actually wanted.
+ *
+ * `touch-action: pan-x` keeps a sideways drag from being read as a page scroll
+ * on a phone; `overscroll-behavior-x: contain` keeps one that runs off the end
+ * from turning into a back-navigation gesture.
+ */
+.presets__window {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.15rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  cursor: grab;
+  /* No scrollbar. The arrows already say there is more either way, and a
+     scrollbar under a row this short is taller than the gap it sits in. */
+  scrollbar-width: none;
 }
+.presets__window::-webkit-scrollbar {
+  display: none;
+}
+.presets__window:active {
+  cursor: grabbing;
+}
+.presets__window > * {
+  scroll-snap-align: center;
+}
+
 .presets__arrow {
   display: inline-flex;
+  /* Never squeezed: the strip beside it is the flexible one, and an arrow that
+     narrowed as the panel did would stop being a circle. */
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 1.9rem;
@@ -1068,7 +1133,11 @@ span.board__muted {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.4rem;
+  /* `flex: 0 0 auto` because this lives in a scroller now: a flex item that may
+     shrink has no width of its own, so twelve marks would compress to fit the
+     box instead of overflowing it, and there would be nothing to scroll. */
+  flex: 0 0 auto;
+  width: 2.8rem;
   aspect-ratio: 1;
   padding: 0;
   border: 2px solid transparent;
@@ -1081,10 +1150,13 @@ span.board__muted {
   color: #fff;
 }
 /* A colour swatch is the colour and nothing else: it carries no mark, so it
-   states one thing where the row above states the other. Smaller, because a
-   flat disc needs no room for a drawing inside it. */
+   states one thing where the strip beside it states the other. It used to be
+   the smaller of the two, on the argument that a flat disc needs no room for a
+   drawing inside it — true while the strips were stacked, and wrong now they
+   are side by side: two sliders of different heights put their arrows on
+   different lines and stop reading as one control. */
 .presets__swatch--colour {
-  width: 2.4rem;
+  width: 2.8rem;
 }
 .presets__swatch:hover:not(:disabled) {
   transform: scale(1.06);

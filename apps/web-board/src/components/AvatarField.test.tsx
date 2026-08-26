@@ -31,68 +31,134 @@ function renderField(currentUrl: string | null, onWear = vi.fn()) {
 }
 
 /**
- * Spin a strip until the wanted swatch is on screen.
+ * Reach a swatch by name.
  *
- * Only three of each list are rendered at a time, so a test cannot simply reach
- * for the eleventh mark — it has to walk there, which is also the thing being
- * asserted: that walking works and that it comes back round.
+ * Every item is in its strip the whole time now — the strip scrolls rather than
+ * re-dealing a window of three — so this is a plain lookup. It stays a helper
+ * because the tests below read better naming the swatch than the query, and
+ * because it is where the old "walk there with the arrow" step used to live.
  */
-function reach(name: string, arrow: string, limit = 20): HTMLElement {
-  for (let i = 0; i < limit; i += 1) {
-    const found = screen.queryByRole("button", { name });
-    if (found) return found;
-    fireEvent.click(screen.getByRole("button", { name: arrow }));
-  }
-  throw new Error(`never found ${name} after ${limit} steps`);
+function reach(name: string): HTMLElement {
+  return screen.getByRole("button", { name });
+}
+
+/** Give the strip and its swatches a size, since jsdom lays nothing out — this
+ *  is what `itemPitch` measures, and with no layout the arrows are no-ops. */
+function sizeSwatches(width: number) {
+  return vi
+    .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+    .mockReturnValue(width);
+}
+
+/**
+ * Dispatch one pointer event with a real x coordinate.
+ *
+ * jsdom implements no `PointerEvent` at all, so `fireEvent.pointerDown` falls
+ * back to a bare `Event` and quietly drops `clientX` — which is the only thing
+ * a pan reads, so the strip would move by NaN and the test would pass or fail
+ * for the wrong reason. A `MouseEvent` typed `pointerdown` carries the
+ * coordinate and still reaches React's `onPointerDown`, which dispatches on the
+ * event's name.
+ */
+function pointer(el: HTMLElement, type: string, clientX: number) {
+  const event = new MouseEvent(type, { bubbles: true, clientX });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  Object.defineProperty(event, "pointerType", { value: "mouse" });
+  fireEvent(el, event);
 }
 
 describe("the avatar field", () => {
-  it("shows three of each list at a time", () => {
+  it("holds every colour and every mark at once", () => {
     renderField(null);
-    // Twelve marks and eight colours: six buttons of swatch, not twenty.
-    const swatches = document.querySelectorAll(".presets__swatch");
-    expect(swatches).toHaveLength(6);
+    // Eight colours and twelve marks, all of them in their strip: the reader
+    // scrolls to one rather than being dealt three at a time.
+    expect(document.querySelectorAll(".presets__swatch--colour")).toHaveLength(
+      8,
+    );
+    expect(document.querySelectorAll(".presets__swatch")).toHaveLength(20);
   });
 
-  it("comes back round rather than stopping at either end", () => {
-    renderField(null);
-    // Eight colours, so nine steps forward lands one past a full lap — if the
-    // list stopped at the end there would be nothing left to show.
-    const first = document.querySelector(".presets__swatch--colour");
-    const label = first?.getAttribute("aria-label");
-    expect(label).toBeTruthy();
-    for (let i = 0; i < 8; i += 1) {
+  it("slides along by one swatch when an arrow is pressed", () => {
+    const size = sizeSwatches(40);
+    try {
+      renderField(null);
+      const strip = document.querySelector<HTMLElement>(".presets__window")!;
+      expect(strip.scrollLeft).toBe(0);
       fireEvent.click(screen.getByRole("button", { name: "Next colour" }));
+      // One swatch along, not a whole new set of them.
+      expect(strip.scrollLeft).toBe(40);
+      fireEvent.click(screen.getByRole("button", { name: "Previous colour" }));
+      expect(strip.scrollLeft).toBe(0);
+    } finally {
+      size.mockRestore();
     }
-    const back = document.querySelector(".presets__swatch--colour");
-    expect(back?.getAttribute("aria-label")).toBe(label);
   });
 
-  it("opens on the mark you are already wearing", () => {
-    renderField(avatarPresetUrl("campfire", "SKY"));
-    // Eleventh of twelve. Without the window opening on it, a reader would have
-    // to go looking for their own avatar to see it was theirs.
-    expect(
-      screen.getByRole("button", { name: "Campfire" }),
-    ).toBeInTheDocument();
+  it("pans with a drag, and the drag does not count as a tap", () => {
+    const onWear = renderField(avatarPresetUrl("tent", "SKY"));
+    const strip = document.querySelector<HTMLElement>(".presets__window")!;
+    const swatch = reach("Violet");
+
+    pointer(strip, "pointerdown", 100);
+    pointer(strip, "pointermove", 40);
+    // Dragged left by 60, so the strip is 60 further along.
+    expect(strip.scrollLeft).toBe(60);
+    pointer(strip, "pointerup", 40);
+
+    // The pointer came to rest over a swatch, and letting go of a drag must not
+    // recolour the reader's avatar.
+    fireEvent.click(swatch);
+    expect(onWear).not.toHaveBeenCalled();
+
+    // The next real tap goes through.
+    fireEvent.click(swatch);
+    expect(onWear).toHaveBeenCalledWith("tent", "VIOLET");
+  });
+
+  it("opens scrolled to the mark you are already wearing", () => {
+    // jsdom lays nothing out, so the geometry the strip reads is mocked: every
+    // swatch 40 wide, sitting 40 apart, in a 120-wide box.
+    const width = sizeSwatches(40);
+    const left = vi
+      .spyOn(HTMLElement.prototype, "offsetLeft", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        const parent = this.parentElement;
+        if (!parent) return 0;
+        return Array.prototype.indexOf.call(parent.children, this) * 40;
+      });
+    const box = vi
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockReturnValue(120);
+    try {
+      renderField(avatarPresetUrl("campfire", "SKY"));
+      const strips = document.querySelectorAll<HTMLElement>(".presets__window");
+      // Eleventh of twelve marks: 10 × 40, less the margin that centres it in
+      // the box. Without this the strip opens at zero and a reader has to go
+      // looking for their own avatar to see it is theirs.
+      expect(strips[1]!.scrollLeft).toBe(360);
+    } finally {
+      width.mockRestore();
+      left.mockRestore();
+      box.mockRestore();
+    }
   });
 
   it("recolours the mark you already wear", () => {
     const onWear = renderField(avatarPresetUrl("tent", "SKY"));
-    fireEvent.click(reach("Violet", "Next colour"));
+    fireEvent.click(reach("Violet"));
     // The mark is carried over — a colour tap changes one half, not both.
     expect(onWear).toHaveBeenCalledWith("tent", "VIOLET");
   });
 
   it("puts a new mark on in the colour already showing", () => {
     const onWear = renderField(avatarPresetUrl("tent", "SKY"));
-    fireEvent.click(reach("Compass", "Next mark"));
+    fireEvent.click(reach("Compass"));
     expect(onWear).toHaveBeenCalledWith("compass", "SKY");
   });
 
   it("asks before a photograph is replaced, and does nothing if refused", () => {
     const onWear = renderField(PHOTO);
-    fireEvent.click(reach("Camera", "Next mark"));
+    fireEvent.click(reach("Camera"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Keep my photo" }));
@@ -103,7 +169,7 @@ describe("the avatar field", () => {
 
   it("wears the mark that was asked about once the answer is yes", () => {
     const onWear = renderField(PHOTO);
-    fireEvent.click(reach("Camera", "Next mark"));
+    fireEvent.click(reach("Camera"));
     fireEvent.click(screen.getByRole("button", { name: "Use a drawn avatar" }));
 
     // The tap that raised the question is the tap that is carried out — being
@@ -115,7 +181,7 @@ describe("the avatar field", () => {
 
   it("asks once, not on every swatch after that", () => {
     const onWear = renderField(PHOTO);
-    fireEvent.click(reach("Rose", "Next colour"));
+    fireEvent.click(reach("Rose"));
     fireEvent.click(screen.getByRole("button", { name: "Use a drawn avatar" }));
 
     // A staged colour is not a commit: a colour alone is not something the
@@ -127,7 +193,7 @@ describe("the avatar field", () => {
 
     // The question has been answered, so the next tap goes straight through and
     // carries the staged colour with it.
-    fireEvent.click(reach("Camera", "Next mark"));
+    fireEvent.click(reach("Camera"));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(onWear).toHaveBeenCalledWith("camera", "ROSE");
   });
@@ -138,7 +204,7 @@ describe("the avatar field", () => {
     // other than the nearest palette would recolour the reader as a side effect
     // of choosing a picture.
     const onWear = renderField("preset:tent");
-    fireEvent.click(reach("Anchor", "Next mark"));
+    fireEvent.click(reach("Anchor"));
     expect(onWear).toHaveBeenCalledTimes(1);
     const [preset, colour] = onWear.mock.calls[0]!;
     expect(preset).toBe("anchor");
