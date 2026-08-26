@@ -2670,6 +2670,9 @@ span.board__muted {
 .settings__languages {
   display: flex;
   flex-wrap: wrap;
+  /* Centred under a centred heading, like every other panel on this page: a
+     left-aligned pair of pills under a centred title read as a stray. */
+  justify-content: center;
   gap: 0.5rem;
   margin-top: 0.6rem;
 }
