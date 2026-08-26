@@ -117,6 +117,49 @@ describe("crew quick actions", () => {
     ).toBeDisabled();
   });
 
+  it("draws the panel outside the strip that would clip it", async () => {
+    renderPanel("OWNER", "owner");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Actions for Tom Traveler" }),
+    );
+
+    // The strip scrolls sideways, so a panel inside it is cut off at its edge
+    // — which is what a member near either end used to get. It is portalled to
+    // <body> instead, and this is the fact that says so.
+    const action = screen.getByRole("button", {
+      name: "Remove Tom Traveler from the trip",
+    });
+    expect(document.querySelector(".crew")?.contains(action)).toBe(false);
+    expect(document.body.contains(action)).toBe(true);
+  });
+
+  it("stays open while the pointer is on the panel rather than the row", async () => {
+    renderPanel("OWNER", "owner");
+    const row = await screen.findByRole("button", {
+      name: "Actions for Tom Traveler",
+    });
+    fireEvent.click(row);
+
+    const action = screen.getByRole("button", {
+      name: "Remove Tom Traveler from the trip",
+    });
+    // Moving onto the panel means leaving the row, and the panel is not inside
+    // the row any more: a close rule written as "the pointer left the row"
+    // would shut the panel on the way to it.
+    fireEvent.pointerOver(action);
+    expect(
+      screen.getByRole("button", { name: "Remove Tom Traveler from the trip" }),
+    ).toBeInTheDocument();
+
+    // Anywhere else does close it.
+    fireEvent.pointerOver(document.body);
+    expect(
+      screen.queryByRole("button", {
+        name: "Remove Tom Traveler from the trip",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("asks before removing, rather than removing", async () => {
     renderPanel("OWNER", "owner");
     fireEvent.click(

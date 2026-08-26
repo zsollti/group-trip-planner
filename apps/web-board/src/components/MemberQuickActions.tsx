@@ -6,6 +6,7 @@ import {
   type TripMemberView,
   type TripRole,
 } from "@gtp/types";
+import { AnchoredPanel, holdsNode } from "./AnchoredPanel";
 import { roleLabel } from "../lib/roles";
 import { type useMemberActions } from "../lib/memberActions";
 import {
@@ -68,6 +69,10 @@ export function MemberQuickActions({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  /* The panel is portalled out of the row (see {@link AnchoredPanel}), so it is
+   * not a descendant of `rootRef` any more and the pointer leaving the row is
+   * no longer the same event as the pointer leaving the control. */
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Strictly-lower rank, the same rule the dialog applies: a co-organizer gets
   // no controls on the owner or on a peer, and nobody gets them on themselves.
@@ -80,8 +85,29 @@ export function MemberQuickActions({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    /*
+     * Hover-out, tracked on the document rather than with `onMouseLeave` on the
+     * row.
+     *
+     * The row and the panel are two separate subtrees once the panel is
+     * portalled, so leaving the row *is* leaving its element — a mouseleave
+     * handler there would close the panel at the moment the pointer set off
+     * towards it. Asking "is the pointer over either box?" is the same question
+     * the old handler was asking, phrased so that a portal cannot change the
+     * answer. `pointerover` rather than `pointermove` because it fires once per
+     * element crossed rather than once per pixel.
+     */
+    const onOver = (e: Event) => {
+      if (!holdsNode(e.target as Node, rootRef.current, panelRef.current)) {
+        setOpen(false);
+      }
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerover", onOver);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerover", onOver);
+    };
   }, [open]);
 
   if (!manageable) return <>{children}</>;
@@ -121,11 +147,16 @@ export function MemberQuickActions({
       ref={rootRef}
       className="crew__member-wrap"
       onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      // Closes when focus leaves the row *and* the panel — which is one subtree,
-      // so `relatedTarget` staying inside it is exactly the case to ignore.
+      // Closes when focus leaves the row *and* the panel — two subtrees since
+      // the panel is portalled, so both are asked.
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        if (
+          !holdsNode(
+            e.relatedTarget as Node | null,
+            rootRef.current,
+            panelRef.current,
+          )
+        ) {
           setOpen(false);
         }
       }}
@@ -141,10 +172,17 @@ export function MemberQuickActions({
         {children}
       </button>
       {open ? (
-        <div
+        <AnchoredPanel
+          anchorRef={rootRef}
+          panelRef={panelRef}
+          place="above"
+          align="left"
           className="crew__quick"
           role="group"
-          aria-label={t("Actions for {name}", { name: member.displayName })}
+          label={t("Actions for {name}", { name: member.displayName })}
+          // Focus can move into the panel, and a blur inside it must not close
+          // the control it is inside.
+          onMouseEnter={() => setOpen(true)}
         >
           {actions.assignableRoles.map((role) =>
             button(
@@ -180,7 +218,7 @@ export function MemberQuickActions({
             () => act("block"),
             { danger: true },
           )}
-        </div>
+        </AnchoredPanel>
       ) : null}
     </div>
   );
