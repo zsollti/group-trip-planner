@@ -467,3 +467,55 @@ describe("the board's name above the conversation", () => {
     expect(head.querySelector(".board__chat-trip")?.textContent).toBe(name);
   });
 });
+
+/**
+ * The chat's own menu.
+ *
+ * Search is a *mode* of this panel rather than a surface of its own, so what is
+ * worth pinning here is the swap: while it is open the log and the composer are
+ * gone, and choosing a hit puts them back on the hit's channel. `ChatSearch`
+ * tests the searching itself.
+ */
+describe("the chat menu", () => {
+  beforeEach(() => {
+    selectedChannels.length = 0;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    renderPanel();
+  });
+
+  function openSearch() {
+    fireEvent.click(screen.getByRole("button", { name: "Chat menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search chat" }));
+  }
+
+  it("opens the search from the menu", () => {
+    openSearch();
+    expect(
+      screen.getByRole("searchbox", { name: /Search this/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the results where the log was, not on top of it", () => {
+    // The log and the composer are the two things a search replaces. Asserted
+    // as absence rather than as a class, because "covered by a popover" and
+    // "replaced" look the same to a class check and only one of them is this.
+    expect(document.querySelector(".board__chat-log")).not.toBeNull();
+    openSearch();
+    expect(document.querySelector(".board__chat-log")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
+  });
+
+  it("closes the search again from the same item", () => {
+    openSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Chat menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close search" }));
+
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(document.querySelector(".board__chat-log")).not.toBeNull();
+  });
+});
