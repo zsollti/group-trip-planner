@@ -434,4 +434,34 @@ describe("the board's name above the conversation", () => {
     expect(eyebrow).toBeInTheDocument();
     expect(eyebrow?.textContent).toBe(name);
   });
+  it("says it once, not once over itself", () => {
+    const name = "Lisbon 2026";
+    renderPanel(undefined, name);
+
+    /*
+     * The trip-wide channel is *named after the trip*, so the header printed
+     * the name as the small line and again as the heading directly under it —
+     * the same six words twice, in two sizes. The small line answers "which
+     * trip's Accommodation?", and on this channel nobody is asking.
+     */
+    const head = document.querySelector(".board__chat-head")!;
+    const shown = [...head.querySelectorAll("*")].filter(
+      (el) => el.textContent === name && el.children.length === 0,
+    );
+    expect(shown).toHaveLength(1);
+  });
+
+  it("keeps saying it on a channel that is not the trip's own", () => {
+    const name = "Lisbon 2026";
+    renderPanel(undefined, name);
+    // Every category channel is collapsed behind the overflow trigger here —
+    // see the stubbed `useFitCount` at the top of this file.
+    fireEvent.click(screen.getByRole("button", { name: "3 more channels" }));
+    fireEvent.click(screen.getByRole("button", { name: "Transport" }));
+
+    // "Transport" as a heading does not say whose transport, and the dock spans
+    // every board — so here the trip's name is the whole point of the line.
+    const head = document.querySelector(".board__chat-head")!;
+    expect(head.querySelector(".board__chat-trip")?.textContent).toBe(name);
+  });
 });

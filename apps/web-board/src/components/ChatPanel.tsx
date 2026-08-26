@@ -502,14 +502,30 @@ export function ChatPanel({
         {/* The board's name above the channel's. On a dock that spans every
                 trip, "Stay" as a heading does not say which trip's Stay. */}
         <span className="board__chat-title">
-          {/* Cut by the box, not by a character count. The name used to be
-              shortened to 15 characters wherever it appeared, which on a dock
-              this wide meant "Lisbon — long w…" with room to spare on the line.
-              CSS ends it exactly where the space does, and the full name is on
-              `title` for anyone who wants the rest. */}
-          <small className="board__chat-trip" title={tripName}>
-            {tripName}
-          </small>
+          {/*
+           * Except where the channel *is* the trip.
+           *
+           * The trip-wide channel is named after the trip (see `channelName`),
+           * so on the channel every chat opens on, the header printed the same
+           * name twice — once small and once as the heading, one directly above
+           * the other. The small line answers "which trip's Stay?", and on this
+           * channel there is no such question to answer.
+           *
+           * Compared on the rendered name rather than on `channel.type`: they
+           * are the same condition today, and this one stays true whatever
+           * `channelName` decides tomorrow.
+           *
+           * Cut by the box, not by a character count. The name used to be
+           * shortened to 15 characters wherever it appeared, which on a dock
+           * this wide meant "Lisbon — long w…" with room to spare on the line.
+           * CSS ends it exactly where the space does, and the full name is on
+           * `title` for anyone who wants the rest.
+           */}
+          {activeChannel && channelName(activeChannel) === tripName ? null : (
+            <small className="board__chat-trip" title={tripName}>
+              {tripName}
+            </small>
+          )}
           {/* The heading takes the whole name — it has a line to itself and
               already ends itself with an ellipsis when the box runs out. The
               chips below still count characters, because that is what decides
