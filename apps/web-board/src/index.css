@@ -3110,9 +3110,20 @@ textarea[data-gtp-input] {
 }
 .board__radio-name {
   display: inline-flex;
-  align-items: baseline;
+  /* Centred, not on the baseline. An inline SVG's baseline is its *bottom*
+     edge, so a 16px mark aligned that way stands its full height above the
+     text's baseline while the capitals reach about two-thirds of it — the mark
+     floats a few pixels high and the row reads as a typo. `center` puts it
+     against the middle of the line box, which is where the eye expects it. */
+  align-items: center;
   gap: 0.35rem;
   color: var(--board-fg);
+}
+/* The same correction for the rows above, where the mark leads a sentence
+   rather than a name and is therefore inline rather than a flex item —
+   `vertical-align` is ignored on a flex item and is the only lever here. */
+.board__radio > span > svg:first-child {
+  vertical-align: -0.15em;
 }
 .board__radio-note {
   color: var(--board-dim);
