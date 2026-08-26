@@ -35,6 +35,15 @@ import { t } from "../lib/i18n";
  * so "Show me around" shows you around whatever you are looking at, rather than
  * needing to know where you are. {@link TourOverlay} is the bubble.
  *
+ * ## Modal while it runs
+ *
+ * The overlay swallows every click that is not on the bubble. It did not used
+ * to: the layer was `pointer-events: none` so a reader could press the thing
+ * being described, which sounds generous and plays badly — a tap on the board
+ * opens a dialog *underneath* the bubble, and the panel is then explaining a
+ * screen that is no longer the one on top. The way out is Skip, on every panel,
+ * in the same place.
+ *
  * ## Portalled, and that is not decoration
  *
  * The spotlight and the bubble are `position: fixed` and rendered into
@@ -301,9 +310,10 @@ function TourOverlay({
        * than as four panels or a `clip-path`. One element, and the hole is
        * exactly the anchor's rectangle however it is shaped or scrolled.
        *
-       * `pointer-events: none` throughout: the tour describes the app and must
-       * not become a sheet of glass over it. A reader who wants to press the
-       * thing being pointed at can.
+       * The layer above it takes every click (see `.tour` in `index.css`), so
+       * the hole in this shadow is a hole in the *dimming* and not a hole in
+       * the sheet — what is being pointed at can be seen and read, and cannot
+       * be pressed until the tour is done with it.
        */}
       {spotlight ? (
         <div

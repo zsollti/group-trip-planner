@@ -2258,14 +2258,21 @@ span.board__muted {
  * makes a fixed element position against *that* element instead of the
  * viewport, and the board has one on the Plan/Timeline swap. See `Tour.tsx`.
  *
- * `pointer-events: none` on the layer, restored only on the bubble's own
- * buttons. The tour describes the app; it must not become a sheet of glass over
- * it, and a reader who wants to press the thing being pointed at can. */
+ * **The layer swallows every click.** It used to be `pointer-events: none`, on
+ * the argument that a tour describes the app and should not become a sheet of
+ * glass over it — but a reader halfway through a tour who taps the board opens
+ * a dialog *under* the bubble, and now has a panel telling them about a screen
+ * they are no longer looking at. The tour is short, it is skippable from every
+ * panel, and it is easier to finish it than to explain what happened. So while
+ * it is running, the only thing on screen that answers to a click is the tour
+ * itself. */
 .tour {
   position: fixed;
   inset: 0;
   z-index: 90;
-  pointer-events: none;
+  /* Not a backdrop: it paints nothing. The dimming is the spotlight's shadow,
+     and this only catches the clicks. */
+  pointer-events: auto;
 }
 
 /* The dimming, drawn as an enormous shadow *around* a transparent box rather
