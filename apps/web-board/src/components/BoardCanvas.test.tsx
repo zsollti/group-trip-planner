@@ -865,4 +865,64 @@ describe("BoardCanvas", () => {
       within(single).queryByRole("button", { name: /add card/i }),
     ).toBeNull();
   });
+
+  /**
+   * Unlock by drag, as far as jsdom can see it.
+   *
+   * The strips themselves are only rendered while a card is in hand, and dnd-kit
+   * needs real pointer geometry to put one there — so what these assert is the
+   * half that survives without layout: that a decision now carries a grip of its
+   * own, that it says which of the two gestures it is, and that neither grip
+   * appears for a reader who could not do either. The drop is covered end to end
+   * by `e2e/drag-to-decide`.
+   */
+  describe("dragging a decision back out", () => {
+    it("gives a settled card a grip that names unlocking", async () => {
+      mockFetch();
+      renderBoard("OWNER");
+
+      const lane = await screen.findByRole("region", { name: "Stay" });
+      // Two grips, two different gestures: a candidate sorts among its
+      // neighbours and may be locked, a decision may only be reopened. A
+      // settled card had no grip at all until now — it could be locked with
+      // the mouse and unlocked only from a menu.
+      expect(
+        within(lane).getByRole("button", {
+          name: /drag hostel .* reorder it/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        within(lane).getByRole("button", {
+          name: /drag beach house .* unlock/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("hides the settled card's grip from a non-organizer", async () => {
+      mockFetch();
+      renderBoard("PARTICIPANT");
+
+      const lane = await screen.findByRole("region", { name: "Stay" });
+      expect(within(lane).getByText("Beach House")).toBeInTheDocument();
+      expect(
+        within(lane).queryByRole("button", { name: /drag beach house/i }),
+      ).toBeNull();
+    });
+
+    it("keeps Unlock on the settled card's menu whether or not drag is on", async () => {
+      // Drag is the second way to do a thing, never the only one — the reason
+      // this passes for a participant is that they have no menu item either,
+      // so the assertion is about an organizer without grips being impossible.
+      mockFetch();
+      renderBoard("OWNER");
+
+      const lane = await screen.findByRole("region", { name: "Stay" });
+      fireEvent.click(
+        within(lane).getByRole("button", { name: /actions for beach house/i }),
+      );
+      expect(
+        screen.getByRole("button", { name: "Unlock" }),
+      ).toBeInTheDocument();
+    });
+  });
 });

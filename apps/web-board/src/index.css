@@ -1912,6 +1912,16 @@ span.board__muted {
      same" this scale has, now that the two fills are whole colours. */
   background: color-mix(in srgb, var(--cat-main) 22%, var(--cat-locked));
 }
+/* The same strip, pointing the other way: a settled card dropped here becomes a
+   candidate again, so it is dressed as one. Both strips say what the card is
+   about to be rather than what it is, which is what lets them sit in the same
+   column an inch apart without being read as the same target. */
+.lane__decide-drop--unlock {
+  background: var(--cat-proposed);
+}
+.lane__decide-drop--unlock.lane__decide-drop--over {
+  background: color-mix(in srgb, var(--cat-main) 22%, var(--cat-proposed));
+}
 
 /* --- Board drag-and-drop (Phase 3.5) --- */
 /* Pinned, now that the lane scrolls: the name, the mode and the "⋯" are what

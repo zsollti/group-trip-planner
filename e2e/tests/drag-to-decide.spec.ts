@@ -27,13 +27,27 @@ import {
  * drag that never leaves the scroll container — so that particular failure can
  * no longer happen. The gesture still cannot be checked any other way.
  *
- * **Dragging a decision back out to unlock it went with the rail.** The card's
- * "⋯" menu is now the only way to reopen a decision, so the second test here
- * covers that path end to end instead: the DOM suite can prove the button is
- * there, not that the server accepts what it sends.
+ * **Dragging a decision back out is a gesture again.** It went with the rail,
+ * leaving a card that could be locked with the mouse and unlocked only from a
+ * menu; it is back as a second strip, inside the lane the card is already in,
+ * below the decisions and above the candidates. It needs this file for exactly
+ * the reason the first gesture does — the strip is rendered only while a card
+ * is in hand, so nothing without layout and real pointer geometry can see it.
+ *
+ * The menu path stays covered too. Drag is the second way to do a thing here,
+ * never the only one, and the DOM suite can prove the button is there but not
+ * that the server accepts what it sends.
  */
 
 test.describe.configure({ mode: "serial" });
+
+/**
+ * The two strips. One class, one modifier — they are the same drop target
+ * dressed as the thing the card is about to become, which is what lets them sit
+ * an inch apart in one column without being read as the same target.
+ */
+const LOCK_STRIP = ".lane__decide-drop:not(.lane__decide-drop--unlock)";
+const UNLOCK_STRIP = ".lane__decide-drop--unlock";
 
 test.afterAll(async () => {
   await cleanupE2EData();
@@ -46,11 +60,21 @@ test.afterAll(async () => {
  * Two things make this fiddly. Playwright's `dragTo` moves in one jump; dnd-kit's
  * PointerSensor needs a 6px activation movement first and then intermediate
  * positions, or it reads the whole thing as a click and no drop is registered.
- * And the decide strip is only rendered **while a card is in hand**, so its box
- * cannot be measured up front — the target is resolved after activation, which
- * is also a real assertion that the strip appears at all.
+ * And a strip is only rendered **while a card is in hand**, so its box cannot be
+ * measured up front — the target is resolved after activation, which is also a
+ * real assertion that the strip appears at all.
+ *
+ * `strip` says which of the two: the lock strip above the decisions, or the
+ * unlock strip below them. They are the same object pointing opposite ways, and
+ * a lane never offers both at once — the card in hand is either locked or it is
+ * not.
  */
-async function dragOntoDecide(page: Page, grip: Locator, lane: Locator) {
+async function dragOntoStrip(
+  page: Page,
+  grip: Locator,
+  lane: Locator,
+  strip: string,
+) {
   const from = await grip.boundingBox();
   if (!from) throw new Error("drag source is not laid out");
 
@@ -64,10 +88,10 @@ async function dragOntoDecide(page: Page, grip: Locator, lane: Locator) {
     { steps: 4 },
   );
 
-  const target = lane.locator(".lane__decide-drop");
+  const target = lane.locator(strip);
   await expect(target).toBeVisible();
   const to = await target.boundingBox();
-  if (!to) throw new Error("decide target is not laid out");
+  if (!to) throw new Error("drop target is not laid out");
 
   const cx = to.x + to.width / 2;
   const cy = to.y + to.height / 2;
@@ -100,10 +124,11 @@ test("an owner locks a decision by dragging a card onto its lane's decide strip"
   await expect(transport.locator(".lane__decide-drop")).toHaveCount(0);
 
   // The grip is the drag handle; the card body is click-to-view.
-  await dragOntoDecide(
+  await dragOntoStrip(
     page,
     card.getByRole("button", { name: /^Drag /i }),
     transport,
+    LOCK_STRIP,
   );
 
   // Settled in its lane — which is the proof the lock really ran on the server
@@ -149,10 +174,60 @@ test("a decision is reopened from the settled card's menu", async ({
       name: new RegExp(`actions for ${optionTitle}`, "i"),
     })
     .click();
-  await page.getByRole("button", { name: "Unlock" }).click();
+  // `exact`, because Playwright matches an accessible name by substring and a
+  // settled card now has two controls with "unlock" in theirs: the menu item,
+  // and the grip that says which drop reopens the decision.
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
 
   await expect(settledCard(stay, optionTitle)).toHaveCount(0);
   await expect(
     stay.locator(".lane__card", { hasText: optionTitle }),
   ).toBeVisible();
+});
+
+test("an owner reopens a decision by dragging it onto its lane's unlock strip", async ({
+  page,
+}) => {
+  const optionTitle = "Beach house";
+  await signUpAndIn(page, "Cleo");
+  await createBoard(page, `Unlock ${Date.now().toString(36)}`);
+
+  const stay = laneNamed(page, "Accommodation");
+  await stay
+    .getByRole("button", { name: "＋ Propose the first option" })
+    .click();
+  await page.getByLabel("Title").fill(optionTitle);
+  await page.getByRole("button", { name: "Propose option" }).click();
+
+  // Locked from the menu: the subject here is the gesture that undoes it, and
+  // the drag that locks is already covered above.
+  await stay
+    .getByRole("button", {
+      name: new RegExp(`actions for ${optionTitle}`, "i"),
+    })
+    .click();
+  await page
+    .getByRole("button", { name: /^(Move to Decided|Lock card)$/ })
+    .click();
+  const settled = settledCard(stay, optionTitle);
+  await expect(settled).toBeVisible();
+  // Neither strip stands there the rest of the time.
+  await expect(stay.locator(UNLOCK_STRIP)).toHaveCount(0);
+
+  // A decision has a grip of its own now, and it is the only gesture it has:
+  // dropped anywhere but the strip, the card goes back.
+  await dragOntoStrip(
+    page,
+    settled.getByRole("button", { name: /^Drag /i }),
+    stay,
+    UNLOCK_STRIP,
+  );
+
+  // Back among the candidates — which is the proof the unlock ran on the
+  // server, not that the card was merely dropped somewhere that looked right.
+  await expect(settledCard(stay, optionTitle)).toHaveCount(0);
+  await expect(
+    stay.locator(".lane__card", { hasText: optionTitle }),
+  ).toBeVisible();
+  await expect(stay.locator(UNLOCK_STRIP)).toHaveCount(0);
 });

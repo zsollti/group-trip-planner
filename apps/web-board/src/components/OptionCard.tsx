@@ -203,7 +203,6 @@ export function OptionCard({
           </button>
         </strong>
         <div className="lane__card-tools">
-          {grip}
           {/*
            * The decision, said in words for once. The card's fill and its solid
            * left edge already say it, but only to someone who can see both and
@@ -219,12 +218,18 @@ export function OptionCard({
            * the "⋯" in the corner every card keeps for the things that are true
            * *of* the card rather than written *on* it, and the title gets the
            * whole of its own line.
+           *
+           * **And it leads the tools**, so the run reads what this card is,
+           * how to move it, what else can be done to it. A candidate has no
+           * padlock and simply starts at the grip, which is where its tools
+           * have always started.
            */}
           {locked ? (
             <span className="lane__lock" role="img" aria-label={t("Decided")}>
               <LockIcon size={13} />
             </span>
           ) : null}
+          {grip}
           {items.length > 0 ? (
             <Menu
               label={t("Actions for {card}", { card: option.title })}
