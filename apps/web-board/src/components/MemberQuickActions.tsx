@@ -6,7 +6,8 @@ import {
   type TripMemberView,
   type TripRole,
 } from "@gtp/types";
-import { AnchoredPanel, holdsNode } from "./AnchoredPanel";
+import { AnchoredPanel } from "./AnchoredPanel";
+import { holdsNode } from "../lib/anchoredPosition";
 import { roleLabel } from "../lib/roles";
 import { type useMemberActions } from "../lib/memberActions";
 import {

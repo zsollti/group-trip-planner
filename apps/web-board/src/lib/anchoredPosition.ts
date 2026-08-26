@@ -108,3 +108,20 @@ function clamp(value: number, min: number, max: number): number {
   if (max < min) return min;
   return Math.min(max, Math.max(min, value));
 }
+
+/**
+ * "Is this node part of the control?", for a popover whose panel is portalled.
+ *
+ * Outside-click, focus-return and hover-out tests all mean *the trigger or the
+ * panel*, and once the panel is portalled those are two unrelated subtrees. One
+ * predicate, so the three cannot drift apart — and here rather than beside the
+ * component so that file exports only components (fast refresh, the same reason
+ * `useTour` is not in `Tour.tsx`).
+ */
+export function holdsNode(
+  node: Node | null,
+  ...boxes: readonly (HTMLElement | null)[]
+): boolean {
+  if (!node) return false;
+  return boxes.some((box) => box?.contains(node) ?? false);
+}

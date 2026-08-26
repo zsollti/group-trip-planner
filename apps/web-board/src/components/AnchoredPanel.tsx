@@ -118,18 +118,3 @@ export function AnchoredPanel({
     document.body,
   );
 }
-
-/**
- * "Is this node part of the control?", for a popover whose panel is portalled.
- *
- * Outside-click, focus-return and hover-out tests all mean *the trigger or the
- * panel*, and after a portal those are two unrelated subtrees. One predicate so
- * the three cannot drift apart.
- */
-export function holdsNode(
-  node: Node | null,
-  ...boxes: readonly (HTMLElement | null)[]
-): boolean {
-  if (!node) return false;
-  return boxes.some((box) => box?.contains(node) ?? false);
-}

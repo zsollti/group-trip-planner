@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { AnchoredPanel, holdsNode } from "./AnchoredPanel";
+import { AnchoredPanel } from "./AnchoredPanel";
+import { holdsNode } from "../lib/anchoredPosition";
 import { t } from "../lib/i18n";
 
 /** One action in a {@link Menu}. */
