@@ -374,6 +374,13 @@ export function OptionForm({
                 data-gtp-input
                 className="board__textarea"
                 rows={4}
+                // The box stops where the contract stops. The check below stays
+                // as well and is not redundant: `maxLength` counts what was
+                // typed, the server counts what was *trimmed*, so a box filled
+                // to 2000 with trailing newlines is under the cap here and over
+                // it there. This one keeps the counter honest while typing; the
+                // other keeps the save from being refused.
+                maxLength={OPTION_DESCRIPTION_MAX_LENGTH}
                 value={description}
                 aria-invalid={fieldErrors.description ? true : undefined}
                 onChange={(e) => {
@@ -398,6 +405,13 @@ export function OptionForm({
                   id="opt-url"
                   type="url"
                   placeholder={t("https://…")}
+                  // Same cap the contract holds a link to. There is no length
+                  // in any URL standard to appeal to — the limit everyone means
+                  // by "the maximum" is a browser's, and they disagree — so the
+                  // number that matters is the one this app will actually
+                  // store, and the field stops there rather than letting
+                  // someone paste 4kB and be refused on save.
+                  maxLength={OPTION_URL_MAX_LENGTH}
                   value={url}
                   invalid={Boolean(fieldErrors.url)}
                   onChange={(e) => {
