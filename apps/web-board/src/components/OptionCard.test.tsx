@@ -251,4 +251,14 @@ describe("the decided card's mark", () => {
     renderCard(opt({ status: "PROPOSED" }));
     expect(screen.queryByRole("img", { name: "Decided" })).toBeNull();
   });
+  it("keeps the mark in the card's tools, not in front of the title", () => {
+    renderCard(opt({ status: "LOCKED" }));
+    const mark = screen.getByRole("img", { name: "Decided" });
+
+    // It used to lead the title, inside the run of text that names the card —
+    // so a long title wrapped around it and the two read as one phrase. The
+    // corner beside the "⋯" is where the card keeps what is true *of* it.
+    expect(mark.closest(".lane__card-tools")).not.toBeNull();
+    expect(mark.closest("strong")).toBeNull();
+  });
 });
