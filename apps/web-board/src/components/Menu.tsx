@@ -13,6 +13,16 @@ export interface MenuItem {
   /** Marks the item as the one currently in effect (the open channel). */
   selected?: boolean;
   /**
+   * A mark before the label, for the item whose *state* is half its meaning.
+   *
+   * Mute/unmute is the case that asked for it: the two labels differ by two
+   * letters and the row is read at a glance, so the difference wants a shape as
+   * well as a word. It carried an emoji until this existed, which meant one
+   * gold pictogram in a menu of plain grey text — see {@link BellIcon}. Always
+   * `aria-hidden`, because the label beside it already says the thing.
+   */
+  icon?: ReactNode;
+  /**
    * A line under the label saying what the item will actually do.
    *
    * For the few actions whose name is not enough on its own. "Remove" and
@@ -147,6 +157,11 @@ export function Menu({
               }}
             >
               <span className="menu__item-label">
+                {item.icon ? (
+                  <span className="menu__item-icon" aria-hidden="true">
+                    {item.icon}
+                  </span>
+                ) : null}
                 {item.label}
                 {item.badge ? (
                   <span
