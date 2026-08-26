@@ -1,5 +1,15 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { MESSAGE_SEARCH_MIN_LENGTH, type MessageSearchView } from "@gtp/types";
+import {
+  useMutation,
+  useQuery,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
+import {
+  MESSAGE_SEARCH_MIN_LENGTH,
+  type ChatMuteInput,
+  type ChatMuteView,
+  type MessageSearchView,
+} from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
 
 /** Query-key factory for searching a board's transcript. */
@@ -50,5 +60,26 @@ export function useMessageSearch(
     // Keep the previous hits on screen while the next request is in flight, so
     // the list does not blink empty between letters.
     placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Silence this board's chat for the reader, or let it speak again.
+ *
+ * **No cache to invalidate.** The mute the app actually draws from lives in the
+ * socket's ready payload, beside the unread counts it silences — so the caller
+ * hands the answer to `setTripMute` and the badges go quiet on the same frame.
+ * A query key here would be a second copy of the same fact, and the two would
+ * disagree for exactly as long as it took a refetch to land.
+ */
+export function useSetChatMute(
+  tripId: string,
+): UseMutationResult<ChatMuteView, ApiError, ChatMuteInput> {
+  return useMutation({
+    mutationFn: (input: ChatMuteInput) =>
+      apiFetch<ChatMuteView>(`/trips/${tripId}/chat-mute`, {
+        method: "PUT",
+        body: input,
+      }),
   });
 }

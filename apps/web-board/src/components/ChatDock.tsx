@@ -165,7 +165,7 @@ function Dock({
 }) {
   // The provider mounts this only when signed in; `user` is read for its id.
   const { user } = useAuth();
-  const { channels, unread, refreshRooms } = useSessionSocket();
+  const { channels, unread, refreshRooms, isTripMuted } = useSessionSocket();
   const { pathname } = useLocation();
   // The same query the overview runs, so opening the dock on the boards page
   // costs nothing and opening it elsewhere warms a cache that page will want.
@@ -184,21 +184,41 @@ function Dock({
     return trips.filter((trip) => can(trip.role, "message.read"));
   }, [home.data]);
 
-  /** Unread across a board's channels — what its row in the list badges. */
+  /**
+   * Unread across a board's channels — what its row in the list badges.
+   *
+   * **A muted board reports nothing.** The count is still there on the server
+   * and still arrives in the ready payload; the mute decides what is *shown*,
+   * not what is counted, so lifting it reveals what was missed rather than
+   * starting the reader from zero.
+   *
+   * The silence covers the dock and the toasts — the surfaces that speak up
+   * when nobody asked. The channel chips inside an open panel keep their
+   * badges: a reader who has opened the conversation is not being pestered by
+   * it, and hiding which channel has something new in it at that moment costs
+   * them the one thing they opened it to find out.
+   */
   const unreadFor = useCallback(
     (trip: string) =>
-      channels
-        .filter((c) => c.tripId === trip)
-        .reduce((sum, c) => sum + (unread[c.id] ?? 0), 0),
-    [channels, unread],
+      isTripMuted(trip)
+        ? 0
+        : channels
+            .filter((c) => c.tripId === trip)
+            .reduce((sum, c) => sum + (unread[c.id] ?? 0), 0),
+    [channels, unread, isTripMuted],
   );
 
   // Every board's, for the launcher. The count that matters when the dock is
   // shut is "is anyone talking to me anywhere", which is the whole point of
-  // lifting the chat off the page.
+  // lifting the chat off the page — so a board the reader has quieted must not
+  // be able to light it up.
   const totalUnread = useMemo(
-    () => channels.reduce((sum, c) => sum + (unread[c.id] ?? 0), 0),
-    [channels, unread],
+    () =>
+      channels.reduce(
+        (sum, c) => sum + (isTripMuted(c.tripId) ? 0 : (unread[c.id] ?? 0)),
+        0,
+      ),
+    [channels, unread, isTripMuted],
   );
 
   /**

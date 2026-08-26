@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { CategoryView, ChannelView } from "@gtp/types";
 import { createQueryClient, type SessionSocket } from "@gtp/api-client";
@@ -93,6 +93,10 @@ function socket(): SessionSocket {
     setActiveChannel: (id: string | null) => {
       if (id) selectedChannels.push(id);
     },
+    // Nothing is muted in these fixtures; the mute has its own tests.
+    isTripMuted: () => false,
+    tripMutedUntil: () => null,
+    setTripMute: () => {},
     refreshRooms: () => {},
   };
 }
@@ -517,5 +521,128 @@ describe("the chat menu", () => {
 
     expect(screen.queryByRole("searchbox")).toBeNull();
     expect(document.querySelector(".board__chat-log")).not.toBeNull();
+  });
+});
+
+/**
+ * Muting a board's chat from its own menu.
+ *
+ * The panel's share of the feature is the menu: which rows it offers, what it
+ * sends, and that it hands the answer back to the socket so the badges go quiet
+ * without waiting for a reconnect. What the badges then do with it belongs to
+ * the dock, and what "an hour" means belongs to the server.
+ */
+describe("muting a board's chat", () => {
+  let sent: unknown[];
+  let recorded: [string, unknown][];
+
+  function renderWith(mute: { muted: boolean; mutedUntil: string | null }) {
+    sent = [];
+    recorded = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes("/chat-mute")) {
+        sent.push(JSON.parse(String((init as RequestInit).body)));
+        return Promise.resolve(
+          new Response(JSON.stringify({ muted: true, mutedUntil: null }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    });
+    const base = socket();
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <ChatPanel
+          tripId={TRIP_ID}
+          tripName="Lisbon 2026"
+          sessionSocket={{
+            ...base,
+            isTripMuted: () => mute.muted,
+            tripMutedUntil: () => mute.mutedUntil,
+            setTripMute: (tripId, view) => recorded.push([tripId, view]),
+          }}
+          onClose={() => {}}
+          onCollapse={() => {}}
+          categories={categories}
+          myRole="PARTICIPANT"
+          myUserId="u1"
+          requestChannelId={null}
+          onRequestHandled={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Chat menu" }));
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers the three durations while the board is not muted", () => {
+    renderWith({ muted: false, mutedUntil: null });
+
+    // Anchored regexes, not exact strings: `Menu` renders an item's `note`
+    // inside the button, and describing a node does not take it out of the
+    // accessible name, so a noted row is named "<label> <note>".
+    for (const label of [
+      /^Mute chat for an hour/,
+      /^Mute chat for a day/,
+      /^Mute chat until I turn it back on/,
+    ]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
+    // Nothing to unmute yet.
+    expect(screen.queryByRole("button", { name: /^Unmute chat/ })).toBeNull();
+  });
+
+  it("sends the duration the reader chose", async () => {
+    renderWith({ muted: false, mutedUntil: null });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mute chat for a day" }),
+    );
+
+    await waitFor(() => expect(sent).toEqual([{ duration: "DAY" }]));
+  });
+
+  it("tells the socket at once, so the badges do not wait for a reconnect", async () => {
+    renderWith({ muted: false, mutedUntil: null });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mute chat for an hour" }),
+    );
+
+    await waitFor(() => expect(recorded).toHaveLength(1));
+    expect(recorded[0]?.[0]).toBe(TRIP_ID);
+  });
+
+  it("collapses to one row once it is muted, and says until when", () => {
+    // A mute that runs out at a knowable time; the row says so rather than
+    // making the reader remember which of the three they picked.
+    renderWith({ muted: true, mutedUntil: "2026-03-04T15:00:00.000Z" });
+
+    expect(
+      screen.getByRole("button", { name: /^Unmute chat/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Mute chat/ })).toBeNull();
+    expect(screen.getByText(/Muted until/)).toBeInTheDocument();
+  });
+
+  it("lifts the mute with no duration at all", async () => {
+    renderWith({ muted: true, mutedUntil: null });
+    fireEvent.click(screen.getByRole("button", { name: /^Unmute chat/ }));
+
+    await waitFor(() => expect(sent).toEqual([{ duration: null }]));
+  });
+
+  it("says a mute with no expiry stands until it is lifted", () => {
+    renderWith({ muted: true, mutedUntil: null });
+    expect(
+      screen.getByText("Muted until you turn it back on"),
+    ).toBeInTheDocument();
   });
 });

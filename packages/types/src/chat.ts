@@ -63,6 +63,65 @@ export const ChannelUnread = z.object({
 export type ChannelUnread = z.infer<typeof ChannelUnread>;
 
 /**
+ * Silencing a board's chat for one reader (post-launch).
+ *
+ * **Not the same switch as the trip's email mute.** `TripMembership.muted`
+ * stops this trip's notification email; this stops the app's own chat — the
+ * unread badges and the mention toasts — for the member who asked. A person
+ * who wants their inbox quiet and their badges live, or the reverse, is asking
+ * for something ordinary, so the two are separate columns and separate
+ * controls: "Mute email" in the trip menu, "Mute chat" in the chat's own.
+ *
+ * **It silences; it does not stop counting.** A muted board goes on accruing
+ * unread server-side, and lifting the mute shows what was missed rather than
+ * starting from zero. Muting is a statement about what the reader wants shown
+ * now, not an instruction to throw away what arrives meanwhile.
+ */
+export const ChatMuteDuration = z.enum(["HOUR", "DAY", "ALWAYS"]);
+export type ChatMuteDuration = z.infer<typeof ChatMuteDuration>;
+
+/**
+ * How long each timed duration lasts, in minutes.
+ *
+ * Here rather than on the server so the menu and the route cannot disagree
+ * about what "1 hour" means. `ALWAYS` is absent on purpose: it has no length,
+ * which is the whole of the difference between it and the other two, and giving
+ * it a number here would invite somebody to add it up.
+ */
+export const CHAT_MUTE_MINUTES: Readonly<Record<"HOUR" | "DAY", number>> = {
+  HOUR: 60,
+  DAY: 60 * 24,
+};
+
+/** Set or lift the chat mute. A null `duration` lifts it. */
+export const ChatMuteInput = z.object({
+  duration: ChatMuteDuration.nullable(),
+});
+export type ChatMuteInput = z.infer<typeof ChatMuteInput>;
+
+/**
+ * The mute as it stands for this reader on this board.
+ *
+ * `mutedUntil` is sent as well as `muted` so the client can let a timed mute
+ * lapse on its own. A socket that stays connected for three hours would
+ * otherwise go on hiding badges for an hour-long mute until something made it
+ * reconnect, and the reader would have no way to tell the difference between
+ * "still muted" and "the app forgot".
+ */
+export const ChatMuteView = z.object({
+  muted: z.boolean(),
+  /** When it lapses by itself; null means it stands until it is lifted. */
+  mutedUntil: z.string().nullable(),
+});
+export type ChatMuteView = z.infer<typeof ChatMuteView>;
+
+/** One board this reader has muted, as carried in the socket's ready payload. */
+export const TripChatMute = ChatMuteView.extend({
+  tripId: z.string().uuid(),
+});
+export type TripChatMute = z.infer<typeof TripChatMute>;
+
+/**
  * The payload of {@link SOCKET_READY_EVENT} (Phase 4.1, extended in 4.4). Sent
  * once a socket has authenticated and joined its trip room — and again on every
  * reconnect, so the unread counts are always fresh. Carries the channels the
@@ -71,6 +130,17 @@ export type ChannelUnread = z.infer<typeof ChannelUnread>;
 export const ChatReadyPayload = z.object({
   channels: z.array(ChannelView),
   unread: z.array(ChannelUnread),
+  /**
+   * The boards this reader has muted (post-launch). Only the muted ones are
+   * listed — an absent trip is an unmuted trip, which keeps the payload the
+   * size of the exception rather than the size of the membership list.
+   *
+   * It rides the ready payload rather than a query per board because the badges
+   * are drawn from this same payload: fetching the mutes separately would mean
+   * a frame where every board's unread is shown before the app remembers which
+   * of them were meant to be quiet.
+   */
+  mutes: z.array(TripChatMute),
 });
 export type ChatReadyPayload = z.infer<typeof ChatReadyPayload>;
 

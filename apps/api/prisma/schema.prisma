@@ -14,54 +14,54 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(uuid()) @db.Uuid
-  email          String    @unique
-  displayName    String
+  id                      String    @id @default(uuid()) @db.Uuid
+  email                   String    @unique
+  displayName             String
   // Nullable: OAuth-only accounts (Google, Phase 1.0) have no local password.
-  passwordHash   String?
-  emailVerified  Boolean   @default(false)
+  passwordHash            String?
+  emailVerified           Boolean   @default(false)
   // Profile picture (Phase 6.2). Null means "no picture" — the front-end draws
   // generated initials rather than shipping a stock silhouette. Always a URL
   // this service issued: uploads go through the Phase-6.1 pipeline, never a
   // client-supplied address. Purged on GDPR anonymization along with the object.
-  avatarUrl      String?
+  avatarUrl               String?
   // Notification-email preference (Phase 5.2, FR-36): global "email me when I'm
   // @mentioned". Defaults on — the feature is opt-out, and the unsubscribe link
   // in every notification email flips exactly this flag. Gates the notification
   // channel ONLY; transactional mail ignores it.
-  emailOnMention Boolean   @default(true)
+  emailOnMention          Boolean   @default(true)
   // The language this account reads the interface in (post-launch). Text with a
   // default rather than a Postgres enum, so offering another language is a
   // dictionary and a one-line contract change instead of a migration on a type —
   // the same reasoning as `admin_audit_events.action`. Validated on the way in
   // and on the way out against the shared `LOCALES`, so a value this build does
   // not offer can neither be stored nor rendered.
-  locale         String    @default("en")
+  locale                  String    @default("en")
   // App-wide suspension (post-launch), set from the operator's console. Three
   // columns and not one, because "is it on", "when does it end" and "why" are
   // three different answers — see `packages/types/src/ban.ts` for the modelling
   // note, including why a null `bannedUntil` beside a set `bannedAt` means
   // permanent rather than "no end recorded". A lapsed ban is evaluated as over
   // on read; the row is kept so the console can still say what happened.
-  bannedAt       DateTime?
-  bannedUntil    DateTime?
-  banReason      String?
+  bannedAt                DateTime?
+  bannedUntil             DateTime?
+  banReason               String?
   // When this account finished or dismissed the guided tour (post-launch), or
   // null if it never has. On the account rather than in the browser because
   // "skippable, but available later" needs somewhere stable: a per-browser flag
   // means the tour ambushes the same person again from their phone. A timestamp
   // rather than a boolean because the two cost the same and only one of them can
   // answer a question later.
-  tourCompletedAt DateTime?
+  tourCompletedAt         DateTime?
   // The same for the overview's two-step tour, counted separately: the two are
   // different tours, and the overview's last word is a promise to show the
   // reader around the first board they make. One shared flag would have the
   // overview tour switch the board tour off on its way out.
   overviewTourCompletedAt DateTime?
   // GDPR erasure (FR-6): set on anonymization; personal fields are purged.
-  anonymizedAt   DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  anonymizedAt            DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -647,15 +647,30 @@ enum InviteType {
 }
 
 model TripMembership {
-  id                String   @id @default(uuid()) @db.Uuid
-  tripId            String   @db.Uuid
-  userId            String   @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  tripId            String    @db.Uuid
+  userId            String    @db.Uuid
   role              TripRole
-  joinedAt          DateTime @default(now())
+  joinedAt          DateTime  @default(now())
   // Per-trip mute (Phase 5.2, FR-36): silences this trip's notification EMAIL
   // for this member without touching their global preference or the always-on
   // in-app bell. Lives on the membership so it dies with it.
-  muted             Boolean  @default(false)
+  muted             Boolean   @default(false)
+  // Per-trip CHAT mute (post-launch), and deliberately not the same switch as
+  // `muted` above. That one silences this trip's notification email; this one
+  // silences the app's own chat — its unread badges and its mention toasts —
+  // for this member. They are different promises about different surfaces, and
+  // a member may quite reasonably want either without the other, so the trip
+  // menu offers "Mute email" and the chat's own menu offers "Mute chat".
+  //
+  // Two columns rather than one nullable timestamp, because "for an hour" and
+  // "until I say otherwise" are genuinely different states. Folding the second
+  // into the first would mean a sentinel — muted until the year 9999 — which
+  // reads as a date to every query that ever touches it and is a lie the moment
+  // anyone believes it. `chatMuted` says whether the mute is on; `chatMutedUntil`
+  // says when it lapses by itself, and null there means it does not.
+  chatMuted         Boolean   @default(false)
+  chatMutedUntil    DateTime?
   // Where this trip sits in THIS member's overview (Phase: post-launch). Lives
   // on the membership rather than the trip because the order is one person's
   // view of their own list — two members of the same trip may quite reasonably
@@ -670,7 +685,7 @@ model TripMembership {
   // Which invite link (if any) this member joined through. Provenance only; the
   // link may later be disabled/deleted without touching the membership, so it is
   // a nullable soft reference (onDelete: SetNull), not a hard FK.
-  joinedViaInviteId String?  @db.Uuid
+  joinedViaInviteId String?   @db.Uuid
 
   trip      Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
