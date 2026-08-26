@@ -123,9 +123,12 @@ export function Settings() {
       {/* The measure, off the <main> so the bar above it spans the window
           on every page alike — see `.board__measure`. */}
       <div className="board__measure">
-        <h1 className="board__title board__title--center">
-          {t("Your settings")}
-        </h1>
+        {/* Announced, not drawn. The page is reached from a menu item that
+            already says "Settings" and every panel on it carries its own
+            heading, so the big title was a third name for the same place. It
+            stays in the tree because a page with no `<h1>` has no name at all
+            to a screen reader, and the document outline starts at `<h2>`. */}
+        <h1 className="board__sr-only">{t("Your settings")}</h1>
 
         <NameSection />
         <LanguageSection />
