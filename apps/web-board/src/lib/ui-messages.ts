@@ -233,7 +233,7 @@ export const UI_MESSAGES = [
   "History",
   "I'm in",
   "Invite",
-  "Invite people to this board",
+  "Invite people",
   "It may have been mistyped or truncated by your mail app. Nothing changed. You can turn mention emails off from notification settings instead.",
   "Joining board…",
   "Just looking: they can see how the plan is coming along, and nothing more.",
