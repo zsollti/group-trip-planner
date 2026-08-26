@@ -773,4 +773,9 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Change chat picture": "Csevegés képének cseréje",
   "Add a chat picture": "Kép hozzáadása a csevegéshez",
   "Shown on the bubble and in the conversation list.": "A buborékon és a beszélgetéslistán jelenik meg.",
+  "Delete discussions": "Beszélgetések törlése",
+  "This board has no discussions to delete yet.": "Ezen a táblán még nincs törölhető beszélgetés.",
+  "Everything said in a discussion goes with it. A lane can always be discussed again.": "A beszélgetésben elhangzottak is törlődnek. Egy sávot bármikor újra meg lehet beszélni.",
+  "Delete {n} discussion and everything said in it? This cannot be undone.": "Törölsz {n} beszélgetést és mindent, ami elhangzott benne? Ezt nem lehet visszavonni.",
+  "Delete {n} discussions and everything said in them? This cannot be undone.": "Törölsz {n} beszélgetést és mindent, ami elhangzott bennük? Ezt nem lehet visszavonni.",
 };

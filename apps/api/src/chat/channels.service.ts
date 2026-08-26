@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import {
   CHANNEL_CREATED_EVENT,
+  CHANNELS_DELETED_EVENT,
   type ChannelUnread,
   type ChannelView,
   CHAT_MUTE_MINUTES,
@@ -250,6 +255,55 @@ export class ChannelsService {
       muted: true,
       mutedUntil: row.chatMutedUntil?.toISOString() ?? null,
     };
+  }
+
+  /**
+   * Delete lane discussions from a board (post-launch, organizers).
+   *
+   * **The trip-wide channel is refused, not skipped.** Quietly dropping it from
+   * the list would let a client tick it, press Delete, and be told the deletion
+   * succeeded — with the board's General still there. A caller that asks for
+   * something impossible is told so.
+   *
+   * Scoped by `tripId` in the same `where` that names the ids, so an id from
+   * another board matches nothing rather than deleting somebody else's
+   * conversation. That check and the delete are one statement; there is no
+   * window between verifying and acting.
+   *
+   * The messages and read cursors go with them by FK cascade — the same cascade
+   * that already takes a category's discussion when the category is deleted.
+   *
+   * Returns the ids actually deleted, which is what the broadcast carries and
+   * what the caller reconciles against. An id that was already gone is not an
+   * error: two organizers tidying the same board at once is a race with an
+   * obvious right answer, and it is "the channel is gone", which is what both
+   * of them wanted.
+   */
+  async deleteChannels(
+    tripId: string,
+    channelIds: readonly string[],
+  ): Promise<string[]> {
+    const found = await this.prisma.channel.findMany({
+      where: { tripId, id: { in: [...channelIds] } },
+      select: { id: true, type: true },
+    });
+    if (found.some((c) => c.type === "GENERAL")) {
+      throw new BadRequestException(
+        "The board's own conversation can't be deleted.",
+      );
+    }
+    const ids = found.map((c) => c.id);
+    if (ids.length === 0) return [];
+
+    await this.prisma.channel.deleteMany({
+      where: { tripId, id: { in: ids } },
+    });
+    // After the delete, never before: a client told to forget a channel that is
+    // then still there has no way to learn otherwise short of a reconnect.
+    this.realtime.emitToTrip(tripId, CHANNELS_DELETED_EVENT, {
+      channelIds: ids,
+    });
+    return ids;
   }
 
   /** Advance the member's read cursor for a channel to now (Phase 4.4). Verifies

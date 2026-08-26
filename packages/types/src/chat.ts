@@ -169,6 +169,35 @@ export type StartDiscussionInput = z.infer<typeof StartDiscussionInput>;
 export const CHANNEL_CREATED_EVENT = "channel:created";
 
 /**
+ * Server → room broadcast when discussions are deleted (post-launch).
+ *
+ * Carries the ids, not the channels: what a client has to do with this is
+ * forget them, and it already knows everything it is about to drop. Sent to the
+ * whole trip room because a deleted discussion has to vanish from every
+ * switcher, not just the organizer's who deleted it — the alternative is a chip
+ * that 404s for everyone else until they reload.
+ */
+export const CHANNELS_DELETED_EVENT = "channels:deleted";
+
+/**
+ * Delete a board's discussions (post-launch, organizers).
+ *
+ * A list rather than one id per request, because the control is a list with
+ * checkboxes and one Delete: sending five requests for five ticks would leave
+ * a half-done deletion possible in a way one request does not.
+ *
+ * **The trip-wide channel is not in this list, ever.** It is created inside the
+ * trip-creation transaction and nothing recreates it, so deleting it would take
+ * a board's only permanent conversation away with no way back. Lane discussions
+ * are different in exactly the way that matters: `POST /trips/:id/channels`
+ * restarts one on demand, so deleting a discussion is closing it, not razing it.
+ */
+export const DeleteChannelsInput = z.object({
+  channelIds: z.array(z.string().uuid()).min(1).max(50),
+});
+export type DeleteChannelsInput = z.infer<typeof DeleteChannelsInput>;
+
+/**
  * Server → room broadcast when a category's options change (Phase 4.5) — a
  * propose/edit/delete, a lock/unlock decision, a vote, or a reorder. Carries just
  * the ids; clients refetch the affected lane (and the cost dashboard), so a

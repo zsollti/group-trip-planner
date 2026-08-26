@@ -119,7 +119,7 @@ export {
 } from "./oauth.js";
 export { AuthProvider, useAuth } from "./session.js";
 export type { AuthContextValue, AuthStatus } from "./session.js";
-export { useStartDiscussion } from "./channels.js";
+export { useDeleteChannels, useStartDiscussion } from "./channels.js";
 export {
   messageSearchKeys,
   useMessageSearch,

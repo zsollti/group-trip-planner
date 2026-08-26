@@ -19,6 +19,7 @@ import {
 } from "@gtp/types";
 import { Button } from "@gtp/ui-primitives";
 import { Avatar } from "./Avatar";
+import { ChatDeleteDialog } from "./ChatDeleteDialog";
 import { ChatImageDialog } from "./ChatImageDialog";
 import { ChatSearch } from "./ChatSearch";
 import { BellIcon, BellOffIcon } from "./icons";
@@ -437,6 +438,7 @@ export function ChatPanel({
    * the same frame rather than at the next reconnect.
    */
   const [pickingImage, setPickingImage] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const muted = isTripMuted(tripId);
   const mutedUntil = tripMutedUntil(tripId);
   const setMute = useSetChatMute(tripId);
@@ -578,6 +580,30 @@ export function ChatPanel({
       ]
     : [];
 
+  /*
+   * Closing discussions, for the people who may delete anyone's messages.
+   *
+   * `message.deleteAny` rather than `trip.edit`: this is that same authority
+   * exercised wholesale — everything everyone said in a conversation, at once —
+   * so it belongs to whoever already has it one message at a time.
+   *
+   * Offered only where there is something to delete. The board's own
+   * conversation is never on the list, so on a board where nobody has started a
+   * lane discussion the item would open onto an empty dialog.
+   */
+  const deletableChannels = listed.filter((c) => c.type !== "GENERAL");
+  const deleteItems: MenuItem[] =
+    can(myRole, "message.deleteAny") && deletableChannels.length > 0
+      ? [
+          {
+            label: t("Delete discussions"),
+            danger: true,
+            separated: true,
+            onSelect: () => setDeleting(true),
+          },
+        ]
+      : [];
+
   const muteItems: MenuItem[] = muted
     ? [
         {
@@ -715,6 +741,7 @@ export function ChatPanel({
             },
             ...muteItems,
             ...imageItems,
+            ...deleteItems,
           ]}
         />
         <button
@@ -963,6 +990,14 @@ export function ChatPanel({
           </Button>
         </form>
       )}
+      {deleting ? (
+        <ChatDeleteDialog
+          tripId={tripId}
+          channels={deletableChannels}
+          channelName={channelName}
+          onClose={() => setDeleting(false)}
+        />
+      ) : null}
       {pickingImage ? (
         <ChatImageDialog
           tripId={tripId}

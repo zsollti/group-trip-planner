@@ -101,7 +101,11 @@ function socket(): SessionSocket {
   };
 }
 
-function renderPanel(channels?: ChannelView[], tripName = "Lisbon 2026") {
+function renderPanel(
+  channels?: ChannelView[],
+  tripName = "Lisbon 2026",
+  myRole: TripRole = "PARTICIPANT",
+) {
   const base = socket();
   return render(
     <QueryClientProvider client={createQueryClient()}>
@@ -112,7 +116,7 @@ function renderPanel(channels?: ChannelView[], tripName = "Lisbon 2026") {
         onClose={() => {}}
         onCollapse={() => {}}
         categories={categories}
-        myRole="PARTICIPANT"
+        myRole={myRole}
         myUserId="u1"
         requestChannelId={null}
         onRequestHandled={() => {}}
@@ -727,5 +731,56 @@ describe("the board's chat picture", () => {
       ".board__chat-title img",
     ) as HTMLImageElement | null;
     expect(img?.src).toBe("https://example.test/pic.png");
+  });
+});
+
+/**
+ * Who may close a board's discussions, and which ones are on offer.
+ *
+ * The dialog's own behaviour is tested beside it. What the panel decides is who
+ * sees the item at all, and — the owner's rule — that the board's own
+ * conversation is never among the things it can take.
+ */
+describe("closing a board's discussions", () => {
+  function openMenuAs(role: TripRole) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ messages: [], nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    renderPanel(undefined, "Lisbon 2026", role);
+    fireEvent.click(screen.getByRole("button", { name: "Chat menu" }));
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers it to an organizer", () => {
+    openMenuAs("OWNER");
+    expect(
+      screen.getByRole("button", { name: "Delete discussions" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer it to a traveler", () => {
+    // Deleting a discussion is deleting everyone's messages in it at once, so
+    // it belongs to whoever may already delete one of them.
+    openMenuAs("PARTICIPANT");
+    expect(
+      screen.queryByRole("button", { name: "Delete discussions" }),
+    ).toBeNull();
+  });
+
+  it("never puts the board's own conversation on the list", () => {
+    openMenuAs("OWNER");
+    fireEvent.click(screen.getByRole("button", { name: "Delete discussions" }));
+
+    // The three category channels are offered; the trip-wide one is not. It is
+    // created with the trip and nothing recreates it, so deleting it would take
+    // the board's only permanent conversation with no way back.
+    for (const name of ["Transport", "Accommodation", "Activities"]) {
+      expect(screen.getByLabelText(name)).toBeInTheDocument();
+    }
+    expect(screen.queryByLabelText("Lisbon 2026")).toBeNull();
   });
 });
