@@ -424,10 +424,34 @@ function LaneHeader({
           {category.singleChoice ? t("Single-select") : t("Multi-select")}
         </p>
       </div>
-      {error ? (
-        <p className="board__form-error" role="alert">
-          {error}
-        </p>
+      {/*
+       * What the server said, in a panel in the middle of the screen.
+       *
+       * It was a line of red text pinned under the lane's name, which is the
+       * wrong place for it twice over. A lane is a 15rem column that scrolls,
+       * so on a board scrolled anywhere but the top the explanation appeared
+       * off the fold you were looking at; and where it did appear it pushed
+       * the whole column down and then sat there, being a permanent-looking
+       * part of a lane rather than an answer to something you just did.
+       *
+       * The refusal that prompted this is the real one: switching a lane to
+       * single-select while it holds several decisions is a rule the server
+       * has to explain, and the explanation was the thing hardest to see on
+       * the screen. Rename clashes and colour failures land in the same slot
+       * and get the same panel — one voice for "that did not happen", in the
+       * place the board already puts everything it needs an answer to.
+       *
+       * Dismissed by the ✕ every dialog has, which is also what clears the
+       * error: the panel and the message are the same fact.
+       */}
+      {error && !picking ? (
+        <Dialog
+          title={t("This lane wasn’t changed")}
+          describedById={`lane-error-${category.id}`}
+          onClose={() => setError(null)}
+        >
+          <p id={`lane-error-${category.id}`}>{error}</p>
+        </Dialog>
       ) : null}
       {picking ? (
         <PalettePicker

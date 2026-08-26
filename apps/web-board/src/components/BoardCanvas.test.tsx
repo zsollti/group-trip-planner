@@ -925,4 +925,77 @@ describe("BoardCanvas", () => {
       ).toBeInTheDocument();
     });
   });
+
+  /**
+   * A refused lane change, in the middle of the screen.
+   *
+   * The refusal that prompted this is switching a lane to single-select while
+   * it holds more than one decision: the server has a rule to explain, and the
+   * explanation was a line of red text under the lane's name — in a 15rem
+   * column that scrolls, so on a board scrolled anywhere but the top it
+   * appeared off the fold the reader was looking at.
+   */
+  it("puts a refused lane change in a dialog, not a line in the column", async () => {
+    const multi: CategoryView = { ...category, singleChoice: false };
+    const refusal =
+      "This lane has more than one decision. Unlock all but one first.";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (init?.method === "PATCH" && u.includes("/categories/")) {
+          return json({ message: refusal }, 409);
+        }
+        if (u.includes("/dashboard")) {
+          return json({
+            committed: [],
+            projected: [],
+            viewerCommitted: [],
+            lines: [],
+            memberCount: 2,
+          });
+        }
+        if (u.includes("/members")) return json(MEMBERS);
+        if (u.includes("/options")) return json([proposed, locked]);
+        return json({ message: "not found" }, 404);
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <BoardCanvas
+          tripId="t1"
+          categories={[multi]}
+          defaultCurrency="EUR"
+          myRole="OWNER"
+          myUserId="u1"
+          frozen={false}
+          tripDates={null}
+          onOpenChannel={() => undefined}
+        />
+      </QueryClientProvider>,
+    );
+
+    const lane = await screen.findByRole("region", { name: "Stay" });
+    fireEvent.click(
+      within(lane).getByRole("button", { name: "Stay lane actions" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Allow single-select" }),
+    );
+
+    // The server's own words, in the board's one modal shell — and out of the
+    // lane, which no longer carries the message anywhere.
+    const dialog = await screen.findByRole("dialog", {
+      name: /lane wasn’t changed/i,
+    });
+    expect(within(dialog).getByText(refusal)).toBeInTheDocument();
+    expect(within(lane).queryByText(refusal)).toBeNull();
+
+    // And the ✕ every dialog has clears it: the panel and the message are the
+    // same fact.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() =>
+      expect(screen.queryByText(refusal)).not.toBeInTheDocument(),
+    );
+  });
 });
