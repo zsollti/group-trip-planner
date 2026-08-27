@@ -50,6 +50,9 @@ export const DEFAULT_MAX_TRIP_CATEGORIES = 8;
  */
 export const DEFAULT_MAX_CATEGORY_OPTIONS = 8;
 
+/** Personal items one member may hold on one trip. See {@link maxPersonalItems}. */
+export const DEFAULT_MAX_PERSONAL_ITEMS = 20;
+
 /**
  * The minimal, framework-free trip shape the policy functions read. Only the
  * override fields matter; both are optional/nullable and fall back to the
@@ -107,6 +110,24 @@ export function maxTripCategories(trip?: TripPolicyContext): number {
  */
 export function maxCategoryOptions(trip?: TripPolicyContext): number {
   return trip?.maxCategoryOptionsOverride ?? DEFAULT_MAX_CATEGORY_OPTIONS;
+}
+
+/**
+ * How many personal items one member may hold on one trip (post-launch).
+ *
+ * A **create-time** cap like the others, and for the same reason: it exists
+ * so one person cannot balloon their own board payload, not to police how
+ * anyone plans. Twenty is well past what a real trip needs — a flight out, a
+ * flight back, insurance, a visa, a transfer at each end — and far short of
+ * a number that costs the column anything to render.
+ *
+ * No per-trip override, unlike the caps above. Those are the organizer's
+ * dials for a shared board; this one bounds a private list, so a trip-level
+ * setting would be somebody else adjusting a limit on data they cannot see.
+ * The seam is the function, not a column: raising it later is one literal.
+ */
+export function maxPersonalItems(): number {
+  return DEFAULT_MAX_PERSONAL_ITEMS;
 }
 
 /** A trip member as the successor cascade sees it: role + tenure. */

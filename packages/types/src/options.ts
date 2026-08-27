@@ -1,5 +1,13 @@
 import { z } from "zod";
 import { OptionParticipantView, OptionVoterView } from "./votes.js";
+import {
+  currencySchema,
+  endNotBeforeStart,
+  optionalAmount,
+  optionalDateTime,
+  optionalText,
+  optionalUrl,
+} from "./field-schemas.js";
 
 /**
  * Options contract (Phase 2.2, SRS §6 / FR-21–23) — the shared source of truth
@@ -64,68 +72,10 @@ export const optionTitleSchema = z
 export const OPTION_DESCRIPTION_MAX_LENGTH = 2000;
 export const OPTION_URL_MAX_LENGTH = 2000;
 
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .optional()
-    .transform((v) => (v ? v : undefined));
-
-/**
- * Optional URL (proposal link / booking hook). Empty normalises to undefined.
- *
- * `.url()` alone is **not** a scheme check: it delegates to `new URL()`, which
- * happily parses `javascript:alert(1)` and `data:text/html,…`. This value is
- * rendered straight into an `href` on the board, so the scheme is constrained
- * here at the boundary rather than trusted downstream (Phase 7.2). React 19
- * does currently neutralise `javascript:` hrefs on its own, but that is the
- * renderer being defensive, not the contract being correct — and it protects
- * only consumers that happen to be React.
- */
-const optionalUrl = z.preprocess(
-  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-  z
-    .string()
-    .trim()
-    .url()
-    .max(OPTION_URL_MAX_LENGTH)
-    .refine(isHttpUrl, { message: "Must be an http(s) link" })
-    .optional(),
-);
-
-/** True only for absolute `http:`/`https:` URLs. Shared with the render side so
- * one rule governs both what may be stored and what may be linked. */
-export function isHttpUrl(value: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return false;
-  }
-  return parsed.protocol === "http:" || parsed.protocol === "https:";
-}
-
-/** Optional non-negative money amount; blank/NaN normalises to undefined. */
-const optionalAmount = z.preprocess(
-  (v) =>
-    v === "" || v === null || (typeof v === "number" && Number.isNaN(v))
-      ? undefined
-      : v,
-  z.number().nonnegative().max(1_000_000_000).optional(),
-);
-
-/** Optional ISO date-time; empty normalises to undefined. */
-const optionalDateTime = z.preprocess(
-  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-  z.string().datetime({ offset: true }).optional(),
-);
-
-const currencySchema = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .regex(/^[A-Z]{3}$/, "must be a 3-letter currency code");
+// `isHttpUrl` moved to `field-schemas.ts` when personal items needed the same
+// scheme rule. Re-exported here because the render side has always imported it
+// from this module's public surface, and that path should not move with it.
+export { isHttpUrl } from "./field-schemas.js";
 
 /**
  * The editable body of an option, shared by create and update. One cross-field
@@ -139,7 +89,7 @@ const currencySchema = z
 const optionBody = z.object({
   title: optionTitleSchema,
   description: optionalText(OPTION_DESCRIPTION_MAX_LENGTH),
-  url: optionalUrl,
+  url: optionalUrl(OPTION_URL_MAX_LENGTH),
   amount: optionalAmount,
   currency: currencySchema,
   costType: CostType.default("PER_PERSON"),
@@ -150,19 +100,9 @@ const optionBody = z.object({
 });
 
 const withCrossFieldRules = <T extends z.ZodTypeAny>(schema: T) =>
-  schema.superRefine((val: z.infer<typeof optionBody>, ctx) => {
-    if (
-      val.startsAt !== undefined &&
-      val.endsAt !== undefined &&
-      Date.parse(val.endsAt) < Date.parse(val.startsAt)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["endsAt"],
-        message: "End must not be before start.",
-      });
-    }
-  });
+  schema.superRefine((val: z.infer<typeof optionBody>, ctx) =>
+    endNotBeforeStart(val, ctx),
+  );
 
 /** Propose a new option (Participant+; allowed unverified; not Guest/Visitor). */
 export const CreateOptionInput = withCrossFieldRules(optionBody);

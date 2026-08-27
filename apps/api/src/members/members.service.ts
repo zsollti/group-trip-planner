@@ -218,6 +218,11 @@ export class MembersService {
           option: { category: { tripId: ctx.trip.id } },
         },
       });
+      // And their private list, for the reason spelled out on `dropAnswers`:
+      // a blocked member has no route that will ever return these rows again.
+      await tx.personalItem.deleteMany({
+        where: { tripId: ctx.trip.id, ownerId: targetUserId },
+      });
       await tx.auditEvent.create({
         data: memberAudit(
           ctx.trip.id,
@@ -328,6 +333,18 @@ export class MembersService {
     return [
       this.prisma.vote.deleteMany({ where }),
       this.prisma.optionParticipant.deleteMany({ where }),
+      // Their private list goes too (post-launch). Not for the reasons above —
+      // a personal item was never on the board and never counted toward
+      // anything shared, so leaving one behind would inflate nothing and show
+      // nobody a departed face. It goes because **its owner can no longer
+      // reach it**: every route that returns these rows is scoped to a
+      // membership this transaction is deleting, so the rows would survive
+      // with no reader and no way for the person who wrote them to ask for
+      // their erasure. Rejoining starts an empty list, which is the honest
+      // consequence.
+      this.prisma.personalItem.deleteMany({
+        where: { tripId, ownerId: userId },
+      }),
     ];
   }
 

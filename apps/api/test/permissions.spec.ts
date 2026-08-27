@@ -21,6 +21,16 @@ const EXPECTED: Record<TripAction, Record<TripRole, boolean>> = {
     PARTICIPANT: true,
     GUEST: true,
   },
+  // The only other row every role holds. A personal item is private to whoever
+  // wrote it and touches nothing shared, so the reasons the rows below narrow
+  // do not apply — there is nobody to disturb. A Guest weighing up whether to
+  // join is exactly the person who wants to price their own flight first.
+  "personalItem.manage": {
+    OWNER: true,
+    CO_ORGANIZER: true,
+    PARTICIPANT: true,
+    GUEST: true,
+  },
   // Chat is not a Guest surface (post-launch). `message.read` is its own row so
   // the rule is real rather than a hidden button: the message routes were
   // guarded by `trip.view`, and without this row a Guest could still have asked

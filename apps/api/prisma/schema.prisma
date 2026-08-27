@@ -78,6 +78,7 @@ model User {
   messages                Message[]                @relation("MessageAuthor")
   deletedMessages         Message[]                @relation("MessageDeleter")
   reactions               Reaction[]
+  personalItems           PersonalItem[]
   mentions                Mention[]
   channelReads            ChannelRead[]
   notifications           Notification[]
@@ -224,6 +225,7 @@ model Trip {
   auditEvents   AuditEvent[]
   channels      Channel[]
   notifications Notification[]
+  personalItems PersonalItem[]
 
   @@index([ownerId])
   @@map("trips")
@@ -261,6 +263,9 @@ model Category {
   trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   options Option[]
   channel Channel?
+  // Personal items that merely *tag* this lane for its colour and glyph.
+  // `SetNull`, never cascade — see the note on the model.
+  personalItemTags PersonalItem[]
 
   // A trip has at most one category per built-in key (the seed is idempotent by
   // construction); custom categories carry a null key and are unconstrained.
@@ -571,6 +576,61 @@ model OptionParticipant {
   @@index([optionId])
   @@index([userId])
   @@map("option_participants")
+}
+
+/// One member's private item on a trip (post-launch): the flight from their own
+/// city, the visa, the insurance, the extra night on the front.
+///
+/// **Only the owner ever sees one.** There is no shared read of this table: every
+/// query is scoped `{ tripId, ownerId }`, so "somebody else's item" and "no such
+/// item" are the same answer by construction rather than by a filter each new
+/// handler has to remember. That is the whole reason this is its own table
+/// rather than an `Option` with a visibility flag — an option is read from four
+/// places, and a viewer filter forgotten in any one of them is a leak.
+///
+/// It carries none of an option's group machinery: no votes, no `status`/lock (it
+/// is a fact, not a proposal), no `costType` or participation mode (this is what
+/// *you* pay, so there is no headcount to read it against), and no `version` (an
+/// option has several possible editors; this has exactly one).
+///
+/// `categoryId` is a **tag, not a home**: it is nullable, it points at one of the
+/// trip's lanes only so the donut and timeline can borrow that lane's colour and
+/// glyph, and the item lives in its own column regardless. Hence `SetNull` —
+/// an organizer deleting a lane must not reach into private rows they cannot
+/// see and destroy them. `tripId` and `ownerId` do cascade: the trip ending or
+/// the account being erased (FR-6) should take these with it.
+///
+/// `position` orders the owner's own column and means nothing to anyone else.
+model PersonalItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  tripId      String    @db.Uuid
+  ownerId     String    @db.Uuid
+  categoryId  String?   @db.Uuid
+  title       String
+  description String?
+  url         String?
+  // Money is stored as an exact decimal (no float drift); null = unpriced.
+  amount      Decimal?  @db.Decimal(12, 2)
+  currency    String
+  startsAt    DateTime?
+  endsAt      DateTime?
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // The only read this table has: one person's items on one trip, in their own
+  // order. Both scoping columns belong in it because both are always in the
+  // where-clause — a lookup by id alone is never issued.
+  @@index([tripId, ownerId, position])
+  // Postgres does not index a foreign key on its own (the Phase-7.3 lesson: 12
+  // unindexed FKs cost DELETEs, not SELECTs). These two are the cascade paths.
+  @@index([ownerId])
+  @@index([categoryId])
+  @@map("personal_items")
 }
 
 /// The audited actions recorded on the trip's activity log (FR-33). Phase 2.4
