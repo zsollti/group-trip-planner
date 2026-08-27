@@ -48,6 +48,7 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
   "Invalid unsubscribe link": "Érvénytelen leiratkozó link",
   "Invalid {name}": "Érvénytelen {name}",
   "Invite link not found": "A meghívó link nem található",
+  "Item not found": "A tétel nem található",
   "Member not found": "A tag nem található",
   "Message not found": "Az üzenet nem található",
   "No file was uploaded (field name: file).":
@@ -65,6 +66,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
     "Az átrendezésnek a sáv minden javaslatát pontosan egyszer kell tartalmaznia.",
   "Reorder must list each of the trip's categories exactly once.":
     "Az átrendezésnek az utazás minden sávját pontosan egyszer kell tartalmaznia.",
+  "Reorder must list each of your own items exactly once.":
+    "Az átrendezésnek a saját tételeidet pontosan egyszer kell tartalmaznia.",
   "Someone else changed this category's decision. Reload to see the current state.":
     "Valaki más módosította a sáv döntését. Töltsd újra, hogy lásd a jelenlegi állapotot.",
   "Someone else changed this option. Reload to see the current state.":
@@ -140,6 +143,8 @@ export const HU_SERVER_MESSAGES: Readonly<Record<string, string>> = {
   // entry is a decision here, not an omission — the fallback is the source language.
   "“{name}” has {locked} decided options. Unlock all but one before making it single-choice.":
     "A „{name}” sávban {locked} eldöntött javaslat van. Egy kivételével oldd fel őket, hogy egyválasztós legyen.",
+  "Your own list is full at {cap} items. Remove one to add another.":
+    "A saját listád megtelt, {cap} tétel van benne. Törölj egyet, ha újat szeretnél.",
   "“{name}” is full at {cap} options. Remove one to propose another.":
     "A „{name}” sáv megtelt, {cap} javaslat van benne. Törölj egyet, ha újat szeretnél.",
 };

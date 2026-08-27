@@ -25,6 +25,7 @@ import { MembersModule } from "./members/members.module.js";
 import { AccountModule } from "./account/account.module.js";
 import { CategoriesModule } from "./categories/categories.module.js";
 import { OptionsModule } from "./options/options.module.js";
+import { PersonalItemsModule } from "./personal-items/personal-items.module.js";
 import { DashboardModule } from "./dashboard/dashboard.module.js";
 import { LifecycleModule } from "./lifecycle/lifecycle.module.js";
 import { ChatModule } from "./chat/chat.module.js";
@@ -78,6 +79,7 @@ import { UploadsModule } from "./uploads/uploads.module.js";
     AccountModule,
     CategoriesModule,
     OptionsModule,
+    PersonalItemsModule,
     RatesModule,
     PlacesModule,
     DashboardModule,

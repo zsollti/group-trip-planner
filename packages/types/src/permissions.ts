@@ -27,6 +27,7 @@ export type TripAction =
   | "invite.create" // Create invite links
   | "category.manage" // Create/edit/delete category
   | "option.propose" // Propose/edit/delete option (proposer scope in-handler)
+  | "personalItem.manage" // Add/edit/delete one's own private items
   | "vote.cast" // Vote on options
   | "decision.lock" // Lock/unlock a decision
   | "message.read" // Chat: see the channels and their messages at all
@@ -74,6 +75,28 @@ const MATRIX: Record<TripAction, ReadonlySet<TripRole>> = {
   "message.deleteAny": new Set(["OWNER", "CO_ORGANIZER"]),
   "vote.cast": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
   "option.propose": new Set(["OWNER", "CO_ORGANIZER", "PARTICIPANT"]),
+  /*
+   * The one capability every role holds, Guest included.
+   *
+   * A personal item is private to the member who wrote it and touches no
+   * shared state — not the lanes, not the votes, not the group's committed
+   * total. So the reasons the other rows narrow do not apply here: there is
+   * no one to disturb. And a Guest weighing up whether to join is precisely
+   * the person who wants to price their own flight before answering.
+   *
+   * The row exists at all, rather than the routes simply riding on
+   * `trip.view`, because a capability that is currently held by everybody is
+   * still the place to say so. `message.read` is the cautionary tale: chat
+   * was guarded by `trip.view` until it needed to stop being, and the
+   * transcript was readable to anyone who asked the API for it in the
+   * meantime.
+   */
+  "personalItem.manage": new Set([
+    "OWNER",
+    "CO_ORGANIZER",
+    "PARTICIPANT",
+    "GUEST",
+  ]),
   "decision.lock": new Set(["OWNER", "CO_ORGANIZER"]),
   "trip.edit": new Set(["OWNER", "CO_ORGANIZER"]),
   "category.manage": new Set(["OWNER", "CO_ORGANIZER"]),

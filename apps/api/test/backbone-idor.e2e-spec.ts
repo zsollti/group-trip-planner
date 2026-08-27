@@ -46,6 +46,8 @@ interface Ids {
   category: string;
   option: string;
   channel: string;
+  /** A personal item belonging to the trip's **owner**, not the stranger. */
+  personalItem: string;
   /** A real member of the trip — the target of the member-management routes. */
   member: string;
   invite: string;
@@ -155,6 +157,37 @@ const PROBES: Probe[] = [
     route: "/trips/:id/categories/:categoryId/options/:optionId",
     method: "delete",
     url: (i) => `/trips/${i.trip}/categories/${i.category}/options/${i.option}`,
+  },
+
+  // --- personal items ------------------------------------------------------
+  // Private to one member, so the sweep's usual claim ("a non-member gets 404")
+  // is the weaker half of what these routes owe. The other half — one member
+  // not reaching another's row — cannot be expressed here, because every probe
+  // in this file is issued by someone with no membership at all.
+  {
+    route: "/trips/:id/personal-items",
+    method: "get",
+    url: (i) => `/trips/${i.trip}/personal-items`,
+  },
+  {
+    route: "/trips/:id/personal-items",
+    method: "post",
+    url: (i) => `/trips/${i.trip}/personal-items`,
+  },
+  {
+    route: "/trips/:id/personal-items/reorder",
+    method: "post",
+    url: (i) => `/trips/${i.trip}/personal-items/reorder`,
+  },
+  {
+    route: "/trips/:id/personal-items/:itemId",
+    method: "patch",
+    url: (i) => `/trips/${i.trip}/personal-items/${i.personalItem}`,
+  },
+  {
+    route: "/trips/:id/personal-items/:itemId",
+    method: "delete",
+    url: (i) => `/trips/${i.trip}/personal-items/${i.personalItem}`,
   },
 
   // --- votes ---------------------------------------------------------------
@@ -456,11 +489,22 @@ describe("Backbone: the authorization guard blocks non-members (IDOR sweep)", ()
       where: { tripId: trip, type: "GENERAL" },
     });
 
+    // The owner's own private item. The stranger probes below prove a
+    // non-member cannot reach it; `personal-items.e2e-spec.ts` covers the
+    // sharper case this sweep is not shaped for — a genuine *member* of the
+    // same trip reaching for somebody else's row.
+    const personalItem = await http()
+      .post(`/trips/${trip}/personal-items`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Flight home", currency: "EUR" })
+      .expect(201);
+
     ids = {
       trip,
       category,
       option: (option.body as { id: string }).id,
       channel: channel.id,
+      personalItem: (personalItem.body as { id: string }).id,
       member: member.user.id,
       invite: (invited.body as { id: string }).id,
     };
