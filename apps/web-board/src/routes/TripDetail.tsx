@@ -418,6 +418,7 @@ export function TripDetail({ view = "plan" }: { view?: TripView }) {
                   <TimelineCanvas
                     tripId={trip.data.id}
                     categories={categories.data}
+                    myUserId={user?.id}
                     tripDates={tripDateRange(trip.data)}
                     defaultCurrency={trip.data.defaultCurrency}
                     myRole={trip.data.role}

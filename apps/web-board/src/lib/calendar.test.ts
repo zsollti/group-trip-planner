@@ -40,6 +40,9 @@ function entry(
 ): TimelineEntry {
   const start = at(d, from[0], from[1]);
   return {
+    kind: "option",
+    id,
+    title: id,
     option: { id, title: id } as OptionView,
     category,
     start,
@@ -78,6 +81,9 @@ function span(
       ? at(toIdx, hours.to)
       : dayStart(toIdx + 1);
   return {
+    kind: "option",
+    id,
+    title: id,
     option: { id, title: id } as OptionView,
     category,
     start,
@@ -152,9 +158,7 @@ describe("buildCalendar placement", () => {
       ],
       [],
     );
-    const byId = new Map(
-      grid.days[0]!.placements.map((p) => [p.entry.option.id, p]),
-    );
+    const byId = new Map(grid.days[0]!.placements.map((p) => [p.entry.id, p]));
     expect(byId.get("long")!.heightMinutes).toBe(
       byId.get("short")!.heightMinutes * 4,
     );
@@ -211,9 +215,7 @@ describe("buildCalendar placement", () => {
       ],
       [],
     );
-    const byId = new Map(
-      grid.days[0]!.placements.map((p) => [p.entry.option.id, p]),
-    );
+    const byId = new Map(grid.days[0]!.placements.map((p) => [p.entry.id, p]));
     expect(byId.get("a")!.laneCount).toBe(2);
     expect(byId.get("afternoon")!.laneCount).toBe(1);
   });

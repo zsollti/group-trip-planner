@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useCategoriesOptions } from "@gtp/api-client";
+import { useCategoriesOptions, usePersonalItems } from "@gtp/api-client";
 import {
   can,
   type CategoryView,
@@ -9,6 +9,7 @@ import {
 import { TimelineBoard } from "./TimelineBoard";
 import {
   buildTimeline,
+  personalCandidates,
   timelineCandidates,
   useTimelineProposals,
 } from "../lib/timeline";
@@ -38,6 +39,7 @@ import { plural, t } from "../lib/i18n";
 export function TimelineCanvas({
   tripId,
   categories,
+  myUserId,
   tripDates,
   defaultCurrency,
   myRole,
@@ -45,6 +47,8 @@ export function TimelineCanvas({
 }: {
   tripId: string;
   categories: CategoryView[];
+  /** The reader — whose own items share this axis, and nobody else's. */
+  myUserId: string | undefined;
   /** The trip's settled range, or null while the dates are still a question. */
   tripDates: TripDateRange | null;
   /** The trip's currency, for a form opened from an hour of the grid. */
@@ -55,17 +59,36 @@ export function TimelineCanvas({
 }) {
   const catIds = useMemo(() => categories.map((c) => c.id), [categories]);
   const opts = useCategoriesOptions(tripId, catIds);
+  // The board has already fetched these, so it costs a cache read. Nobody
+  // else's ever arrive: the query is keyed on the reader and the server
+  // answers it for whoever the token names.
+  const mine = usePersonalItems(tripId, myUserId);
   const [showProposals, setShowProposals] = useTimelineProposals();
 
+  const personal = mine.data;
+
+  /*
+   * One axis, both kinds of thing on it.
+   *
+   * This is where the itinerary earns the feature: "the group checks in at
+   * 15:00 and my flight lands at 06:20" is a single fact about one day, and
+   * reading it off two timelines side by side is exactly the comparison this
+   * view exists to spare people. The reader's own items are **not** behind the
+   * proposals toggle — that switch is about how settled something is, and one
+   * of these is a fact from the moment it is written down.
+   */
   const timeline = useMemo(
     () =>
       buildTimeline(
-        timelineCandidates(categories, opts.byCategory, {
-          includeProposed: showProposals,
-        }),
+        [
+          ...timelineCandidates(categories, opts.byCategory, {
+            includeProposed: showProposals,
+          }),
+          ...personalCandidates(categories, personal ?? []),
+        ],
         tripDates,
       ),
-    [categories, opts.byCategory, tripDates, showProposals],
+    [categories, opts.byCategory, personal, tripDates, showProposals],
   );
 
   // The lanes an hour of the grid may propose into. Dates is excluded on the

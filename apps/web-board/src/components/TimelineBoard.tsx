@@ -4,10 +4,13 @@ import {
   categoryOptionFields,
   type CategoryView,
   type TripDateRange,
+  type OptionView,
 } from "@gtp/types";
 import { OptionDetail } from "./OptionDetail";
 import { OptionForm } from "./OptionForm";
 import { CategoryIcon } from "./CategoryIcon";
+import { PersonIcon } from "./icons";
+import { formatMoney } from "../lib/money";
 import { TimelineCalendar } from "./TimelineCalendar";
 import { CALENDAR_MIN_WIDTH, useMediaQuery } from "../lib/media";
 import { categoryHueStyle } from "../lib/categoryTheme";
@@ -32,13 +35,40 @@ function timeLabel(entry: TimelineEntry): string {
     : `${at(entry.start)} – ${at(entry.end)}`;
 }
 
+/**
+ * A card's dates, written to the precision its subject was captured at.
+ *
+ * An option's comes from its lane; one of the reader's own items is always to
+ * the minute, because "my flight lands at 06:20" is the entire reason it is on
+ * a timeline at all.
+ */
+function entryDates(entry: TimelineEntry): string | null {
+  return entry.kind === "option"
+    ? dateRangeLabel(
+        entry.option.startsAt,
+        entry.option.endsAt,
+        categoryOptionFields(entry.category).dateGranularity,
+      )
+    : dateRangeLabel(entry.item.startsAt, entry.item.endsAt, "minute");
+}
+
 /** The full date label, for the gutter cards that sit outside a day row. */
 function spanLabel(span: TimelineSpan): string | null {
-  return dateRangeLabel(
-    span.option.startsAt,
-    span.option.endsAt,
-    categoryOptionFields(span.category).dateGranularity,
-  );
+  return entryDates(span);
+}
+
+/**
+ * The money on a card, whichever kind it is.
+ *
+ * A personal item's is the plain amount with no `/person` or `total` suffix:
+ * those exist because an option's price has to be read against a headcount, and
+ * this one is simply what its owner pays.
+ */
+function entryCost(entry: TimelineEntry): string | null {
+  if (entry.kind === "option") return costLabel(entry.option);
+  return entry.item.amount === null
+    ? null
+    : formatMoney(entry.item.amount, entry.item.currency);
 }
 
 function nightsLabel(nights: number): string {
@@ -63,27 +93,15 @@ function EntryCard({
   clashes: boolean;
   onOpen: () => void;
 }) {
-  const cost = costLabel(entry.option);
+  const cost = entryCost(entry);
   const span = variant === "span" ? (entry as TimelineSpan) : null;
   // Subordinate, never absent-looking: a proposal has to be legible enough to
   // spot a clash with and quiet enough that it can never read as the plan.
-  const proposed = entry.option.status !== "LOCKED";
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      // The timeline has no lanes to inherit a hue from, so each card carries
-      // its own. This is what makes the two pages one app: the colour that
-      // means "Accommodation" on the board means it here too.
-      style={categoryHueStyle(entry.category)}
-      className={[
-        "tl__card",
-        `tl__card--${variant}`,
-        proposed ? "tl__card--proposed" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
+  const proposed = entry.kind === "option" && entry.option.status !== "LOCKED";
+  const personal = entry.kind === "personal";
+
+  const inner = (
+    <>
       <span className="tl__card-when">
         {span
           ? (spanLabel(span) ?? nightsLabel(span.nights))
@@ -98,7 +116,7 @@ function EntryCard({
             fits "Hotel Luna Split" and "Hotel Luna Spli…" helps nobody. The
             gutter clamps to two lines in CSS instead, where the real width is
             known; the day column is the page's measure and needs neither. */}
-        <span className="tl__card-title">{entry.option.title}</span>
+        <span className="tl__card-title">{entry.title}</span>
         <span className="tl__card-meta">
           {/* No icon in the gutter. A span's pill sits in a ~120px column, and
               at phone width "ACCOMMODATION" plus a glyph runs past the band's
@@ -106,15 +124,24 @@ function EntryCard({
               category's colour, with its edge in it, so the icon would be the
               third thing saying the same word. */}
           <span className="tl__tag">
-            {span ? null : <CategoryIcon category={entry.category} size={13} />}
-            {entry.category.name}
+            {/* A single figure rather than the lane's glyph on the reader's own
+                cards, tagged or not: the mark answers "who can see this",
+                which is the first thing worth knowing about one of these and
+                is not what a lane icon says. The colour still comes from the
+                tag where there is one. */}
+            {span ? null : personal ? (
+              <PersonIcon size={13} />
+            ) : entry.category ? (
+              <CategoryIcon category={entry.category} size={13} />
+            ) : null}
+            {entry.category?.name ?? t("Just for me")}
           </span>
           {span ? <span>{nightsLabel(span.nights)}</span> : null}
           {cost ? <span>{cost}</span> : null}
           {proposed ? (
             <span className="tl__card-flag">{t("Proposed")}</span>
           ) : null}
-          {clashes ? (
+          {clashes && entry.category ? (
             <span className="tl__card-clash">
               {t("Overlaps another {lane} decision", {
                 lane: entry.category.name,
@@ -123,6 +150,43 @@ function EntryCard({
           ) : null}
         </span>
       </span>
+    </>
+  );
+
+  const className = [
+    "tl__card",
+    `tl__card--${variant}`,
+    proposed ? "tl__card--proposed" : "",
+    personal ? "tl__card--personal" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  // The timeline has no lanes to inherit a hue from, so each card carries its
+  // own. This is what makes the two pages one app: the colour that means
+  // "Accommodation" on the board means it here too. An untagged personal item
+  // has none to carry, and CSS supplies the neutral.
+  const style = entry.category ? categoryHueStyle(entry.category) : undefined;
+
+  /*
+   * A decision is a button; one of the reader's own items is not.
+   *
+   * The button exists because a card cannot hold an option's whole story — the
+   * cost breakdown, who locked it, the link — so the timeline shows when and
+   * what and keeps the rest one click away. A personal item has no second
+   * story: everything it holds is already on this card, and the one place to
+   * change it is the column on the board that owns it. A button that opened
+   * nothing would be a promise the view cannot keep.
+   */
+  if (personal) {
+    return (
+      <div style={style} className={className}>
+        {inner}
+      </div>
+    );
+  }
+  return (
+    <button type="button" onClick={onOpen} style={style} className={className}>
+      {inner}
     </button>
   );
 }
@@ -137,23 +201,41 @@ function TrayCard({
   reason: string;
   onOpen: () => void;
 }) {
-  const cost = costLabel(entry.option);
-  return (
-    <button
-      type="button"
-      className="tl__card tl__card--tray"
-      style={categoryHueStyle(entry.category)}
-      onClick={onOpen}
-    >
-      <span className="tl__card-title">{entry.option.title}</span>
+  const cost = entryCost(entry);
+  const personal = entry.kind === "personal";
+  const body = (
+    <>
+      <span className="tl__card-title">{entry.title}</span>
       <span className="tl__card-meta">
         <span className="tl__tag">
-          <CategoryIcon category={entry.category} size={13} />
-          {entry.category.name}
+          {personal ? (
+            <PersonIcon size={13} />
+          ) : entry.category ? (
+            <CategoryIcon category={entry.category} size={13} />
+          ) : null}
+          {entry.category?.name ?? t("Just for me")}
         </span>
         {cost ? <span>{cost}</span> : null}
       </span>
       <span className="tl__card-when">{reason}</span>
+    </>
+  );
+  const className =
+    "tl__card tl__card--tray" + (personal ? " tl__card--personal" : "");
+  const style = entry.category ? categoryHueStyle(entry.category) : undefined;
+
+  // Inert for the reader's own items, for the reason {@link EntryCard} gives:
+  // there is no second story behind one, so a button would open nothing.
+  if (personal) {
+    return (
+      <div className={className} style={style}>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <button type="button" className={className} style={style} onClick={onOpen}>
+      {body}
     </button>
   );
 }
@@ -205,7 +287,7 @@ export function TimelineBoard({
   onProposed: () => void;
 }) {
   const [viewing, setViewing] = useState<{
-    option: TimelineEntry["option"];
+    option: OptionView;
     category: CategoryView;
   } | null>(null);
   // The hour a click landed on, as the instants the form seeds itself from.
@@ -218,8 +300,20 @@ export function TimelineBoard({
   const hasTray = unscheduled.length > 0 || elsewhere.length > 0;
   const uncovered = new Set(timeline.uncoveredNights);
   const wide = useMediaQuery(CALENDAR_MIN_WIDTH);
-  const open = (option: TimelineEntry["option"], category: CategoryView) =>
+  const open = (option: OptionView, category: CategoryView) =>
     setViewing({ option, category });
+
+  /**
+   * Open a card's detail, when it has one.
+   *
+   * Passed to every card and does nothing for the reader's own items — those
+   * render as plain cards and never call it. Written as one function rather
+   * than as a conditional prop so no call site has to know which kind it is
+   * holding.
+   */
+  const openEntry = (entry: TimelineEntry) => {
+    if (entry.kind === "option") open(entry.option, entry.category);
+  };
   // An hour of the grid, as a pair of instants an hour apart. The day arrives
   // as its own local midnight, so the clock is set on it rather than added to
   // it — the two differ by an hour on the day a timezone changes, and a click
@@ -316,16 +410,11 @@ export function TimelineBoard({
                 <div className="tl__day-items">
                   {day.entries.map((entry) => (
                     <EntryCard
-                      key={entry.option.id}
+                      key={entry.id}
                       entry={entry}
                       variant="moment"
-                      clashes={overlapping.has(entry.option.id)}
-                      onOpen={() =>
-                        setViewing({
-                          option: entry.option,
-                          category: entry.category,
-                        })
-                      }
+                      clashes={overlapping.has(entry.id)}
+                      onOpen={() => openEntry(entry)}
                     />
                   ))}
                 </div>
@@ -341,14 +430,14 @@ export function TimelineBoard({
             const to = Math.max(from, dayIndex(days, span.lastDay));
             return (
               <div
-                key={span.option.id}
+                key={span.id}
                 className="tl__span"
                 // On the wrapper, not the band: the band's colour has to be
                 // computed from a hue it can see, and the card that would
                 // otherwise carry it is the band's *child*.
                 style={{
                   gridRow: `${from + 1} / ${to + 2}`,
-                  ...categoryHueStyle(span.category),
+                  ...(span.category ? categoryHueStyle(span.category) : {}),
                 }}
               >
                 {/* The band carries the extent and the label sticks to the top
@@ -358,13 +447,8 @@ export function TimelineBoard({
                   <EntryCard
                     entry={span}
                     variant="span"
-                    clashes={overlapping.has(span.option.id)}
-                    onOpen={() =>
-                      setViewing({
-                        option: span.option,
-                        category: span.category,
-                      })
-                    }
+                    clashes={overlapping.has(span.id)}
+                    onOpen={() => openEntry(span)}
                   />
                 </div>
               </div>
@@ -381,34 +465,18 @@ export function TimelineBoard({
           <div className="tl__tray-items">
             {unscheduled.map((entry) => (
               <TrayCard
-                key={entry.option.id}
+                key={entry.id}
                 entry={entry}
                 reason="No dates yet"
-                onOpen={() =>
-                  setViewing({
-                    option: entry.option,
-                    category: entry.category,
-                  })
-                }
+                onOpen={() => openEntry(entry)}
               />
             ))}
             {elsewhere.map((entry) => (
               <TrayCard
-                key={entry.option.id}
+                key={entry.id}
                 entry={entry}
-                reason={
-                  dateRangeLabel(
-                    entry.option.startsAt,
-                    entry.option.endsAt,
-                    categoryOptionFields(entry.category).dateGranularity,
-                  ) ?? t("Outside the trip's dates")
-                }
-                onOpen={() =>
-                  setViewing({
-                    option: entry.option,
-                    category: entry.category,
-                  })
-                }
+                reason={entryDates(entry) ?? t("Outside the trip's dates")}
+                onOpen={() => openEntry(entry)}
               />
             ))}
           </div>

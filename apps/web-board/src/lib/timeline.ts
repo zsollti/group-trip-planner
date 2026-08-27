@@ -3,6 +3,7 @@ import {
   isOutsideTripDates,
   type CategoryView,
   type OptionView,
+  type PersonalItemView,
   type TripDateRange,
 } from "@gtp/types";
 import { calendarDayToLocalMs, tripDayKey } from "./tripDate";
@@ -57,10 +58,20 @@ export function localDayKey(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** One option placed on the calendar, with its dates already resolved to ms. */
-export interface TimelineEntry {
-  readonly option: OptionView;
-  readonly category: CategoryView;
+/**
+ * What every placed thing has in common: an identity, a label, and a position
+ * on the axis.
+ *
+ * `id` and `title` are lifted onto the entry rather than left on whichever
+ * object is underneath, because **the layout and the labels want them from
+ * both kinds** — a day row sorts by title and keys by id whether the thing on
+ * it is the group's decision or the reader's own flight. Reaching through to
+ * the subject for those would make every consumer narrow the union before it
+ * could draw a heading.
+ */
+interface TimelinePlaced {
+  readonly id: string;
+  readonly title: string;
   /** Instant it begins. */
   readonly start: number;
   /** Instant it ends; equal to {@link start} when only one date was given. */
@@ -69,13 +80,53 @@ export interface TimelineEntry {
   readonly isPoint: boolean;
 }
 
-/** An entry that crosses at least one local midnight — drawn in the gutter. */
-export interface TimelineSpan extends TimelineEntry {
+/** A decision (or, on the overlay, a proposal) the trip has put on the map. */
+export interface TimelineOptionEntry extends TimelinePlaced {
+  readonly kind: "option";
+  readonly option: OptionView;
+  readonly category: CategoryView;
+}
+
+/**
+ * One of the reader's **own** items, placed on the same axis (post-launch).
+ *
+ * It shares the spine with the trip's decisions on purpose: "the group checks
+ * in at 15:00 and my flight lands at 06:20" is a single fact about one day, and
+ * two timelines side by side is exactly the comparison this view exists to
+ * spare people.
+ *
+ * Always a fact, never a proposal — there is nothing to lock, so it draws from
+ * the moment it has a date. It takes no part in the clash check either: a
+ * conflict is something the *group* needs told about, and nobody else can see
+ * this to be told.
+ *
+ * `category` is the tag, so it may be absent. That is the one shape difference
+ * from an option entry, and it is why the union is worth having: an option
+ * always belongs to a lane, and this one merely borrows a colour.
+ */
+export interface TimelinePersonalEntry extends TimelinePlaced {
+  readonly kind: "personal";
+  readonly item: PersonalItemView;
+  readonly category: CategoryView | undefined;
+}
+
+/** Anything the itinerary can place on a day. */
+export type TimelineEntry = TimelineOptionEntry | TimelinePersonalEntry;
+
+/**
+ * An entry that crosses at least one local midnight — drawn in the gutter.
+ *
+ * An intersection rather than an `extends`: an interface cannot extend a union,
+ * and an intersection distributes over one — so a span is still "an option
+ * entry with days" *or* "a personal entry with days", and narrowing on `kind`
+ * keeps working through it.
+ */
+export type TimelineSpan = TimelineEntry & {
   readonly firstDay: string;
   readonly lastDay: string;
   /** Local midnights crossed: a Fri 15:00 → Mon 10:00 stay is 3 nights. */
   readonly nights: number;
-}
+};
 
 /** One row of the spine. */
 export interface TimelineDay {
@@ -113,11 +164,29 @@ export interface Timeline {
   readonly overlapping: ReadonlySet<string>;
 }
 
-/** An option/category pair before its dates have been looked at. */
-export interface TimelineCandidate {
+/** A decision or proposal and its lane, before any dates are looked at. */
+export interface TimelineOptionCandidate {
   readonly option: OptionView;
   readonly category: CategoryView;
 }
+
+/** One of the reader's own items and the lane it borrows a colour from. */
+export interface TimelinePersonalCandidate {
+  readonly item: PersonalItemView;
+  readonly category: CategoryView | undefined;
+}
+
+/**
+ * A subject and its lane, before any dates have been looked at.
+ *
+ * The two collectors below each return their **own** half rather than this
+ * union: `timelineCandidates` only ever produces options and
+ * {@link personalCandidates} only ever produces items, so saying so keeps
+ * every caller of either from having to narrow something that was never in
+ * doubt. Only `buildTimeline`, which genuinely takes both, sees the union.
+ */
+export type TimelineCandidate =
+  TimelineOptionCandidate | TimelinePersonalCandidate;
 
 /**
  * The options this view considers, flattened out of the board's per-category
@@ -132,8 +201,8 @@ export function timelineCandidates(
   categories: readonly CategoryView[],
   optionsByCategory: Record<string, OptionView[]>,
   { includeProposed = false }: { includeProposed?: boolean } = {},
-): TimelineCandidate[] {
-  const out: TimelineCandidate[] = [];
+): TimelineOptionCandidate[] {
+  const out: TimelineOptionCandidate[] = [];
   for (const category of categories) {
     if (category.builtinKey === "DATES") continue;
     for (const option of optionsByCategory[category.id] ?? []) {
@@ -142,6 +211,26 @@ export function timelineCandidates(
     }
   }
   return out;
+}
+
+/**
+ * The reader's own items, as candidates for the same axis.
+ *
+ * No status filter, because there is no status: an item is a fact its owner
+ * wrote down, so it is placed the moment it carries a date. The tag is resolved
+ * to a lane here so the layout never has to look one up, and stays `undefined`
+ * for an untagged item rather than being faked into some default lane — a wedge
+ * with no hue is the honest drawing of "this belongs to nothing in particular".
+ */
+export function personalCandidates(
+  categories: readonly CategoryView[],
+  items: readonly PersonalItemView[],
+): TimelinePersonalCandidate[] {
+  const byId = new Map(categories.map((c) => [c.id, c] as const));
+  return items.map((item) => ({
+    item,
+    category: item.categoryId ? byId.get(item.categoryId) : undefined,
+  }));
 }
 
 /**
@@ -200,7 +289,10 @@ function overlaps(a: TimelineEntry, b: TimelineEntry): boolean {
 function findOverlapping(placed: readonly TimelineEntry[]): Set<string> {
   const byCategory = new Map<string, TimelineEntry[]>();
   for (const entry of placed) {
-    if (entry.option.status !== "LOCKED") continue;
+    // Decisions only, and so the reader's own items are absent by construction
+    // rather than by a rule further down: a clash is something the *group*
+    // needs told about, and nobody else can see a personal item to be told.
+    if (entry.kind !== "option" || entry.option.status !== "LOCKED") continue;
     const list = byCategory.get(entry.category.id);
     if (list) list.push(entry);
     else byCategory.set(entry.category.id, [entry]);
@@ -212,8 +304,8 @@ function findOverlapping(placed: readonly TimelineEntry[]): Set<string> {
         const a = list[i];
         const b = list[j];
         if (a && b && overlaps(a, b)) {
-          clashing.add(a.option.id);
-          clashing.add(b.option.id);
+          clashing.add(a.id);
+          clashing.add(b.id);
         }
       }
     }
@@ -221,12 +313,13 @@ function findOverlapping(placed: readonly TimelineEntry[]): Set<string> {
   return clashing;
 }
 
-/** Resolve an option's dates to instants, or null when it carries none. */
-function resolveDates(
-  option: OptionView,
-): { start: number; end: number; isPoint: boolean } | null {
-  const rawStart = option.startsAt ? Date.parse(option.startsAt) : NaN;
-  const rawEnd = option.endsAt ? Date.parse(option.endsAt) : NaN;
+/** Resolve a subject's dates to instants, or null when it carries none. */
+function resolveDates(subject: {
+  readonly startsAt: string | null;
+  readonly endsAt: string | null;
+}): { start: number; end: number; isPoint: boolean } | null {
+  const rawStart = subject.startsAt ? Date.parse(subject.startsAt) : NaN;
+  const rawEnd = subject.endsAt ? Date.parse(subject.endsAt) : NaN;
   const hasStart = !Number.isNaN(rawStart);
   const hasEnd = !Number.isNaN(rawEnd);
   if (!hasStart && !hasEnd) return null;
@@ -283,22 +376,52 @@ export function buildTimeline(
   const elsewhere: TimelineEntry[] = [];
   const placed: TimelineEntry[] = [];
 
-  for (const { option, category } of candidates) {
+  for (const candidate of candidates) {
+    const subject = "option" in candidate ? candidate.option : candidate.item;
     // The trays are about **decisions**. A locked option the page cannot place
     // is an omission worth confessing — the trip really did decide it and the
     // itinerary really is missing it. An undated *proposal* is neither: it is a
     // candidate on an opt-in overlay, and listing every one of them under "not
     // on the timeline" would bury the handful that actually need a date.
-    const decided = option.status === "LOCKED";
-    const dates = resolveDates(option);
+    //
+    // One of the reader's own items is on the confessing side of that line: it
+    // has no status to be provisional in, so an undated one is a thing they
+    // wrote down and the page cannot place, which is exactly what the tray is
+    // for.
+    const decided =
+      "option" in candidate ? candidate.option.status === "LOCKED" : true;
+    const base = (dates: {
+      start: number;
+      end: number;
+      isPoint: boolean;
+    }): TimelineEntry =>
+      "option" in candidate
+        ? {
+            kind: "option",
+            id: candidate.option.id,
+            title: candidate.option.title,
+            option: candidate.option,
+            category: candidate.category,
+            ...dates,
+          }
+        : {
+            kind: "personal",
+            id: candidate.item.id,
+            title: candidate.item.title,
+            item: candidate.item,
+            category: candidate.category,
+            ...dates,
+          };
+
+    const dates = resolveDates(subject);
     if (!dates) {
       if (decided) {
-        unscheduled.push({ option, category, start: 0, end: 0, isPoint: true });
+        unscheduled.push(base({ start: 0, end: 0, isPoint: true }));
       }
       continue;
     }
-    const entry: TimelineEntry = { option, category, ...dates };
-    if (isOutsideTripDates(option, tripDates)) {
+    const entry = base(dates);
+    if (isOutsideTripDates(subject, tripDates)) {
       if (decided) elsewhere.push(entry);
     } else placed.push(entry);
   }
@@ -349,10 +472,7 @@ export function buildTimeline(
     else byDay.set(key, [entry]);
   }
   for (const list of byDay.values()) {
-    list.sort(
-      (a, b) =>
-        a.start - b.start || a.option.title.localeCompare(b.option.title),
-    );
+    list.sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
   }
 
   const days: TimelineDay[] = raw.map((d) => ({
