@@ -273,6 +273,117 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
 }
 
 /**
+ * The same picture, drawn for **one reader**: their share of the group's
+ * decisions plus the things only they are paying for.
+ *
+ * A sibling of {@link costComposition} rather than a mode of it, so the trip's
+ * chart is provably the same chart it was. The two differ in three ways, and
+ * each is a consequence of whose money is being drawn:
+ *
+ * 1. **Only lines this reader owes.** The trip's ring adds every locked
+ *    option's per-head cost; this one takes `viewerOwes` alone.
+ * 2. **Nothing is excluded.** {@link isSharedByEveryone} exists because a ring
+ *    about *everyone* cannot hold money only some people pay. This ring is
+ *    about one person, so an opt-in option they joined is simply their money
+ *    and belongs in it — and one they declined belongs nowhere, which rule 1
+ *    already handles.
+ * 3. **No target.** The verdict beside the chart reads the group's plan against
+ *    the group's budget, and personal items are deliberately no part of that.
+ *    A ring that folded them in would draw someone over a target the sentence
+ *    underneath says they are keeping to — two answers to one question. So the
+ *    full circle here is simply the whole of what the reader spends, and the
+ *    chart answers *where it goes* rather than *how it stands*.
+ *
+ * Personal items are grouped by their **tag** where they carry one, so they
+ * land in the same wedge as the lane they belong with. Untagged ones gather
+ * under one unnamed lane rather than each becoming a wedge of their own: they
+ * have nothing in common except being untagged, and a ring of one-item slices
+ * is a list drawn as a circle.
+ */
+export function myCostComposition(
+  d: TripDashboardView,
+  /** Label for the untagged group — passed in so this module says no words. */
+  untaggedLabel: string,
+): CostComposition | null {
+  const byCategory = new Map<string, { label: string; amount: number }>();
+  const uncounted = new Set<string>();
+  let charted = 0;
+  let approximate = false;
+
+  const add = (key: string, label: string, amount: number) => {
+    charted += amount;
+    const acc = byCategory.get(key);
+    if (acc) acc.amount += amount;
+    else byCategory.set(key, { label, amount });
+  };
+
+  for (const line of d.lines) {
+    if (line.kind !== "LOCKED" || !line.viewerOwes) continue;
+    const money = perPersonInTripCurrency(line, d.defaultCurrency);
+    if (money === null) {
+      uncounted.add(line.currency);
+      continue;
+    }
+    if (money.converted) approximate = true;
+    if (money.amount <= 0) continue;
+    add(line.categoryId, line.categoryName, money.amount);
+  }
+
+  for (const item of d.personalLines) {
+    const exact = item.currency === d.defaultCurrency;
+    const amount = exact ? item.amount : item.converted;
+    if (amount === null) {
+      uncounted.add(item.currency);
+      continue;
+    }
+    if (!exact) approximate = true;
+    if (amount <= 0) continue;
+    // Tagged items join their lane's wedge; the rest share one. `PERSONAL_KEY`
+    // is not a category id, and the null `categoryId` on its slice is what
+    // tells the chart to paint it with no hue — the same signal the folded
+    // tail uses.
+    add(
+      item.categoryId ?? PERSONAL_KEY,
+      item.categoryName ?? untaggedLabel,
+      amount,
+    );
+  }
+
+  if (charted <= 0) return null;
+
+  const ranked = [...byCategory.entries()]
+    .map(([categoryId, v]) => ({
+      // Null is already the chart's word for "no lane, so no hue" — it is what
+      // the folded tail carries. The untagged bucket wants the same treatment
+      // and says the same thing, rather than a third value to be taught.
+      categoryId: categoryId === PERSONAL_KEY ? null : categoryId,
+      ...v,
+    }))
+    .sort((a, b) => b.amount - a.amount || a.label.localeCompare(b.label));
+
+  return {
+    currency: d.defaultCurrency,
+    approximate,
+    slices: withTail(ranked, charted, charted),
+    charted,
+    // No target, and therefore no mark, no remainder and no overspend: this
+    // ring is the whole of what the reader spends, and every one of those
+    // fields is an answer to a question it is not being asked.
+    target: null,
+    full: charted,
+    remaining: 0,
+    overspend: 0,
+    overshare: 0,
+    targetMark: null,
+    excluded: [],
+    uncounted: [...uncounted],
+  };
+}
+
+/** The bucket untagged personal items share. Never a real category id. */
+const PERSONAL_KEY = "\u0000personal";
+
+/**
  * Fold the rounding-error lanes into one tail, but only when folding is a
  * kindness.
  *
@@ -282,7 +393,13 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
  * them small — reading as itself.
  */
 function withTail(
-  ranked: readonly { categoryId: string; label: string; amount: number }[],
+  ranked: readonly {
+    // Nullable because a group can legitimately have no lane behind it: the
+    // reader's untagged personal items are one wedge with no hue to borrow.
+    categoryId: string | null;
+    label: string;
+    amount: number;
+  }[],
   charted: number,
   full: number,
 ): CostSlice[] {

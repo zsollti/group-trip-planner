@@ -33,6 +33,10 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     lines: [],
+    // Nothing of one's own unless a case says so — the reading the column adds
+    // is off by default, exactly as it is on a board nobody has used it on.
+    viewerPersonal: [],
+    personalLines: [],
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
@@ -59,6 +63,7 @@ function convertedTo(
     projected: { group, perPerson },
     // The reader is in for all of it by default, as above.
     viewer: { group, perPerson, converted: [currency], missing },
+    personal: null,
     asOf: "2026-08-12",
     converted: [currency],
     missing,
@@ -821,5 +826,109 @@ describe("the cost composition", () => {
       LANES,
     );
     expect(await screen.findByText(/RSD not counted/)).toBeInTheDocument();
+  });
+});
+
+describe("the two readings", () => {
+  /**
+   * A personal subtotal. Unlike {@link priced} the two figures are the same
+   * number, because the group paying for one of these is one person.
+   */
+  const mineOnly = (amount: number, currency = "EUR") => ({
+    currency,
+    group: amount,
+    perPerson: amount,
+  });
+
+  const own = (amount: number, over: Record<string, unknown> = {}) => ({
+    itemId: "00000000-0000-4000-8000-000000000001",
+    categoryId: null,
+    categoryName: null,
+    title: "Flight home",
+    currency: "EUR",
+    amount,
+    converted: amount,
+    ...over,
+  });
+
+  it("offers no switch until there is a second story to tell", async () => {
+    // With nothing of their own, "Mine" would differ from "The trip" only by
+    // the opt-in options this reader declined, which the target line already
+    // says in words.
+    renderTally(dashboard({ committed: [priced(300)] }));
+    expect(await screen.findByLabelText("Cost")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "Whose money" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers it once the reader keeps a list of their own", async () => {
+    renderTally(
+      dashboard({
+        committed: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+      }),
+    );
+    expect(
+      await screen.findByRole("group", { name: "Whose money" }),
+    ).toBeInTheDocument();
+    // The trip's reading is what opens: the panel a reader already knows.
+    expect(screen.getByRole("button", { name: "The trip" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("adds the reader's own money only once they ask for it", async () => {
+    renderTally(
+      dashboard({
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+        lines: [],
+      }),
+    );
+
+    // Awaiting the switch, not the panel: the panel's landmark is on screen
+    // while the fetch is still in flight, so waiting for it proves nothing.
+    const mine = await screen.findByRole("button", { name: "Mine" });
+
+    // The trip's reading says nothing about it.
+    expect(screen.queryByText(/Just for me:/)).not.toBeInTheDocument();
+
+    fireEvent.click(mine);
+
+    // ...and the reader's reading names it, and says what it is not part of.
+    expect(
+      await screen.findByText(/Not counted against the target/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the target verdict speaking for the group's plan in both readings", async () => {
+    /**
+     * The owner's call, on the surface that states it. €300 of the group's
+     * decisions against a €500 target is €200 under; a €210 flight of the
+     * reader's own would flip that to €10 over if it were counted. The
+     * sentence has to say the same thing whichever reading is open.
+     */
+    renderTally(
+      dashboard({
+        budgetPerPerson: 500,
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+      }),
+    );
+
+    // "to spare" is the verdict's own word for being under the target.
+    expect(await screen.findByText(/to spare/i)).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+
+    expect(await screen.findByText(/to spare/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\bover\b/i)).not.toBeInTheDocument();
   });
 });

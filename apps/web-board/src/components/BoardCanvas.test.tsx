@@ -109,6 +109,8 @@ function mockFetch() {
           committed: [],
           projected: [],
           viewerCommitted: [],
+          viewerPersonal: [],
+          personalLines: [],
           lines: [],
           memberCount: 2,
         });
@@ -141,6 +143,8 @@ function mockFullFetch() {
           committed: [],
           projected: [],
           viewerCommitted: [],
+          viewerPersonal: [],
+          personalLines: [],
           lines: [],
           memberCount: 2,
         });
@@ -163,6 +167,8 @@ function mockEmptyFetch() {
           committed: [],
           projected: [],
           viewerCommitted: [],
+          viewerPersonal: [],
+          personalLines: [],
           lines: [],
           memberCount: 2,
         });
@@ -233,6 +239,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -294,6 +302,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -324,6 +334,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -479,6 +491,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -523,6 +537,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -583,6 +599,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -635,6 +653,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -729,6 +749,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -780,6 +802,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -820,6 +844,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });
@@ -951,6 +977,8 @@ describe("BoardCanvas", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 2,
           });

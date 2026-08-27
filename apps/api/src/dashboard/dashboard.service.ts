@@ -5,6 +5,7 @@ import { RatesService } from "../rates/rates.service.js";
 import type { TripContext } from "../trips/trip-context.js";
 import {
   dashboardOptionInclude,
+  dashboardPersonalInclude,
   toEngineOption,
   toTripDashboardView,
 } from "./dashboard.mapper.js";
@@ -37,13 +38,22 @@ export class DashboardService {
     // Two independent reads, so they overlap rather than queue. The rates one
     // is usually served from the service's own short-lived cache and costs
     // nothing; when it does hit the table it is thirty unchanging rows.
-    const [rows, rates] = await Promise.all([
+    const [rows, rates, personalRows] = await Promise.all([
       this.prisma.option.findMany({
         where: { deletedAt: null, category: { tripId: ctx.trip.id } },
         include: dashboardOptionInclude(),
         orderBy: { createdAt: "asc" },
       }),
       this.rates.current(),
+      // The caller's own private items — scoped `{ tripId, ownerId }` like
+      // every other read of this table, so the cost surface cannot become the
+      // one place a member's list leaks. In the same `Promise.all`, so it
+      // overlaps rather than adding a round trip.
+      this.prisma.personalItem.findMany({
+        where: { tripId: ctx.trip.id, ownerId: viewerId },
+        include: dashboardPersonalInclude,
+        orderBy: { position: "asc" },
+      }),
     ]);
 
     const memberCount = ctx.trip._count.memberships;
@@ -58,6 +68,7 @@ export class DashboardService {
       result,
       new Date(),
       rates,
+      personalRows,
     );
   }
 }

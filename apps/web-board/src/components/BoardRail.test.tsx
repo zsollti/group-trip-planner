@@ -50,6 +50,8 @@ function mockFetch() {
           committed: [],
           projected: [],
           viewerCommitted: [],
+          viewerPersonal: [],
+          personalLines: [],
           lines: [],
           memberCount: 2,
         });
