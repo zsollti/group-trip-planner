@@ -190,6 +190,22 @@ export function PeopleIcon({ size }: { size?: number }) {
 }
 
 /**
+ * One person, for the column of things only its owner can see.
+ *
+ * The same figure {@link PeopleIcon} draws twice over, with the second person
+ * left off — the pair reads as "the trip" and "just me" precisely because it is
+ * one drawing with a body removed, rather than two unrelated marks.
+ */
+export function PersonIcon({ size }: { size?: number }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M6.5 19a5.5 5.5 0 0 1 11 0" />
+    </Glyph>
+  );
+}
+
+/**
  * Email for this trip, on or off.
  *
  * Drawn rather than typed because the emoji this replaces had no grey in it:
