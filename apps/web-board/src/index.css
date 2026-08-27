@@ -6224,6 +6224,32 @@ button.cost-comp__row-btn:hover,
   border-color: var(--board-danger);
 }
 
+/* ---------------------------------------------------------------------------
+   The reader's own items, on the itinerary and on the week grid.
+
+   **Not dashed**, even though the column on the board is. Dashed already means
+   *proposed* on both of these surfaces, and "not settled yet" and "only you can
+   see it" are different claims that must not share a drawing — a personal item
+   is a fact from the moment it is written down, so borrowing the provisional
+   treatment would say the opposite of what is true.
+
+   A solid inline-start edge instead: the card keeps its own fill and gains a
+   mark down one side, which reads as "flagged" rather than "faint". The single
+   figure in the tag says the same thing in a second channel, so nothing here
+   rests on colour alone.
+   --------------------------------------------------------------------------- */
+.tl__card--personal,
+.cal__event--personal,
+.cal__bar--personal {
+  border-inline-start: 3px solid var(--board-dim);
+}
+/* The mark is about who can see the card, not which lane it borrows from, so
+   it stays the muted ink even on a tagged item whose hue is painting the rest. */
+.tl__card--personal .glyph,
+.cal__bar--personal .glyph {
+  color: var(--board-dim);
+}
+
 .tl__grid {
   display: grid;
   /* A fixed gutter, so a stay's name and dates wrap the same way on every row

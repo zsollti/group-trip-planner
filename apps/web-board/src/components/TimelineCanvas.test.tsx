@@ -14,9 +14,10 @@ import { TimelineCanvas } from "./TimelineCanvas";
  * and the sentence explaining what a proposal looks like on a calendar is still
  * announced to the readers who cannot see one.
  *
- * The options query is mocked to "still loading". The strip is drawn either way
+ * The two queries are mocked to "still loading". The strip is drawn either way
  * (it reports on a timeline built from whatever has arrived), and this keeps the
- * test about the control rather than about a fixture of decisions.
+ * test about the control rather than about a fixture of decisions — and it is
+ * what lets the canvas render without a `QueryClientProvider` around it.
  */
 
 vi.mock("@gtp/api-client", async () => {
@@ -29,6 +30,7 @@ vi.mock("@gtp/api-client", async () => {
       isPending: true,
       isError: false,
     }),
+    usePersonalItems: () => ({ data: undefined, isPending: true }),
   };
 });
 
@@ -51,6 +53,7 @@ function renderCanvas() {
     <TimelineCanvas
       tripId="t-1"
       categories={categories}
+      myUserId="me"
       tripDates={null}
       defaultCurrency="EUR"
       myRole="PARTICIPANT"
@@ -95,6 +98,7 @@ describe("the proposals overlay control", () => {
       <TimelineCanvas
         tripId="t-1"
         categories={categories}
+        myUserId="me"
         tripDates={null}
         defaultCurrency="EUR"
         myRole="PARTICIPANT"

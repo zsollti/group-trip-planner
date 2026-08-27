@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { CategoryView, OptionView } from "@gtp/types";
+import type { CategoryView, OptionView, PersonalItemView } from "@gtp/types";
 import {
   MAX_TIMELINE_DAYS,
   buildTimeline,
   localDayKey,
+  personalCandidates,
   timelineCandidates,
 } from "./timeline";
 import { calendarDayToLocalMs } from "./tripDate";
@@ -304,9 +305,7 @@ describe("the trays hold decisions, not candidates", () => {
       ],
       range,
     );
-    expect(t.unscheduled.map((e) => e.option.title)).toEqual([
-      "Decided, undated",
-    ]);
+    expect(t.unscheduled.map((e) => e.title)).toEqual(["Decided, undated"]);
   });
 
   it("leaves a wrong-month proposal out of the elsewhere tray too", () => {
@@ -337,9 +336,9 @@ describe("the trays hold decisions, not candidates", () => {
       range,
     );
     expect(t.placedCount).toBe(1);
-    expect(
-      t.days.find((d) => d.key === "2026-07-04")?.entries[0]?.option.title,
-    ).toBe("Maybe a museum");
+    expect(t.days.find((d) => d.key === "2026-07-04")?.entries[0]?.title).toBe(
+      "Maybe a museum",
+    );
   });
 });
 
@@ -368,7 +367,7 @@ describe("buildTimeline", () => {
     );
     expect(t.spans).toHaveLength(1);
     const span = t.spans[0];
-    expect(span?.option.title).toBe("Hotel Luna");
+    expect(span?.title).toBe("Hotel Luna");
     expect(span?.firstDay).toBe("2026-07-03");
     expect(span?.lastDay).toBe("2026-07-06");
     expect(span?.nights).toBe(3);
@@ -413,10 +412,7 @@ describe("buildTimeline", () => {
     );
     expect(t.spans).toHaveLength(0);
     const day = t.days.find((d) => d.key === "2026-07-04");
-    expect(day?.entries.map((e) => e.option.title)).toEqual([
-      "Museum",
-      "Dinner",
-    ]);
+    expect(day?.entries.map((e) => e.title)).toEqual(["Museum", "Dinner"]);
   });
 
   it("places an option with one date as a point", () => {
@@ -433,7 +429,7 @@ describe("buildTimeline", () => {
     // The failure this guards: a page showing three of eight decisions reads
     // as "this is the trip".
     const t = buildTimeline([item(stay, { title: "Some hotel" })], range);
-    expect(t.unscheduled.map((e) => e.option.title)).toEqual(["Some hotel"]);
+    expect(t.unscheduled.map((e) => e.title)).toEqual(["Some hotel"]);
     expect(t.placedCount).toBe(0);
     expect(t.days.flatMap((d) => d.entries)).toHaveLength(0);
   });
@@ -454,7 +450,7 @@ describe("buildTimeline", () => {
       ],
       range,
     );
-    expect(t.elsewhere.map((e) => e.option.title)).toEqual(["March hotel"]);
+    expect(t.elsewhere.map((e) => e.title)).toEqual(["March hotel"]);
     expect(t.placedCount).toBe(1);
     // Critically, it did not drag the axis back to March.
     expect(t.days).toHaveLength(8);
@@ -553,5 +549,166 @@ describe("buildTimeline", () => {
     );
     expect(t.days).toHaveLength(MAX_TIMELINE_DAYS);
     expect(t.truncated).toBe(true);
+  });
+});
+
+describe("the reader's own items on the axis", () => {
+  let n = 0;
+  function mine(over: Partial<PersonalItemView> = {}): PersonalItemView {
+    n += 1;
+    return {
+      id: `pi-${n}`,
+      tripId: "t1",
+      categoryId: null,
+      title: "Flight home",
+      description: null,
+      url: null,
+      amount: null,
+      currency: "EUR",
+      startsAt: null,
+      endsAt: null,
+      position: n - 1,
+      createdAt: "2026-06-01T10:00:00.000Z",
+      ...over,
+    };
+  }
+
+  it("resolves a tag to its lane and leaves an untagged item bare", () => {
+    const got = personalCandidates(
+      [stay],
+      [mine({ categoryId: "stay" }), mine({ categoryId: null })],
+    );
+    expect(got[0]?.category).toBe(stay);
+    expect(got[1]?.category).toBeUndefined();
+  });
+
+  it("leaves a tag pointing at a lane this board does not have unresolved", () => {
+    // The row can outlive the lane: deleting a category nulls the tag in the
+    // database, but a client holding a stale list must not invent a lane for
+    // one. Undefined draws with no hue, which is the honest answer.
+    const got = personalCandidates([stay], [mine({ categoryId: "gone" })]);
+    expect(got[0]?.category).toBeUndefined();
+  });
+
+  it("shares a day row with the trip's own decisions", () => {
+    // The whole reason these are on this axis: the group checks in at 15:00 and
+    // the reader lands at 06:20, and that is one fact about one day.
+    const t = buildTimeline(
+      [
+        ...timelineCandidates([stay], {
+          stay: [
+            opt({
+              title: "Hotel Luna",
+              startsAt: "2026-07-03T15:00",
+              endsAt: "2026-07-03T18:00",
+            }),
+          ],
+        }),
+        ...personalCandidates(
+          [stay],
+          [
+            mine({
+              title: "Flight in",
+              startsAt: "2026-07-03T06:20",
+              endsAt: "2026-07-03T07:40",
+            }),
+          ],
+        ),
+      ],
+      trip("2026-07-03", "2026-07-06"),
+    );
+
+    const day = t.days.find((d) => d.key === "2026-07-03");
+    expect(day?.entries.map((e) => e.title)).toEqual([
+      "Flight in",
+      "Hotel Luna",
+    ]);
+    expect(day?.entries.map((e) => e.kind)).toEqual(["personal", "option"]);
+  });
+
+  it("places one the moment it has a date, with nothing to lock", () => {
+    // There is no status to be provisional in, so it is never behind the
+    // proposals overlay: a personal item is a fact from the moment it is
+    // written down.
+    const t = buildTimeline(
+      personalCandidates(
+        [],
+        [mine({ startsAt: "2026-07-04T09:00", endsAt: "2026-07-04T11:00" })],
+      ),
+      trip("2026-07-03", "2026-07-06"),
+    );
+    expect(t.placedCount).toBe(1);
+  });
+
+  it("confesses an undated one rather than dropping it", () => {
+    // Unlike an undated *proposal*, which is simply a candidate nobody has
+    // dated yet, this is a thing its owner wrote down that the page cannot
+    // place — which is exactly what the tray is for.
+    const t = buildTimeline(
+      personalCandidates([], [mine({ title: "Look into a visa" })]),
+      trip("2026-07-03", "2026-07-06"),
+    );
+    expect(t.unscheduled.map((e) => e.title)).toEqual(["Look into a visa"]);
+  });
+
+  it("draws one that crosses a midnight as a span", () => {
+    const t = buildTimeline(
+      personalCandidates(
+        [],
+        [
+          mine({
+            title: "Night train",
+            startsAt: "2026-07-03T22:00",
+            endsAt: "2026-07-04T07:00",
+          }),
+        ],
+      ),
+      trip("2026-07-03", "2026-07-06"),
+    );
+    expect(t.spans.map((sp) => sp.title)).toEqual(["Night train"]);
+    expect(t.spans[0]?.nights).toBe(1);
+  });
+
+  it("never counts as a clash, and never covers a night for the group", () => {
+    /**
+     * Two separate silences, both because nobody else can see these.
+     *
+     * A clash warning is something the *group* needs told about, and one drawn
+     * from a row only its owner can read would be a warning nobody else could
+     * act on. And "nowhere booked for this night" is a hole in the trip's own
+     * plan: a member's own sleeper train is not the group's accommodation, so
+     * it must not quietly answer the question for everybody.
+     */
+    const t = buildTimeline(
+      [
+        ...timelineCandidates([stay], {
+          stay: [
+            opt({
+              title: "Hotel",
+              startsAt: "2026-07-03T15:00",
+              endsAt: "2026-07-04T10:00",
+            }),
+          ],
+        }),
+        ...personalCandidates(
+          [stay],
+          [
+            mine({
+              title: "My own room",
+              categoryId: "stay",
+              startsAt: "2026-07-03T15:00",
+              endsAt: "2026-07-04T10:00",
+            }),
+          ],
+        ),
+      ],
+      trip("2026-07-03", "2026-07-06"),
+    );
+
+    // Exactly overlapping the hotel, in the same lane, and still not a clash.
+    expect(t.overlapping.size).toBe(0);
+    // Jul 4 and Jul 5 are still uncovered nights: the reader's own room is not
+    // the group's booking.
+    expect(t.uncoveredNights).toEqual(["2026-07-04", "2026-07-05"]);
   });
 });

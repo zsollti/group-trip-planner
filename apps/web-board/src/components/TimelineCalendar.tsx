@@ -1,7 +1,13 @@
 import type { CSSProperties } from "react";
 import { intlTag } from "../lib/locale";
-import { categoryOptionFields, type CategoryView } from "@gtp/types";
+import {
+  categoryOptionFields,
+  type CategoryView,
+  type OptionView,
+} from "@gtp/types";
 import { CategoryIcon } from "./CategoryIcon";
+import { PersonIcon } from "./icons";
+import { formatMoney } from "../lib/money";
 import { calendarDetail } from "../lib/calendarDetail";
 import { categoryHueStyle } from "../lib/categoryTheme";
 import { costLabel, dateRangeLabel } from "./optionFormat";
@@ -37,7 +43,7 @@ export function TimelineCalendar({
   onCreate,
 }: {
   timeline: Timeline;
-  onOpen: (option: TimelineEntry["option"], category: CategoryView) => void;
+  onOpen: (option: OptionView, category: CategoryView) => void;
   /**
    * Propose something in an empty hour — given the day's local midnight and the
    * hour clicked. Undefined for a reader who may not propose, or a frozen
@@ -97,14 +103,14 @@ export function TimelineCalendar({
               <div className="cal__band">
                 {grid.bands.map((band) => (
                   <BandBar
-                    key={band.span.option.id}
+                    key={band.span.id}
                     span={band.span}
                     fromIndex={band.fromIndex}
                     toIndex={band.toIndex}
                     row={band.row}
                     leadFraction={band.leadFraction}
                     widthFraction={band.widthFraction}
-                    clashes={timeline.overlapping.has(band.span.option.id)}
+                    clashes={timeline.overlapping.has(band.span.id)}
                     onOpen={onOpen}
                   />
                 ))}
@@ -178,10 +184,10 @@ export function TimelineCalendar({
               )}
               {day.placements.map((p) => (
                 <TimedBlock
-                  key={p.entry.option.id}
+                  key={p.entry.id}
                   placement={p}
                   totalMinutes={totalMinutes}
-                  clashes={timeline.overlapping.has(p.entry.option.id)}
+                  clashes={timeline.overlapping.has(p.entry.id)}
                   onOpen={onOpen}
                 />
               ))}
@@ -191,6 +197,34 @@ export function TimelineCalendar({
       </div>
     </div>
   );
+}
+
+/**
+ * The money on a block or a band, whichever kind of entry it holds.
+ *
+ * A personal item's is the plain amount: there is no headcount to read it
+ * against, so no `/person` or `total` belongs on it.
+ */
+function entryCost(entry: TimelineEntry): string | null {
+  if (entry.kind === "option") return costLabel(entry.option);
+  return entry.item.amount === null
+    ? null
+    : formatMoney(entry.item.amount, entry.item.currency);
+}
+
+/**
+ * Open a card's detail, when it has one.
+ *
+ * Only an option has a second story worth a dialog; one of the reader's own
+ * items says everything it has on its face, and the place to change it is the
+ * column on the board that owns it. Written once here so no call site has to
+ * decide which kind it is holding.
+ */
+function openEntry(
+  entry: TimelineEntry,
+  onOpen: (option: OptionView, category: CategoryView) => void,
+): void {
+  if (entry.kind === "option") onOpen(entry.option, entry.category);
 }
 
 /** One timed decision, positioned by when it starts and how long it runs. */
@@ -203,10 +237,11 @@ function TimedBlock({
   placement: CalendarPlacement;
   totalMinutes: number;
   clashes: boolean;
-  onOpen: (option: TimelineEntry["option"], category: CategoryView) => void;
+  onOpen: (option: OptionView, category: CategoryView) => void;
 }) {
   const { entry, topMinutes, heightMinutes, lane, laneCount } = placement;
-  const proposed = entry.option.status !== "LOCKED";
+  const proposed = entry.kind === "option" && entry.option.status !== "LOCKED";
+  const personal = entry.kind === "personal";
   const at = (ms: number) =>
     new Date(ms).toLocaleTimeString(intlTag(), {
       hour: "2-digit",
@@ -215,11 +250,13 @@ function TimedBlock({
 
   // What the block is tall enough to say — cost first, then the note.
   const detail = calendarDetail(heightMinutes);
-  const cost = costLabel(entry.option);
-  const note = entry.option.description?.trim();
+  const cost = entryCost(entry);
+  const note = (
+    entry.kind === "option" ? entry.option.description : entry.item.description
+  )?.trim();
 
   const style = {
-    ...categoryHueStyle(entry.category),
+    ...(entry.category ? categoryHueStyle(entry.category) : {}),
     top: `${(topMinutes / totalMinutes) * 100}%`,
     height: `${(heightMinutes / totalMinutes) * 100}%`,
     left: `${(lane / laneCount) * 100}%`,
@@ -236,6 +273,7 @@ function TimedBlock({
       className={[
         "cal__event",
         proposed ? "cal__event--proposed" : "",
+        personal ? "cal__event--personal" : "",
         clashes ? "cal__event--clash" : "",
         // Under about 45 minutes there is no room for a second line, so the
         // title and time share one rather than being clipped mid-word.
@@ -244,9 +282,9 @@ function TimedBlock({
         .filter(Boolean)
         .join(" ")}
       style={style}
-      onClick={() => onOpen(entry.option, entry.category)}
+      onClick={() => openEntry(entry, onOpen)}
     >
-      <span className="cal__event-title">{entry.option.title}</span>
+      <span className="cal__event-title">{entry.title}</span>
       <span className="cal__event-when">
         {entry.isPoint
           ? at(entry.start)
@@ -281,15 +319,19 @@ function BandBar({
   leadFraction: number;
   widthFraction: number;
   clashes: boolean;
-  onOpen: (option: TimelineEntry["option"], category: CategoryView) => void;
+  onOpen: (option: OptionView, category: CategoryView) => void;
 }) {
-  const proposed = span.option.status !== "LOCKED";
-  const cost = costLabel(span.option);
-  const dates = dateRangeLabel(
-    span.option.startsAt,
-    span.option.endsAt,
-    categoryOptionFields(span.category).dateGranularity,
-  );
+  const proposed = span.kind === "option" && span.option.status !== "LOCKED";
+  const personal = span.kind === "personal";
+  const cost = entryCost(span);
+  const dates =
+    span.kind === "option"
+      ? dateRangeLabel(
+          span.option.startsAt,
+          span.option.endsAt,
+          categoryOptionFields(span.category).dateGranularity,
+        )
+      : dateRangeLabel(span.item.startsAt, span.item.endsAt, "minute");
 
   return (
     /* Two elements, because a percentage needs the right box to resolve
@@ -310,20 +352,28 @@ function BandBar({
         className={[
           "cal__bar",
           proposed ? "cal__bar--proposed" : "",
+          personal ? "cal__bar--personal" : "",
           clashes ? "cal__bar--clash" : "",
         ]
           .filter(Boolean)
           .join(" ")}
         style={{
-          ...categoryHueStyle(span.category),
+          ...(span.category ? categoryHueStyle(span.category) : {}),
           marginInlineStart: `${leadFraction * 100}%`,
           width: `${widthFraction * 100}%`,
         }}
-        title={dates ? `${span.option.title} · ${dates}` : span.option.title}
-        onClick={() => onOpen(span.option, span.category)}
+        title={dates ? `${span.title} · ${dates}` : span.title}
+        onClick={() => openEntry(span, onOpen)}
       >
-        <CategoryIcon category={span.category} size={13} />
-        <span className="cal__bar-title">{span.option.title}</span>
+        {/* One figure on the reader's own bars, tagged or not: the mark answers
+            "who can see this", which a lane's glyph does not. The colour still
+            comes from the tag where there is one. */}
+        {personal ? (
+          <PersonIcon size={13} />
+        ) : span.category ? (
+          <CategoryIcon category={span.category} size={13} />
+        ) : null}
+        <span className="cal__bar-title">{span.title}</span>
         <span className="cal__bar-meta">
           {plural(span.nights, "{n} night", "{n} nights")}
           {cost ? ` · ${cost}` : ""}
