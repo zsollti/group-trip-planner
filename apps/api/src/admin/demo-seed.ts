@@ -754,6 +754,67 @@ export async function seedDemoTrip(
     });
   }
 
+  // -------------------------------------------------- one member's own list ---
+  /*
+   * The demo account's private column, so the feature is visible on the live
+   * demo without anybody signing up for a second account.
+   *
+   * **Seeded for `demo` alone, on purpose.** These rows are per member, and the
+   * demo's whole job is to be the board one person opens — giving Mira and Sam
+   * lists nobody can see would be work that renders on no screen. It also keeps
+   * the invariant honest in the one place a reader can check it: the crew panel
+   * shows five people and the column says "only you", and both are true.
+   *
+   * Chosen to be the things that genuinely never belong on a shared lane: a
+   * flight from your own city, insurance, a night either side of the group's
+   * booking. Two of them are tagged, so the donut's "Mine" reading has coloured
+   * wedges beside the grey one, and one is not — an untagged item is a real
+   * state and the demo should show it.
+   *
+   * The dates put one before the group arrives and one after it leaves, which
+   * is exactly the case the itinerary was extended for: the overhang days are
+   * the reader's own, and the trip's frame does not move to accommodate them.
+   */
+  await prisma.personalItem.createMany({
+    data: [
+      {
+        tripId: trip.id,
+        ownerId: users.demo.id,
+        categoryId: cat("TRANSPORT"),
+        title: "Train to the airport",
+        description: "Earlier than I would like, but it beats a taxi.",
+        amount: "12.50",
+        currency: "EUR",
+        startsAt: at(ARRIVE, 4, 30),
+        endsAt: at(ARRIVE, 5, 20),
+        position: 0,
+      },
+      {
+        tripId: trip.id,
+        ownerId: users.demo.id,
+        categoryId: cat("ACCOMMODATION"),
+        title: "Extra night before",
+        description: "Flight lands too early to check in with everyone else.",
+        amount: "64.00",
+        currency: "EUR",
+        startsAt: at(ARRIVE - 1, 15),
+        endsAt: at(ARRIVE, 11),
+        position: 1,
+      },
+      {
+        tripId: trip.id,
+        ownerId: users.demo.id,
+        // Untagged: travel insurance is not a lane on this board, and inventing
+        // one for it would be worse than a wedge with no colour.
+        categoryId: null,
+        title: "Travel insurance",
+        amount: "23.00",
+        currency: "EUR",
+        position: 2,
+      },
+    ],
+  });
+
   // ------------------------------------------------------------------- chat ---
   const general = await prisma.channel.create({
     data: { tripId: trip.id, type: "GENERAL" },
