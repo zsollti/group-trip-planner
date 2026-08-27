@@ -601,6 +601,126 @@ describe("Trip dashboard (e2e)", () => {
       .expect(200);
   });
 
+  it("keeps one member's private spend out of every shared figure", async () => {
+    /**
+     * The separation the whole feature rests on, checked from the outside.
+     *
+     * Two members of one trip ask the same URL. One of them has a flight home
+     * on their own list; the other must not learn that from any field of the
+     * answer — not the totals, not the lines, not the converted figures — and
+     * the trip's own `committed` must be the same number for both, because it
+     * is a claim about what the *group* agreed to spend.
+     */
+    const owner = await makeUser("pi-owner");
+    const other = await makeUser("pi-other");
+    const trip = await createTrip(owner.accessToken, "Private spend");
+    const c1 = await multiSelectCategory(owner.accessToken, trip.id);
+
+    await join(
+      other.accessToken,
+      await globalLink(owner.accessToken, trip.id, "PARTICIPANT"),
+    ).expect(201);
+
+    const shared = await propose(owner.accessToken, trip.id, c1.id, {
+      title: "Shared",
+      amount: 100,
+      currency: "EUR",
+      costType: "PER_PERSON",
+    });
+    await lock(
+      owner.accessToken,
+      trip.id,
+      c1.id,
+      shared.id,
+      shared.version,
+      c1.version,
+    );
+
+    await http()
+      .post(`/trips/${trip.id}/personal-items`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Flight home", amount: 210, currency: "EUR" })
+      .expect(201);
+
+    const mine = await dashboard(owner.accessToken, trip.id);
+    const theirs = await dashboard(other.accessToken, trip.id);
+
+    // The owner sees their own money, once, in the field made for it.
+    assert.equal(sub(mine.viewerPersonal, "EUR")?.group, 210);
+    assert.equal(mine.personalLines.length, 1);
+    assert.equal(mine.personalLines[0]?.title, "Flight home");
+
+    // The other member sees none of it, anywhere.
+    assert.deepEqual(theirs.viewerPersonal, []);
+    assert.deepEqual(theirs.personalLines, []);
+    assert.ok(
+      !JSON.stringify(theirs).includes("Flight home"),
+      "no trace of another member's private item in the payload",
+    );
+
+    // And the group's own total is the same claim for both of them.
+    assert.equal(sub(mine.committed, "EUR")?.group, 200);
+    assert.equal(
+      sub(theirs.committed, "EUR")?.group,
+      sub(mine.committed, "EUR")?.group,
+    );
+    assert.equal(
+      sub(mine.viewerCommitted, "EUR")?.perPerson,
+      100,
+      "a personal item never reaches the figure the target is read against",
+    );
+  });
+
+  it("drops an unpriced personal item rather than costing it at zero", async () => {
+    /**
+     * The same rule the cost engine follows for options, and for the same
+     * reason: a currency named in a subtotal is a claim that money is
+     * committed in it. An item somebody noted without a price has committed
+     * none, and zeroing it would put the trip's currency in a subtotal of
+     * nothing — the shape of the phantom EUR total that reached the board once
+     * before.
+     */
+    const owner = await makeUser("pi-unpriced");
+    const trip = await createTrip(owner.accessToken, "Unpriced");
+
+    await http()
+      .post(`/trips/${trip.id}/personal-items`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ title: "Look into a visa", currency: "EUR" })
+      .expect(201);
+
+    const d = await dashboard(owner.accessToken, trip.id);
+    assert.deepEqual(d.viewerPersonal, [], "no subtotal of nothing");
+    assert.deepEqual(d.personalLines, [], "and no line to draw");
+  });
+
+  it("carries a personal item's lane tag so a chart can colour it", async () => {
+    const owner = await makeUser("pi-tag");
+    const trip = await createTrip(owner.accessToken, "Tagged");
+    const cats = await categories(owner.accessToken, trip.id);
+    const transport = cats.find((c) => c.builtinKey === "TRANSPORT")!;
+
+    await http()
+      .post(`/trips/${trip.id}/personal-items`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        title: "Flight out",
+        amount: 180,
+        currency: "EUR",
+        categoryId: transport.id,
+      })
+      .expect(201);
+
+    const d = await dashboard(owner.accessToken, trip.id);
+    const l = d.personalLines[0]!;
+    assert.equal(l.categoryId, transport.id);
+    assert.equal(
+      l.categoryName,
+      transport.name,
+      "the name rides along, so a chart needs no second lookup",
+    );
+  });
+
   it("a non-member gets 404; a Guest may read the dashboard", async () => {
     const owner = await makeUser("az-owner");
     const guest = await makeUser("az-guest");

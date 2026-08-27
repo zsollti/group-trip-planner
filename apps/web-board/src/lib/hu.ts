@@ -798,4 +798,9 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Tagged {lane}": "Címke: {lane}",
   "This can’t be undone.": "Ezt nem lehet visszavonni.",
   "＋ Add something only you pay for": "＋ Adj hozzá valamit, amit csak te fizetsz",
+  "Just for me: {amount}. Not counted against the target.": "Csak nekem: {amount}. Ez nem számít bele a keretbe.",
+  "Mine": "Az enyém",
+  "The trip": "Az utazás",
+  "Whose money": "Kinek a pénze",
+  "yours, all in": "a te költséged",
 };

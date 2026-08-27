@@ -56,6 +56,39 @@ export const ConvertedLine = z.object({
 });
 export type ConvertedLine = z.infer<typeof ConvertedLine>;
 
+/**
+ * One personal item's contribution to the **reader's own** total (post-launch).
+ *
+ * Deliberately not a {@link DashboardLine}. Half of that shape is about a thing
+ * the group is deciding — a kind, a headcount, who opted in, whether the caller
+ * is one of them — and none of it means anything for a row only its owner can
+ * see. Faking those fields to reuse the type would put five values on the wire
+ * whose only correct reading is "ignore this".
+ *
+ * One `amount`, not a group/per-person pair, for the same reason: there is no
+ * headcount to divide by. This is what one person pays.
+ *
+ * `categoryId` and `categoryName` are the **tag**, and both are null on an
+ * untagged item. They exist so a chart can paint the wedge in a lane's colour
+ * and name it; they say nothing about where the item lives, which is always the
+ * reader's own column.
+ */
+export const PersonalDashboardLine = z.object({
+  itemId: z.string().uuid(),
+  categoryId: z.string().uuid().nullable(),
+  categoryName: z.string().nullable(),
+  title: z.string(),
+  currency: z.string(),
+  amount: z.number(),
+  /**
+   * The same money in the trip's `defaultCurrency`, or null when no rate
+   * reaches it — the same contract, and the same caveat, as
+   * {@link ConvertedLine}.
+   */
+  converted: z.number().nullable(),
+});
+export type PersonalDashboardLine = z.infer<typeof PersonalDashboardLine>;
+
 /** One option's contribution to the totals, with the figures that explain it. */
 export const DashboardLine = z.object({
   optionId: z.string().uuid(),
@@ -138,6 +171,21 @@ export const ConvertedCost = z.object({
       missing: z.array(z.string()),
     })
     .nullable(),
+  /**
+   * The caller's own private spend, crossed into `currency` — or null when no
+   * rate reaches it. Converted from their per-currency subtotals, like
+   * {@link viewer} and for the same rounding reason.
+   *
+   * Its own field rather than folded into `viewer`, because the two answer
+   * different questions and one of them is read against the target.
+   */
+  personal: z
+    .object({
+      amount: z.number(),
+      converted: z.array(z.string()),
+      missing: z.array(z.string()),
+    })
+    .nullable(),
   /** Publication date of the rates used (ISO date, not a fetch timestamp). */
   asOf: z.string(),
   /** Currencies folded into the totals. */
@@ -194,7 +242,34 @@ export const TripDashboardView = z.object({
    * declined to spend.
    */
   viewerCommitted: z.array(DashboardSubtotal),
+  /**
+   * What the caller is spending on **their own** things (post-launch) — the
+   * private items nobody else on this trip can see, per currency.
+   *
+   * Strictly separate from every total above it, and that separation is the
+   * feature. `committed` is a claim about what the group agreed to spend, and
+   * folding one member's flight home into it would make that claim false for
+   * everyone reading it. These are added beside it, only ever for the one
+   * person they belong to.
+   *
+   * **Never read against `budgetPerPerson`.** The target is what the group
+   * budgeted for the group's plan; a member's own flight is not something the
+   * trip agreed to. The verdict keeps reading {@link viewerCommitted} alone and
+   * this figure sits beside it.
+   *
+   * `group` and `perPerson` carry the same number, because the group that pays
+   * for a personal item is one person. It stays in the shared subtotal shape so
+   * it converts through exactly the same path as every other total here, rather
+   * than growing a second rounding rule for the one figure that is nobody
+   * else's business.
+   */
+  viewerPersonal: z.array(DashboardSubtotal),
   lines: z.array(DashboardLine),
+  /**
+   * The caller's own items, one line each, so a chart can break
+   * {@link viewerPersonal} into parts. Always empty for everyone but its owner.
+   */
+  personalLines: z.array(PersonalDashboardLine),
   /**
    * The same money, roughly, in one currency — or `null` when it cannot be
    * offered: no rates stored yet, or nothing published for this trip's own

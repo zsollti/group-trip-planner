@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { TripDashboardView } from "@gtp/types";
-import { lockedCost, targetVerdict } from "./costSummary";
+import {
+  lockedCost,
+  personalCost,
+  targetVerdict,
+  viewerAllIn,
+  viewerCost,
+} from "./costSummary";
 
 /**
  * What one figure may claim about a trip's cost.
@@ -19,7 +25,9 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     viewerCommitted: [],
+    viewerPersonal: [],
     lines: [],
+    personalLines: [],
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
@@ -44,6 +52,7 @@ function converted(
     projected: committed,
     // The reader is in for all of it unless a case says otherwise.
     viewer: { ...committed, converted: [currency], missing },
+    personal: null,
     asOf: "2026-08-12",
     converted: [currency],
     missing,
@@ -205,5 +214,115 @@ describe("targetVerdict", () => {
     expect(v.spend).toBe(800);
     expect(v.over).toBe(false);
     expect(v.gap).toBe(0);
+  });
+});
+
+describe("personalCost", () => {
+  it("has nothing to say when the reader keeps no list", () => {
+    const c = personalCost(dashboard());
+    expect(c.parts).toEqual([]);
+    expect(c.allIn).toBeNull();
+  });
+
+  it("states one currency exactly, without asking the rates", () => {
+    const d = dashboard({ viewerPersonal: [part("EUR", 260, 260)] });
+    expect(personalCost(d).allIn).toMatchObject({
+      group: 260,
+      perPerson: 260,
+      currency: "EUR",
+      approximate: false,
+    });
+  });
+
+  it("carries the same number in both figures", () => {
+    // The group paying for a personal item is one person, so `group` and
+    // `perPerson` are the same money and a caller may read either.
+    const d = dashboard({ viewerPersonal: [part("EUR", 260, 260)] });
+    const c = personalCost(d).allIn!;
+    expect(c.group).toBe(c.perPerson);
+  });
+
+  it("refuses a single figure across currencies it cannot cross", () => {
+    const d = dashboard({
+      viewerPersonal: [part("EUR", 200, 200), part("HUF", 50000, 50000)],
+    });
+    expect(personalCost(d).parts).toHaveLength(2);
+    expect(personalCost(d).allIn).toBeNull();
+  });
+});
+
+describe("viewerAllIn", () => {
+  it("adds the reader's share to the reader's own things", () => {
+    const d = dashboard({
+      viewerCommitted: [part("EUR", 1200, 300)],
+      viewerPersonal: [part("EUR", 260, 260)],
+    });
+    expect(viewerAllIn(d)).toMatchObject({
+      perPerson: 560,
+      currency: "EUR",
+      approximate: false,
+    });
+  });
+
+  it("is just the share when there is nothing of one's own", () => {
+    // An empty list is a zero, not a missing figure, so the all-in is simply
+    // the share rather than being withheld for want of a second half.
+    const d = dashboard({ viewerCommitted: [part("EUR", 1200, 300)] });
+    expect(viewerAllIn(d)?.perPerson).toBe(300);
+  });
+
+  it("is just one's own things on a trip that has decided nothing", () => {
+    const d = dashboard({ viewerPersonal: [part("EUR", 260, 260)] });
+    expect(viewerAllIn(d)?.perPerson).toBe(260);
+  });
+
+  it("refuses to add halves in different currencies", () => {
+    // Both halves are exact and neither needed a rate, but they are not the
+    // same money, and adding them is the one thing FR-27 forbids.
+    const d = dashboard({
+      viewerCommitted: [part("EUR", 1200, 300)],
+      viewerPersonal: [part("HUF", 90000, 90000)],
+    });
+    expect(viewerAllIn(d)).toBeNull();
+  });
+});
+
+describe("the target and the reader's own money", () => {
+  /**
+   * The owner's call, and the one worth a test that **cannot pass by
+   * accident**: private spending is never read against the trip's target.
+   *
+   * Shaped around the trap the currency pass left behind, where "didn't do it"
+   * and "did it and it changed nothing" had the same result. So the item is
+   * deliberately large enough to flip the verdict if it were counted, and both
+   * halves are pinned: the verdict is untouched **and** the personal figure is
+   * really there. Delete the rule and the first assertion fails; stop counting
+   * personal money at all and the last two do.
+   */
+  it("leaves the verdict exactly where it was, while still counting the money", () => {
+    const shared = {
+      budgetPerPerson: 800,
+      committed: [part("EUR", 2400, 600)],
+      viewerCommitted: [part("EUR", 2400, 600)],
+    };
+    const base = dashboard(shared);
+    const withOwn = dashboard({
+      ...shared,
+      // 600 + 500 is 1100 against a target of 800. Were this to reach the
+      // verdict, the reader would be told they are 300 over.
+      viewerPersonal: [part("EUR", 500, 500)],
+    });
+
+    const before = targetVerdict(base, viewerCost(base))!;
+    const after = targetVerdict(withOwn, viewerCost(withOwn))!;
+
+    expect(after).toEqual(before);
+    expect(after.over).toBe(false);
+    expect(after.spend).toBe(600);
+    expect(after.gap).toBe(200);
+
+    // ...and the money is not merely being dropped on the floor.
+    expect(personalCost(withOwn).allIn?.group).toBe(500);
+    expect(viewerAllIn(withOwn)?.perPerson).toBe(1100);
   });
 });

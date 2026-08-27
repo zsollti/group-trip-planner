@@ -12,6 +12,7 @@ import {
   type DashboardSubtotal,
   type OptionStatus,
   type ParticipationMode,
+  type PersonalDashboardLine,
   type TripDashboardView,
 } from "@gtp/types";
 import type { StoredRates } from "../rates/rates.service.js";
@@ -107,6 +108,26 @@ export function toEngineOption(o: DashboardOptionRow): CostEngineOption {
  * committed total) and every front-runner (projection-only), each enriched with
  * the title/category the engine doesn't carry.
  */
+/**
+ * A stored personal item, as the mapper needs it: the row plus its tag's name.
+ *
+ * The name rides along on the include rather than being looked up per line —
+ * the same reasoning as the option rows' `category.name`.
+ */
+export type DashboardPersonalRow = {
+  id: string;
+  title: string;
+  currency: string;
+  amount: { toString(): string } | null;
+  categoryId: string | null;
+  category: { name: string } | null;
+};
+
+/** The Prisma include that hydrates {@link DashboardPersonalRow}. */
+export const dashboardPersonalInclude = {
+  category: { select: { name: true } },
+} as const;
+
 export function toTripDashboardView(
   trip: {
     id: string;
@@ -122,6 +143,9 @@ export function toTripDashboardView(
   generatedAt: Date,
   /** The day's rates, or null when there are none worth converting with. */
   rates: StoredRates | null = null,
+  /** The caller's **own** private items. Never anybody else's — the service
+   *  queries them scoped to this viewer, and there is no other way in. */
+  personalRows: readonly DashboardPersonalRow[] = [],
 ): TripDashboardView {
   const rowById = new Map(rows.map((r) => [r.id, r]));
   const costById = new Map(result.options.map((c) => [c.optionId, c]));
@@ -191,6 +215,47 @@ export function toTripDashboardView(
     ),
   );
 
+  /*
+   * The caller's own private spend.
+   *
+   * Unpriced items are dropped rather than zeroed, for the reason the engine
+   * drops unpriced options: a currency in a subtotal is a claim that money is
+   * committed in it, and an item someone noted without a price has committed
+   * none. Zeroing it would name the trip's currency in a subtotal of nothing —
+   * the exact shape of the phantom EUR total that reached the board once
+   * already.
+   */
+  const personalLines: PersonalDashboardLine[] = personalRows
+    .filter((r) => r.amount !== null)
+    .map((r) => {
+      const amount = Number(r.amount);
+      return {
+        itemId: r.id,
+        categoryId: r.categoryId,
+        categoryName: r.category?.name ?? null,
+        title: r.title,
+        currency: r.currency,
+        amount,
+        converted: convertedAmount(
+          amount,
+          r.currency,
+          trip.defaultCurrency,
+          rates,
+        ),
+      };
+    });
+
+  // `group` and `perPerson` are the same figure: the group paying for one of
+  // these is one person. Held in the shared subtotal shape so it crosses
+  // currencies through the same path as every other total on this payload.
+  const viewerPersonal = aggregateShare(
+    personalLines.map((l) => ({
+      currency: l.currency,
+      group: l.amount,
+      perPerson: l.amount,
+    })),
+  );
+
   return {
     tripId: trip.id,
     defaultCurrency: trip.defaultCurrency,
@@ -202,12 +267,15 @@ export function toTripDashboardView(
     committed: result.committed.map((s) => ({ ...s })),
     projected: result.projected.map((s) => ({ ...s })),
     viewerCommitted,
+    viewerPersonal,
     lines,
+    personalLines,
     converted: convertedCost(
       trip.defaultCurrency,
       result,
       rates,
       viewerCommitted,
+      viewerPersonal,
     ),
     generatedAt: generatedAt.toISOString(),
   };
@@ -234,6 +302,23 @@ export function toTripDashboardView(
  * identity lines survive — the same shape as the target verdict, which falls
  * back to the trip-currency figures alone and names what it left out.
  */
+/**
+ * One amount in the trip's own currency, or null when no rate reaches it.
+ *
+ * {@link convertedLine}'s single-figure sibling, for the rows that have one
+ * number rather than a group/per-head pair.
+ */
+function convertedAmount(
+  amount: number,
+  from: string,
+  to: string,
+  rates: StoredRates | null,
+): number | null {
+  if (!rates) return null;
+  const rate = crossRate(from, to, rates.rates);
+  return rate === null ? null : amount * rate;
+}
+
 function convertedLine(
   cost: { group: number; perPerson: number; currency: string },
   defaultCurrency: string,
@@ -264,6 +349,7 @@ function convertedCost(
   result: CostDashboard,
   rates: StoredRates | null,
   viewerCommitted: readonly DashboardSubtotal[],
+  viewerPersonal: readonly DashboardSubtotal[],
 ): ConvertedCost | null {
   if (!rates) return null;
   const committed = convertSubtotals(
@@ -294,11 +380,27 @@ function convertedCost(
       }
     : null;
 
+  // The reader's own private spend, crossed the same way — and kept in its own
+  // field, because it is the one figure here that must never reach the target.
+  const ownCrossed = convertSubtotals(
+    viewerPersonal,
+    defaultCurrency,
+    rates.rates,
+  );
+  const personal = ownCrossed
+    ? {
+        amount: ownCrossed.group,
+        converted: [...ownCrossed.converted],
+        missing: [...ownCrossed.missing],
+      }
+    : null;
+
   return {
     currency: defaultCurrency,
     committed: { group: committed.group, perPerson: committed.perPerson },
     projected: { group: projected.group, perPerson: projected.perPerson },
     viewer,
+    personal,
     asOf: rates.asOf,
     // The projection is the superset — it is the committed options plus the
     // front-runners — so its currency lists are the ones that describe the
@@ -316,7 +418,13 @@ function convertedCost(
  * the first, and not the trip's total either, since the options this viewer
  * declined are absent from both.
  */
-function aggregateShare(lines: readonly DashboardLine[]): DashboardSubtotal[] {
+function aggregateShare(
+  // The three fields it actually reads, rather than a whole `DashboardLine`.
+  // A personal item's subtotal is the same arithmetic over rows that have no
+  // kind, no headcount and nobody who opted in, and narrowing the parameter to
+  // what the body touches is what lets one definition serve both.
+  lines: readonly { currency: string; group: number; perPerson: number }[],
+): DashboardSubtotal[] {
   const byCurrency = new Map<string, { group: number; perPerson: number }>();
   for (const l of lines) {
     const acc = byCurrency.get(l.currency) ?? { group: 0, perPerson: 0 };

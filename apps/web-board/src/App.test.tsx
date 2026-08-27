@@ -241,6 +241,8 @@ describe("web-board auth flow", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 1,
           });
@@ -320,6 +322,8 @@ describe("web-board auth flow", () => {
             committed: [],
             projected: [],
             viewerCommitted: [],
+            viewerPersonal: [],
+            personalLines: [],
             lines: [],
             memberCount: 1,
           });

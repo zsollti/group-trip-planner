@@ -1,9 +1,10 @@
+import { useState, type ReactNode } from "react";
 import { useTripCategories, useTripDashboard } from "@gtp/api-client";
 import type { CategoryView, TripDashboardView } from "@gtp/types";
 import { CostBar } from "./CostBar";
 import { CostComposition } from "./CostComposition";
 import { EmptyCostDonut } from "./CostDonut";
-import { costComposition } from "../lib/costComposition";
+import { costComposition, myCostComposition } from "../lib/costComposition";
 // The strip's private formatter moved to `lib/money` when the option cards
 // needed the same thing. One definition, so a total and the cards it is the sum
 // of cannot disagree about how money is written.
@@ -13,7 +14,9 @@ import {
 } from "../lib/money";
 import {
   lockedCost,
+  personalCost,
   targetVerdict,
+  viewerAllIn,
   viewerCost,
   type AllInTotal,
   type LockedCost,
@@ -101,11 +104,38 @@ function TallyBody({
   d: TripDashboardView;
   categories: readonly CategoryView[];
 }) {
+  /*
+   * Which of the two readings is on screen.
+   *
+   * **Two positions, not three.** "The trip", "mine" and "both added together"
+   * looks like the obvious set and the third one is not a figure anybody should
+   * be given: adding a member's private spend to the group's committed total
+   * produces a number that claims the trip agreed to buy someone's flight. The
+   * reader's own all-in already *is* the sum that means something, and it is
+   * what "Mine" shows.
+   *
+   * Offered only once there is a second story to tell. With nothing of their
+   * own, "Mine" would differ from "The trip" only by the opt-in options this
+   * reader declined — which the target line under the chart already says in
+   * words, and which does not need a control of its own.
+   */
+  const [view, setView] = useState<CostView>("trip");
+  const hasOwn = d.viewerPersonal.length > 0;
+
   const locked = lockedCost(d);
   // The target is per person, so it is read against **this reader's** money —
   // the trip's total includes options they may have declined.
   const mine = viewerCost(d);
   const verdict = targetVerdict(d, mine);
+
+  if (hasOwn && view === "mine") {
+    return (
+      <MineBody d={d} categories={categories} verdict={verdict} view={view}>
+        <CostViewToggle view={view} onChange={setView} />
+      </MineBody>
+    );
+  }
+
   const composition = costComposition(d);
   // True only when the two genuinely differ, i.e. some locked option is priced
   // for part of the group and the split matters to this reader.
@@ -135,6 +165,7 @@ function TallyBody({
   if (nothingLocked) {
     return (
       <>
+        {hasOwn ? <CostViewToggle view={view} onChange={setView} /> : null}
         <div className="cost-comp__chart">
           <EmptyCostDonut
             label={{
@@ -152,6 +183,7 @@ function TallyBody({
 
   return (
     <>
+      {hasOwn ? <CostViewToggle view={view} onChange={setView} /> : null}
       {/* One figure on this surface, and the composition states it when it can
           — in the donut's hole, or as the caption over the bar. The fallbacks
           below exist for the two cases it cannot cover: nothing drawable
@@ -190,6 +222,148 @@ function TallyBody({
       <p className="board__tally-foot">
         {plural(d.memberCount, "{n} member", "{n} members")}
       </p>
+    </>
+  );
+}
+
+/** Whose money the strip is describing. */
+type CostView = "trip" | "mine";
+
+/**
+ * The switch between the two readings.
+ *
+ * Wears `ViewToggle`'s clothes deliberately — this is the same kind of control
+ * doing the same kind of job, and a second segmented control drawn differently
+ * would read as a different mechanism. Buttons rather than links, because
+ * unlike Plan/Timeline there is nothing here worth a URL: which reading of a
+ * cost panel you last had open is not a place, and sending someone a link to
+ * "my private total" would be a link that shows them their own.
+ *
+ * `aria-pressed` is the state a screen reader gets, and the sliding thumb is
+ * driven off `data-view` — one source of truth, decoration over it, exactly as
+ * on the view toggle.
+ */
+function CostViewToggle({
+  view,
+  onChange,
+}: {
+  view: CostView;
+  onChange: (next: CostView) => void;
+}) {
+  return (
+    <div
+      className="viewtoggle viewtoggle--cost"
+      data-view={view}
+      role="group"
+      aria-label={t("Whose money")}
+    >
+      <span className="viewtoggle__thumb" aria-hidden="true" />
+      <button
+        type="button"
+        className="viewtoggle__option"
+        aria-pressed={view === "trip"}
+        onClick={() => onChange("trip")}
+      >
+        {t("The trip")}
+      </button>
+      <button
+        type="button"
+        className="viewtoggle__option"
+        aria-pressed={view === "mine"}
+        onClick={() => onChange("mine")}
+      >
+        {t("Mine")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The strip read for one person: their share of the group's decisions plus the
+ * things only they are paying for.
+ *
+ * A body of its own rather than branches through the trip's, so the trip's
+ * reading is provably the one it always was. The differences are few and all of
+ * them follow from whose money it is:
+ *
+ * - the chart has **no target ring** (see {@link myCostComposition}) — the
+ *   verdict below still speaks for the group's plan, and a ring that folded
+ *   private spending into that comparison would contradict it;
+ * - the member count is gone. It is the divisor for the trip's per-person
+ *   figures and has nothing to divide here.
+ *
+ * The target line is unchanged and deliberately so: it reads `viewerCommitted`
+ * in both readings, because the target is what the group budgeted for the
+ * group's plan. What this view adds is the sentence naming the money that is
+ * **not** in it.
+ */
+function MineBody({
+  d,
+  categories,
+  verdict,
+  children,
+}: {
+  d: TripDashboardView;
+  categories: readonly CategoryView[];
+  verdict: ReturnType<typeof targetVerdict>;
+  view: CostView;
+  /** The switch, passed in so this body does not own the state it reads. */
+  children: ReactNode;
+}) {
+  const own = personalCost(d);
+  const composition = myCostComposition(d, t("Just for me"));
+  const allIn = viewerAllIn(d);
+
+  return (
+    <>
+      {children}
+      {composition ? (
+        <CostComposition
+          composition={composition}
+          categories={categories}
+          headline={{
+            headline: figure(
+              composition.charted,
+              composition.currency,
+              composition.approximate,
+            ),
+            caption: t("yours, all in"),
+            exact: null,
+          }}
+        />
+      ) : allIn ? (
+        <Headline all={allIn} verdict={null} exact={null} />
+      ) : (
+        <div className="cost-comp__chart">
+          <EmptyCostDonut
+            label={{
+              headline: money(0, d.defaultCurrency),
+              caption: t("yours, all in"),
+            }}
+          />
+        </div>
+      )}
+      {verdict ? <TargetLine v={verdict} personal={false} /> : null}
+      {/*
+       * Said out loud, every time this reading is open.
+       *
+       * The target above it is the group's budget for the group's plan, and a
+       * member's own flight is not something the trip agreed to — so it is not
+       * counted, and a reader looking at one figure sitting above another needs
+       * to be told which of them the verdict was about. Leaving it implicit is
+       * how someone concludes they are over budget when they are not.
+       */}
+      {own.allIn ? (
+        <p className="board__tally-foot">
+          {t("Just for me: {amount}. Not counted against the target.", {
+            amount: figure(
+              own.allIn.group,
+              own.allIn.currency,
+              own.allIn.approximate,
+            ),
+          })}
+        </p>
+      ) : null}
     </>
   );
 }

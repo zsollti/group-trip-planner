@@ -155,6 +155,89 @@ export function viewerCost(d: TripDashboardView): LockedCost {
   };
 }
 
+/**
+ * What the reader is spending on **their own** things, as one figure.
+ *
+ * The same three-case honesty {@link viewerCost} follows: one currency is
+ * exact, several need the server's crossing, and no crossing means no single
+ * figure rather than a wrong one.
+ *
+ * `group` and `perPerson` carry the same number all the way through — the group
+ * paying for a personal item is one person — so a caller may read either and
+ * get the same answer.
+ *
+ * **This figure never reaches the target.** `targetVerdict` reads
+ * `viewerCommitted` and only that. The trip's target is what the group budgeted
+ * for the group's plan, and a member's own flight home is not something the
+ * trip agreed to; counting it would tell someone they had overspent a budget
+ * they are in fact keeping to. It is shown beside the verdict, never inside it.
+ */
+export function personalCost(d: TripDashboardView): LockedCost {
+  const parts = d.viewerPersonal;
+  if (parts.length === 0) return { parts, allIn: null };
+
+  const only = parts.length === 1 ? parts[0] : undefined;
+  if (only) {
+    return {
+      parts,
+      allIn: {
+        group: only.group,
+        perPerson: only.perPerson,
+        currency: only.currency,
+        approximate: false,
+        missing: [],
+      },
+    };
+  }
+
+  const p = d.converted?.personal;
+  if (!p) return { parts, allIn: null };
+  return {
+    parts,
+    allIn: {
+      group: p.amount,
+      perPerson: p.amount,
+      currency: d.converted!.currency,
+      approximate: true,
+      missing: p.missing.filter((code) =>
+        parts.some((part) => part.currency === code),
+      ),
+    },
+  };
+}
+
+/**
+ * The reader's real all-in: their share of the group's decisions **plus** their
+ * own things.
+ *
+ * Null whenever either half cannot be stated as one figure, rather than
+ * silently reporting the half that can — a total missing a currency it could
+ * not cross is exactly the kind of figure this module exists to refuse.
+ *
+ * Both halves have to already be in the same currency. On a single-currency
+ * trip they are, trivially; on a mixed one both come from the server's own
+ * crossing into the trip's currency, so they agree by construction. The one
+ * case left is a trip whose group spend is in one currency and whose reader
+ * priced their flight in another, with no rates stored — and there the answer
+ * is null, which is the truthful one.
+ */
+export function viewerAllIn(d: TripDashboardView): AllInTotal | null {
+  const mine = viewerCost(d).allIn;
+  const own = personalCost(d).allIn;
+  // Nothing of one's own is not a missing figure — it is a zero, and the
+  // reader's all-in is then simply their share.
+  if (own === null) return d.viewerPersonal.length === 0 ? mine : null;
+  if (mine === null) return d.viewerCommitted.length === 0 ? own : null;
+  if (mine.currency !== own.currency) return null;
+  return {
+    group: mine.group + own.group,
+    perPerson: mine.perPerson + own.perPerson,
+    currency: mine.currency,
+    approximate: mine.approximate || own.approximate,
+    missing: [...new Set([...mine.missing, ...own.missing])],
+  };
+}
+
 /** How the locked spend stands against the trip's per-person target. */
 export interface TargetVerdict {
   readonly target: number;

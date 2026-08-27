@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DashboardLine, TripDashboardView } from "@gtp/types";
-import { costComposition } from "./costComposition";
+import { costComposition, myCostComposition } from "./costComposition";
 
 /**
  * What a composition chart may claim about where the money went.
@@ -20,7 +20,9 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     committed: [],
     projected: [],
     viewerCommitted: [],
+    viewerPersonal: [],
     lines: [],
+    personalLines: [],
     converted: null,
     generatedAt: new Date().toISOString(),
     ...over,
@@ -367,5 +369,126 @@ describe("the tail", () => {
     expect(withTarget?.slices.map((s) => s.label)).toEqual(
       withoutTarget?.slices.map((s) => s.label),
     );
+  });
+});
+
+describe("myCostComposition", () => {
+  let itemSeq = 0;
+  const own = (
+    amount: number,
+    over: Partial<TripDashboardView["personalLines"][number]> = {},
+  ): TripDashboardView["personalLines"][number] => {
+    itemSeq += 1;
+    return {
+      itemId: `00000000-0000-4000-8000-${String(itemSeq).padStart(12, "0")}`,
+      categoryId: null,
+      categoryName: null,
+      title: `Item ${itemSeq}`,
+      currency: "EUR",
+      amount,
+      converted: amount,
+      ...over,
+    };
+  };
+
+  it("says nothing when the reader owes nothing and owns nothing", () => {
+    expect(myCostComposition(dashboard(), "Just for me")).toBeNull();
+  });
+
+  it("draws only the locked money this reader actually owes", () => {
+    const d = dashboard({
+      lines: [
+        line({ perPerson: 300, viewerOwes: true, categoryName: "Stay" }),
+        line({ perPerson: 90, viewerOwes: false, categoryName: "Surf" }),
+      ],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.charted).toBe(300);
+    expect(c.slices.map((s) => s.label)).toEqual(["Stay"]);
+  });
+
+  it("keeps an opt-in option the reader joined, which the trip's ring cannot", () => {
+    // The trip's chart excludes anything priced for part of the group, because
+    // a ring about everyone cannot hold money only some people pay. This ring
+    // is about one person, so an option they joined is simply their money.
+    const d = dashboard({
+      memberCount: 5,
+      lines: [
+        line({
+          perPerson: 40,
+          effectiveHeadcount: 2,
+          viewerOwes: true,
+          categoryName: "Surf",
+        }),
+      ],
+    });
+    expect(costComposition(d)).toBeNull();
+    const mine = myCostComposition(d, "Just for me")!;
+    expect(mine.charted).toBe(40);
+    expect(mine.excluded).toEqual([]);
+  });
+
+  it("never draws a target ring, whatever the trip's budget says", () => {
+    // The verdict under the chart still speaks for the group's plan, and
+    // personal money is deliberately no part of that comparison. A ring that
+    // folded it in would draw the reader over a target the sentence beneath
+    // says they are keeping to.
+    const d = dashboard({
+      budgetPerPerson: 500,
+      lines: [line({ perPerson: 300, viewerOwes: true })],
+      personalLines: [own(400)],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.charted).toBe(700);
+    expect(c.target).toBeNull();
+    expect(c.targetMark).toBeNull();
+    expect(c.full).toBe(700);
+    expect(c.remaining).toBe(0);
+    expect(c.overspend).toBe(0);
+  });
+
+  it("puts a tagged item in its lane's wedge", () => {
+    const d = dashboard({
+      lines: [line({ perPerson: 300, viewerOwes: true, categoryName: "Stay" })],
+      personalLines: [
+        own(100, { categoryId: "cat-stay", categoryName: "Stay" }),
+      ],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.slices).toHaveLength(1);
+    expect(c.slices[0]).toMatchObject({ label: "Stay", amount: 400 });
+  });
+
+  it("gathers untagged items under one unnamed wedge", () => {
+    // They have nothing in common but being untagged, and a ring of one-item
+    // slices is a list drawn as a circle. A null `categoryId` is already the
+    // chart's word for "no lane, so no hue".
+    const d = dashboard({
+      lines: [line({ perPerson: 300, viewerOwes: true, categoryName: "Stay" })],
+      personalLines: [own(100), own(50)],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    const untagged = c.slices.find((s) => s.label === "Just for me")!;
+    expect(untagged.amount).toBe(150);
+    expect(untagged.categoryId).toBeNull();
+  });
+
+  it("drops an item it cannot bring into the trip's currency, and names it", () => {
+    const d = dashboard({
+      personalLines: [
+        own(200),
+        own(50000, { currency: "HUF", converted: null }),
+      ],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.charted).toBe(200);
+    expect(c.uncounted).toEqual(["HUF"]);
+  });
+
+  it("marks itself approximate when an item had to be converted", () => {
+    const d = dashboard({
+      personalLines: [own(50000, { currency: "HUF", converted: 130 })],
+    });
+    expect(myCostComposition(d, "Just for me")!.approximate).toBe(true);
   });
 });

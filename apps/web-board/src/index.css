@@ -6664,10 +6664,17 @@ button.cost-comp__row-btn:hover,
    a screen reader where it is is the same fact the eye needs, and two sources
    for one state is how they come to disagree. Only the ink is set here — the
    fill under it belongs to the thumb. */
-.viewtoggle__option[aria-current="page"] {
+/* The reading in effect. Two attributes because there are two kinds of
+   control on this track: the view switch navigates, so its current side is
+   `aria-current="page"`, while the cost switch is a pair of buttons and says
+   `aria-pressed`. Both are the state a screen reader already gets, so neither
+   needs a class to repeat it. */
+.viewtoggle__option[aria-current="page"],
+.viewtoggle__option[aria-pressed="true"] {
   color: var(--board-on-accent);
 }
-.viewtoggle__option[aria-current="page"]:hover {
+.viewtoggle__option[aria-current="page"]:hover,
+.viewtoggle__option[aria-pressed="true"]:hover {
   color: var(--board-on-accent);
 }
 .viewtoggle__option:focus-visible {
@@ -6689,8 +6696,28 @@ button.cost-comp__row-btn:hover,
      controls has moved reads as two unrelated animations. */
   transition: transform 330ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.viewtoggle[data-view="timeline"] .viewtoggle__thumb {
+.viewtoggle[data-view="timeline"] .viewtoggle__thumb,
+.viewtoggle[data-view="mine"] .viewtoggle__thumb {
   transform: translateX(100%);
+}
+
+/* The same control in the cost panel, where the column is ~17rem rather than a
+   page's width: it fills the panel instead of sitting inline, and the labels
+   are a notch smaller so "The trip" and "Mine" both fit one line at that width.
+   Buttons carry the browser's own background, which would paint over the thumb
+   sliding behind them. */
+.viewtoggle--cost {
+  display: grid;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+.viewtoggle--cost .viewtoggle__option {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 /* The itinerary in its half of the layout. It kept its own reading measure from
