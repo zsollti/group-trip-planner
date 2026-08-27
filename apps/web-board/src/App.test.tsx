@@ -223,6 +223,10 @@ describe("web-board auth flow", () => {
             },
           });
         }
+        // The reader's own column asks for its list on every board render.
+        // Ahead of the `/trips/t1` catch-all below, which would otherwise hand
+        // an array-shaped read the trip object.
+        if (u.includes("/personal-items")) return json([]);
         if (u.includes("/categories")) {
           categoriesCalls += 1;
           return failCategories ? json({ message: "boom" }, 500) : json([]);
@@ -319,6 +323,10 @@ describe("web-board auth flow", () => {
             lines: [],
             memberCount: 1,
           });
+        // The reader's own column asks for its list on every board render.
+        // Ahead of the `/trips/t1` catch-all below, which would otherwise hand
+        // an array-shaped read the trip object.
+        if (u.includes("/personal-items")) return json([]);
         if (u.includes("/categories")) return json([]);
         if (u.includes("/trips/t1")) {
           return json({

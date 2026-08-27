@@ -33,6 +33,7 @@ import {
   useReorderCategories,
 } from "@gtp/api-client";
 import { AddCategoryLane } from "./AddCategoryLane";
+import { PersonalLane } from "./PersonalLane";
 import { CategoryLane } from "./CategoryLane";
 import { categoryHueStyleById } from "../lib/categoryTheme";
 import { costLabel } from "./optionFormat";
@@ -393,6 +394,32 @@ export function BoardCanvas({
               categoryCount={categories.length}
             />
           ) : null}
+          {/*
+           * Last, and outside the `SortableContext` above.
+           *
+           * Outside because it is not one of the trip's lanes and cannot be
+           * reordered among them — there is one of these and it is always the
+           * reader's, so there is nothing for a drag to express. It sits after
+           * "add a lane" for the same reason: everything to the left of it is
+           * the board the trip shares, and this is the one column that is not.
+           *
+           * It renders inside the DndContext only because it is inside the
+           * canvas; it registers no droppable and no sortable, so a card
+           * dragged over it finds nothing and goes back, which is the right
+           * answer — a decision cannot be dropped into a private column.
+           *
+           * **No role gate.** Every member keeps a list, Guests included; the
+           * capability row says so and the column follows it rather than
+           * re-deciding here.
+           */}
+          <PersonalLane
+            tripId={tripId}
+            myUserId={myUserId}
+            categories={categories}
+            defaultCurrency={defaultCurrency}
+            frozen={frozen}
+            tripDates={tripDates}
+          />
         </div>
         {/* Deliberately a plain preview and not an `OptionCard`: the card in
             hand is not interactive, and mounting a second copy of one would

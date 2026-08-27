@@ -3840,6 +3840,56 @@ a.odetail__link:focus-visible {
   flex: 0 0 auto;
   color: var(--cat-ink);
 }
+/* ---------------------------------------------------------------------------
+   "Just for me" — the reader's own column (post-launch).
+
+   Neutral, not a ninth hue. All eight palettes mean "a question the trip is
+   asking", so a column wearing one would read as another lane, and the
+   distinction here is not *which category* but *who can see it*. It is said
+   with a dashed edge instead: a texture rather than a colour, which is also
+   the one channel that survives a reader who cannot separate the hues.
+
+   `--cat-hue` is left at the `:root` default, which matters because `.lane`
+   and `.lane__card--option` both declare the `--cat-*` scale — this column
+   inherits real values and paints, rather than resolving them to nothing.
+   Every colour below then overrides the hue-derived ones by hand, so the
+   default hue is never actually seen.
+   --------------------------------------------------------------------------- */
+.lane--personal {
+  border: 1px dashed var(--lane-line);
+  border-top: 3px dashed var(--board-dim);
+}
+/* The single figure that heads the column, in the muted ink the sub-line uses
+   rather than a category's `--cat-ink` — there is no category here to be the
+   colour of. */
+.lane--personal .glyph {
+  color: var(--board-dim);
+  flex: 0 0 auto;
+}
+/* A card here is dashed for the same reason its column is, and its fill is the
+   lane's own rather than a hue's wash: the tint on an option card exists to
+   group it with the lane above it, and this column's cards are already grouped
+   by being the only ones in it. An item that *is* tagged keeps its tag's glyph
+   in the lane's ink — the mark carries the colour, the card does not. */
+.lane__card--personal {
+  border: 1px dashed color-mix(in srgb, var(--board-dim) 45%, var(--lane-line));
+  /* A neutral a shade off the lane it sits on, mixed from the two tokens that
+     both flip with the theme — so the card separates from its column in light
+     and dark alike without naming a colour of its own. */
+  background: color-mix(in srgb, var(--board-bg) 50%, var(--lane-bg));
+}
+/* Sits where a decision's padlock sits, on the same 1.5rem box as the grip and
+   the "⋯" beside it, so the tools of both kinds of card share one rhythm. */
+.lane__personal-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  color: var(--cat-ink);
+}
+
 /* Separates the decision from the options it beat. Not a heading — it labels a
    position in a list, and promoting it would put a second h-level inside a lane
    that already has one. */
