@@ -156,3 +156,42 @@ export const PersonalItemView = z.object({
   createdAt: z.string(),
 });
 export type PersonalItemView = z.infer<typeof PersonalItemView>;
+
+/**
+ * What this member is willing to spend on this trip, all in (post-launch).
+ *
+ * **Not the same number as `Trip.budgetPerPerson`**, and the difference is the
+ * whole reason this exists. That one is the organizer's guideline for the
+ * group's plan: it reads the same for everybody, and the rule the owner set is
+ * that private spending is never measured against it. So the reader's own cost
+ * chart had no target it could honestly draw — a ring folding someone's flight
+ * home into the group's target would put them over a line the sentence beneath
+ * it says they are keeping to.
+ *
+ * This is the target that chart can draw: the reader's own limit, against the
+ * reader's own money, their private items included, seen by nobody else.
+ *
+ * Denominated in the trip's `defaultCurrency` and carrying no currency of its
+ * own, exactly as the trip's target does — a second currency here would be a
+ * second source of truth for a question the trip already answers.
+ */
+export const SetPersonalBudgetInput = z.object({
+  /**
+   * The figure, or null to clear it.
+   *
+   * Explicitly nullable rather than optional: this is a `PUT` of the whole
+   * setting, so "no budget" has to be something a client can *say*. An omitted
+   * field would make clearing it indistinguishable from forgetting it.
+   */
+  amount: z.number().nonnegative().max(1_000_000_000).nullable(),
+});
+export type SetPersonalBudgetInput = z.infer<typeof SetPersonalBudgetInput>;
+
+/** The caller's own budget on a trip. Always theirs; never anybody else's. */
+export const PersonalBudgetView = z.object({
+  /** Null when they have not set one, which is every membership by default. */
+  amount: z.number().nullable(),
+  /** The trip's currency, restated so a client need not fetch the trip to write the figure. */
+  currency: z.string(),
+});
+export type PersonalBudgetView = z.infer<typeof PersonalBudgetView>;

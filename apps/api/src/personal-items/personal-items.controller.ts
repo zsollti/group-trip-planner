@@ -7,12 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from "@nestjs/common";
 import {
   CreatePersonalItemInput,
   ReorderPersonalItemsInput,
+  SetPersonalBudgetInput,
   UpdatePersonalItemInput,
+  type PersonalBudgetView,
   type PersonalItemView,
 } from "@gtp/types";
 import type { User } from "@prisma/client";
@@ -124,5 +127,54 @@ export class PersonalItemsController {
     @Param("itemId") itemId: string,
   ): Promise<void> {
     return this.items.deleteItem(ctx, user.id, itemId);
+  }
+}
+
+/**
+ * The caller's own spending limit for one trip (post-launch).
+ *
+ * A path of its own rather than a route under `personal-items`, because it is
+ * not an item: it is one figure on the caller's membership, the way `chat-mute`
+ * is. Nesting it there would also have put it in the way of the `:itemId`
+ * routes for no gain.
+ *
+ * Gated `personalItem.manage`, the same row the private list holds, and for the
+ * same reason: none of this touches shared state, and a Guest deciding whether
+ * to come is exactly the person who wants to say what they can spend.
+ *
+ * **Always about the caller.** There is no user id in the path or the body, so
+ * there is no shape in which one member reads or writes another's figure. The
+ * service scopes every query `{ tripId, userId }` from `@CurrentUser()` on top
+ * of that.
+ */
+@Controller("trips/:id/personal-budget")
+export class PersonalBudgetController {
+  constructor(private readonly items: PersonalItemsService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("personalItem.manage")
+  get(
+    @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
+  ): Promise<PersonalBudgetView> {
+    return this.items.getBudget(ctx, user.id);
+  }
+
+  /**
+   * `PUT` because the body is the whole of the setting every time: it says what
+   * the budget should now be, not how to adjust what it was, so sending the
+   * same request twice leaves the same state.
+   */
+  @Put()
+  @UseGuards(JwtAuthGuard, TripContextGuard, PermissionGuard)
+  @RequirePermission("personalItem.manage")
+  set(
+    @TripCtx() ctx: TripContext,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(SetPersonalBudgetInput))
+    body: SetPersonalBudgetInput,
+  ): Promise<PersonalBudgetView> {
+    return this.items.setBudget(ctx, user.id, body.amount);
   }
 }

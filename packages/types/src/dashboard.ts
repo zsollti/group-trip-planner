@@ -222,6 +222,21 @@ export const TripDashboardView = z.object({
    * rather than implying the others are covered.
    */
   budgetPerPerson: z.number().nullable(),
+  /**
+   * The **caller's own** spending limit for this trip, in `defaultCurrency`,
+   * or null when they have not set one (post-launch).
+   *
+   * Its own field beside {@link TripDashboardView.budgetPerPerson} and never
+   * merged with it, because the two are different promises. That one is the
+   * organizer's guideline for the group's plan and reads the same for
+   * everybody; this one is private, differs per reader, and is the only target
+   * {@link TripDashboardView.viewerPersonal} may honestly be measured against.
+   *
+   * Carried here rather than fetched separately for the same reason the trip's
+   * target is: it means nothing except next to the totals, and this is the
+   * endpoint that produces them.
+   */
+  viewerBudget: z.number().nullable(),
   /** Current member count, i.e. the divisor for whole-group options. */
   memberCount: z.number().int().nonnegative(),
   committed: z.array(DashboardSubtotal),

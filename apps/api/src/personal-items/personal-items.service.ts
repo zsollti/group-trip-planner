@@ -8,6 +8,7 @@ import {
   isTripFrozen,
   maxPersonalItems,
   type CreatePersonalItemInput,
+  type PersonalBudgetView,
   type PersonalItemView,
   type ReorderPersonalItemsInput,
   type UpdatePersonalItemInput,
@@ -198,6 +199,53 @@ export class PersonalItemsService {
       ),
     );
     return this.listItems(ctx, ownerId);
+  }
+
+  /**
+   * The caller's own spending limit for this trip.
+   *
+   * Read off their membership, which is the row the guards have already proved
+   * is theirs. Scoped `{ tripId, userId }` like everything else here, so there
+   * is no shape in which this method returns somebody else's figure.
+   */
+  async getBudget(
+    ctx: TripContext,
+    userId: string,
+  ): Promise<PersonalBudgetView> {
+    const membership = await this.prisma.tripMembership.findUnique({
+      where: { tripId_userId: { tripId: ctx.trip.id, userId } },
+      select: { personalBudget: true },
+    });
+    return {
+      // A member who reached these guards has a membership; the null branch is
+      // for the type, not for a case.
+      amount:
+        membership?.personalBudget == null
+          ? null
+          : Number(membership.personalBudget),
+      currency: ctx.trip.defaultCurrency,
+    };
+  }
+
+  /**
+   * Set it, or clear it with a null amount.
+   *
+   * Not gated on {@link assertActive}. A frozen trip refuses changes to the
+   * *trip* — its options, its decisions, the shared record every member reads.
+   * A number describing what one person was prepared to spend is none of that,
+   * and someone tidying up their own figures after the fact is not editing
+   * history that anybody else can see.
+   */
+  async setBudget(
+    ctx: TripContext,
+    userId: string,
+    amount: number | null,
+  ): Promise<PersonalBudgetView> {
+    await this.prisma.tripMembership.update({
+      where: { tripId_userId: { tripId: ctx.trip.id, userId } },
+      data: { personalBudget: amount },
+    });
+    return this.getBudget(ctx, userId);
   }
 
   /** Frozen = persisted History **or** past `expiresAt` (FR-10, decision 4). */

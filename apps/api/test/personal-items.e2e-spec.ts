@@ -94,6 +94,29 @@ describe("Personal items (e2e)", () => {
       .send(body);
   }
 
+  function budget(accessToken: string, tripId: string) {
+    return http()
+      .get(`/trips/${tripId}/personal-budget`)
+      .set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  function setBudget(
+    accessToken: string,
+    tripId: string,
+    amount: number | null,
+  ) {
+    return http()
+      .put(`/trips/${tripId}/personal-budget`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ amount });
+  }
+
+  function dashboard(accessToken: string, tripId: string) {
+    return http()
+      .get(`/trips/${tripId}/dashboard`)
+      .set("Authorization", `Bearer ${accessToken}`);
+  }
+
   async function categoryOf(
     accessToken: string,
     tripId: string,
@@ -415,5 +438,112 @@ describe("Personal items (e2e)", () => {
     assert.equal(view.amount, null, "a full replace clears the amount");
     assert.equal(view.description, null);
     assert.equal(view.categoryId, null, "and unties the tag");
+  });
+  /*
+   * The member's own budget.
+   *
+   * It shares this file with the private list because it is the same kind of
+   * fact -- one member's own number on one trip, scoped the same way, gated on
+   * the same capability -- and the case worth asserting is the same one:
+   * member-versus-member, where no guard in the pipeline separates two people
+   * who are both legitimately on the board.
+   */
+  it("keeps each member's budget to themselves", async () => {
+    const owner = await makeUser("bud-owner");
+    const other = await makeUser("bud-other");
+    const trip = await createTrip(owner.accessToken, "Budgets");
+    await addMember(owner.accessToken, trip, other);
+
+    await setBudget(owner.accessToken, trip, 600).expect(200);
+    await setBudget(other.accessToken, trip, 250).expect(200);
+
+    const mine = await budget(owner.accessToken, trip).expect(200);
+    assert.equal((mine.body as { amount: number | null }).amount, 600);
+    const theirs = await budget(other.accessToken, trip).expect(200);
+    assert.equal((theirs.body as { amount: number | null }).amount, 250);
+  });
+
+  it("carries the reader's own budget on the dashboard, and only theirs", async () => {
+    const owner = await makeUser("bud-dash-owner");
+    const other = await makeUser("bud-dash-other");
+    const trip = await createTrip(
+      owner.accessToken,
+      "Budgets on the dashboard",
+    );
+    await addMember(owner.accessToken, trip, other);
+    await setBudget(owner.accessToken, trip, 600).expect(200);
+
+    const forOwner = await dashboard(owner.accessToken, trip).expect(200);
+    assert.equal(
+      (forOwner.body as { viewerBudget: number | null }).viewerBudget,
+      600,
+    );
+
+    // The other member has set none, and must not inherit the first one's.
+    // This is the whole claim: one payload, two readers, two answers.
+    const forOther = await dashboard(other.accessToken, trip).expect(200);
+    assert.equal(
+      (forOther.body as { viewerBudget: number | null }).viewerBudget,
+      null,
+    );
+  });
+
+  it("is a different number from the trip's target, and does not touch it", async () => {
+    // The two are read against different money and one of them is private, so
+    // a write to either must be invisible to the other.
+    const owner = await makeUser("bud-vs-target");
+    const trip = await createTrip(owner.accessToken, "Two budgets");
+    await setBudget(owner.accessToken, trip, 600).expect(200);
+
+    const view = await dashboard(owner.accessToken, trip).expect(200);
+    const body = view.body as {
+      viewerBudget: number | null;
+      budgetPerPerson: number | null;
+    };
+    assert.equal(body.viewerBudget, 600);
+    assert.equal(
+      body.budgetPerPerson,
+      null,
+      "setting a private budget must not give the trip a target",
+    );
+  });
+
+  it("clears with a null amount, which is how a budget is removed", async () => {
+    const owner = await makeUser("bud-clear");
+    const trip = await createTrip(owner.accessToken, "Clearing");
+    await setBudget(owner.accessToken, trip, 600).expect(200);
+
+    const cleared = await setBudget(owner.accessToken, trip, null).expect(200);
+    assert.equal((cleared.body as { amount: number | null }).amount, null);
+    const read = await budget(owner.accessToken, trip).expect(200);
+    assert.equal((read.body as { amount: number | null }).amount, null);
+  });
+
+  it("lets a Guest set one, since deciding what you can spend is why you would", async () => {
+    const owner = await makeUser("bud-guest-owner");
+    const guest = await makeUser("bud-guest");
+    const trip = await createTrip(owner.accessToken, "Guest budget");
+    await addMember(owner.accessToken, trip, guest, "GUEST");
+
+    await setBudget(guest.accessToken, trip, 120).expect(200);
+    const read = await budget(guest.accessToken, trip).expect(200);
+    assert.equal((read.body as { amount: number | null }).amount, 120);
+  });
+
+  it("refuses a negative budget", async () => {
+    const owner = await makeUser("bud-negative");
+    const trip = await createTrip(owner.accessToken, "Negative");
+    await setBudget(owner.accessToken, trip, -1).expect(400);
+  });
+
+  it("answers a stranger the way every trip-scoped route does", async () => {
+    // `backbone-idor` sweeps this automatically; asserted here too because the
+    // shape of the answer is the point -- 404, so a non-member cannot learn
+    // that the trip exists by asking about a budget on it.
+    const owner = await makeUser("bud-stranger-owner");
+    const stranger = await makeUser("bud-stranger");
+    const trip = await createTrip(owner.accessToken, "Strangers");
+    await budget(stranger.accessToken, trip).expect(404);
+    await setBudget(stranger.accessToken, trip, 10).expect(404);
   });
 });

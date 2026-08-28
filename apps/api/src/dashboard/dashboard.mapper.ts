@@ -146,6 +146,16 @@ export function toTripDashboardView(
   /** The caller's **own** private items. Never anybody else's — the service
    *  queries them scoped to this viewer, and there is no other way in. */
   personalRows: readonly DashboardPersonalRow[] = [],
+  /**
+   * The caller's **own** spending limit, or null when they have not set one.
+   *
+   * A parameter rather than a field on `trip`, because it is not the trip's: it
+   * is read off the caller's membership, and putting it beside
+   * `trip.budgetPerPerson` here is the one place the two could be confused for
+   * one number. Prisma `Decimal | null`, normalised on the way out like the
+   * trip's own.
+   */
+  viewerBudget: { toString(): string } | null = null,
 ): TripDashboardView {
   const rowById = new Map(rows.map((r) => [r.id, r]));
   const costById = new Map(result.options.map((c) => [c.optionId, c]));
@@ -263,6 +273,9 @@ export function toTripDashboardView(
     // it — it is carried alongside the figures, never applied to them.
     budgetPerPerson:
       trip.budgetPerPerson === null ? null : Number(trip.budgetPerPerson),
+    // The caller's own limit, and the only target their private spending may be
+    // read against. Beside the trip's, never folded into it.
+    viewerBudget: viewerBudget === null ? null : Number(viewerBudget),
     memberCount,
     committed: result.committed.map((s) => ({ ...s })),
     projected: result.projected.map((s) => ({ ...s })),

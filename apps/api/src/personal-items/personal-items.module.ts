@@ -3,7 +3,10 @@ import { AuthModule } from "../auth/auth.module.js";
 import { PermissionGuard } from "../authz/permission.guard.js";
 import { TripContextGuard } from "../trips/trip-context.guard.js";
 import { UserThrottlerGuard } from "../common/user-throttler.guard.js";
-import { PersonalItemsController } from "./personal-items.controller.js";
+import {
+  PersonalBudgetController,
+  PersonalItemsController,
+} from "./personal-items.controller.js";
 import { PersonalItemsService } from "./personal-items.service.js";
 
 /**
@@ -28,7 +31,7 @@ import { PersonalItemsService } from "./personal-items.service.js";
  */
 @Module({
   imports: [AuthModule],
-  controllers: [PersonalItemsController],
+  controllers: [PersonalItemsController, PersonalBudgetController],
   providers: [
     PersonalItemsService,
     TripContextGuard,

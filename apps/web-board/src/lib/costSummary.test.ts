@@ -21,6 +21,9 @@ function dashboard(over: Partial<TripDashboardView> = {}): TripDashboardView {
     tripId: "t1",
     defaultCurrency: "EUR",
     budgetPerPerson: null,
+    // No budget of their own unless a case sets one, which is every
+    // membership until somebody types a figure.
+    viewerBudget: null,
     memberCount: 4,
     committed: [],
     projected: [],

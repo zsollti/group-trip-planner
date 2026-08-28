@@ -189,6 +189,19 @@ const PROBES: Probe[] = [
     method: "delete",
     url: (i) => `/trips/${i.trip}/personal-items/${i.personalItem}`,
   },
+  // The member's own budget. Same privacy shape as the list above, and the same
+  // split: a stranger is refused here, and member-versus-member is asserted in
+  // `personal-items.e2e-spec`.
+  {
+    route: "/trips/:id/personal-budget",
+    method: "get",
+    url: (i) => `/trips/${i.trip}/personal-budget`,
+  },
+  {
+    route: "/trips/:id/personal-budget",
+    method: "put",
+    url: (i) => `/trips/${i.trip}/personal-budget`,
+  },
 
   // --- votes ---------------------------------------------------------------
   {
