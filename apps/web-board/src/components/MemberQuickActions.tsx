@@ -1,32 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  can,
-  canActOn,
-  type AssignableRole,
-  type TripMemberView,
-  type TripRole,
-} from "@gtp/types";
+import { can, canActOn, type TripMemberView, type TripRole } from "@gtp/types";
 import { AnchoredPanel } from "./AnchoredPanel";
 import { holdsNode } from "../lib/anchoredPosition";
 import { roleLabel } from "../lib/roles";
 import { type useMemberActions } from "../lib/memberActions";
-import {
-  BanIcon,
-  CrownIcon,
-  ExitIcon,
-  EyeIcon,
-  KeyIcon,
-  PinIcon,
-} from "./icons";
+import { BanIcon, CrownIcon, ExitIcon } from "./icons";
+import { RoleIcon } from "./RoleIcon";
 import { t } from "../lib/i18n";
-
-/** The mark each assignable role wears, and the order they are offered in —
- *  most capable first, the way the crew list itself is sorted. */
-const ROLE_ICON: Record<AssignableRole, () => ReactNode> = {
-  CO_ORGANIZER: () => <KeyIcon size={15} />,
-  PARTICIPANT: () => <PinIcon size={15} />,
-  GUEST: () => <EyeIcon size={15} />,
-};
 
 /**
  * What an organizer can do to one person, where that person is.
@@ -191,7 +171,7 @@ export function MemberQuickActions({
                 name: member.displayName,
                 role: roleLabel(role),
               }),
-              ROLE_ICON[role](),
+              <RoleIcon role={role} />,
               () => actions.setRole(member, role),
               { current: role === member.role },
             ),
