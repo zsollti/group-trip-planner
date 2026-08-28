@@ -98,7 +98,10 @@ test("a member keeps a private list that nobody else on the board can see", asyn
   await ownerPage.getByRole("button", { name: "Save" }).click();
 
   // 210 of her own against 400, and nothing else decided on this board yet.
-  await expect(ownerPage.getByText(/to spare/)).toBeVisible();
+  // The shortfall is the chart's own row: the line under it states the target
+  // and no longer repeats the row's figure two lines below it.
+  await expect(ownerPage.getByText("Still to spend")).toBeVisible();
+  await expect(ownerPage.getByText("Target")).toBeVisible();
   await expect(
     ownerPage.getByText(/Not counted against the target/),
   ).toBeHidden();
