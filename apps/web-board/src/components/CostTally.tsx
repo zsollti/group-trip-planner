@@ -13,15 +13,28 @@ import {
   formatMoney as money,
 } from "../lib/money";
 import {
+  groupTargetVerdict,
   lockedCost,
   personalCost,
   targetVerdict,
   viewerAllIn,
   viewerCost,
   type AllInTotal,
+  type CostUnit,
   type LockedCost,
 } from "../lib/costSummary";
 import { plural, t } from "../lib/i18n";
+
+/**
+ * What the figure under a headline is denominated in, said in words.
+ *
+ * One definition, because the caption appears in four places on this surface
+ * (the chart's hole, and three empty-state rings) and a chart captioned "per
+ * person" over group money is the exact defect this pass exists to remove.
+ */
+function unitCaption(unit: CostUnit): string {
+  return unit === "group" ? t("for the group") : t("per person");
+}
 
 /** Write a figure the way its certainty deserves. */
 function figure(
@@ -114,32 +127,42 @@ function TallyBody({
    * reader's own all-in already *is* the sum that means something, and it is
    * what "Mine" shows.
    *
-   * Offered only once there is a second story to tell. With nothing of their
-   * own, "Mine" would differ from "The trip" only by the opt-in options this
-   * reader declined — which the target line under the chart already says in
-   * words, and which does not need a control of its own.
+   * **Always offered.** It used to appear only once the reader had things of
+   * their own, on the grounds that "Mine" would otherwise differ from "The
+   * trip" only by the opt-in options they had declined — which the target line
+   * under the trip's chart said in words anyway.
+   *
+   * That was true while both readings were per person. It is not any more: the
+   * trip's chart is group money and its target line speaks for the group, so
+   * without this switch a member with no private list would have nowhere at all
+   * to read what *they* owe. The two readings answer different questions now,
+   * which is precisely what makes the control worth its space.
    */
   const [view, setView] = useState<CostView>("trip");
-  const hasOwn = d.viewerPersonal.length > 0;
 
   const locked = lockedCost(d);
-  // The target is per person, so it is read against **this reader's** money —
-  // the trip's total includes options they may have declined.
-  const mine = viewerCost(d);
-  const verdict = targetVerdict(d, mine);
 
-  if (hasOwn && view === "mine") {
+  if (view === "mine") {
     return (
-      <MineBody d={d} categories={categories} verdict={verdict} view={view}>
+      <MineBody
+        d={d}
+        categories={categories}
+        // The reader's own reading keeps the per-person verdict, read against
+        // **their** money: the trip's total includes options they may have
+        // declined, and warning them about those is the bug that made this
+        // verdict per-viewer in the first place.
+        verdict={targetVerdict(d, viewerCost(d))}
+        view={view}
+      >
         <CostViewToggle view={view} onChange={setView} />
       </MineBody>
     );
   }
 
+  // The trip's reading is group money throughout — the chart, the headline and
+  // the sentence under them. See `groupTargetVerdict`.
+  const verdict = groupTargetVerdict(d);
   const composition = costComposition(d);
-  // True only when the two genuinely differ, i.e. some locked option is priced
-  // for part of the group and the split matters to this reader.
-  const personal = mine.allIn?.perPerson !== locked.allIn?.perPerson;
 
   // Nothing decided and priced yet. The ring still draws, empty: the strip's
   // shape should not change the moment the first option is locked, and a grey
@@ -156,7 +179,7 @@ function TallyBody({
   // `nothingLocked` is deliberately wider than "no subtotals". A locked option
   // priced at **zero** produces a subtotal, and a real one — but it is a
   // subtotal of nothing, so the branch below would print "0 USD" as a total and
-  // "0 USD per person" beside it, then draw the same zero a third time in the
+  // "0 USD for the group" beside it, then draw the same zero a third time in the
   // empty ring underneath. Three statements of nothing, in a panel whose one job
   // is to say what the trip costs. The ring alone says it.
   const nothingLocked =
@@ -165,16 +188,16 @@ function TallyBody({
   if (nothingLocked) {
     return (
       <>
-        {hasOwn ? <CostViewToggle view={view} onChange={setView} /> : null}
+        <CostViewToggle view={view} onChange={setView} />
         <div className="cost-comp__chart">
           <EmptyCostDonut
             label={{
               headline: money(0, d.defaultCurrency),
-              caption: t("per person"),
+              caption: unitCaption("group"),
             }}
           />
         </div>
-        {verdict ? <TargetLine v={verdict} personal={false} /> : null}
+        {verdict ? <TargetLine v={verdict} /> : null}
       </>
     );
   }
@@ -183,13 +206,15 @@ function TallyBody({
 
   return (
     <>
-      {hasOwn ? <CostViewToggle view={view} onChange={setView} /> : null}
+      <CostViewToggle view={view} onChange={setView} />
       {/* One figure on this surface, and the composition states it when it can
-          — in the donut's hole, or as the caption over the bar. The fallbacks
-          below exist for the two cases it cannot cover: nothing drawable
-          (everything priced for part of the group), and several currencies with
-          no rate to cross them. Without them a trip in that state would get a
-          cost panel with no money on it at all. */}
+          — in the donut's hole, or as the caption over the bar. The fallback
+          below exists for the one case it cannot cover: several currencies with
+          no rate to cross them. Without it a trip in that state would get a
+          cost panel with no money on it at all.
+          ("Nothing drawable because everything is priced for part of the group"
+          was a second such case, and stopped being one when this chart moved
+          into group money — there is no option it cannot hold now.) */}
       {composition ? (
         <CostComposition
           composition={composition}
@@ -200,13 +225,10 @@ function TallyBody({
               composition.currency,
               composition.approximate,
             ),
-            // Always "per person", even when something was held back. The
-            // word "shared" was there to answer the question the excluded
-            // aside raises — but it answered it in the hole of the ring, three
-            // lines above the aside itself, where a reader meets it before
-            // there is anything to share. Two words under a figure have to say
-            // what the figure is; the aside says what is missing from it.
-            caption: t("per person"),
+            // The unit comes off the composition, so the words under the figure
+            // and the money in it cannot disagree. This one is always the
+            // group's; `MineBody` draws the other.
+            caption: unitCaption(composition.unit),
             exact,
           }}
         />
@@ -218,7 +240,7 @@ function TallyBody({
       ) : (
         <SplitTotals locked={locked} />
       )}
-      {verdict ? <TargetLine v={verdict} personal={personal} /> : null}
+      {verdict ? <TargetLine v={verdict} /> : null}
       <p className="board__tally-foot">
         {plural(d.memberCount, "{n} member", "{n} members")}
       </p>
@@ -343,7 +365,7 @@ function MineBody({
           />
         </div>
       )}
-      {verdict ? <TargetLine v={verdict} personal={false} /> : null}
+      {verdict ? <TargetLine v={verdict} /> : null}
       {/*
        * Said out loud, every time this reading is open.
        *
@@ -376,9 +398,10 @@ function MineBody({
  * decoration — it would be the same picture for a trip €300 under and a trip
  * €3,000 over. The number carries it instead, which is what a number is for.
  *
- * With a target the bar is in **per-person** units, because that is what the
- * target is denominated in, and the two have to be measured in the same thing
- * or the mark and the sentence under it will disagree in front of the reader.
+ * With a target the bar is drawn in **the verdict's own unit**, because that is
+ * what its target is denominated in, and the two have to be measured in the
+ * same thing or the mark and the sentence under it will disagree in front of
+ * the reader.
  */
 function Headline({
   all,
@@ -425,7 +448,7 @@ function Headline({
           <EmptyCostDonut
             label={{
               headline: money(0, verdict.currency),
-              caption: t("per person"),
+              caption: unitCaption(verdict.unit),
             }}
           />
         </div>
@@ -472,27 +495,23 @@ function SplitTotals({ locked }: { locked: LockedCost }) {
 }
 
 /**
- * The per-person target, and how the locked spend stands against it.
+ * The target, and how the locked spend stands against it.
  *
  * It reads against **locked** money now, not the projection. Comparing a target
  * to what the front-runners *might* cost answered a question about a possible
  * future; a group deciding whether it can afford the next thing is asking about
  * the present.
+ *
+ * **The unit comes from the verdict**, and with it the whole sentence. Under
+ * the trip's chart this is group money against the group's budget; under the
+ * reader's own it is their money against a per-person figure. The line used to
+ * be the per-person one in both places, which is how a chart and the sentence
+ * beneath it came to be measuring different things.
  */
 function TargetLine({
   v,
-  personal,
 }: {
   v: NonNullable<ReturnType<typeof targetVerdict>>;
-  /**
-   * True when this reader's share differs from the trip's per-person total —
-   * i.e. some locked option is priced for part of the group.
-   *
-   * The verdict is always about the reader; this only decides whether to *say*
-   * so. On a trip where everything is shared, "yours" would imply a distinction
-   * that does not exist and invite the question of whose figure it isn't.
-   */
-  personal: boolean;
 }) {
   const gap = figure(v.gap, v.currency, v.approximate);
   return (
@@ -502,9 +521,17 @@ function TargetLine({
     >
       <span className="board__budget-label">{t("Target")}</span>
       <strong>{money(v.target, v.currency)}</strong>
-      <span className="board__budget-per">{t("/person")}</span>
+      {/* The group's target is a figure nobody typed — the organizer authored
+          the per-person one it was scaled from. Naming that basis is what keeps
+          it from reading as a number the app invented. */}
+      <span className="board__budget-per">
+        {v.basis === null
+          ? t("/person")
+          : t("({amount} /person)", {
+              amount: money(v.basis, v.currency),
+            })}
+      </span>
       <span className="board__budget-verdict">
-        {personal ? t("yours: ") : ""}
         {/* Both halves were bare English literals, and the pair is worth a note:
             the i18n test reads the source tree for `t()` calls, so a string that
             never asks to be translated is the one kind it cannot see. On a

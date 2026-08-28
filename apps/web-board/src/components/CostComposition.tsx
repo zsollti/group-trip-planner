@@ -89,7 +89,6 @@ export function CostComposition({
           person · 21% above it" — directly under a row that already named it.
           Both figures live on that row now, so the sentence was the same
           reading twice, in prose, in the place a summary should be shortest. */}
-      <Excluded composition={composition} />
       <Uncounted composition={composition} />
     </section>
   );
@@ -300,54 +299,6 @@ function RemainingRow({
         <span className="cost-comp__amount">{write(amount)}</span>
       </button>
     </li>
-  );
-}
-
-/**
- * Locked money the ring cannot honestly hold — the reader's own share of it.
- *
- * An option priced for part of the group has a per-person figure divided by a
- * different number of people, so it cannot join a per-person total without
- * making one nobody pays. It is named here instead, in its own currency, so the
- * money is visible even though it is not drawable.
- *
- * **Only the ones this reader is in.** The chart states what everyone shares
- * while the target beneath it states what *you* owe, and those legitimately
- * differ the moment you join one of these — so this aside is the arithmetic
- * between the two figures, and it can only be that for options the reader is
- * actually paying into. Listing the rest put somebody else's bill in the gap
- * between two of the reader's own numbers, which is the one place it cannot be
- * read as anything but a discrepancy.
- *
- * `viewerOwes` is the server's answer, not a comparison made here: the
- * dashboard computes it per line against the caller (`dashboard.mapper`), which
- * keeps "am I in this?" one rule rather than one per surface that asks.
- *
- * The faces went with the filter. A stack of avatars answered "who is in",
- * which was worth asking while the list included options the reader had nothing
- * to do with; on a list that is by definition theirs, it drew four portraits to
- * say "you, and some others" beside a figure that already means that.
- */
-function Excluded({ composition }: { composition: Composition }) {
-  const mine = composition.excluded.filter((e) => e.viewerOwes);
-  if (mine.length === 0) return null;
-  return (
-    <div className="cost-comp__aside">
-      <p className="cost-comp__aside-head">
-        {t("Priced for part of the group")}
-      </p>
-      <ul className="cost-comp__aside-list">
-        {mine.map((e) => (
-          <li key={e.optionId}>
-            {/* The name carries the weight now. It is what the row is *about*
-                — the reader is scanning for which thing this is, not for a
-                figure they can already see in the column beside it. */}
-            <strong className="cost-comp__aside-name">{e.title}</strong>{" "}
-            {money(e.perPerson, e.currency)} {t("per person")}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

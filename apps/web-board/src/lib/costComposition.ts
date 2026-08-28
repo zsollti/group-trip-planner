@@ -1,8 +1,5 @@
-import type {
-  DashboardLine,
-  OptionParticipantView,
-  TripDashboardView,
-} from "@gtp/types";
+import type { DashboardLine, TripDashboardView } from "@gtp/types";
+import type { CostUnit } from "./costSummary";
 
 /**
  * Where the trip's locked money went, as one set of comparable parts.
@@ -16,11 +13,22 @@ import type {
  *
  * Three rules shape it, and each is a judgement, not arithmetic:
  *
- * 1. **Per person, because that is what the target is in.** A chart measured
- *    against a per-person budget has to be denominated in per-person money or
- *    the ring and the sentence under it describe different trips.
- * 2. **An option priced for part of the group is left out of the chart and
- *    named beneath it.** See {@link isSharedByEveryone}.
+ * 1. **Each chart picks one unit and every part of it is in that unit.** The
+ *    trip's chart is in **group** money and the reader's own is in **their**
+ *    money. That is the whole difference between them, and it is what lets each
+ *    hold every option that belongs to it.
+ *
+ *    It used to be per person on both, which forced a rule that an option
+ *    priced for part of the group could not be drawn at all: three of five
+ *    sharing a €30 taxi owe €10 each, and adding that €10 to an accommodation
+ *    share divided by five produces a per-person total nobody actually pays.
+ *    The exclusion was correct given the unit, and the unit was the mistake. In
+ *    group money that taxi is simply €30 the trip spends, and in one reader's
+ *    money it is €10 they owe or nothing at all. Neither needs an exception.
+ * 2. **A target is drawn in the unit of the chart it is on.** The organizer
+ *    authors one per-person figure; the trip's ring multiplies it by the
+ *    member count so the mark and the wedges measure the same thing. The
+ *    reader's own ring uses the reader's own budget, and has none without one.
  * 3. **The parts are drawn proportionally and the headline comes from the
  *    totals.** Converted lines can sum to a hair off the converted total (the
  *    payload converts subtotals for its totals and lines for its parts), so
@@ -40,48 +48,28 @@ import type {
 export interface CostSlice {
   readonly categoryId: string | null;
   readonly label: string;
-  /** Per-person money, in the composition's currency. */
+  /** Money in the composition's currency, and in its unit. */
   readonly amount: number;
   /** Fraction of the whole circle — of `full`, not of `charted`. */
   readonly share: number;
 }
 
-/**
- * A locked option the chart deliberately does not draw, kept so the surface can
- * say so. Its per-person figure is real money someone owes; it is simply not
- * money *everyone* owes, which is the only thing the ring can be made of.
- */
-export interface ExcludedCost {
-  readonly optionId: string;
-  readonly title: string;
-  readonly categoryId: string;
-  readonly categoryName: string;
-  /** Per-person, in this option's own currency — never converted. */
-  readonly perPerson: number;
-  readonly currency: string;
-  /** How many people it was priced for. */
-  readonly headcount: number;
-  /**
-   * **Who** they are, so the aside can draw them.
-   *
-   * The line used to say "for 4 members", which is the count answering a
-   * question the reader did not ask. Standing in front of an option they may or
-   * may not be paying for, what they want to know is *who is in* — and the
-   * board already draws people as faces everywhere else it names them.
-   */
-  readonly participants: readonly OptionParticipantView[];
-  /** Does the reader pay for this one? It is money they owe that the ring
-   *  cannot hold, which is a different sentence from money someone else owes. */
-  readonly viewerOwes: boolean;
-}
-
 export interface CostComposition {
   readonly currency: string;
+  /**
+   * Whose money this is, and therefore what every figure on it means.
+   *
+   * Carried on the model rather than inferred by each surface, because the
+   * caption under the headline, the wording of the target line and the unit of
+   * every wedge all depend on it, and three components deciding it separately
+   * is three chances for a chart to be labelled as something it is not.
+   */
+  readonly unit: CostUnit;
   /** True when any drawn part had to be converted to get here. */
   readonly approximate: boolean;
   /** Lanes in descending size, the folded tail last. */
   readonly slices: readonly CostSlice[];
-  /** Per-person locked money the chart actually draws. */
+  /** Locked money the chart actually draws, in this composition's unit. */
   readonly charted: number;
   readonly target: number | null;
   /**
@@ -91,8 +79,8 @@ export interface CostComposition {
    */
   readonly full: number;
   /**
-   * Per-person money still inside the target — what the grey remainder of the
-   * ring is worth. Zero once the target is met or there is no target at all.
+   * Money still inside the target — what the grey remainder of the ring is
+   * worth. Zero once the target is met or there is no target at all.
    *
    * Derived rather than left to each chart, because it is the one figure on
    * this surface that a reader has to do arithmetic to get otherwise ("what is
@@ -105,8 +93,6 @@ export interface CostComposition {
   readonly overshare: number;
   /** Where the target falls on the ring, 0–1. Null when there is no target. */
   readonly targetMark: number | null;
-  /** Locked options priced for part of the group, named rather than drawn. */
-  readonly excluded: readonly ExcludedCost[];
   /** Currencies no rate could reach, so nothing here accounts for them. */
   readonly uncounted: readonly string[];
 }
@@ -148,52 +134,45 @@ export function sliceKey(slice: CostSlice): string {
 const TAIL_SHARE = 0.05;
 
 /**
- * Is this option's cost shared by everyone the chart speaks for?
+ * This line's money in the trip's currency, in one of its two units, or null if
+ * no rate reaches it.
  *
- * A per-person figure only means something next to another per-person figure
- * when both are divided by the same people. Three of five sharing a €30 taxi
- * costs those three €10 each; adding that €10 to an accommodation share
- * computed across five produces a per-person total that **nobody actually
- * pays** — and it would then be compared against a target that is per person
- * across the whole group.
- *
- * A whole-group option always resolves to the live member count, so this single
- * comparison covers both cases the rule cares about: a whole-group option is
- * always shared, and an opt-in one counts as shared exactly when everybody has
- * joined it. That is why nothing on the wire needs to name the participation
- * mode here — the resolved number already tells us, and it kept being the right
- * test when the model underneath it changed completely.
+ * `field` names the unit rather than the caller reading the pair itself,
+ * because the exact-beats-converted rule below has to apply identically to
+ * both — and it did not, back when the group figure had no reader and only the
+ * per-person one was ever taken.
  */
-function isSharedByEveryone(line: DashboardLine, memberCount: number): boolean {
-  return line.effectiveHeadcount === memberCount;
-}
-
-/** This line's per-person money in the trip's currency, or null if unreachable. */
-function perPersonInTripCurrency(
+function inTripCurrency(
   line: DashboardLine,
   defaultCurrency: string,
+  field: "group" | "perPerson",
 ): { amount: number; converted: boolean } | null {
   // An exact figure beats an approximate one that would round to it. A line
   // already in the trip's currency also has a `converted` pair (it crosses at
   // 1), and taking that instead would mark the whole composition approximate
   // for a trip that never left its own currency.
   if (line.currency === defaultCurrency) {
-    return { amount: line.perPerson, converted: false };
+    return { amount: line[field], converted: false };
   }
   if (line.converted === null) return null;
-  return { amount: line.converted.perPerson, converted: true };
+  return { amount: line.converted[field], converted: true };
 }
 
 /**
- * Build the composition, or null when there is nothing a chart could say.
+ * Build the trip's composition, or null when there is nothing a chart could say.
  *
- * Null covers three honest cases: nothing locked and priced yet, every locked
- * option priced for part of the group, and no rate able to reach the trip's own
- * currency. In each the caller falls back to the figures it already prints.
+ * **In group money**, so it holds every locked option the trip has decided on,
+ * including the ones only some members are paying into. Those are money the
+ * trip spends whoever chips in, and leaving them out gave the organizer a
+ * picture of the trip's cost that was systematically too low.
+ *
+ * Null covers two honest cases now: nothing locked and priced yet, and no rate
+ * able to reach the trip's own currency. ("Every option priced for part of the
+ * group" was a third, and is not a case any more.) In each the caller falls
+ * back to the figures it already prints.
  */
 export function costComposition(d: TripDashboardView): CostComposition | null {
   const byCategory = new Map<string, { label: string; amount: number }>();
-  const excluded: ExcludedCost[] = [];
   const uncounted = new Set<string>();
   let charted = 0;
   let approximate = false;
@@ -201,25 +180,7 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
   for (const line of d.lines) {
     if (line.kind !== "LOCKED") continue;
 
-    if (!isSharedByEveryone(line, d.memberCount)) {
-      // Named in its own currency, because that is the price someone was
-      // actually quoted, and this line is a statement about one option rather
-      // than a part of a sum.
-      excluded.push({
-        optionId: line.optionId,
-        title: line.title,
-        categoryId: line.categoryId,
-        categoryName: line.categoryName,
-        perPerson: line.perPerson,
-        currency: line.currency,
-        headcount: line.effectiveHeadcount,
-        participants: line.participants,
-        viewerOwes: line.viewerOwes,
-      });
-      continue;
-    }
-
-    const money = perPersonInTripCurrency(line, d.defaultCurrency);
+    const money = inTripCurrency(line, d.defaultCurrency, "group");
     if (money === null) {
       uncounted.add(line.currency);
       continue;
@@ -239,7 +200,18 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
       });
   }
 
-  const target = d.budgetPerPerson;
+  // The organizer authors one per-person figure; this chart is in group money,
+  // so the target it draws is that figure times the people it is per. Stated
+  // here rather than on the wire because it is a *drawing* decision — the trip
+  // still has exactly one budget, and a second one on the payload would be a
+  // number nobody typed.
+  //
+  // A trip with no members has no group target rather than a target of zero,
+  // which would draw everyone infinitely over.
+  const target =
+    d.budgetPerPerson !== null && d.memberCount > 0
+      ? d.budgetPerPerson * d.memberCount
+      : null;
   if (charted <= 0) return null;
 
   const full = target !== null && target > charted ? target : charted;
@@ -251,6 +223,7 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
 
   return {
     currency: d.defaultCurrency,
+    unit: "group",
     approximate,
     slices: withTail(ranked, charted, full),
     charted,
@@ -267,7 +240,6 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
     // full circle, which is the failure that retired the previous chart.
     targetMark:
       target !== null && target > 0 ? Math.min(target / full, 1) : null,
-    excluded,
     uncounted: [...uncounted],
   };
 }
@@ -276,23 +248,22 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
  * The same picture, drawn for **one reader**: their share of the group's
  * decisions plus the things only they are paying for.
  *
- * A sibling of {@link costComposition} rather than a mode of it, so the trip's
- * chart is provably the same chart it was. The two differ in three ways, and
- * each is a consequence of whose money is being drawn:
+ * A sibling of {@link costComposition} rather than a mode of it, so each is
+ * provably about one kind of money. The two differ in exactly two ways, and
+ * both follow from whose money is being drawn:
  *
- * 1. **Only lines this reader owes.** The trip's ring adds every locked
- *    option's per-head cost; this one takes `viewerOwes` alone.
- * 2. **Nothing is excluded.** {@link isSharedByEveryone} exists because a ring
- *    about *everyone* cannot hold money only some people pay. This ring is
- *    about one person, so an opt-in option they joined is simply their money
- *    and belongs in it — and one they declined belongs nowhere, which rule 1
- *    already handles.
- * 3. **No target.** The verdict beside the chart reads the group's plan against
- *    the group's budget, and personal items are deliberately no part of that.
- *    A ring that folded them in would draw someone over a target the sentence
- *    underneath says they are keeping to — two answers to one question. So the
- *    full circle here is simply the whole of what the reader spends, and the
- *    chart answers *where it goes* rather than *how it stands*.
+ * 1. **Only lines this reader owes**, at their per-head price. The trip's ring
+ *    adds every locked option's whole cost; this one takes `viewerOwes` alone
+ *    and takes what that reader's share of it is.
+ * 2. **Their own things are in it.** Personal items are nobody else's business
+ *    and are no part of the trip's chart at all; here they are simply money the
+ *    reader is spending on this trip, which is the question this ring answers.
+ *
+ * There is **no target yet** — that arrives with the reader's own budget in a
+ * later slice, and until then the full circle is the whole of what they spend.
+ * The trip's per-person figure is deliberately not borrowed for it: personal
+ * money read against the group's target would draw someone over a line the
+ * sentence beneath says they are keeping to.
  *
  * Personal items are grouped by their **tag** where they carry one, so they
  * land in the same wedge as the lane they belong with. Untagged ones gather
@@ -319,7 +290,7 @@ export function myCostComposition(
 
   for (const line of d.lines) {
     if (line.kind !== "LOCKED" || !line.viewerOwes) continue;
-    const money = perPersonInTripCurrency(line, d.defaultCurrency);
+    const money = inTripCurrency(line, d.defaultCurrency, "perPerson");
     if (money === null) {
       uncounted.add(line.currency);
       continue;
@@ -363,6 +334,7 @@ export function myCostComposition(
 
   return {
     currency: d.defaultCurrency,
+    unit: "viewer",
     approximate,
     slices: withTail(ranked, charted, charted),
     charted,
@@ -375,7 +347,6 @@ export function myCostComposition(
     overspend: 0,
     overshare: 0,
     targetMark: null,
-    excluded: [],
     uncounted: [...uncounted],
   };
 }

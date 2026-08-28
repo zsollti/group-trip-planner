@@ -238,12 +238,37 @@ export function viewerAllIn(d: TripDashboardView): AllInTotal | null {
   };
 }
 
-/** How the locked spend stands against the trip's per-person target. */
+/**
+ * Whose money a figure on the cost surface is made of.
+ *
+ * `group` is what the trip spends and reads the same for everybody; `viewer` is
+ * one person's share of that plus the things only they are paying for, and no
+ * two readers see the same one.
+ *
+ * It lives here rather than on the chart model because it is a fact about the
+ * *money*, and the chart, the headline caption and the target sentence all have
+ * to agree about it. Three surfaces inferring it separately is three chances to
+ * label a figure as something it is not.
+ */
+export type CostUnit = "group" | "viewer";
+
+/** How the locked spend stands against a target, in one unit or the other. */
 export interface TargetVerdict {
   readonly target: number;
   readonly currency: string;
-  /** Locked spend per person, in `currency`. */
+  /** Locked spend in `currency`, denominated per {@link TargetVerdict.unit}. */
   readonly spend: number;
+  /** Which money this is: the trip's, or the reader's own. */
+  readonly unit: CostUnit;
+  /**
+   * The per-person figure a `group` target was scaled from, and null on a
+   * `viewer` one, where the target *is* that figure.
+   *
+   * Carried so the surface can bridge the two for the person who authored it:
+   * an organizer who typed 500 and is shown 3,000 needs to be able to see why
+   * without opening the edit dialog to check.
+   */
+  readonly basis: number | null;
   readonly over: boolean;
   /** The distance either way — never negative. */
   readonly gap: number;
@@ -278,13 +303,53 @@ export function targetVerdict(
   locked: LockedCost,
 ): TargetVerdict | null {
   if (d.budgetPerPerson === null) return null;
-  const target = d.budgetPerPerson;
+  return verdict(d, locked, d.budgetPerPerson, "viewer", null);
+}
 
+/**
+ * The same comparison for **the trip**: what everyone is spending together,
+ * against what the group set out to spend together.
+ *
+ * The organizer still authors one number and it is still per person. This
+ * multiplies it by the member count, because the sentence sits under a ring
+ * drawn in group money and a target in a different unit from the chart above it
+ * is how the two came to describe different trips.
+ *
+ * Null without a member count as well as without a budget: `target × 0` is
+ * zero, and a zero target puts every trip that has spent anything infinitely
+ * over — which is a statement about an empty trip, not about the money.
+ */
+export function groupTargetVerdict(d: TripDashboardView): TargetVerdict | null {
+  if (d.budgetPerPerson === null || d.memberCount <= 0) return null;
+  return verdict(
+    d,
+    lockedCost(d),
+    d.budgetPerPerson * d.memberCount,
+    "group",
+    d.budgetPerPerson,
+  );
+}
+
+/**
+ * The comparison both verdicts are, once the target and the unit are settled.
+ *
+ * Shared rather than written twice because the multi-currency rule below is the
+ * subtle part, and two copies of it would drift the first time one of them was
+ * corrected.
+ */
+function verdict(
+  d: TripDashboardView,
+  locked: LockedCost,
+  target: number,
+  unit: CostUnit,
+  basis: number | null,
+): TargetVerdict {
+  const field = unit === "group" ? "group" : "perPerson";
   const all = locked.allIn;
   const usable = all !== null && all.currency === d.defaultCurrency;
   const spend = usable
-    ? all.perPerson
-    : (locked.parts.find((p) => p.currency === d.defaultCurrency)?.perPerson ??
+    ? all[field]
+    : (locked.parts.find((p) => p.currency === d.defaultCurrency)?.[field] ??
       0);
 
   // What the verdict does not cover. With a usable all-in figure that is only
@@ -300,6 +365,8 @@ export function targetVerdict(
     target,
     currency: d.defaultCurrency,
     spend,
+    unit,
+    basis,
     over,
     gap: over ? spend - target : target - spend,
     approximate: usable && all.approximate,

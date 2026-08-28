@@ -43,7 +43,11 @@ function line(over: Partial<DashboardLine> = {}): DashboardLine {
     // empty list is the truthful shape rather than a placeholder.
     participants: [],
     currency: "EUR",
-    group: perPerson * 4,
+    // Derived from the headcount rather than fixed at the member count, because
+    // the trip's chart reads `group` now: an option two of four people are in
+    // costs the trip two shares, and a helper that said four would have made
+    // every opt-in test agree with a chart that was quietly wrong.
+    group: perPerson * (over.effectiveHeadcount ?? 4),
     perPerson,
     effectiveHeadcount: 4,
     viewerOwes: true,
@@ -80,14 +84,20 @@ describe("what goes into the ring", () => {
         ],
       }),
     );
-    // The owner's worked example: 100 all in, Activities 5 + 10 = 15%.
-    expect(c?.charted).toBe(90);
+    // The owner's worked example, in the group money this chart is now in:
+    // four members, so 20 + 40 + 200 + 100 = 360 all in, Activities 60 of it.
+    // The *fractions* are exactly what they were when this was drawn per
+    // person, because every one of these is divided by the same four people.
+    expect(c?.charted).toBe(360);
     expect(c?.slices.map((s) => s.label)).toEqual([
       "Stay",
       "Transport",
       "Activities",
     ]);
-    expect(c?.slices.find((s) => s.label === "Activities")?.amount).toBe(15);
+    expect(c?.slices.find((s) => s.label === "Activities")?.amount).toBe(60);
+    expect(c?.slices.find((s) => s.label === "Activities")?.share).toBeCloseTo(
+      1 / 6,
+    );
   });
 
   it("ignores the front-runners, as the rest of the strip does", () => {
@@ -99,7 +109,7 @@ describe("what goes into the ring", () => {
         ],
       }),
     );
-    expect(c?.charted).toBe(50);
+    expect(c?.charted).toBe(200);
     expect(c?.slices).toHaveLength(1);
   });
 
@@ -117,7 +127,20 @@ describe("what goes into the ring", () => {
 });
 
 describe("money everyone owes, and money only some do", () => {
-  it("leaves out an option priced for part of the group, and names it", () => {
+  /*
+   * This chart used to leave out any option priced for part of the group, and
+   * name it in an aside instead. The rule was sound and the unit was not: a
+   * per-person figure is only comparable with another per-person figure when
+   * both are divided by the same people, so ten euros three of five owe could
+   * not sit beside fifty everyone owes.
+   *
+   * In group money the question does not arise. Thirty euros is thirty euros
+   * the trip spends, whoever chips in, and it belongs in the trip's total
+   * because the trip is paying it. What the exclusion was really protecting
+   * was the per-person *unit* — which is now `myCostComposition`'s, where the
+   * same option appears as the reader's own share or not at all.
+   */
+  it("charts an option only some of the group are paying for", () => {
     const c = costComposition(
       dashboard({
         memberCount: 5,
@@ -129,111 +152,45 @@ describe("money everyone owes, and money only some do", () => {
             title: "Airport taxi",
             perPerson: 10,
             effectiveHeadcount: 3,
-            // The people, not just how many: the aside draws them as faces.
-            participants: [
-              {
-                userId: "u-1",
-                displayName: "Ada",
-                avatarUrl: null,
-                joinedAt: "2026-01-01T00:00:00.000Z",
-              },
-              {
-                userId: "u-2",
-                displayName: "Grace",
-                avatarUrl: null,
-                joinedAt: "2026-01-02T00:00:00.000Z",
-              },
-              {
-                userId: "u-3",
-                displayName: "Edsger",
-                avatarUrl: null,
-                joinedAt: "2026-01-03T00:00:00.000Z",
-              },
-            ],
           }),
         ],
       }),
     );
-    // Ten euros three of five people owe is not comparable with fifty everyone
-    // owes, and adding them makes a per-person total nobody pays.
-    expect(c?.charted).toBe(50);
-    expect(c?.slices.map((s) => s.label)).toEqual(["Stay"]);
-    expect(c?.excluded).toEqual([
-      {
-        optionId: c!.excluded[0]!.optionId,
-        title: "Airport taxi",
-        categoryId: "cat-go",
-        categoryName: "Transport",
-        perPerson: 10,
-        currency: "EUR",
-        headcount: 3,
-        participants: [
-          {
-            userId: "u-1",
-            displayName: "Ada",
-            avatarUrl: null,
-            joinedAt: "2026-01-01T00:00:00.000Z",
-          },
-          {
-            userId: "u-2",
-            displayName: "Grace",
-            avatarUrl: null,
-            joinedAt: "2026-01-02T00:00:00.000Z",
-          },
-          {
-            userId: "u-3",
-            displayName: "Edsger",
-            avatarUrl: null,
-            joinedAt: "2026-01-03T00:00:00.000Z",
-          },
-        ],
-        // Carried through so the aside can mark the reader's own, which is the
-        // arithmetic between what the ring charts and what the target says.
-        viewerOwes: true,
-      },
-    ]);
+    // 250 the five share, plus 30 the three do. Both are the trip's money.
+    expect(c?.charted).toBe(280);
+    expect(c?.slices.map((s) => s.label)).toEqual(["Stay", "Transport"]);
+    expect(c?.slices.find((s) => s.label === "Transport")?.amount).toBe(30);
   });
 
-  it("carries whether the reader is one of the few who owe it", () => {
+  it("charts it whether or not the reader is one of the people paying", () => {
+    // The trip's reading is the same for everybody: it is what the group
+    // spends, not what the reader owes. `viewerOwes` is the other chart's
+    // question, and this one must not quietly answer it.
+    const shared = {
+      memberCount: 5,
+      lines: [line({ perPerson: 10, effectiveHeadcount: 3, viewerOwes: true })],
+    };
+    const declined = {
+      memberCount: 5,
+      lines: [
+        line({ perPerson: 10, effectiveHeadcount: 3, viewerOwes: false }),
+      ],
+    };
+    expect(costComposition(dashboard(shared))?.charted).toBe(30);
+    expect(costComposition(dashboard(declined))?.charted).toBe(30);
+  });
+
+  it("still has something to draw when every option is for part of the group", () => {
+    // This returned null before, and the surface fell back to printing bare
+    // figures. There is no such state now: an option nobody but two people are
+    // in is still money the trip is spending.
     const c = costComposition(
       dashboard({
         memberCount: 5,
-        lines: [
-          line({ perPerson: 50, effectiveHeadcount: 5 }),
-          line({
-            title: "Not mine",
-            perPerson: 10,
-            effectiveHeadcount: 3,
-            viewerOwes: false,
-          }),
-        ],
+        lines: [line({ perPerson: 10, effectiveHeadcount: 2 })],
       }),
     );
-    expect(c?.excluded[0]?.viewerOwes).toBe(false);
-  });
-
-  it("charts a fixed headcount that still matches the group", () => {
-    // Fixed at five with five members is shared by everyone; the fact that
-    // somebody typed the number is not itself a reason to exclude it.
-    const c = costComposition(
-      dashboard({
-        memberCount: 5,
-        lines: [line({ perPerson: 50, effectiveHeadcount: 5 })],
-      }),
-    );
-    expect(c?.charted).toBe(50);
-    expect(c?.excluded).toEqual([]);
-  });
-
-  it("has nothing to draw when every locked option is for part of the group", () => {
-    expect(
-      costComposition(
-        dashboard({
-          memberCount: 5,
-          lines: [line({ perPerson: 10, effectiveHeadcount: 2 })],
-        }),
-      ),
-    ).toBeNull();
+    expect(c?.charted).toBe(20);
   });
 });
 
@@ -253,7 +210,7 @@ describe("one unit, or an honest gap", () => {
         ],
       }),
     );
-    expect(c?.charted).toBe(100);
+    expect(c?.charted).toBe(400);
     expect(c?.approximate).toBe(true);
   });
 
@@ -285,7 +242,7 @@ describe("one unit, or an honest gap", () => {
         ],
       }),
     );
-    expect(c?.charted).toBe(50);
+    expect(c?.charted).toBe(200);
     expect(c?.uncounted).toEqual(["RSD"]);
   });
 });
@@ -295,7 +252,9 @@ describe("what a full circle means", () => {
     const c = costComposition(
       dashboard({ budgetPerPerson: 200, lines: [line({ perPerson: 50 })] }),
     );
-    expect(c?.full).toBe(200);
+    // The organizer authors 200 a head; four members make the group's target
+    // 800, against 200 committed. The share is what it always was.
+    expect(c?.full).toBe(800);
     expect(c?.slices[0]?.share).toBeCloseTo(0.25);
     expect(c?.overspend).toBe(0);
   });
@@ -304,26 +263,41 @@ describe("what a full circle means", () => {
     const c = costComposition(
       dashboard({ budgetPerPerson: 100, lines: [line({ perPerson: 150 })] }),
     );
-    expect(c?.full).toBe(150);
-    expect(c?.overspend).toBe(50);
+    expect(c?.full).toBe(600);
+    expect(c?.overspend).toBe(200);
     expect(c?.overshare).toBeCloseTo(0.5);
     // Without this mark, fifty over and five thousand over are the same full
     // circle — the failure that retired the previous chart.
-    expect(c?.targetMark).toBeCloseTo(100 / 150);
+    expect(c?.targetMark).toBeCloseTo(400 / 600);
   });
 
   it("keeps the mark at the rim when the spend has only just reached the target", () => {
     const c = costComposition(
       dashboard({ budgetPerPerson: 100, lines: [line({ perPerson: 100 })] }),
     );
-    expect(c?.full).toBe(100);
+    expect(c?.full).toBe(400);
     expect(c?.targetMark).toBe(1);
     expect(c?.overspend).toBe(0);
   });
 
+  it("has no group target on a trip with nobody in it", () => {
+    // `target * 0` is zero, and a zero target draws every trip that has spent
+    // anything infinitely over it. The absent member count is the missing
+    // half of the figure, not a figure of nothing.
+    const c = costComposition(
+      dashboard({
+        budgetPerPerson: 200,
+        memberCount: 0,
+        lines: [line({ perPerson: 50, effectiveHeadcount: 4 })],
+      }),
+    );
+    expect(c?.target).toBeNull();
+    expect(c?.targetMark).toBeNull();
+  });
+
   it("fills its own circle when there is no target to be a fraction of", () => {
     const c = costComposition(dashboard({ lines: [line({ perPerson: 50 })] }));
-    expect(c?.full).toBe(50);
+    expect(c?.full).toBe(200);
     expect(c?.targetMark).toBeNull();
     expect(c?.slices[0]?.share).toBe(1);
   });
@@ -349,7 +323,7 @@ describe("the tail", () => {
       }),
     );
     expect(c?.slices.map((s) => s.label)).toEqual(["Stay", "Other (3 lanes)"]);
-    expect(c?.slices.at(-1)?.amount).toBe(5);
+    expect(c?.slices.at(-1)?.amount).toBe(20);
     expect(c?.slices.at(-1)?.categoryId).toBeNull();
   });
 
@@ -407,10 +381,10 @@ describe("myCostComposition", () => {
     expect(c.slices.map((s) => s.label)).toEqual(["Stay"]);
   });
 
-  it("keeps an opt-in option the reader joined, which the trip's ring cannot", () => {
-    // The trip's chart excludes anything priced for part of the group, because
-    // a ring about everyone cannot hold money only some people pay. This ring
-    // is about one person, so an option they joined is simply their money.
+  it("reads an opt-in option as the reader's share, where the trip reads its whole cost", () => {
+    // The same option, seen twice, and the difference is the unit rather than
+    // whether it is drawn at all: the trip pays 80 for it, and the reader --
+    // one of the two who are in -- owes 40.
     const d = dashboard({
       memberCount: 5,
       lines: [
@@ -422,10 +396,22 @@ describe("myCostComposition", () => {
         }),
       ],
     });
-    expect(costComposition(d)).toBeNull();
+    expect(costComposition(d)?.charted).toBe(80);
+    expect(costComposition(d)?.unit).toBe("group");
     const mine = myCostComposition(d, "Just for me")!;
     expect(mine.charted).toBe(40);
-    expect(mine.excluded).toEqual([]);
+    expect(mine.unit).toBe("viewer");
+  });
+
+  it("leaves out an option the reader declined, which the trip still pays for", () => {
+    const d = dashboard({
+      memberCount: 5,
+      lines: [
+        line({ perPerson: 40, effectiveHeadcount: 2, viewerOwes: false }),
+      ],
+    });
+    expect(costComposition(d)?.charted).toBe(80);
+    expect(myCostComposition(d, "Just for me")).toBeNull();
   });
 
   it("never draws a target ring, whatever the trip's budget says", () => {
