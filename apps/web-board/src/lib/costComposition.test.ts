@@ -369,7 +369,7 @@ describe("myCostComposition", () => {
   };
 
   it("says nothing when the reader owes nothing and owns nothing", () => {
-    expect(myCostComposition(dashboard(), "Just for me")).toBeNull();
+    expect(myCostComposition(dashboard(), "Personal")).toBeNull();
   });
 
   it("draws only the locked money this reader actually owes", () => {
@@ -379,7 +379,7 @@ describe("myCostComposition", () => {
         line({ perPerson: 90, viewerOwes: false, categoryName: "Surf" }),
       ],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.charted).toBe(300);
     expect(c.slices.map((s) => s.label)).toEqual(["Stay"]);
   });
@@ -401,7 +401,7 @@ describe("myCostComposition", () => {
     });
     expect(costComposition(d)?.charted).toBe(80);
     expect(costComposition(d)?.unit).toBe("group");
-    const mine = myCostComposition(d, "Just for me")!;
+    const mine = myCostComposition(d, "Personal")!;
     expect(mine.charted).toBe(40);
     expect(mine.unit).toBe("viewer");
   });
@@ -414,7 +414,7 @@ describe("myCostComposition", () => {
       ],
     });
     expect(costComposition(d)?.charted).toBe(80);
-    expect(myCostComposition(d, "Just for me")).toBeNull();
+    expect(myCostComposition(d, "Personal")).toBeNull();
   });
 
   it("never draws a target ring, whatever the trip's budget says", () => {
@@ -427,7 +427,7 @@ describe("myCostComposition", () => {
       lines: [line({ perPerson: 300, viewerOwes: true })],
       personalLines: [own(400)],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.charted).toBe(700);
     expect(c.target).toBeNull();
     expect(c.targetMark).toBeNull();
@@ -443,7 +443,7 @@ describe("myCostComposition", () => {
         own(100, { categoryId: "cat-stay", categoryName: "Stay" }),
       ],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.slices).toHaveLength(1);
     expect(c.slices[0]).toMatchObject({ label: "Stay", amount: 400 });
   });
@@ -456,8 +456,8 @@ describe("myCostComposition", () => {
       lines: [line({ perPerson: 300, viewerOwes: true, categoryName: "Stay" })],
       personalLines: [own(100), own(50)],
     });
-    const c = myCostComposition(d, "Just for me")!;
-    const untagged = c.slices.find((s) => s.label === "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
+    const untagged = c.slices.find((s) => s.label === "Personal")!;
     expect(untagged.amount).toBe(150);
     expect(untagged.categoryId).toBeNull();
   });
@@ -469,7 +469,7 @@ describe("myCostComposition", () => {
         own(50000, { currency: "HUF", converted: null }),
       ],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.charted).toBe(200);
     expect(c.uncounted).toEqual(["HUF"]);
   });
@@ -478,7 +478,7 @@ describe("myCostComposition", () => {
     const d = dashboard({
       personalLines: [own(50000, { currency: "HUF", converted: 130 })],
     });
-    expect(myCostComposition(d, "Just for me")!.approximate).toBe(true);
+    expect(myCostComposition(d, "Personal")!.approximate).toBe(true);
   });
 
   it("draws a ring against the reader's own budget, their own things in it", () => {
@@ -489,7 +489,7 @@ describe("myCostComposition", () => {
       lines: [line({ perPerson: 300, viewerOwes: true })],
       personalLines: [own(400)],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.charted).toBe(700);
     expect(c.target).toBe(900);
     expect(c.full).toBe(900);
@@ -506,7 +506,7 @@ describe("myCostComposition", () => {
         viewerBudget: 500,
         lines: [line({ perPerson: 750, viewerOwes: true })],
       }),
-      "Just for me",
+      "Personal",
     )!;
     const trip = costComposition(
       dashboard({
@@ -529,7 +529,7 @@ describe("myCostComposition", () => {
       lines: [line({ perPerson: 300, viewerOwes: true })],
       personalLines: [own(400)],
     });
-    const c = myCostComposition(d, "Just for me")!;
+    const c = myCostComposition(d, "Personal")!;
     expect(c.charted).toBe(700);
     expect(c.target).toBeNull();
     expect(c.targetMark).toBeNull();

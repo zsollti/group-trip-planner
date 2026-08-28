@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { CategoryView, PersonalItemView } from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { PersonalLane } from "./PersonalLane";
+import { boardTourSteps } from "../lib/tour";
 
 /**
  * The reader's own column.
@@ -106,10 +107,22 @@ describe("PersonalLane", () => {
   it("says who can see it, once, at the top", async () => {
     renderLane([item({ title: "Flight home" })]);
 
-    expect(await screen.findByText("Just for me")).toBeInTheDocument();
+    expect(await screen.findByText("Personal")).toBeInTheDocument();
     // The claim is the column's, not each card's — so exactly one of these,
     // however many items are in it.
     expect(screen.getAllByText("Only you can see these")).toHaveLength(1);
+  });
+
+  it("carries the anchor its tour step points at", async () => {
+    // The tour drops any step whose anchor is missing, silently and by design
+    // — which means a renamed or deleted `data-tour` here does not break the
+    // tour, it removes a step from it and says nothing. This is the seam.
+    const { container } = renderLane([item({ title: "Flight home" })]);
+    await screen.findByText("Personal");
+
+    const anchor = boardTourSteps().find((s) => s.id === "personal")?.anchor;
+    expect(anchor).toBe("personal");
+    expect(container.querySelector(`[data-tour="${anchor}"]`)).not.toBeNull();
   });
 
   it("offers a way in from an empty column", async () => {

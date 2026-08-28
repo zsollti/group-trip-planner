@@ -134,7 +134,7 @@ function EntryCard({
             ) : entry.category ? (
               <CategoryIcon category={entry.category} size={13} />
             ) : null}
-            {entry.category?.name ?? t("Just for me")}
+            {entry.category?.name ?? t("Personal")}
           </span>
           {span ? <span>{nightsLabel(span.nights)}</span> : null}
           {cost ? <span>{cost}</span> : null}
@@ -213,7 +213,7 @@ function TrayCard({
           ) : entry.category ? (
             <CategoryIcon category={entry.category} size={13} />
           ) : null}
-          {entry.category?.name ?? t("Just for me")}
+          {entry.category?.name ?? t("Personal")}
         </span>
         {cost ? <span>{cost}</span> : null}
       </span>

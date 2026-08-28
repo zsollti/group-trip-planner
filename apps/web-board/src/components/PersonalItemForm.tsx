@@ -199,7 +199,7 @@ export function PersonalItemForm({
 
   return (
     <Dialog
-      title={isEdit ? t("Edit your item") : t("Add something just for you")}
+      title={isEdit ? t("Edit your item") : t("Add a personal item")}
       quietTitle
       size="wide"
       onClose={onClose}

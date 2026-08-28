@@ -911,7 +911,7 @@ describe("the two readings", () => {
     const mine = await screen.findByRole("button", { name: "Mine" });
 
     // The trip's reading says nothing about it.
-    expect(screen.queryByText(/Just for me:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Personal:/)).not.toBeInTheDocument();
 
     fireEvent.click(mine);
 

@@ -240,12 +240,17 @@ export function PersonalLane({
     <section
       className="lane lane--personal"
       aria-labelledby={`lane-title-personal-${tripId}`}
+      data-tour="personal"
     >
       <div className="lane__pin">
         <div className="lane__head">
           <PersonIcon size={16} />
+          {/* The same catalogue entry the invite panel's link type uses, and
+              deliberately so: one word that means "yours rather than
+              everyone's" in both places, which is exactly what the Hungarian
+              "Személyes" already said for the link. */}
           <h2 className="lane__title" id={`lane-title-personal-${tripId}`}>
-            {t("Just for me")}
+            {t("Personal")}
           </h2>
         </div>
         {/* Where a lane states how it picks a winner, this states who can read
