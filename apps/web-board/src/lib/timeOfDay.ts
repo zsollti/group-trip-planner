@@ -82,7 +82,7 @@ export function formatTimeOfDay(
   }
 }
 
-/** What the typed field lets through: digits and one separator, five long. */
+/** What the typed field lets through: digits and one separator. */
 const TIME_KEYSTROKES = /[^0-9:]/g;
 
 /**
@@ -94,7 +94,13 @@ const TIME_KEYSTROKES = /[^0-9:]/g;
  * on the way out ({@link parseTypedTime}).
  */
 export function sanitizeTypedTime(raw: string): string {
-  return raw.replace(TIME_KEYSTROKES, "").slice(0, 5);
+  const kept = raw.replace(TIME_KEYSTROKES, "");
+  // Five characters is `HH:MM`; without the colon there are only four digits to
+  // be had. The cap used to be five either way, which let `1920` become `19204`
+  // — and that is not half-typed, it is unparseable: {@link parseTypedTime}
+  // refuses it, the field goes on showing it, and the form keeps the time from
+  // before the fifth digit was pressed. Save then writes a time nobody typed.
+  return kept.slice(0, kept.includes(":") ? 5 : 4);
 }
 
 /**
