@@ -349,7 +349,27 @@ export async function seedDemoTrip(
       expiresAt: daysOut(365),
       ownerId: users.demo.id,
       memberships: {
-        create: CAST.map((p) => ({ userId: users[p.key].id, role: p.role })),
+        create: CAST.map((p) => ({
+          userId: users[p.key].id,
+          role: p.role,
+          // A budget of the demo account's own, and **only** the demo
+          // account's: it is the one member anybody ever signs in as, and a
+          // figure nobody can see is not worth seeding for the other four.
+          //
+          // **600 is chosen to sit just below their all-in**, which is the
+          // reading this budget exists to make possible:
+          //
+          //   their share of the group's decisions   ≈  542.20 EUR
+          //   plus their own three things             +   99.50 EUR
+          //                                          ≈  641.70 EUR
+          //
+          // So the demo shows a ring that is genuinely over, and over *because
+          // of the private items* — the flight, the extra night and the
+          // insurance are exactly the money the trip's own target refuses to
+          // count and this one is for. A budget above 641.70 would have drawn a
+          // tidy arc and demonstrated nothing.
+          personalBudget: p.key === "demo" ? "600.00" : null,
+        })),
       },
       categories: {
         create: BUILTIN_CATEGORIES.map((c) => ({
