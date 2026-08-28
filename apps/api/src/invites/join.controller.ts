@@ -1,8 +1,10 @@
-import { Controller, Param, Post, UseGuards } from "@nestjs/common";
-import type { JoinTripResult } from "@gtp/types";
+import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import type { InvitePreview, JoinTripResult } from "@gtp/types";
 import type { User } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard.js";
 import { CurrentUser } from "../auth/current-user.decorator.js";
+import { INVITE_PREVIEW_THROTTLE } from "../common/throttle-policy.js";
 import { InvitesService } from "./invites.service.js";
 
 /**
@@ -20,6 +22,20 @@ import { InvitesService } from "./invites.service.js";
 @Controller("join")
 export class JoinController {
   constructor(private readonly invites: InvitesService) {}
+
+  /**
+   * What the link leads to, before there is anyone to say it leads there for.
+   *
+   * **Behind no auth guard, and declared before nothing** — it is a different
+   * verb on the same path, so it cannot shadow or be shadowed by the redemption
+   * below. The service decides what a visitor may see; this route's whole job is
+   * to not require a session, because requiring one is the problem it fixes.
+   */
+  @Get(":token/preview")
+  @Throttle(INVITE_PREVIEW_THROTTLE)
+  preview(@Param("token") token: string): Promise<InvitePreview> {
+    return this.invites.preview(token);
+  }
 
   @Post(":token")
   @UseGuards(JwtAuthGuard)

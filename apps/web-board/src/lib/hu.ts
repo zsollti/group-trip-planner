@@ -212,6 +212,22 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Find: "Keresés",
   "Fill in the fields marked with *": "Töltsd ki a *-gal jelölt mezőket",
   "Find a user": "Felhasználó keresése",
+  "You've been invited to": "Meghívtak ide",
+  "Sign in to join": "Jelentkezz be a csatlakozáshoz",
+  "or create an account": "vagy hozz létre egy fiókot",
+  "Couldn't open this invite": "Nem sikerült megnyitni ezt a meghívót",
+  "This invite link is invalid.": "Ez a meghívólink érvénytelen.",
+  "This trip has ended and is no longer taking new members.":
+    "Ez az utazás véget ért, és már nem fogad új tagokat.",
+  "Signing in is the only way to vote, comment or add anything.":
+    "Szavazni, hozzászólni és bármit hozzáadni csak bejelentkezve lehet.",
+  "Nothing has been proposed yet.": "Még senki nem javasolt semmit.",
+  "Nothing here yet": "Itt még nincs semmi",
+  "Who's going": "Kik mennek",
+  "{n} person going": "{n} résztvevő",
+  "{n} people going": "{n} résztvevő",
+  "{n} vote": "{n} szavazat",
+  "{n} votes": "{n} szavazat",
   "Search for {all} to list everyone.":
     "Írd be, hogy {all}, és mindenkit kilistáz.",
   "Nobody has an account yet.": "Még senkinek nincs fiókja.",

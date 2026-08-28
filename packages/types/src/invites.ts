@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { CategoryBuiltinKey, CategoryPaletteKey } from "./categories.js";
+import { CostType } from "./options.js";
 import { TripRole } from "./trips.js";
 import { ROLE_RANK } from "./permissions.js";
 
@@ -115,6 +117,84 @@ export const JoinTripResult = z.object({
   alreadyMember: z.boolean(),
 });
 export type JoinTripResult = z.infer<typeof JoinTripResult>;
+
+/**
+ * What someone holding a link can see before they sign in.
+ *
+ * **Why this exists.** A link used to lead to a login form and nothing else, so
+ * the only way to find out what you had been invited to was to make an account
+ * for it. The board is the answer to "what is this", and answering it costs
+ * nothing: the link is already the credential, and this shows strictly less
+ * than redeeming it would.
+ *
+ * **What is in it, and what is deliberately not.** The trip, its lanes, the
+ * options in them with their prices and dates, which are locked in, and how many
+ * people voted for each. The crew by name and face, because "who is going" is
+ * half of what anyone deciding wants to know.
+ *
+ * Not the chat, not anybody's private column, not a member's email address, not
+ * the trip's budget or anyone's own, and **not who voted for what**. A tally is
+ * a fact about an option; a voter list is a fact about a person, and the people
+ * on this board did not agree to be read by whoever the link reaches. The role
+ * the link grants is not in it either: a preview shows the trip, and every
+ * reader of one is a visitor whatever the link would make them.
+ */
+export const InvitePreviewOption = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  description: z.string().nullable(),
+  url: z.string().nullable(),
+  amount: z.number().nullable(),
+  currency: z.string(),
+  /** Whether the price is per head or for the group, so it can be labelled. */
+  costType: CostType,
+  startsAt: z.string().nullable(),
+  endsAt: z.string().nullable(),
+  /** Decided. The board's padlock, as a fact rather than as an action. */
+  locked: z.boolean(),
+  voteCount: z.number().int().nonnegative(),
+});
+export type InvitePreviewOption = z.infer<typeof InvitePreviewOption>;
+
+/** One lane, with what has been proposed in it. */
+export const InvitePreviewLane = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  /** The lane's identity and colour, so a preview looks like the board it is. */
+  builtinKey: CategoryBuiltinKey.nullable(),
+  paletteKey: CategoryPaletteKey.nullable(),
+  position: z.number().int().nonnegative(),
+  options: z.array(InvitePreviewOption),
+});
+export type InvitePreviewLane = z.infer<typeof InvitePreviewLane>;
+
+/** Somebody already going: a name and a face, and nothing to contact them by. */
+export const InvitePreviewMember = z.object({
+  userId: z.string().uuid(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+});
+export type InvitePreviewMember = z.infer<typeof InvitePreviewMember>;
+
+export const InvitePreview = z.object({
+  tripId: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  destination: z.string().nullable(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable(),
+  defaultCurrency: z.string(),
+  /**
+   * Whether this trip still takes people. A frozen board is worth showing and
+   * not worth offering a Join button over, and the reader should be told which
+   * before they make an account to find out.
+   */
+  acceptingMembers: z.boolean(),
+  memberCount: z.number().int().nonnegative(),
+  members: z.array(InvitePreviewMember),
+  lanes: z.array(InvitePreviewLane),
+});
+export type InvitePreview = z.infer<typeof InvitePreview>;
 
 /** What redeeming a link does, given the caller's current membership. */
 export type JoinAction = "JOIN" | "UPGRADE" | "NOOP";

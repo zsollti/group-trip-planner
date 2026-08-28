@@ -150,37 +150,49 @@ describe("Admin console (e2e)", () => {
       page: number;
       pageSize: number;
     };
-    // This database has whatever other suites left in it, so the assertion is
-    // on the shape of the answer and on the accounts this suite created.
+    // Every suite shares one database and they run together, so the only stable
+    // facts here are the shape of the answer and that this suite's own accounts
+    // are among the matches.
     assert.ok(body.total >= 2);
     assert.equal(body.page, 1);
-    assert.equal(body.users.length, Math.min(body.total, body.pageSize));
+    assert.ok(body.users.length <= body.pageSize);
   });
 
   it("pages the results rather than cutting them off in silence", async () => {
     // The bug this closes: ten rows came back whether there were ten matches
     // or thirty, and nothing on the wire said which.
+    //
+    // Paged over a set this test **owns**, by giving twelve accounts one
+    // fragment nothing else shares. Paging over everybody would be paging over
+    // rows the other suites are inserting as this runs, and an offset page of a
+    // table being written to legitimately shows a row twice — which is a fact
+    // about offsets, not the ordering bug this is here to catch.
+    const tag = `pageset${suffix}`;
+    for (let i = 0; i < 12; i++) {
+      await makeUser(`${tag}-${i}`);
+    }
+
     const first = await http()
-      .get("/admin/users?q=*&page=1")
+      .get(`/admin/users?q=${tag}&page=1`)
       .set("Authorization", `Bearer ${adminToken}`)
       .expect(200);
     const body = first.body as {
       users: { id: string }[];
       total: number;
+      page: number;
       pageSize: number;
     };
-    if (body.total <= body.pageSize) {
-      // Not enough accounts in this database to have a second page; the count
-      // is still the thing being promised, and it is here.
-      assert.equal(body.users.length, body.total);
-      return;
-    }
+    assert.equal(body.total, 12);
+    assert.equal(body.page, 1);
+    assert.equal(body.users.length, body.pageSize);
+
     const second = await http()
-      .get("/admin/users?q=*&page=2")
+      .get(`/admin/users?q=${tag}&page=2`)
       .set("Authorization", `Bearer ${adminToken}`)
       .expect(200);
     const next = second.body as { users: { id: string }[]; page: number };
     assert.equal(next.page, 2);
+    assert.equal(next.users.length, 12 - body.pageSize);
     // A total order, or a row could sit on both pages or on neither.
     const seen = new Set(body.users.map((u) => u.id));
     for (const u of next.users) assert.ok(!seen.has(u.id));

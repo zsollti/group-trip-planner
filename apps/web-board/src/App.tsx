@@ -76,7 +76,10 @@ export function App() {
                 }
               />
               <Route path="/verify" element={<Verify />} />
-              {/* Join crafts its own ?next= redirect when logged out. */}
+              {/* Public on purpose, and not only as a staging post to the login
+                  form: a logged-out arrival is shown the trip they have been
+                  invited to (see `Join`), and crafts its own ?next= redirect
+                  from the button rather than on arrival. */}
               <Route path="/join/:token" element={<Join />} />
               {/* The unsubscribe landing is public on purpose: it is opened from an
             email client with no session (Phase 5.3). */}
