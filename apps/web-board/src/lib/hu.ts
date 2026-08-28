@@ -212,6 +212,13 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   Find: "Keresés",
   "Fill in the fields marked with *": "Töltsd ki a *-gal jelölt mezőket",
   "Find a user": "Felhasználó keresése",
+  "Search for {all} to list everyone.":
+    "Írd be, hogy {all}, és mindenkit kilistáz.",
+  "Nobody has an account yet.": "Még senkinek nincs fiókja.",
+  "Page {page} of {count}": "{page}. oldal, összesen {count}",
+  Previous: "Vissza",
+  "{n} person": "{n} felhasználó",
+  "{n} people": "{n} felhasználó",
   "Full at {cap} options. Remove one to add another.":
     "Betelt, {cap} javaslat van benne. Törölj egyet, ha újat szeretnél.",
   "Give these dates and they'll take their place on the trip. ":

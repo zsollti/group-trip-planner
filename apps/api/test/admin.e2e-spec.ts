@@ -137,6 +137,55 @@ describe("Admin console (e2e)", () => {
     assert.equal(body.users[0]!.emailVerified, false);
   });
 
+  it("lists everyone for the one query that is not a fragment", async () => {
+    // The operator's first question is often "who is on this thing at all",
+    // which a box that only matches fragments cannot answer.
+    const res = await http()
+      .get("/admin/users?q=*")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const body = res.body as {
+      users: { id: string }[];
+      total: number;
+      page: number;
+      pageSize: number;
+    };
+    // This database has whatever other suites left in it, so the assertion is
+    // on the shape of the answer and on the accounts this suite created.
+    assert.ok(body.total >= 2);
+    assert.equal(body.page, 1);
+    assert.equal(body.users.length, Math.min(body.total, body.pageSize));
+  });
+
+  it("pages the results rather than cutting them off in silence", async () => {
+    // The bug this closes: ten rows came back whether there were ten matches
+    // or thirty, and nothing on the wire said which.
+    const first = await http()
+      .get("/admin/users?q=*&page=1")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const body = first.body as {
+      users: { id: string }[];
+      total: number;
+      pageSize: number;
+    };
+    if (body.total <= body.pageSize) {
+      // Not enough accounts in this database to have a second page; the count
+      // is still the thing being promised, and it is here.
+      assert.equal(body.users.length, body.total);
+      return;
+    }
+    const second = await http()
+      .get("/admin/users?q=*&page=2")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const next = second.body as { users: { id: string }[]; page: number };
+    assert.equal(next.page, 2);
+    // A total order, or a row could sit on both pages or on neither.
+    const seen = new Set(body.users.map((u) => u.id));
+    for (const u of next.users) assert.ok(!seen.has(u.id));
+  });
+
   it("does not 500 on a lookup that looks like a broken id", async () => {
     // Postgres rejects a malformed uuid as a type error rather than matching
     // nothing, so an unguarded `{ id: q }` would turn one stray character into

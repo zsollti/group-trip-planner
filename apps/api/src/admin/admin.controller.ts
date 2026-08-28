@@ -50,10 +50,19 @@ export class AdminController {
     return this.admin.overview();
   }
 
-  /** Find people by email fragment, display name, or exact id. */
+  /**
+   * Find people by email fragment, display name, or exact id — or, with the
+   * one-character `*`, everyone. Ten to a page; `page` is 1-based and anything
+   * that is not a number is page one, because a support tool should answer a
+   * mistyped URL rather than 400 at it.
+   */
   @Get("users")
-  lookup(@Query("q") q?: string): Promise<AdminUserLookup> {
-    return this.admin.lookupUsers(q ?? "");
+  lookup(
+    @Query("q") q?: string,
+    @Query("page") page?: string,
+  ): Promise<AdminUserLookup> {
+    const at = Number(page);
+    return this.admin.lookupUsers(q ?? "", Number.isFinite(at) ? at : 1);
   }
 
   /** Issue and send a fresh verification link. */

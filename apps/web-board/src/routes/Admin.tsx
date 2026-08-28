@@ -14,7 +14,7 @@ import {
   useRunPlacesSeed,
   useUnbanUser,
 } from "@gtp/api-client";
-import { BAN_REASON_MAX, banIsActive } from "@gtp/types";
+import { ADMIN_LOOKUP_ALL, BAN_REASON_MAX, banIsActive } from "@gtp/types";
 import type {
   AdminUserDeletion,
   AdminDemoSeed,
@@ -540,12 +540,19 @@ function VolumePanel({ volume }: { volume: AdminVolume }) {
 function UserLookup() {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
-  const results = useAdminUserLookup(query);
+  const [page, setPage] = useState(1);
+  const results = useAdminUserLookup(query, page);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setQuery(input.trim());
+    // A new question starts at its first page. Without this, searching from
+    // page 4 asks for the fourth page of something that may have one.
+    setPage(1);
   }
+
+  const found = results.data;
+  const pageCount = found ? Math.ceil(found.total / found.pageSize) : 0;
 
   return (
     <section
@@ -568,6 +575,11 @@ function UserLookup() {
           {t("Find")}
         </Button>
       </form>
+      {/* Said where the box is, because a search that can list everybody is
+          not something an operator would think to try. */}
+      <p className="admin__note">
+        {t("Search for {all} to list everyone.", { all: ADMIN_LOOKUP_ALL })}
+      </p>
 
       {query && results.isPending ? (
         <p className="board__muted" role="status">
@@ -577,14 +589,84 @@ function UserLookup() {
         <p className="board__form-error" role="alert">
           {t("Couldn't run that lookup.")}
         </p>
-      ) : results.data && results.data.users.length === 0 ? (
+      ) : found && found.users.length === 0 ? (
         <p className="board__muted">
-          {t("Nobody matches “{query}”.", { query })}
+          {query === ADMIN_LOOKUP_ALL
+            ? t("Nobody has an account yet.")
+            : t("Nobody matches “{query}”.", { query })}
         </p>
       ) : (
-        results.data?.users.map((u) => <UserCard key={u.id} user={u} />)
+        <>
+          {/* How many there are, above the page of them — the figure the old
+              silent cut-off at ten was hiding.
+
+              Not a live region, though it changes: the cards under it are the
+              answer, this is their label, and a second `role="status"` beside
+              the one the card actions use would leave both of them competing
+              to be *the* status of this panel. */}
+          {found ? (
+            <p className="admin__note">
+              {plural(found.total, "{n} person", "{n} people")}
+            </p>
+          ) : null}
+          {found?.users.map((u) => (
+            <UserCard key={u.id} user={u} />
+          ))}
+          {found && pageCount > 1 ? (
+            <Pager
+              page={found.page}
+              pageCount={pageCount}
+              onGo={setPage}
+              busy={results.isFetching}
+            />
+          ) : null}
+        </>
       )}
     </section>
+  );
+}
+
+/**
+ * Backwards, forwards, and where you are.
+ *
+ * No numbered pages: an operator is either stepping through a list or has typed
+ * a better query, and a row of page numbers over a support tool is a control
+ * built for the first of those at the cost of the space the second needs.
+ *
+ * The buttons disable at the ends rather than disappearing, so the pair does
+ * not shift under the pointer between one page and the next.
+ */
+function Pager({
+  page,
+  pageCount,
+  onGo,
+  busy,
+}: {
+  page: number;
+  pageCount: number;
+  onGo: (page: number) => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="admin__pager">
+      <Button
+        variant="secondary"
+        disabled={page <= 1 || busy}
+        onClick={() => onGo(page - 1)}
+      >
+        {t("Previous")}
+      </Button>
+      <p className="admin__note" role="status">
+        {t("Page {page} of {count}", { page, count: pageCount })}
+      </p>
+      <Button
+        variant="secondary"
+        disabled={page >= pageCount || busy}
+        onClick={() => onGo(page + 1)}
+      >
+        {t("Next")}
+      </Button>
+    </div>
   );
 }
 
