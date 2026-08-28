@@ -10,7 +10,11 @@ import { formatMoney } from "../lib/money";
  * two inches above was already saying `€45,000.00`. Both go through
  * {@link formatMoney} now, so the board has one idea of what money looks like.
  */
-export function costLabel(o: OptionView): string | null {
+export function costLabel(
+  // The three fields it reads, rather than a whole `OptionView` — the invite
+  // preview draws cards from a payload that has these and nothing else.
+  o: Pick<OptionView, "amount" | "currency" | "costType">,
+): string | null {
   if (o.amount == null) return null;
   const per = o.costType === "PER_PERSON" ? "/person" : " total";
   return `${formatMoney(o.amount, o.currency)}${per}`;

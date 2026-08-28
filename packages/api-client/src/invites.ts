@@ -8,6 +8,7 @@ import {
 import type {
   CreateInviteInput,
   InviteLinkView,
+  InvitePreview,
   JoinTripResult,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
@@ -18,7 +19,31 @@ import { dashboardKeys } from "./dashboard.js";
 export const inviteKeys = {
   all: ["invites"] as const,
   list: (tripId: string) => [...inviteKeys.all, "list", tripId] as const,
+  preview: (token: string) => [...inviteKeys.all, "preview", token] as const,
 };
+
+/**
+ * What a link leads to, for somebody who is not signed in.
+ *
+ * No auth header is sent because there is none to send — this is the one query
+ * in the app that is asked before there is a session, which is the whole point
+ * of it. `retry: false` because every failure here is a verdict about the link
+ * (invalid, disabled, spent) and not a hiccup worth trying again.
+ */
+export function useInvitePreview(
+  token: string | undefined,
+  enabled = true,
+): UseQueryResult<InvitePreview, ApiError> {
+  return useQuery({
+    queryKey: inviteKeys.preview(token ?? ""),
+    queryFn: () =>
+      apiFetch<InvitePreview>(
+        `/join/${encodeURIComponent(token ?? "")}/preview`,
+      ),
+    enabled: Boolean(token) && enabled,
+    retry: false,
+  });
+}
 
 /** A trip's invite links (Owner/Co-organizer only — the API 403s otherwise). */
 export function useTripInvites(

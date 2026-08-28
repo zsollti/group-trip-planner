@@ -92,6 +92,22 @@ export const LOGIN_THROTTLE: Budget = budget(
  */
 export const VERIFY_THROTTLE: Budget = { default: { limit: 10, ttl: minute } };
 
+/**
+ * The board behind an invite link, read without signing in.
+ *
+ * The token is 32 random bytes, so this is not guessable in any number of
+ * requests worth budgeting for. The limit is here because the handler is the
+ * app's only unauthenticated read of trip *content* — one board, its lanes, its
+ * options and its crew in a single query — and an open endpoint that assembles
+ * that much per call is worth a ceiling whether or not anyone is guessing.
+ *
+ * Loose enough for the real gesture, which is opening a link and reloading it a
+ * few times while deciding.
+ */
+export const INVITE_PREVIEW_THROTTLE: Budget = {
+  default: { limit: 30, ttl: minute },
+};
+
 /* -------------------------------------------------------------------------- */
 /* Per-user writes                                                            */
 /* -------------------------------------------------------------------------- */

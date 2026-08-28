@@ -360,6 +360,101 @@ body {
   justify-content: center;
 }
 
+/* --- The invite preview ----------------------------------------------------
+ *
+ * A whole trip on a page with no session behind it, so it borrows the board's
+ * own parts (`.lane`, `.lane__card`) and supplies only the frame around them.
+ * Read top to bottom rather than as a working surface: this reader cannot touch
+ * anything, so nothing is pinned, nothing scrolls sideways, and the lanes wrap
+ * like the paragraphs they are here.
+ */
+.preview__inner {
+  width: min(64rem, 100%);
+  margin-inline: auto;
+  padding-bottom: 3rem;
+}
+.preview__head {
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
+/* Quiet, small, above the name — it is the sentence that explains why this page
+   is on screen, and the trip's own name is the thing being announced. */
+.preview__lead {
+  margin: 1rem 0 0.25rem;
+  color: var(--board-dim);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.preview__blurb {
+  max-width: 38rem;
+  margin: 0.75rem auto 0;
+  color: var(--board-fg);
+}
+.preview__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 1.5rem 0;
+}
+.preview__cta .board__alt {
+  margin-top: 0.35rem;
+}
+.preview__section-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--board-dim);
+}
+.preview__crew {
+  margin: 1rem 0 1.75rem;
+}
+.preview__faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preview__face {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+/* Wrapped, not railed. The board's row scrolls sideways because it is a working
+   surface a reader moves along; this one is being read once, and a page that
+   hides half its content behind a horizontal scrollbar hides the half that
+   would have made somebody accept the invitation. */
+.preview__lanes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+/* The lanes stop being scroll containers here: there is no board around them to
+   keep in view, so a long one simply runs on down the page. */
+.preview .lane {
+  max-height: none;
+  overflow-y: visible;
+}
+.preview__votes {
+  margin: 0.4rem 0 0;
+  color: var(--board-dim);
+  font-size: 0.75rem;
+}
+.preview__note {
+  margin-top: 1.5rem;
+  text-align: center;
+  color: var(--board-dim);
+  font-size: 0.8rem;
+}
+
 .board__bar {
   display: flex;
   align-items: center;

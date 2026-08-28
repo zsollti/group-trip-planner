@@ -16,6 +16,7 @@ import {
   resolveJoin,
   type CreateInviteInput,
   type InviteLinkView,
+  type InvitePreview,
   type JoinTripResult,
 } from "@gtp/types";
 import { localizedException } from "../i18n/localized-message.js";
@@ -161,6 +162,136 @@ export class InvitesService {
    * A personal link is consumed on a real join/upgrade (not on an idempotent
    * no-op).
    */
+  /**
+   * What the link leads to, for somebody who has not signed in.
+   *
+   * **The link is the credential, and it already was.** Redeeming this token
+   * puts the holder on the board with a role; this shows them the board with no
+   * role at all, so nothing is reachable here that was not reachable before by
+   * pressing on. What it buys is that "what have I been invited to" stops
+   * requiring an account to answer.
+   *
+   * The same three refusals redemption makes, for the same reasons and in the
+   * same order — unknown token, disabled link, spent personal link. A dead link
+   * shows nothing, or a revoked one would go on being a window into the trip
+   * after the organizer closed it. What it does **not** repeat is the address
+   * check on a personal link: that is a rule about who may *join*, and there is
+   * nobody to check an address against until somebody signs in. The link is the
+   * secret either way, and holding it is the whole of what this trusts.
+   *
+   * A frozen trip still previews. It refuses new members, which is a fact the
+   * reader is better told than left to discover by making an account for it, so
+   * it comes back as `acceptingMembers: false` rather than as a 403.
+   *
+   * Everything selected here is selected by name. A preview that spread a row
+   * would leak the next column somebody adds to it, and the columns next door
+   * are email addresses and password hashes.
+   */
+  async preview(token: string): Promise<InvitePreview> {
+    const link = await this.prisma.inviteLink.findUnique({
+      where: { token },
+      select: { type: true, disabledAt: true, consumedAt: true, tripId: true },
+    });
+    if (!link) throw new NotFoundException("This invite link is invalid.");
+    if (link.disabledAt) {
+      throw new GoneException("This invite link has been disabled.");
+    }
+    if (link.type === "PERSONAL" && link.consumedAt) {
+      throw new GoneException("This invite link has already been used.");
+    }
+
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: link.tripId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        destination: true,
+        startDate: true,
+        endDate: true,
+        defaultCurrency: true,
+        status: true,
+        memberships: {
+          select: {
+            user: { select: { id: true, displayName: true, avatarUrl: true } },
+          },
+          orderBy: { joinedAt: "asc" },
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            builtinKey: true,
+            paletteKey: true,
+            position: true,
+            options: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                url: true,
+                amount: true,
+                currency: true,
+                costType: true,
+                startsAt: true,
+                endsAt: true,
+                status: true,
+                // The tally, and only the tally. `votes: true` would carry
+                // every voter's id and name out with it.
+                _count: { select: { votes: true } },
+              },
+              orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+            },
+          },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+    // A link whose trip is gone. The link row cascades with the trip, so this
+    // is all but unreachable — and "all but" is not a thing to return null over.
+    if (!trip) throw new NotFoundException("This invite link is invalid.");
+
+    return {
+      tripId: trip.id,
+      name: trip.name,
+      description: trip.description,
+      destination: trip.destination,
+      // `@db.Date` columns: sliced to the calendar day they mean, never
+      // formatted as an instant. See the timeline pass.
+      startDate: trip.startDate ? trip.startDate.toISOString() : null,
+      endDate: trip.endDate ? trip.endDate.toISOString() : null,
+      defaultCurrency: trip.defaultCurrency,
+      acceptingMembers: trip.status !== "HISTORY",
+      memberCount: trip.memberships.length,
+      members: trip.memberships.map((m) => ({
+        userId: m.user.id,
+        displayName: m.user.displayName,
+        avatarUrl: m.user.avatarUrl,
+      })),
+      lanes: trip.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        builtinKey: c.builtinKey,
+        paletteKey: c.paletteKey,
+        position: c.position,
+        options: c.options.map((o) => ({
+          id: o.id,
+          title: o.title,
+          description: o.description,
+          url: o.url,
+          amount: o.amount === null ? null : Number(o.amount),
+          currency: o.currency,
+          costType: o.costType,
+          startsAt: o.startsAt ? o.startsAt.toISOString() : null,
+          endsAt: o.endsAt ? o.endsAt.toISOString() : null,
+          locked: o.status === "LOCKED",
+          voteCount: o._count.votes,
+        })),
+      })),
+    };
+  }
+
   async join(user: User, token: string): Promise<JoinTripResult> {
     const link = await this.prisma.inviteLink.findUnique({
       where: { token },

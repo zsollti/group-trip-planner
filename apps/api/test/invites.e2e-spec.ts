@@ -126,6 +126,101 @@ describe("Invites (e2e)", () => {
     assert.equal(mine?.role, "PARTICIPANT");
   });
 
+  /**
+   * The board, to somebody who has not signed in.
+   *
+   * The rule being pinned is not "it returns something" — it is the pair of
+   * promises the payload makes: everything a visitor needs to decide, and
+   * nothing that belongs to the people already on the board. A voter list or an
+   * address slipping into this payload is the failure that matters, and it is
+   * exactly the kind that a `select` widened by hand introduces silently.
+   */
+  it("shows the trip behind a link without a session", async () => {
+    const owner = await makeUser("prev-owner", true);
+    const trip = await createTrip(owner.accessToken, "Preview Trip");
+
+    const cats = await http()
+      .get(`/trips/${trip.id}/categories`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const lane = (cats.body as { id: string; name: string }[])[0]!;
+    const option = await http()
+      .post(`/trips/${trip.id}/categories/${lane.id}/options`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        title: "A hotel by the sea",
+        amount: 120,
+        currency: "EUR",
+        costType: "PER_PERSON",
+      })
+      .expect(201);
+    await http()
+      .post(
+        `/trips/${trip.id}/categories/${lane.id}/options/${option.body.id}/votes`,
+      )
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(201);
+
+    const link = await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ type: "GLOBAL", role: "PARTICIPANT" })
+      .expect(201);
+
+    // No Authorization header anywhere in this request: that is the feature.
+    const res = await http()
+      .get(`/join/${link.body.token}/preview`)
+      .expect(200);
+    const body = res.body as {
+      tripId: string;
+      name: string;
+      memberCount: number;
+      acceptingMembers: boolean;
+      members: { displayName: string }[];
+      lanes: { name: string; options: { title: string; voteCount: number }[] }[];
+    };
+    assert.equal(body.tripId, trip.id);
+    assert.equal(body.name, "Preview Trip");
+    assert.equal(body.acceptingMembers, true);
+    assert.equal(body.memberCount, 1);
+    assert.equal(body.members[0]?.displayName, "prev-owner");
+    const shown = body.lanes.find((l) => l.name === lane.name);
+    assert.equal(shown?.options[0]?.title, "A hotel by the sea");
+    // The tally is a fact about the option, so it is here.
+    assert.equal(shown?.options[0]?.voteCount, 1);
+
+    // And nothing that belongs to the people already on the board. Asserted
+    // against the serialized payload rather than field by field, because the
+    // risk is a field nobody thought to look for.
+    const raw = JSON.stringify(body);
+    assert.ok(!raw.includes(owner.email), "no member addresses");
+    assert.ok(!raw.includes("voters"), "no voter list");
+    assert.ok(!raw.includes("budgetPerPerson"), "no budget");
+    assert.ok(!raw.includes("passwordHash"), "no credentials");
+  });
+
+  it("shows nothing once the link is dead", async () => {
+    const owner = await makeUser("prev-dead", true);
+    const trip = await createTrip(owner.accessToken, "Revoked Preview");
+    const link = await http()
+      .post(`/trips/${trip.id}/invites`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ type: "GLOBAL", role: "PARTICIPANT" })
+      .expect(201);
+
+    await http().get(`/join/${link.body.token}/preview`).expect(200);
+
+    await http()
+      .delete(`/trips/${trip.id}/invites/${link.body.id}`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+
+    // A revoked link that went on being a window into the trip would make
+    // "disable" a lie about the only thing it controls.
+    await http().get(`/join/${link.body.token}/preview`).expect(410);
+    await http().get("/join/not-a-real-token/preview").expect(404);
+  });
+
   it("enforces one active global link per role (cap), across roles up to 3", async () => {
     const owner = await makeUser("cap-owner", true);
     const trip = await createTrip(owner.accessToken, "Cap Trip");
