@@ -38,7 +38,7 @@ export class DashboardService {
     // Two independent reads, so they overlap rather than queue. The rates one
     // is usually served from the service's own short-lived cache and costs
     // nothing; when it does hit the table it is thirty unchanging rows.
-    const [rows, rates, personalRows] = await Promise.all([
+    const [rows, rates, personalRows, membership] = await Promise.all([
       this.prisma.option.findMany({
         where: { deletedAt: null, category: { tripId: ctx.trip.id } },
         include: dashboardOptionInclude(),
@@ -53,6 +53,14 @@ export class DashboardService {
         where: { tripId: ctx.trip.id, ownerId: viewerId },
         include: dashboardPersonalInclude,
         orderBy: { position: "asc" },
+      }),
+      // The caller's own spending limit. On the membership rather than the
+      // trip, so it cannot ride in on `ctx.trip` — and scoped to this viewer
+      // for the same reason their items are. One more indexed row, in the same
+      // round trip.
+      this.prisma.tripMembership.findUnique({
+        where: { tripId_userId: { tripId: ctx.trip.id, userId: viewerId } },
+        select: { personalBudget: true },
       }),
     ]);
 
@@ -69,6 +77,7 @@ export class DashboardService {
       new Date(),
       rates,
       personalRows,
+      membership?.personalBudget ?? null,
     );
   }
 }
