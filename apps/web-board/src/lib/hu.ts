@@ -26,6 +26,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   " · {n} not scheduled": " · {n} nincs beütemezve",
   "(you)": "(te)",
   "+ Add card": "+ Új kártya",
+  "({amount} /person)": "({amount} /fő)",
   "/person": "/fő",
   "A feed is configured but the snapshot has not refreshed in days. Every ≈ total in the app is being computed from it.":
     "Be van állítva egy árfolyamforrás, de a mentés napok óta nem frissült. Az alkalmazás minden ≈ összege ebből számol.",
@@ -314,6 +315,8 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   On: "Be",
   "One thing first: starting a board needs a confirmed email address. We've sent a link to {email}. Open it and you're set. (Check the spam folder if it's taking its time.)":
     "Egy dolog még: tábla indításához megerősített e-mail-cím kell. Küldtünk egy linket ide: {email}. Nyisd meg, és készen vagy. (Ha késik, nézd meg a spam mappát is.)",
+  "Optional, and per person. The trip's chart marks it times the number of members. Nothing is blocked for going over; clear it to remove the target.":
+    "Nem kötelező, és fejenként értendő. Az utazás diagramja a taglétszámmal szorozva jelöli. Semmi nem tiltja a túllépést; töröld a mezőt a cél eltávolításához.",
   "Only people who opt in": "Csak aki jelentkezik rá",
   "Operations · signed in as {email}": "Üzemeltetés · bejelentkezve: {email}",
   "Operator log": "Üzemeltetői napló",
@@ -336,7 +339,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Priced for": "Az ára erre szól:",
   "Pick a mark to wear it in this colour.":
     "Válassz egy jelet, hogy ebben a színben viselhesd.",
-  "Priced for part of the group": "A csapat egy részére szóló ár",
   "Profile picture": "Profilkép",
   Progress: "Állapot",
   "Propose an option": "Javaslat beküldése",
@@ -501,7 +503,6 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "to spare": "marad",
   "voted before the last change": "a legutóbbi módosítás előtt szavazott",
   "your address": "a címed",
-  "yours: ": "a tiéd: ",
   "{actor} deleted {author}'s message": "{actor} törölte {author} üzenetét",
   "{amount} per person": "{amount} fejenként",
   "{cap} categories is the maximum. Delete one to add another.":
@@ -628,6 +629,7 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "No dates yet": "Még nincs dátum",
   "No price yet": "Még nincs ár",
   "split between whoever’s in": "a résztvevők között elosztva",
+  "for the group": "a csapatnak",
   "for {n} person on the trip": "{n} főre az utazáson",
   "for {n} people on the trip": "{n} főre az utazáson",
   "edited since": "azóta szerkesztve",

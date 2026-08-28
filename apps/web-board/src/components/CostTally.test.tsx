@@ -127,7 +127,10 @@ function locked(over: Partial<DashboardLine> = {}): DashboardLine {
     // empty list is the truthful shape rather than a placeholder.
     participants: [],
     currency: "EUR",
-    group: perPerson * 4,
+    // Times the heads it is priced for, not the member count: the trip's chart
+    // reads `group` now, and a helper that always said four would have agreed
+    // with a chart that was quietly charging the trip for people not in it.
+    group: perPerson * (over.effectiveHeadcount ?? 4),
     perPerson,
     effectiveHeadcount: 4,
     viewerOwes: true,
@@ -314,7 +317,27 @@ describe("CostTally", () => {
    * per-person total adds every option's per-head cost, so it read €102 and
    * warned all five — including the three who declined to spend the €4.
    */
-  it("reads the target against the viewer's own share, not the trip's", async () => {
+  it("states the trip's target in group money, naming the figure it came from", async () => {
+    // The organizer authors one number per head, and the sentence under a
+    // group-money ring has to be in group money too, or the chart and the line
+    // beneath it are describing different trips -- which is what they did.
+    renderTally(
+      dashboard({
+        budgetPerPerson: 100,
+        memberCount: 4,
+        committed: [priced(98)],
+      }),
+    );
+    const verdict = await screen.findByText(/to spare/);
+    const line = verdict.closest(".board__budget")!;
+    // 400 for four at 100 each, against 392 committed, so 8 to spare.
+    expect(digits(line.querySelector("strong")!.textContent)).toBe("400");
+    // The basis, so a figure nobody typed is not left looking invented.
+    expect(line.textContent).toMatch(/100/);
+    expect(digits(verdict.textContent)).toContain("8");
+  });
+
+  it("reads the target against the viewer's own share under 'Mine'", async () => {
     renderTally(
       dashboard({
         budgetPerPerson: 100,
@@ -323,12 +346,12 @@ describe("CostTally", () => {
         viewerCommitted: [priced(98)],
       }),
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
     const verdict = await screen.findByText(/to spare/);
-    // Under, by the two the shared options leave them.
+    // Under, by the two the shared options leave them -- and per person, which
+    // is the unit this reading and this target are both in.
     expect(digits(verdict.textContent)).toContain("2");
     expect(screen.queryByText(/over/)).toBeNull();
-    // And it says whose figure it is, since the two genuinely differ here.
-    expect(verdict.textContent).toMatch(/yours/i);
   });
 
   it("still warns the members who really are over", async () => {
@@ -340,15 +363,27 @@ describe("CostTally", () => {
         viewerCommitted: [priced(102)],
       }),
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
     expect(await screen.findByText(/over/)).toBeInTheDocument();
   });
 
-  it("does not say 'yours' when everything is shared", async () => {
-    // On a trip with no opt-in options the two figures are the same, and the
-    // word would imply a distinction that does not exist.
-    renderTally(dashboard({ budgetPerPerson: 100, committed: [priced(98)] }));
-    const verdict = await screen.findByText(/to spare/);
-    expect(verdict.textContent).not.toMatch(/yours/i);
+  it("offers the reader's own reading even with nothing of their own", async () => {
+    // The switch used to appear only once a member kept a private list, because
+    // "Mine" then differed from "The trip" only by the opt-ins they had
+    // declined -- which the trip's own target line said in words. That line
+    // speaks for the group now, so without this control a member would have
+    // nowhere at all to read what they personally owe.
+    renderTally(
+      dashboard({
+        budgetPerPerson: 100,
+        committed: [priced(102)],
+        viewerCommitted: [priced(98)],
+        viewerPersonal: [],
+      }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Mine" }),
+    ).toBeInTheDocument();
   });
 
   it("shows the target before anything has been locked", async () => {
@@ -383,12 +418,12 @@ describe("CostTally", () => {
     );
 
     // The empty ring, alone: the instruction that used to sit under it is gone.
-    expect(await screen.findByText(/per person/)).toBeInTheDocument();
+    expect(await screen.findByText(/for the group/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/start the tally/);
-    // The ring's own caption, which is the *only* "per person" left — the
-    // headline's separate restatement of the same zero is gone. Two matches at
-    // most, both belonging to the ring: its figure and its label.
-    expect(screen.queryByText(/per person/)).toBeInTheDocument();
+    // The ring's own caption, which is the *only* caption left — the headline's
+    // separate restatement of the same zero is gone. Two matches at most, both
+    // belonging to the ring: its figure and its label.
+    expect(screen.queryByText(/for the group/)).toBeInTheDocument();
     expect(screen.getAllByText(/0/).length).toBeLessThanOrEqual(2);
     // And nothing anywhere claims a currency the trip is not denominated in.
     expect(document.body.textContent).not.toMatch(/EUR|€/);
@@ -407,7 +442,7 @@ describe("CostTally", () => {
       }),
       [category()],
     );
-    await screen.findByText(/per person/);
+    await screen.findByText(/for the group/);
     expect(container.querySelector("details")).toBeNull();
     expect(screen.queryByText(/Locked in/)).toBeNull();
     expect(container.querySelector(".board__cost-peek")).toBeNull();
@@ -439,7 +474,14 @@ describe("the cost composition", () => {
     category({ id: "cat-do", name: "Activities", builtinKey: "ACTIVITIES" }),
   ];
 
-  /** The owner's worked example: 100 all in, split 50 / 25 / 15, 10 spare. */
+  /**
+   * The owner's worked example: 100 a head all in, split 50 / 25 / 15, 10 spare.
+   *
+   * Four members, so the trip's chart draws it as 360 against a 400 target. The
+   * *shares* are identical either way, because every one of these is divided by
+   * the same four people -- which is the clearest statement of what changing the
+   * unit did and did not change.
+   */
   const worked = () =>
     dashboard({
       committed: [priced(90)],
@@ -466,12 +508,13 @@ describe("the cost composition", () => {
 
   it("gives every lane a share, summing a lane's options into one", async () => {
     renderTally(worked(), LANES);
-    // Activities is two locked options, 5 + 10, and reads as one 15% wedge.
+    // Activities is two locked options, 5 + 10 a head, and reads as one 15%
+    // wedge -- 60 of the trip's 400.
     const activities = await screen.findByText("Activities");
     const row = activities.closest(".cost-comp__row");
     expect(row?.querySelector(".cost-comp__share")?.textContent).toBe("15%");
     expect(row?.querySelector(".cost-comp__amount")?.textContent).toContain(
-      "15",
+      "60",
     );
   });
 
@@ -534,7 +577,7 @@ describe("the cost composition", () => {
     expect(row.querySelector(".cost-comp__share")!.textContent).toMatch(
       /50\s*%/,
     );
-    expect(row.querySelector(".cost-comp__amount")!.textContent).toMatch(/50/);
+    expect(row.querySelector(".cost-comp__amount")!.textContent).toMatch(/200/);
     expect(container.querySelector(".cost-donut__over")).not.toBeNull();
     // The band is the whole mark. It used to start with a short radial tick at
     // the same angle, which drew the boundary the band's own end already draws
@@ -577,7 +620,7 @@ describe("the cost composition", () => {
     // And the figure, in the hole, where the reader is already looking.
     const centre = container.querySelector(".cost-donut__centre")!;
     expect(centre.textContent).toContain("Over budget");
-    expect(centre.textContent).toMatch(/50/);
+    expect(centre.textContent).toMatch(/200/);
     expect(centre.querySelector(".cost-donut__figure--over")).not.toBeNull();
   });
 
@@ -678,8 +721,18 @@ describe("the cost composition", () => {
     expect(row.className).toContain("cost-comp__row--on");
   });
 
-  it("names an option priced for part of the group instead of drawing it", async () => {
-    renderTally(
+  /*
+   * These four cases used to pin an aside: locked options the ring could not
+   * hold, named underneath it instead. It existed because the ring was per
+   * person, and ten euros three of five owe cannot join a total everyone is
+   * measured by.
+   *
+   * In group money there is nothing to hold back -- thirty euros is thirty
+   * euros the trip spends -- so the aside is gone and what these pin now is
+   * that the option is simply *in the chart*.
+   */
+  it("charts an option priced for part of the group, in the trip's own money", async () => {
+    const { container } = renderTally(
       dashboard({
         memberCount: 5,
         committed: [priced(60)],
@@ -702,100 +755,53 @@ describe("the cost composition", () => {
       }),
       LANES,
     );
-    // Ten euros three of five owe cannot join a per-person total everyone is
-    // measured by — so it is stated rather than folded in.
-    const named = await screen.findByText("Airport taxi");
-    expect(named).toBeInTheDocument();
-    expect(screen.queryByText("Transport")).toBeNull();
-    // The name is what the row is about — the reader is scanning for which
-    // thing this is, not for a figure printed beside it.
-    expect(named.tagName).toBe("STRONG");
-    // Neither a headcount ("for 3 members") nor the face stack that replaced
-    // it. The list is now only options this reader is in, so a row of
-    // portraits spells out "you, and some others" beside a figure that already
-    // means exactly that.
-    expect(screen.queryByText(/for 3 members/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /in — see who/ })).toBeNull();
-
-    // And the ring still says plainly what its figure is. It used to switch to
-    // "per person, shared" whenever something was held back — a qualifier
-    // printed in the hole, three lines above the aside that explains it, where
-    // a reader meets it before there is anything to share. What the figure *is*
-    // belongs under the figure; what is missing from it belongs in the aside.
-    // Scoped to the hole: the aside underneath prices its held-back option "per
-    // person" too, which is the same words about a different figure.
-    expect(document.querySelector(".cost-donut__caption")!.textContent).toBe(
-      "per person",
+    // It is a wedge in its own lane now, not a row in an aside -- so the lane
+    // is named and the option is not.
+    const transport = await screen.findByText("Transport");
+    const row = transport.closest(".cost-comp__row")!;
+    // Thirty euros: three people at ten each. Not forty, and not ten.
+    expect(digits(row.querySelector(".cost-comp__amount")!.textContent)).toBe(
+      "30",
     );
-    expect(screen.queryByText(/shared/)).toBeNull();
-  });
-
-  it("leaves out an option priced for a part of the group the reader is not in", async () => {
-    // The aside sits between two of the reader's own numbers — what the chart
-    // charges everyone, and what the target says *they* owe — and exists to be
-    // the arithmetic between them. Somebody else's bill in that gap can only
-    // read as a discrepancy, so a row the reader is not paying into is not a
-    // row this list has any use for.
-    renderTally(
-      dashboard({
-        memberCount: 5,
-        committed: [priced(60)],
-        lines: [
-          locked({ perPerson: 50, effectiveHeadcount: 5 }),
-          locked({
-            categoryId: "cat-go",
-            categoryName: "Transport",
-            title: "Airport taxi",
-            perPerson: 10,
-            effectiveHeadcount: 2,
-            viewerOwes: true,
-            participants: [person("u-me", "Ada"), person("u-2", "Grace")],
-          }),
-          locked({
-            categoryId: "cat-go",
-            categoryName: "Transport",
-            title: "Scuba lesson",
-            perPerson: 40,
-            effectiveHeadcount: 2,
-            viewerOwes: false,
-            participants: [person("u-2", "Grace"), person("u-3", "Edsger")],
-          }),
-        ],
-      }),
-      LANES,
-    );
-    expect(await screen.findByText("Airport taxi")).toBeInTheDocument();
-    expect(screen.queryByText("Scuba lesson")).toBeNull();
-  });
-
-  it("drops the aside entirely when the reader is in none of them", async () => {
-    // Not an empty heading over nothing: "PRICED FOR PART OF THE GROUP" with no
-    // list under it is a promise of information the panel then withholds.
-    const { container } = renderTally(
-      dashboard({
-        memberCount: 5,
-        committed: [priced(60)],
-        lines: [
-          locked({ perPerson: 50, effectiveHeadcount: 5 }),
-          locked({
-            categoryId: "cat-go",
-            categoryName: "Transport",
-            title: "Airport taxi",
-            perPerson: 10,
-            effectiveHeadcount: 2,
-            viewerOwes: false,
-            participants: [person("u-2", "Grace")],
-          }),
-        ],
-      }),
-      LANES,
-    );
-    await screen.findByText(/per person/);
     expect(screen.queryByText("Airport taxi")).toBeNull();
     expect(container.querySelector(".cost-comp__aside")).toBeNull();
+    // And the ring says which money it is made of.
+    expect(document.querySelector(".cost-donut__caption")!.textContent).toBe(
+      "for the group",
+    );
   });
 
-  it("says nothing at all when no locked money is shared by the group", async () => {
+  it("charts it the same way for a member who is not paying into it", async () => {
+    // The trip's reading is the same for everybody, which is the point of it
+    // being the trip's. `viewerOwes` is the other reading's question.
+    const withoutMe = dashboard({
+      memberCount: 5,
+      committed: [priced(60)],
+      lines: [
+        locked({ perPerson: 50, effectiveHeadcount: 5 }),
+        locked({
+          categoryId: "cat-go",
+          categoryName: "Transport",
+          title: "Scuba lesson",
+          perPerson: 40,
+          effectiveHeadcount: 2,
+          viewerOwes: false,
+          participants: [person("u-2", "Grace"), person("u-3", "Edsger")],
+        }),
+      ],
+    });
+    renderTally(withoutMe, LANES);
+    const transport = await screen.findByText("Transport");
+    const row = transport.closest(".cost-comp__row")!;
+    expect(digits(row.querySelector(".cost-comp__amount")!.textContent)).toBe(
+      "80",
+    );
+  });
+
+  it("draws a trip on which every option is for part of the group", async () => {
+    // This drew nothing at all before, and fell back to printing bare figures:
+    // with every line held back there was no ring left to make. Money two of
+    // five are spending is still the trip's money.
     const { container } = renderTally(
       dashboard({
         memberCount: 5,
@@ -804,8 +810,11 @@ describe("the cost composition", () => {
       }),
       LANES,
     );
-    await screen.findByText(/per person/);
-    expect(container.querySelector(".cost-comp")).toBeNull();
+    await screen.findByText(/for the group/);
+    expect(container.querySelector(".cost-comp")).not.toBeNull();
+    expect(
+      digits(document.querySelector(".cost-donut__figure")!.textContent),
+    ).toBe("20");
   });
 
   it("names a currency it could not convert rather than dropping it", async () => {

@@ -207,7 +207,13 @@ export function EditBoardDialog({
             <Field
               htmlFor="budgetPerPerson"
               label={t("Budget per person")}
-              hint="Optional. A target to read the total against — nothing is blocked for going over. Clear it to remove the target."
+              // Says what the figure becomes, because it is not what the
+              // trip's chart draws: that ring is in group money and marks this
+              // times the member count. An organizer who types 500 and is shown
+              // 3,000 should have been told to expect it.
+              hint={t(
+                "Optional, and per person. The trip's chart marks it times the number of members. Nothing is blocked for going over; clear it to remove the target.",
+              )}
             >
               {/* Read off the live select above rather than off the trip, so
                   changing the currency and the budget in one visit never leaves

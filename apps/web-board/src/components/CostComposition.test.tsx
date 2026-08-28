@@ -73,13 +73,13 @@ function composition(over: Partial<Composition> = {}): Composition {
     overspend: 0,
     overshare: 0,
     targetMark: null,
-    excluded: [],
+    unit: "group",
     uncounted: [],
     ...over,
   };
 }
 
-const headline = { headline: "€500", caption: "per person" };
+const headline = { headline: "€500", caption: "for the group" };
 
 function renderComp(over: Partial<Composition> = {}) {
   return render(
@@ -212,7 +212,7 @@ describe("reading one lane", () => {
   it("always states the total when nothing is being read", () => {
     renderComp();
     expect(screen.getByText("€500")).toBeInTheDocument();
-    expect(screen.getByText("per person")).toBeInTheDocument();
+    expect(screen.getByText("for the group")).toBeInTheDocument();
   });
 
   it("does not put the wedge's share in the hole", () => {
