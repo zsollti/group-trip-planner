@@ -331,6 +331,50 @@ export function groupTargetVerdict(d: TripDashboardView): TargetVerdict | null {
 }
 
 /**
+ * The same comparison for **the reader's own budget**: everything they are
+ * spending on this trip, against the limit they set themselves.
+ *
+ * The one verdict on this surface that private money belongs in. The owner's
+ * rule is that personal items are never read against the *trip's* target,
+ * because the group did not agree to buy anybody's flight — but a member's own
+ * limit is precisely the number their own flight counts towards, and a budget
+ * that excluded it would be answering a question nobody asked.
+ *
+ * Fed {@link viewerAllIn} for that reason, where {@link targetVerdict} is fed
+ * {@link viewerCost}. Null when they have set no budget, and the surface then
+ * falls back to the group's per-person verdict exactly as it did before.
+ */
+export function personalTargetVerdict(
+  d: TripDashboardView,
+): TargetVerdict | null {
+  if (d.viewerBudget === null) return null;
+  const all = viewerAllIn(d);
+
+  // `viewerAllIn` answers null to two different questions, and they want
+  // opposite treatment here.
+  //
+  // *Nothing spent yet* must still show the budget: a target that stayed
+  // invisible until the first price reads as an edit that failed to save, which
+  // is the same reason the trip's own target is drawn over an empty ring.
+  //
+  // *Money that cannot be crossed into one currency* must not: "€400 to spare"
+  // printed beside spending this figure could not reach is a verdict that is
+  // wrong rather than merely incomplete, and a budget is exactly the sentence
+  // somebody acts on.
+  const spentNothing =
+    d.viewerCommitted.length === 0 && d.viewerPersonal.length === 0;
+  if (all === null && !spentNothing) return null;
+
+  return verdict(
+    d,
+    { parts: all === null ? [] : [all], allIn: all },
+    d.viewerBudget,
+    "viewer",
+    null,
+  );
+}
+
+/**
  * The comparison both verdicts are, once the target and the unit are settled.
  *
  * Shared rather than written twice because the multi-currency rule below is the

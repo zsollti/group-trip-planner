@@ -3,6 +3,7 @@ import type { TripDashboardView } from "@gtp/types";
 import {
   lockedCost,
   personalCost,
+  personalTargetVerdict,
   targetVerdict,
   viewerAllIn,
   viewerCost,
@@ -327,5 +328,61 @@ describe("the target and the reader's own money", () => {
     // ...and the money is not merely being dropped on the floor.
     expect(personalCost(withOwn).allIn?.group).toBe(500);
     expect(viewerAllIn(withOwn)?.perPerson).toBe(1100);
+  });
+});
+
+describe("the reader's own budget", () => {
+  it("counts their private things, which the trip's target must not", () => {
+    // The two verdicts over one payload, and the contrast is the claim: 600
+    // owed plus 500 of their own is 1100. The trip's target sees 600 of that;
+    // their own budget sees all of it, because that is what they set it for.
+    const d = dashboard({
+      budgetPerPerson: 800,
+      viewerBudget: 1000,
+      committed: [part("EUR", 2400, 600)],
+      viewerCommitted: [part("EUR", 2400, 600)],
+      viewerPersonal: [part("EUR", 500, 500)],
+    });
+
+    const group = targetVerdict(d, viewerCost(d))!;
+    expect(group.spend).toBe(600);
+    expect(group.over).toBe(false);
+
+    const own = personalTargetVerdict(d)!;
+    expect(own.spend).toBe(1100);
+    expect(own.target).toBe(1000);
+    expect(own.over).toBe(true);
+    expect(own.gap).toBe(100);
+    expect(own.unit).toBe("viewer");
+  });
+
+  it("says nothing at all without a budget", () => {
+    const d = dashboard({
+      budgetPerPerson: 800,
+      viewerCommitted: [part("EUR", 2400, 600)],
+    });
+    expect(personalTargetVerdict(d)).toBeNull();
+  });
+
+  it("shows a freshly set budget before anything has been spent", () => {
+    // A target that stayed invisible until the first price would read as an
+    // edit that failed to save -- the same reason the trip's target is drawn
+    // over an empty ring.
+    const v = personalTargetVerdict(dashboard({ viewerBudget: 400 }))!;
+    expect(v.spend).toBe(0);
+    expect(v.gap).toBe(400);
+    expect(v.over).toBe(false);
+  });
+
+  it("refuses a verdict it would have to guess at", () => {
+    // Money in currencies with no rate to cross them. "400 to spare" beside
+    // spending this figure could not reach is wrong rather than incomplete,
+    // and a budget is exactly the sentence somebody acts on.
+    const d = dashboard({
+      viewerBudget: 400,
+      viewerCommitted: [part("EUR", 100, 100), part("RSD", 3000, 3000)],
+      converted: null,
+    });
+    expect(personalTargetVerdict(d)).toBeNull();
   });
 });

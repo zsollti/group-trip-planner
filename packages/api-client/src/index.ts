@@ -102,6 +102,7 @@ export {
 export {
   personalItemKeys,
   usePersonalItems,
+  useSetPersonalBudget,
   useCreatePersonalItem,
   useUpdatePersonalItem,
   useDeletePersonalItem,
