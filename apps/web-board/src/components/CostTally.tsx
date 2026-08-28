@@ -242,7 +242,9 @@ function TallyBody({
       ) : (
         <SplitTotals locked={locked} />
       )}
-      {verdict ? <TargetLine v={verdict} /> : null}
+      {/* The shortfall belongs to the composition's own list when there is one;
+          this line states it only when nothing above it can. */}
+      {verdict ? <TargetLine v={verdict} gap={!composition} /> : null}
       <p className="board__tally-foot">
         {plural(d.memberCount, "{n} member", "{n} members")}
       </p>
@@ -381,10 +383,18 @@ function MineBody({
           />
         </div>
       )}
+      {/*
+       * Same rule as the trip's reading, with one wrinkle worth stating: the
+       * chart on this surface is drawn against **their own budget** and nothing
+       * else (see `myCostComposition`). So it has a remainder row to carry the
+       * shortfall only when they have one of those — and when the line below is
+       * falling back to the group's per-person target, there is no such row and
+       * this is the only thing on the panel that can say how far there is to go.
+       */}
       {mine ? (
-        <TargetLine v={mine} />
+        <TargetLine v={mine} gap={!composition} />
       ) : verdict ? (
-        <TargetLine v={verdict} />
+        <TargetLine v={verdict} gap />
       ) : null}
       {/*
        * Said out loud whenever the verdict above is the **group's**.
@@ -560,10 +570,25 @@ function SplitTotals({ locked }: { locked: LockedCost }) {
  */
 function TargetLine({
   v,
+  gap = false,
 }: {
   v: NonNullable<ReturnType<typeof targetVerdict>>;
+  /**
+   * Whether this line is the one that states the shortfall.
+   *
+   * Off wherever a composition is drawn above it, because its list already has
+   * a row for exactly this: "Still to spend · 12% · 320 EUR", or "Over budget"
+   * in the same place. The line used to repeat that figure two lines further
+   * down, under a target the row is a share of — the same number twice, once
+   * with a percentage and once without, and a reader is entitled to assume two
+   * figures on one panel are answering two questions.
+   *
+   * On where there is no such row to carry it: several currencies with no rate
+   * to cross them leaves a headline and a bar rather than a ring, and a bar has
+   * no legend.
+   */
+  gap?: boolean;
 }) {
-  const gap = figure(v.gap, v.currency, v.approximate);
   return (
     <p
       className={"board__budget" + (v.over ? " board__budget--over" : "")}
@@ -581,20 +606,26 @@ function TargetLine({
               amount: money(v.basis, v.currency),
             })}
       </span>
-      <span className="board__budget-verdict">
-        {/* Both halves were bare English literals, and the pair is worth a note:
-            the i18n test reads the source tree for `t()` calls, so a string that
-            never asks to be translated is the one kind it cannot see. On a
-            Hungarian board the verdict read "1 200 Ft over" beside a fully
-            translated label. */}
-        {gap} {v.over ? t("over") : t("to spare")}
-        {/* Never silently compare across currencies. */}
-        {v.uncounted.length > 0
-          ? ` · ${t("{currencies} not counted", {
-              currencies: v.uncounted.join(", "),
-            })}`
-          : ""}
-      </span>
+      {gap ? (
+        <span className="board__budget-verdict">
+          {/* Both halves were bare English literals, and the pair is worth a
+              note: the i18n test reads the source tree for `t()` calls, so a
+              string that never asks to be translated is the one kind it cannot
+              see. On a Hungarian board the verdict read "1 200 Ft over" beside
+              a fully translated label. */}
+          {figure(v.gap, v.currency, v.approximate)}{" "}
+          {v.over ? t("over") : t("to spare")}
+        </span>
+      ) : null}
+      {/* Never silently compare across currencies, whichever surface states the
+          shortfall — this one is about the target itself, so it stays. */}
+      {v.uncounted.length > 0 ? (
+        <span className="board__budget-verdict">
+          {t("{currencies} not counted", {
+            currencies: v.uncounted.join(", "),
+          })}
+        </span>
+      ) : null}
     </p>
   );
 }

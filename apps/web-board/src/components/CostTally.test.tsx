@@ -588,6 +588,28 @@ describe("the cost composition", () => {
     expect(container.querySelector(".cost-donut__limit")).toBeNull();
   });
 
+  /**
+   * One shortfall, in one place.
+   *
+   * The panel used to state it twice: the chart's remainder row ("Still to
+   * spend · 12% · 320") and then, two lines below, the target line repeating
+   * the bare figure. Two numbers on one panel read as answers to two
+   * questions, and these were an answer to one asked once.
+   */
+  it("leaves the shortfall to the chart's own row", async () => {
+    const { container } = renderTally(worked(), LANES);
+    const row = (await screen.findByText("Still to spend")).closest("li")!;
+    expect(row.querySelector(".cost-comp__amount")!.textContent).not.toBe("");
+
+    // The target itself is still stated, because nothing else states it.
+    const line = screen.getByText("Target").closest(".board__budget")!;
+    expect(line.querySelector("strong")).not.toBeNull();
+    // What is gone is the second copy of the row's figure.
+    expect(container.querySelectorAll(".board__budget-verdict")).toHaveLength(
+      0,
+    );
+  });
+
   it("draws no notch while the target still has headroom", async () => {
     const { container } = renderTally(worked(), LANES);
     await screen.findByText("Stay");
@@ -964,11 +986,16 @@ describe("the two readings", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
 
-    const verdict = await screen.findByText(/to spare/i);
-    const line = verdict.closest(".board__budget")!;
+    // Two figures, and each is stated once: the target by the line, and how
+    // much of it is left by the chart's own remainder row. The line used to
+    // repeat that second number underneath the row that already had it.
+    const line = (await screen.findByText("Target")).closest(".board__budget")!;
     expect(digits(line.querySelector("strong")!.textContent)).toBe("600");
     // 90 to spare, which is only true if the private 210 was counted.
-    expect(digits(verdict.textContent)).toContain("90");
+    const left = screen.getByText("Still to spend").closest("li")!;
+    expect(
+      digits(left.querySelector(".cost-comp__amount")!.textContent),
+    ).toContain("90");
   });
 
   it("counts private money against their own budget, and says nothing about the trip's", async () => {
@@ -987,17 +1014,20 @@ describe("the two readings", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
 
-    await screen.findByText(/to spare/i);
+    const line = (await screen.findByText("Target")).closest(".board__budget")!;
     expect(
       screen.queryByText(/Not counted against the target/),
     ).not.toBeInTheDocument();
     // And the group's 500 is nowhere on this reading: one figure is being
     // judged, so one target is stated.
-    const line = screen.getByText(/to spare/i).closest(".board__budget")!;
     expect(digits(line.querySelector("strong")!.textContent)).toBe("600");
   });
 
   it("says they are over their own budget when they are", async () => {
+    // `lines` as well as `committed`, and it matters: the chart is built from
+    // the lines and the verdict from the totals, so a fixture with one and not
+    // the other describes a payload the server never sends — and would have
+    // this panel disagreeing with itself, which is the thing being tested.
     renderTally(
       dashboard({
         viewerBudget: 400,
@@ -1005,12 +1035,17 @@ describe("the two readings", () => {
         viewerCommitted: [priced(300)],
         viewerPersonal: [mineOnly(210)],
         personalLines: [own(210)],
+        lines: [locked({ perPerson: 300 })],
       }),
+      [category()],
     );
     fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
-    // 510 against 400.
-    const verdict = await screen.findByText(/over/i);
-    expect(digits(verdict.textContent)).toContain("110");
+    // 510 against 400, on the chart's own row — the same place the trip's
+    // reading says it, rather than in a sentence repeating the row above.
+    const row = (await screen.findByText("Over budget")).closest("li")!;
+    expect(
+      digits(row.querySelector(".cost-comp__amount")!.textContent),
+    ).toContain("110");
   });
 
   it("keeps the group's target verdict for a reader who has set no budget", async () => {
