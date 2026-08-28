@@ -995,14 +995,25 @@ span.board__muted {
  *
  * `auto` and not a fixed left column: the circle is 96px and the file button
  * under it is as wide as its own label, which is a translated string. The
- * strips take what is left, down to nothing, which is what `minmax(0, 1fr)`
- * buys over a bare `1fr` — a grid track's default `min-width: auto` refuses to
- * go under the content's minimum, and a horizontal scroller's minimum is its
- * whole scrolled length.
+ * strips are `minmax(0, var(--presets-width))`, and both halves of that are
+ * load-bearing — the cap is what keeps the pair centred as one block instead of
+ * spread to the panel's two edges, and the `0` floor is what lets the column
+ * shrink at all, since a grid track's default `min-width: auto` refuses to go
+ * under its content's minimum and a horizontal scroller's minimum is its whole
+ * scrolled length.
  */
 .avatarfield {
+  /* How wide one slider is, and with it the panel's right-hand column. Declared
+     here rather than at `:root`: it describes this panel, and both rules that
+     read it are inside it. */
+  --presets-width: 16.5rem;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  /* Capped rather than `1fr`, and the cap is the sliders' own width: a `1fr`
+     right-hand track eats every pixel the dialog has, which pinned the circle
+     to the far left and left the pair sitting against opposite edges of a wide
+     panel. Bounded tracks are what `justify-content` has something to centre. */
+  grid-template-columns: auto minmax(0, var(--presets-width));
+  justify-content: center;
   align-items: start;
   gap: 0.5rem 1.3rem;
 }
@@ -1049,7 +1060,12 @@ span.board__muted {
   flex-direction: column;
   gap: 0.55rem;
   width: 100%;
-  max-width: 19rem;
+  /* Named, because the grid above sizes its second column from it — the panel
+     centres on the pair, so the width of the sliders is what there is to
+     centre. Four swatches to a view: enough to read as a run of things, short
+     enough that the two arrows stay within a thumb's travel of each other. */
+  max-width: var(--presets-width);
+  margin-inline: auto;
   margin-top: 0.4rem;
 }
 
@@ -2331,6 +2347,19 @@ span.board__muted {
     height 160ms ease-out;
 }
 
+/*
+ * The panel, and it travels with the spotlight.
+ *
+ * The same 160ms the hole above moves in, deliberately: they are placed from
+ * one measurement in one layout effect, so matching durations means the panel
+ * and the ring it belongs to arrive together. Pressing Next used to teleport
+ * the panel to the next anchor while the ring slid there, which reads as two
+ * unrelated things happening rather than as one tour moving on.
+ *
+ * It follows a scroll as well, because a smooth `scrollIntoView` repositions
+ * both on every frame — again the same as the spotlight, so the pair stay
+ * locked together instead of one trailing the other.
+ */
 .tour__bubble {
   position: fixed;
   width: 320px;
@@ -2342,14 +2371,31 @@ span.board__muted {
   border-radius: 14px;
   padding: 1rem 1.1rem;
   box-shadow: 0 18px 44px rgb(var(--board-shadow) / 0.28);
+  transition:
+    top 160ms ease-out,
+    left 160ms ease-out;
 }
 
 /* The send-off belongs to no element on the page, so it sits in the middle of
-   the screen instead of beside whatever was last discussed. */
+   the screen instead of beside whatever was last discussed.
+
+   No travel to it: this is the one placement that is a percentage plus a
+   `transform`, and the transform lands in a single frame while the offsets
+   would still be sliding — half a panel's width out of step the whole way. It
+   is also the one move that is not "now look over here", so it has nothing to
+   lead the reader's eye to. */
 .tour__bubble[data-side="center"] {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour__spot,
+  .tour__bubble {
+    transition: none;
+  }
 }
 
 .tour__count {
