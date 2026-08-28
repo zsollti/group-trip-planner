@@ -177,7 +177,10 @@ describe("Invites (e2e)", () => {
       memberCount: number;
       acceptingMembers: boolean;
       members: { displayName: string }[];
-      lanes: { name: string; options: { title: string; voteCount: number }[] }[];
+      lanes: {
+        name: string;
+        options: { title: string; voteCount: number }[];
+      }[];
     };
     assert.equal(body.tripId, trip.id);
     assert.equal(body.name, "Preview Trip");
