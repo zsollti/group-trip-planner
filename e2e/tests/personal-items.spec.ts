@@ -13,9 +13,10 @@ import { createBoard, laneNamed, seedAndSignIn } from "../support/actions";
  * journey exists for.
  *
  * The rest of it walks the loop a person actually takes: add an item, see it in
- * the column, switch the cost panel to their own reading, and confirm the
- * target verdict did **not** move — the owner's decision, checked on the
- * surface that states it rather than in the module that computes it.
+ * the column, switch the cost panel to their own reading, and set a budget of
+ * their own — the one target their private money is counted against, and the
+ * second per-member figure this journey can prove is private, since a budget
+ * one member sets must be invisible to the other.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -67,9 +68,10 @@ test("a member keeps a private list that nobody else on the board can see", asyn
 
   await expect(column.getByText(mine)).toBeVisible();
 
-  // --- the cost panel gains a second reading -------------------------------
-  // Offered only now: before there was anything of her own, "Mine" would have
-  // differed from "The trip" by nothing worth a control.
+  // --- the cost panel's second reading -------------------------------------
+  // Always offered, on every board: the trip's reading is group money and its
+  // target line speaks for the group, so this switch is the only way to a
+  // figure about the reader themselves.
   const whose = ownerPage.getByRole("group", { name: "Whose money" });
   await expect(whose).toBeVisible();
   await expect(whose.getByRole("button", { name: "The trip" })).toHaveAttribute(
@@ -85,6 +87,24 @@ test("a member keeps a private list that nobody else on the board can see", asyn
   await whose.getByRole("button", { name: "Mine" }).click();
   await expect(
     ownerPage.getByText(/Not counted against the target/),
+  ).toBeVisible();
+
+  // --- a budget of her own, which is what does count it --------------------
+  // The trip's target refuses this money by design. Hers is the number it is
+  // for, so setting one has to flip both halves: a verdict appears, and the
+  // sentence disclaiming her flight goes, because it would now be false.
+  await ownerPage.getByRole("button", { name: "Set your own budget" }).click();
+  await ownerPage.getByLabel(/What you can spend/).fill("400");
+  await ownerPage.getByRole("button", { name: "Save" }).click();
+
+  // 210 of her own against 400, and nothing else decided on this board yet.
+  await expect(ownerPage.getByText(/to spare/)).toBeVisible();
+  await expect(
+    ownerPage.getByText(/Not counted against the target/),
+  ).toBeHidden();
+  // The way in now offers to change it rather than to set one.
+  await expect(
+    ownerPage.getByRole("button", { name: "Change your budget" }),
   ).toBeVisible();
 
   // --- and it is on her itinerary, on the trip's own axis ------------------
@@ -128,10 +148,20 @@ test("a member keeps a private list that nobody else on the board can see", asyn
     // Nowhere on her board, in any surface: not the column, not the cost
     // panel, not the timeline.
     await expect(memberPage.getByText(mine)).toHaveCount(0);
-    // And no switch, since she has nothing of her own to switch to — which is
-    // also a second way of saying the server sent her no private money.
+
+    // Her own reading of the cost panel is hers. She has the switch — everyone
+    // does — and behind it there is no trace of Ada's money, and no budget:
+    // Ada set 400 on this trip and it is not Grace's number to see.
+    await memberPage
+      .getByRole("group", { name: "Whose money" })
+      .getByRole("button", { name: "Mine" })
+      .click();
+    await expect(memberPage.getByText(mine)).toHaveCount(0);
     await expect(
-      memberPage.getByRole("group", { name: "Whose money" }),
+      memberPage.getByRole("button", { name: "Set your own budget" }),
+    ).toBeVisible();
+    await expect(
+      memberPage.getByRole("button", { name: "Change your budget" }),
     ).toHaveCount(0);
 
     await memberPage.goto(`/trips/${tripId}/timeline`);
@@ -151,6 +181,14 @@ test("a member keeps a private list that nobody else on the board can see", asyn
     await ownerPage.reload();
     await expect(myColumn(ownerPage).getByText(mine)).toBeVisible();
     await expect(ownerPage.getByText("My insurance")).toHaveCount(0);
+    // ...and her budget survived the round trip, still only on her screen.
+    await ownerPage
+      .getByRole("group", { name: "Whose money" })
+      .getByRole("button", { name: "Mine" })
+      .click();
+    await expect(
+      ownerPage.getByRole("button", { name: "Change your budget" }),
+    ).toBeVisible();
   } finally {
     await closeGuest();
   }

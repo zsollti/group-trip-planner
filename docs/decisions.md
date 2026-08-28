@@ -459,6 +459,66 @@ it about themselves.
 
 ---
 
+## The cost panel's two readings, and the two budgets behind them
+
+The cost surface has always offered two readings, "The trip" and "Mine". For a
+long time both were denominated **per person**, and that single unit was quietly
+doing two jobs badly.
+
+It forced a rule. A per-person figure is only comparable with another per-person
+figure when both are divided by the same people, so an option priced for part of
+the group could not be drawn at all: three of five sharing a €30 taxi owe €10
+each, and adding that €10 to an accommodation share divided by five produces a
+per-person total nobody actually pays. Those options were therefore dropped from
+the ring and named in an aside beneath it. The rule was correct given the unit.
+The unit was the mistake.
+
+Two things followed from it that were worse than the aside. The organizer's
+picture of what the trip costs was **systematically too low**, because real money
+the trip was spending had been excluded from the chart on a technicality about
+division. And the sentence under the chart was about the reader's own money while
+the chart above it was about everybody's, so the two were measuring different
+things a line apart.
+
+**So each reading now picks one unit and holds everything that belongs to it.**
+The trip's chart is group money: every locked option, opt-ins included, because
+thirty euros is thirty euros the trip spends whoever chips in. The reader's own
+chart is their money: their share of the group's decisions, the opt-ins they
+joined, and their private items. Neither needs an exception, and
+`isSharedByEveryone` and the aside it fed were deleted rather than adapted.
+
+### Why there are two budgets and not one
+
+The trip's target is authored by the organizer, per person, and it is a
+guideline for the group's plan. When personal items shipped, the rule was that
+private spending is never read against it — the group did not agree to buy
+anybody's flight home, and counting it would tell a member they had overspent a
+budget they were in fact keeping to.
+
+That rule left the reader's own chart with **no target it could honestly draw**.
+The only figure available was the one it must not use, so the chart answered
+where the money goes and could not answer how it stands.
+
+The answer was not to relax the rule but to give that chart a number of its own:
+a private per-member budget, on the membership, invisible to everyone else. It is
+the one figure a personal flight legitimately counts towards, because the person
+who set it is the person paying. The trip's target is unchanged and still means
+what it meant; a member who sets no budget still gets exactly the old behaviour,
+disclaimer sentence and all.
+
+The alternative — dropping the organizer's target and keeping only private ones —
+was considered and rejected. "Let's keep this around €500 a head" is the shared
+constraint that makes a group converge on options, and without it the trip's
+chart has nothing to aim at. It is also the only one of the two that everybody
+can see, which is what makes it useful while the plan is still being argued
+about.
+
+The trip's ring draws that per-person figure times the member count, so the mark
+and the wedges measure the same thing, and the line beneath names the per-person
+basis — otherwise it is a number nobody typed.
+
+---
+
 ## Things I deliberately did not build
 
 - **Currency conversion.** Covered in the README. The short version is that a
