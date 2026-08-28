@@ -5,6 +5,7 @@ import { CostBar } from "./CostBar";
 import { CostComposition } from "./CostComposition";
 import { EmptyCostDonut } from "./CostDonut";
 import { costComposition, myCostComposition } from "../lib/costComposition";
+import { PersonalBudgetDialog } from "./PersonalBudgetDialog";
 // The strip's private formatter moved to `lib/money` when the option cards
 // needed the same thing. One definition, so a total and the cards it is the sum
 // of cannot disagree about how money is written.
@@ -16,6 +17,7 @@ import {
   groupTargetVerdict,
   lockedCost,
   personalCost,
+  personalTargetVerdict,
   targetVerdict,
   viewerAllIn,
   viewerCost,
@@ -304,20 +306,25 @@ function CostViewToggle({
  * The strip read for one person: their share of the group's decisions plus the
  * things only they are paying for.
  *
- * A body of its own rather than branches through the trip's, so the trip's
- * reading is provably the one it always was. The differences are few and all of
- * them follow from whose money it is:
+ * A body of its own rather than branches through the trip's, so each reading is
+ * provably about one kind of money. The member count is gone: it is the divisor
+ * for the trip's per-person figures and has nothing to divide here.
  *
- * - the chart has **no target ring** (see {@link myCostComposition}) — the
- *   verdict below still speaks for the group's plan, and a ring that folded
- *   private spending into that comparison would contradict it;
- * - the member count is gone. It is the divisor for the trip's per-person
- *   figures and has nothing to divide here.
+ * ## Which target this reading is measured against
  *
- * The target line is unchanged and deliberately so: it reads `viewerCommitted`
- * in both readings, because the target is what the group budgeted for the
- * group's plan. What this view adds is the sentence naming the money that is
- * **not** in it.
+ * Two cases, and the difference between them is the whole of this slice.
+ *
+ * **With a budget of their own**, the ring is drawn against it and the sentence
+ * beneath reads their all-in — their share of the group's decisions *plus*
+ * their private things — because that is exactly what a personal limit is a
+ * limit on. This is the only verdict on the surface private money belongs in.
+ *
+ * **Without one**, nothing changes from before it was possible to set one: no
+ * ring, the group's per-person target stated below, read against
+ * `viewerCommitted` alone, and the reader's own spending named separately as
+ * money that verdict does not cover. The owner's rule holds either way —
+ * private money is never read against the *trip's* target — and the budget is
+ * what turns the ring on rather than something that bends the rule.
  */
 function MineBody({
   d,
@@ -327,14 +334,23 @@ function MineBody({
 }: {
   d: TripDashboardView;
   categories: readonly CategoryView[];
+  /**
+   * The group's per-person verdict — the fallback, used only when this reader
+   * has set no budget of their own.
+   */
   verdict: ReturnType<typeof targetVerdict>;
   view: CostView;
   /** The switch, passed in so this body does not own the state it reads. */
   children: ReactNode;
 }) {
+  const [editing, setEditing] = useState(false);
   const own = personalCost(d);
   const composition = myCostComposition(d, t("Just for me"));
   const allIn = viewerAllIn(d);
+  // Their own limit wins where they have one. The two are never shown together:
+  // a panel stating two targets for one figure is asking the reader to work out
+  // which of them they are being judged by.
+  const mine = personalTargetVerdict(d);
 
   return (
     <>
@@ -365,17 +381,25 @@ function MineBody({
           />
         </div>
       )}
-      {verdict ? <TargetLine v={verdict} /> : null}
+      {mine ? (
+        <TargetLine v={mine} />
+      ) : verdict ? (
+        <TargetLine v={verdict} />
+      ) : null}
       {/*
-       * Said out loud, every time this reading is open.
+       * Said out loud whenever the verdict above is the **group's**.
        *
-       * The target above it is the group's budget for the group's plan, and a
-       * member's own flight is not something the trip agreed to — so it is not
-       * counted, and a reader looking at one figure sitting above another needs
-       * to be told which of them the verdict was about. Leaving it implicit is
-       * how someone concludes they are over budget when they are not.
+       * That target is the group's budget for the group's plan, and a member's
+       * own flight is not something the trip agreed to — so it is not counted,
+       * and a reader looking at one figure sitting above another needs to be
+       * told which of them the verdict was about. Leaving it implicit is how
+       * someone concludes they are over budget when they are not.
+       *
+       * Dropped once they have a budget of their own, because then the sentence
+       * would be false: their own things *are* counted against that one, which
+       * is the point of it.
        */}
-      {own.allIn ? (
+      {mine === null && own.allIn ? (
         <p className="board__tally-foot">
           {t("Just for me: {amount}. Not counted against the target.", {
             amount: figure(
@@ -385,6 +409,32 @@ function MineBody({
             ),
           })}
         </p>
+      ) : null}
+      {/*
+       * The way in to a budget of their own.
+       *
+       * A quiet link rather than a button: it is the least important thing on
+       * the panel and competes with nothing. Its label says which of the two
+       * budgets it is, because the trip's is one tap away on the same surface.
+       */}
+      <p className="board__tally-foot">
+        <button
+          type="button"
+          className="board__link-btn"
+          onClick={() => setEditing(true)}
+        >
+          {d.viewerBudget === null
+            ? t("Set your own budget")
+            : t("Change your budget")}
+        </button>
+      </p>
+      {editing ? (
+        <PersonalBudgetDialog
+          tripId={d.tripId}
+          currency={d.defaultCurrency}
+          current={d.viewerBudget}
+          onClose={() => setEditing(false)}
+        />
       ) : null}
     </>
   );

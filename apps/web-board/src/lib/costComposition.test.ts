@@ -480,4 +480,59 @@ describe("myCostComposition", () => {
     });
     expect(myCostComposition(d, "Just for me")!.approximate).toBe(true);
   });
+
+  it("draws a ring against the reader's own budget, their own things in it", () => {
+    // The whole point of the private budget: 300 owed plus a 400 flight is 700
+    // against 900, so there is headroom and the mark sits ahead of the spend.
+    const d = dashboard({
+      viewerBudget: 900,
+      lines: [line({ perPerson: 300, viewerOwes: true })],
+      personalLines: [own(400)],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.charted).toBe(700);
+    expect(c.target).toBe(900);
+    expect(c.full).toBe(900);
+    expect(c.remaining).toBe(200);
+    expect(c.overspend).toBe(0);
+    expect(c.targetMark).toBeCloseTo(1);
+  });
+
+  it("marks the overshoot on the reader's ring exactly as it does on the trip's", () => {
+    // Same arithmetic, deliberately: both compositions go through
+    // `againstTarget`, so one surface cannot draw two kinds of overshoot.
+    const mine = myCostComposition(
+      dashboard({
+        viewerBudget: 500,
+        lines: [line({ perPerson: 750, viewerOwes: true })],
+      }),
+      "Just for me",
+    )!;
+    const trip = costComposition(
+      dashboard({
+        budgetPerPerson: 125,
+        memberCount: 4,
+        lines: [line({ perPerson: 187.5 })],
+      }),
+    )!;
+    expect(mine.overshare).toBeCloseTo(0.5);
+    expect(trip.overshare).toBeCloseTo(0.5);
+    expect(mine.targetMark).toBeCloseTo(trip.targetMark!);
+  });
+
+  it("still never borrows the trip's per-person target", () => {
+    // The rule this ring was built without a target for. A budget of their own
+    // is the only thing that gives it one.
+    const d = dashboard({
+      budgetPerPerson: 500,
+      viewerBudget: null,
+      lines: [line({ perPerson: 300, viewerOwes: true })],
+      personalLines: [own(400)],
+    });
+    const c = myCostComposition(d, "Just for me")!;
+    expect(c.charted).toBe(700);
+    expect(c.target).toBeNull();
+    expect(c.targetMark).toBeNull();
+    expect(c.full).toBe(700);
+  });
 });

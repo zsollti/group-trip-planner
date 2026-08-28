@@ -214,9 +214,7 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
       : null;
   if (charted <= 0) return null;
 
-  const full = target !== null && target > charted ? target : charted;
-  const overspend = target !== null && charted > target ? charted - target : 0;
-
+  const against = againstTarget(charted, target);
   const ranked = [...byCategory.entries()]
     .map(([categoryId, v]) => ({ categoryId, ...v }))
     .sort((a, b) => b.amount - a.amount || a.label.localeCompare(b.label));
@@ -225,8 +223,32 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
     currency: d.defaultCurrency,
     unit: "group",
     approximate,
-    slices: withTail(ranked, charted, full),
+    slices: withTail(ranked, charted, against.full),
     charted,
+    ...against,
+    uncounted: [...uncounted],
+  };
+}
+
+/**
+ * How a spend stands against a target, as the fields both rings draw from.
+ *
+ * Shared rather than written once per composition, because the two rings now
+ * *both* have targets — the trip's, and the reader's own — and they have to
+ * behave identically or the same overshoot would be drawn two different ways on
+ * one surface. It was a single inline block while only one ring had a target;
+ * copying it was the moment to lift it.
+ */
+function againstTarget(
+  charted: number,
+  target: number | null,
+): Pick<
+  CostComposition,
+  "target" | "full" | "remaining" | "overspend" | "overshare" | "targetMark"
+> {
+  const full = target !== null && target > charted ? target : charted;
+  const overspend = target !== null && charted > target ? charted - target : 0;
+  return {
     target,
     full,
     // `full - charted` and never negative: over the target the ring is all
@@ -240,7 +262,6 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
     // full circle, which is the failure that retired the previous chart.
     targetMark:
       target !== null && target > 0 ? Math.min(target / full, 1) : null,
-    uncounted: [...uncounted],
   };
 }
 
@@ -259,11 +280,12 @@ export function costComposition(d: TripDashboardView): CostComposition | null {
  *    and are no part of the trip's chart at all; here they are simply money the
  *    reader is spending on this trip, which is the question this ring answers.
  *
- * There is **no target yet** — that arrives with the reader's own budget in a
- * later slice, and until then the full circle is the whole of what they spend.
- * The trip's per-person figure is deliberately not borrowed for it: personal
- * money read against the group's target would draw someone over a line the
- * sentence beneath says they are keeping to.
+ * **The target is the reader's own** (`viewerBudget`), and there is none until
+ * they set one. The trip's per-person figure is deliberately never borrowed for
+ * it: personal money read against the group's target would draw someone over a
+ * line the sentence beneath says they are keeping to. That rule is exactly why
+ * this ring had no target at all before members could set their own — the only
+ * figure available was the one it must not use.
  *
  * Personal items are grouped by their **tag** where they carry one, so they
  * land in the same wedge as the lane they belong with. Untagged ones gather
@@ -332,21 +354,17 @@ export function myCostComposition(
     }))
     .sort((a, b) => b.amount - a.amount || a.label.localeCompare(b.label));
 
+  // Their own limit, and nothing else. `againstTarget` is the *same* function
+  // the trip's ring uses, so an overshoot is drawn one way on this surface
+  // rather than two.
+  const against = againstTarget(charted, d.viewerBudget);
   return {
     currency: d.defaultCurrency,
     unit: "viewer",
     approximate,
-    slices: withTail(ranked, charted, charted),
+    slices: withTail(ranked, charted, against.full),
     charted,
-    // No target, and therefore no mark, no remainder and no overspend: this
-    // ring is the whole of what the reader spends, and every one of those
-    // fields is an answer to a question it is not being asked.
-    target: null,
-    full: charted,
-    remaining: 0,
-    overspend: 0,
-    overshare: 0,
-    targetMark: null,
+    ...against,
     uncounted: [...uncounted],
   };
 }

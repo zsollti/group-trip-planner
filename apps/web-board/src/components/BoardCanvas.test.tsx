@@ -11,6 +11,7 @@ import { maxCategoryOptions } from "@gtp/types";
 import type { CategoryView, OptionView, TripRole } from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { BoardCanvas } from "./BoardCanvas";
+import { emptyDashboard } from "../test-dashboard";
 
 /**
  * Board canvas (Phase 3.5) — functional/DOM tests (no screenshot tests). Real
@@ -105,15 +106,7 @@ function mockFetch() {
     vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/dashboard")) {
-        return json({
-          committed: [],
-          projected: [],
-          viewerCommitted: [],
-          viewerPersonal: [],
-          personalLines: [],
-          lines: [],
-          memberCount: 2,
-        });
+        return json(emptyDashboard({ memberCount: 2 }));
       }
       if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json([proposed, locked]);
@@ -139,15 +132,7 @@ function mockFullFetch() {
     vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/dashboard")) {
-        return json({
-          committed: [],
-          projected: [],
-          viewerCommitted: [],
-          viewerPersonal: [],
-          personalLines: [],
-          lines: [],
-          memberCount: 2,
-        });
+        return json(emptyDashboard({ memberCount: 2 }));
       }
       if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json(full);
@@ -163,15 +148,7 @@ function mockEmptyFetch() {
     vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/dashboard")) {
-        return json({
-          committed: [],
-          projected: [],
-          viewerCommitted: [],
-          viewerPersonal: [],
-          personalLines: [],
-          lines: [],
-          memberCount: 2,
-        });
+        return json(emptyDashboard({ memberCount: 2 }));
       }
       if (u.includes("/members")) return json(MEMBERS);
       if (u.includes("/options")) return json([]);
@@ -235,15 +212,7 @@ describe("BoardCanvas", () => {
           return json({ ...category, paletteKey: "JADE", version: 1 });
         }
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([proposed, locked]);
@@ -298,15 +267,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([locked]);
@@ -330,15 +291,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([locked]);
@@ -487,15 +440,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         // Server returns position order (low first); the board re-sorts by votes.
         if (u.includes("/options")) return json([low, high]);
@@ -533,15 +478,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/categories/c1/options")) return json([locked]);
         if (u.includes("/categories/c2/options"))
@@ -595,15 +532,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/options")) return json([lockedFull]);
         return json({ message: "not found" }, 404);
@@ -649,15 +578,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/options")) return json([march, during]);
         return json({ message: "not found" }, 404);
@@ -745,15 +666,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([chosen, rival]);
@@ -798,15 +711,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/options")) return json([march]);
         return json({ message: "not found" }, 404);
@@ -840,15 +745,7 @@ describe("BoardCanvas", () => {
       vi.fn(async (url: string | URL) => {
         const u = String(url);
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         // Both lanes hold exactly one locked option and nothing proposed.
         if (u.includes("/categories/c1/options")) return json([locked]);
@@ -973,15 +870,7 @@ describe("BoardCanvas", () => {
           return json({ message: refusal }, 409);
         }
         if (u.includes("/dashboard")) {
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 2,
-          });
+          return json(emptyDashboard({ memberCount: 2 }));
         }
         if (u.includes("/members")) return json(MEMBERS);
         if (u.includes("/options")) return json([proposed, locked]);

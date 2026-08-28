@@ -8,8 +8,10 @@ import {
 } from "@tanstack/react-query";
 import type {
   CreatePersonalItemInput,
+  PersonalBudgetView,
   PersonalItemView,
   ReorderPersonalItemsInput,
+  SetPersonalBudgetInput,
   UpdatePersonalItemInput,
 } from "@gtp/types";
 import { apiFetch, type ApiError } from "./http.js";
@@ -173,6 +175,36 @@ export function useReorderPersonalItems(
       }),
     onSuccess: (ordered) => {
       qc.setQueryData(personalItemKeys.list(tripId, viewerId), ordered);
+    },
+  });
+}
+
+/**
+ * Set the reader's own budget for a trip, or clear it with a null amount.
+ *
+ * No cache of its own. The figure is already on the dashboard payload as
+ * `viewerBudget`, and that is the only surface that reads it — a second query
+ * holding the same number would be a second thing to keep in step, and the one
+ * that went stale would be the one drawing the ring. Invalidating the dashboard
+ * is therefore the whole of the fan-out, exactly as it is for an item.
+ *
+ * There is no optimistic update. A budget is typed once in a dialog that closes
+ * on success, so the round trip is not in anybody's way, and a ring that moved
+ * before the server agreed would be the one figure on this panel that had not
+ * been confirmed.
+ */
+export function useSetPersonalBudget(
+  tripId: string,
+): UseMutationResult<PersonalBudgetView, ApiError, SetPersonalBudgetInput> {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SetPersonalBudgetInput) =>
+      apiFetch<PersonalBudgetView>(`/trips/${tripId}/personal-budget`, {
+        method: "PUT",
+        body: input,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dashboardKeys.trip(tripId) });
     },
   });
 }

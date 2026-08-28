@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { TripRole } from "@gtp/types";
 import { createQueryClient } from "@gtp/api-client";
 import { BoardRail } from "./BoardRail";
+import { emptyDashboard } from "../test-dashboard";
 
 /**
  * The rail beside the working surface — what the trip costs, and who is on it.
@@ -46,15 +47,7 @@ function mockFetch() {
     vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/dashboard")) {
-        return json({
-          committed: [],
-          projected: [],
-          viewerCommitted: [],
-          viewerPersonal: [],
-          personalLines: [],
-          lines: [],
-          memberCount: 2,
-        });
+        return json(emptyDashboard({ memberCount: 2 }));
       }
       if (u.includes("/members")) return json(MEMBERS);
       return json({ message: "not found" }, 404);

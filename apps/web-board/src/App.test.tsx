@@ -8,6 +8,7 @@ import {
   setAccessToken,
 } from "@gtp/api-client";
 import { App } from "./App";
+import { emptyDashboard } from "./test-dashboard";
 
 const JSON_HEADERS = { "content-type": "application/json" };
 
@@ -237,15 +238,7 @@ describe("web-board auth flow", () => {
         if (u.includes("/members")) return json({ members: [], blocked: [] });
         // Before the /trips/t1 branch: the cost strip's URL contains it too.
         if (u.includes("/dashboard"))
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 1,
-          });
+          return json(emptyDashboard({ memberCount: 1 }));
         if (u.includes("/trips/t1")) {
           return json({
             id: "t1",
@@ -318,15 +311,7 @@ describe("web-board auth flow", () => {
           return json({ notifications: [], unreadCount: 0, nextCursor: null });
         if (u.includes("/members")) return json({ members: [], blocked: [] });
         if (u.includes("/dashboard"))
-          return json({
-            committed: [],
-            projected: [],
-            viewerCommitted: [],
-            viewerPersonal: [],
-            personalLines: [],
-            lines: [],
-            memberCount: 1,
-          });
+          return json(emptyDashboard({ memberCount: 1 }));
         // The reader's own column asks for its list on every board render.
         // Ahead of the `/trips/t1` catch-all below, which would otherwise hand
         // an array-shaped read the trip object.

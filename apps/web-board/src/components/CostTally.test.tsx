@@ -863,18 +863,21 @@ describe("the two readings", () => {
     ...over,
   });
 
-  it("offers no switch until there is a second story to tell", async () => {
-    // With nothing of their own, "Mine" would differ from "The trip" only by
-    // the opt-in options this reader declined, which the target line already
-    // says in words.
+  it("offers the switch on a trip where the reader keeps nothing of their own", async () => {
+    // It used to appear only once they had a private list. The trip's reading
+    // is group money now and its target line speaks for the group, so a member
+    // without one would otherwise have nowhere to read what they owe.
+    //
+    // Awaited, not queried: the panel's landmark is on screen while the fetch
+    // is still in flight, so asking about the switch immediately proves nothing
+    // -- which is how the assertion this replaced passed while being false.
     renderTally(dashboard({ committed: [priced(300)] }));
-    expect(await screen.findByLabelText("Cost")).toBeInTheDocument();
     expect(
-      screen.queryByRole("group", { name: "Whose money" }),
-    ).not.toBeInTheDocument();
+      await screen.findByRole("group", { name: "Whose money" }),
+    ).toBeInTheDocument();
   });
 
-  it("offers it once the reader keeps a list of their own", async () => {
+  it("opens on the trip's reading, which is the panel a reader knows", async () => {
     renderTally(
       dashboard({
         committed: [priced(300)],
@@ -942,5 +945,113 @@ describe("the two readings", () => {
 
     expect(await screen.findByText(/to spare/i)).toBeInTheDocument();
     expect(screen.queryByText(/\bover\b/i)).not.toBeInTheDocument();
+  });
+
+  it("draws the reader's own budget as a ring, their own things included", async () => {
+    // The chart this pass exists to make possible. 300 of the group's
+    // decisions plus a 210 flight of their own is 510 against a 600 budget, so
+    // the ring has headroom and the mark sits inside it.
+    renderTally(
+      dashboard({
+        viewerBudget: 600,
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+        lines: [locked({ perPerson: 300 })],
+      }),
+      [category()],
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+
+    const verdict = await screen.findByText(/to spare/i);
+    const line = verdict.closest(".board__budget")!;
+    expect(digits(line.querySelector("strong")!.textContent)).toBe("600");
+    // 90 to spare, which is only true if the private 210 was counted.
+    expect(digits(verdict.textContent)).toContain("90");
+  });
+
+  it("counts private money against their own budget, and says nothing about the trip's", async () => {
+    // The owner's rule is about the *trip's* target. A member's own limit is
+    // precisely the number their own flight counts towards, so the sentence
+    // disclaiming it would be false here and is dropped.
+    renderTally(
+      dashboard({
+        budgetPerPerson: 500,
+        viewerBudget: 600,
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+      }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+
+    await screen.findByText(/to spare/i);
+    expect(
+      screen.queryByText(/Not counted against the target/),
+    ).not.toBeInTheDocument();
+    // And the group's 500 is nowhere on this reading: one figure is being
+    // judged, so one target is stated.
+    const line = screen.getByText(/to spare/i).closest(".board__budget")!;
+    expect(digits(line.querySelector("strong")!.textContent)).toBe("600");
+  });
+
+  it("says they are over their own budget when they are", async () => {
+    renderTally(
+      dashboard({
+        viewerBudget: 400,
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+      }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+    // 510 against 400.
+    const verdict = await screen.findByText(/over/i);
+    expect(digits(verdict.textContent)).toContain("110");
+  });
+
+  it("keeps the group's target verdict for a reader who has set no budget", async () => {
+    /**
+     * The owner's original call, unchanged where nothing replaces it. €300 of
+     * the group's decisions against a €500 target is €200 under; a €210 flight
+     * of the reader's own would flip that to €10 over if it were counted.
+     */
+    renderTally(
+      dashboard({
+        budgetPerPerson: 500,
+        viewerBudget: null,
+        committed: [priced(300)],
+        viewerCommitted: [priced(300)],
+        viewerPersonal: [mineOnly(210)],
+        personalLines: [own(210)],
+      }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+
+    const verdict = await screen.findByText(/to spare/i);
+    expect(digits(verdict.textContent)).toContain("200");
+    // And the reader is told which figure that verdict was about.
+    expect(
+      screen.getByText(/Not counted against the target/),
+    ).toBeInTheDocument();
+  });
+
+  it("offers a way in, worded for whether they have one already", async () => {
+    renderTally(dashboard({ committed: [priced(300)] }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+    expect(
+      await screen.findByRole("button", { name: "Set your own budget" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says 'change' once there is one to change", async () => {
+    renderTally(dashboard({ viewerBudget: 600, committed: [priced(300)] }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mine" }));
+    expect(
+      await screen.findByRole("button", { name: "Change your budget" }),
+    ).toBeInTheDocument();
   });
 });

@@ -804,5 +804,19 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Mine": "Az enyém",
   "The trip": "Az utazás",
   "Whose money": "Kinek a pénze",
+  "Set your own budget":
+    "Állíts be saját keretet",
+  "Change your budget":
+    "Saját kereted módosítása",
+  "Your budget":
+    "A te kereted",
+  "What you can spend on this trip":
+    "Amennyit erre az utazásra költhetsz",
+  "Only you can see this. It counts your share of the group's decisions plus your own things, and it is separate from the trip's target.":
+    "Ezt csak te látod. A csapat döntéseiből rád eső részt és a saját dolgaidat számolja, és független az utazás céljától.",
+  "Couldn't save that. Try again.":
+    "Nem sikerült elmenteni. Próbáld újra.",
+  "Remove budget":
+    "Keret törlése",
   "yours, all in": "a te költséged",
 };
