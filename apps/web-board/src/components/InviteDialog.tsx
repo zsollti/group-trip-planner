@@ -14,30 +14,12 @@ import {
   useTripInvites,
 } from "@gtp/api-client";
 import { Dialog } from "./Dialog";
-import { CrownIcon, EyeIcon, GlobeIcon, LinkIcon, PeopleIcon } from "./icons";
+import { GlobeIcon, LinkIcon } from "./icons";
+import { RoleIcon } from "./RoleIcon";
 import { t, tNode } from "../lib/i18n";
 import { roleBlurb, roleLabel } from "../lib/roles";
 
 const INVITE_ROLES: InviteRole[] = ["GUEST", "PARTICIPANT", "CO_ORGANIZER"];
-
-/**
- * A role as a mark, for the picker where three of them are compared at once.
- *
- * A crown runs things, two figures are coming along, an eye is watching — the
- * same three ideas the words carry, in the register the link-type radios above
- * already set. Decoration: the bold name beside each is the accessible answer,
- * so a screen reader hears "Organizer", not "crown, Organizer".
- */
-function RoleIcon({ role }: { role: InviteRole }) {
-  switch (role) {
-    case "CO_ORGANIZER":
-      return <CrownIcon size={16} />;
-    case "PARTICIPANT":
-      return <PeopleIcon size={16} />;
-    case "GUEST":
-      return <EyeIcon size={16} />;
-  }
-}
 
 function joinUrl(token: string): string {
   return `${window.location.origin}/join/${token}`;
@@ -213,7 +195,7 @@ export function InviteDialog({
                     listing options and one listing paragraphs. The blurbs are
                     written to be read after the colon (see `roleBlurb`). */}
                 <span>
-                  <RoleIcon role={r} />{" "}
+                  <RoleIcon role={r} size={16} />{" "}
                   {tNode("{kind}: {blurb}", {
                     kind: <strong>{roleLabel(r)}</strong>,
                     blurb: roleBlurb(r),
