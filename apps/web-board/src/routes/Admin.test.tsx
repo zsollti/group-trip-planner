@@ -85,7 +85,9 @@ function mockApi(overview: unknown, extra?: (path: string) => Response | null) {
       if (path.startsWith("/admin/users") && init?.method === "POST") {
         return json({ ...USER, emailVerified: true });
       }
-      if (path.startsWith("/admin/users")) return json({ users: [USER] });
+      if (path.startsWith("/admin/users")) {
+        return json({ users: [USER], total: 1, page: 1, pageSize: 10 });
+      }
       return json({ message: "not found" }, 404);
     }),
   );
@@ -132,6 +134,89 @@ describe("the console reports a healthy deployment plainly", () => {
     renderConsole();
     await screen.findByText("abcdef1234");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+/**
+ * Listing everyone, ten at a time.
+ *
+ * The lookup used to answer with ten rows whether ten people matched or thirty,
+ * and said nothing about the difference — so the two things pinned here are the
+ * count and the fact that Next asks for a different page. A support tool that
+ * quietly truncates is worse than one that makes you press a button.
+ */
+describe("listing everyone", () => {
+  const PAGE_SIZE = 10;
+  const TOTAL = 23;
+
+  /** One page of a database with 23 accounts in it. */
+  function people(page: number) {
+    const from = (page - 1) * PAGE_SIZE;
+    const count = Math.min(PAGE_SIZE, TOTAL - from);
+    return {
+      total: TOTAL,
+      page,
+      pageSize: PAGE_SIZE,
+      users: Array.from({ length: count }, (_, i) => ({
+        ...USER,
+        id: `user-${from + i}`,
+        email: `person${from + i}@example.com`,
+        displayName: `Person ${from + i}`,
+      })),
+    };
+  }
+
+  const asked: string[] = [];
+  beforeEach(() => {
+    asked.length = 0;
+    mockApi(HEALTHY, (path) => {
+      if (!path.startsWith("/admin/users?")) return null;
+      asked.push(path);
+      const page = Number(new URLSearchParams(path.split("?")[1]).get("page"));
+      return json(people(Number.isFinite(page) && page > 0 ? page : 1));
+    });
+  });
+
+  async function search(term: string) {
+    renderConsole();
+    await screen.findByText("abcdef1234");
+    fireEvent.change(screen.getByLabelText(/email, name, or user id/i), {
+      target: { value: term },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Find" }));
+  }
+
+  it("says how many there are, not just how many fit", async () => {
+    await search("*");
+    // The figure the silent cut-off was hiding: ten rows, twenty-three people.
+    expect(await screen.findByText("23 people")).toBeInTheDocument();
+    expect(await screen.findByText("Page 1 of 3")).toBeInTheDocument();
+    expect(asked[0]).toContain("q=*");
+  });
+
+  it("asks for the next page rather than re-cutting the first", async () => {
+    await search("*");
+    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText("Page 2 of 3")).toBeInTheDocument();
+    // The rows are the second ten, which is only true if the server was asked.
+    expect(await screen.findByText("person10@example.com")).toBeInTheDocument();
+    expect(asked.some((p) => p.includes("page=2"))).toBe(true);
+  });
+
+  it("starts a new question at its first page", async () => {
+    await search("*");
+    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await screen.findByText("Page 2 of 3");
+
+    // Searching from page 2 used to ask for the second page of a query that
+    // may only have one, which answers with nothing at all.
+    fireEvent.change(screen.getByLabelText(/email, name, or user id/i), {
+      target: { value: "person" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Find" }));
+
+    expect(await screen.findByText("Page 1 of 3")).toBeInTheDocument();
   });
 });
 

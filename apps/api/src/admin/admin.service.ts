@@ -23,12 +23,14 @@ import type {
   BanUserInput,
 } from "@gtp/types";
 import {
+  ADMIN_LOOKUP_ALL,
   CONTRACT_VERSION,
   SENDING_RECLAIM_MS,
   resolveLocale,
 } from "@gtp/types";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountService } from "../account/account.service.js";
 import { EmailService } from "../email/email.service.js";
@@ -40,8 +42,8 @@ import { seedPlaces } from "../places/places-seed.js";
 const SIGNUP_DAYS = 30;
 /** How many recent mail failures are worth showing at a glance. */
 const FAILURE_SAMPLE = 10;
-/** Lookup results, capped — this is a support tool, not an export. */
-const LOOKUP_LIMIT = 10;
+/** How many people one page of the lookup holds. */
+const LOOKUP_PAGE = 10;
 
 /**
  * Which commit this API is running, or null when it cannot know.
@@ -262,28 +264,48 @@ export class AdminService {
   }
 
   /**
-   * Find people by email or display name, or by exact id.
+   * Find people by email or display name, or by exact id — or all of them.
    *
    * Substring and case-insensitive, because the realistic input is a fragment
-   * someone read out over a call, not a well-formed address.
+   * someone read out over a call, not a well-formed address. {@link
+   * ADMIN_LOOKUP_ALL} is the one query that is not a fragment at all: it matches
+   * everyone, for the operator whose question is "who is on this thing".
+   *
+   * **Paged, and that is not only for the `*` case.** The result used to be the
+   * first ten matches with nothing said about it, so a fragment thirty people
+   * share looked exactly like one ten people share. The count comes back with
+   * the page, and every query is paged the same way — a support tool that lies
+   * about how much it found is worse than one that makes you press Next.
+   *
+   * Ordered newest first, with the id breaking ties: two accounts created in the
+   * same millisecond is not a hypothetical on a seeded database, and without a
+   * total order a row can sit on two pages or on none.
    */
-  async lookupUsers(query: string): Promise<AdminUserLookup> {
+  async lookupUsers(query: string, page = 1): Promise<AdminUserLookup> {
     const q = query.trim();
-    if (!q) return { users: [] };
+    const at = Math.max(1, Math.trunc(page));
+    if (!q) return { users: [], total: 0, page: at, pageSize: LOOKUP_PAGE };
 
+    const where: Prisma.UserWhereInput =
+      q === ADMIN_LOOKUP_ALL
+        ? {}
+        : {
+            OR: [
+              { email: { contains: q, mode: "insensitive" } },
+              { displayName: { contains: q, mode: "insensitive" } },
+              // A bare id pasted from a log or a URL. Guarded, because Postgres
+              // rejects a malformed uuid as a type error rather than matching
+              // nothing — one stray character would 500 the whole lookup.
+              ...(/^[0-9a-f-]{36}$/i.test(q) ? [{ id: q }] : []),
+            ],
+          };
+
+    const total = await this.prisma.user.count({ where });
     const users = await this.prisma.user.findMany({
-      where: {
-        OR: [
-          { email: { contains: q, mode: "insensitive" } },
-          { displayName: { contains: q, mode: "insensitive" } },
-          // A bare id pasted from a log or a URL. Guarded, because Postgres
-          // rejects a malformed uuid as a type error rather than matching
-          // nothing — one stray character would 500 the whole lookup.
-          ...(/^[0-9a-f-]{36}$/i.test(q) ? [{ id: q }] : []),
-        ],
-      },
-      orderBy: { createdAt: "desc" },
-      take: LOOKUP_LIMIT,
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (at - 1) * LOOKUP_PAGE,
+      take: LOOKUP_PAGE,
       include: {
         _count: { select: { memberships: true } },
         emailJobs: {
@@ -308,6 +330,9 @@ export class AdminService {
     });
 
     return {
+      total,
+      page: at,
+      pageSize: LOOKUP_PAGE,
       users: users.map((u): AdminUserSummary => ({
         id: u.id,
         email: u.email,

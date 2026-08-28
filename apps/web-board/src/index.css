@@ -6946,6 +6946,20 @@ button.cost-comp__row-btn:hover,
   font-size: 0.74rem;
   color: var(--board-dim);
 }
+/* Backwards, where you are, forwards — spread, because the two buttons are the
+   controls and the sentence between them is the label they share. Its own note
+   keeps no top margin: it is being centred against the buttons, not stacked
+   under something. */
+.admin__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.admin__pager .admin__note {
+  margin: 0;
+}
 .admin__alert {
   margin: 0.5rem 0 0;
   padding: 0.4rem 0.5rem;

@@ -168,11 +168,35 @@ export const AdminUserSummary = z.object({
 });
 export type AdminUserSummary = z.infer<typeof AdminUserSummary>;
 
-/** The lookup result. Empty rather than 404 when nothing matched. */
+/**
+ * The lookup result: one page of it, and how much there is.
+ *
+ * Empty rather than 404 when nothing matched. It used to be the array alone,
+ * silently cut to the first ten — so a name shared by thirty people looked like
+ * a name shared by ten, and the operator had no way of knowing which. The count
+ * is what makes a page honest about being one.
+ */
 export const AdminUserLookup = z.object({
   users: z.array(AdminUserSummary),
+  /** Everyone the query matches, not just this page's worth. */
+  total: z.number().int().nonnegative(),
+  /** Which page this is, 1-based, as the server understood the request. */
+  page: z.number().int().positive(),
+  /** How many rows a full page holds, so a client can count pages. */
+  pageSize: z.number().int().positive(),
 });
 export type AdminUserLookup = z.infer<typeof AdminUserLookup>;
+
+/**
+ * The query that means "everyone".
+ *
+ * A search box that can only answer questions you already know the answer to is
+ * half a console: the operator's first question is often "who is on this thing
+ * at all". One literal character rather than a general wildcard — `zs*` as a
+ * pattern would want escaping, a syntax to explain, and an answer for what a
+ * bare `*` in the middle of an address means.
+ */
+export const ADMIN_LOOKUP_ALL = "*";
 
 /**
  * What an operator did, and when.

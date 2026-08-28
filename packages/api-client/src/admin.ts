@@ -21,7 +21,8 @@ import { apiFetch, type ApiError } from "./http.js";
 export const adminKeys = {
   all: ["admin"] as const,
   overview: () => [...adminKeys.all, "overview"] as const,
-  users: (q: string) => [...adminKeys.all, "users", q] as const,
+  users: (q: string, page: number) =>
+    [...adminKeys.all, "users", q, page] as const,
   audit: () => [...adminKeys.all, "audit"] as const,
 };
 
@@ -44,11 +45,16 @@ export function useAdminOverview(): UseQueryResult<AdminOverview, ApiError> {
 /** Find people by email fragment, name, or exact id. Idle until asked. */
 export function useAdminUserLookup(
   query: string,
+  page = 1,
 ): UseQueryResult<AdminUserLookup, ApiError> {
   return useQuery({
-    queryKey: adminKeys.users(query),
+    // The page is part of the key: two pages of one query are two answers, and
+    // sharing a cache entry would show the first while the second loads.
+    queryKey: adminKeys.users(query, page),
     queryFn: () =>
-      apiFetch<AdminUserLookup>(`/admin/users?q=${encodeURIComponent(query)}`),
+      apiFetch<AdminUserLookup>(
+        `/admin/users?q=${encodeURIComponent(query)}&page=${page}`,
+      ),
     enabled: query.trim().length > 0,
     staleTime: 0,
   });
