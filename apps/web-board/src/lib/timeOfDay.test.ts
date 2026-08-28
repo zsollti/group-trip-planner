@@ -62,6 +62,17 @@ describe("sanitizeTypedTime", () => {
       expect(sanitizeTypedTime(partial)).toBe(partial);
     }
   });
+
+  it("refuses a fifth digit when there is no colon to spend it on", () => {
+    // The bug this is here for: delete the colon out of `19:20` and the field
+    // held `1920` with room for one more, so a stray keystroke made `19204`.
+    // `parseTypedTime` refuses that, which means the form quietly keeps the
+    // time from *before* it — the field says one thing and Save writes another.
+    expect(sanitizeTypedTime("19204")).toBe("1920");
+    expect(parseTypedTime(sanitizeTypedTime("19204"))).toBe("19:20");
+    // Five is still right with the colon in place, which is the whole format.
+    expect(sanitizeTypedTime("19:04")).toBe("19:04");
+  });
 });
 
 describe("parseTypedTime", () => {
