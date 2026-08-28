@@ -70,6 +70,14 @@ export function boardTourSteps(): readonly TourStep[] {
       ),
     },
     {
+      id: "personal",
+      anchor: "personal",
+      title: t("One column is yours"),
+      body: t(
+        "Your own flight, your own room, whatever you are paying for by yourself: it goes here, and nobody else on the trip can see it. It has its own money, kept out of the group's.",
+      ),
+    },
+    {
       id: "cost",
       anchor: "cost",
       title: t("The money adds itself up"),

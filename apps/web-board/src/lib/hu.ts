@@ -673,6 +673,9 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
     "{kind}: bárki csatlakozhat, akinek megvan a link.",
   "Show me around": "Mutasd meg a programot",
   "Skip the tour": "Kihagyom a bemutatót",
+  "One column is yours": "Az egyik oszlop a tiéd",
+  "Your own flight, your own room, whatever you are paying for by yourself: it goes here, and nobody else on the trip can see it. It has its own money, kept out of the group's.":
+    "A saját repülőd, a saját szobád, bármi, amit magadnak fizetsz: ide kerül, és rajtad kívül senki nem látja az utazáson. Külön pénze van, a csoportétól elválasztva.",
   "Let's go": "Vágjunk bele",
   "{step} of {total}": "{step} / {total}",
   "One lane, one question": "Egy sáv, egy kérdés",
@@ -738,85 +741,98 @@ export const HU_UI_MESSAGES: Readonly<Record<string, string>> = {
   "Invite people": "Hívj meg másokat",
   "Unmute email": "E-mailek visszakapcsolása",
   "Email muted": "E-mailek némítva",
-  "No links to show. Create one above.": "Nincs megjeleníthető link. Készíts egyet fent.",
+  "No links to show. Create one above.":
+    "Nincs megjeleníthető link. Készíts egyet fent.",
   "The talking goes with you": "A beszélgetés veled tart",
-  "Chat is here on every page, not just inside one board. You will have someone to talk to once you make a trip or join one.": "A csevegés minden oldalon itt van, nem csak egy táblán belül. Akkor lesz kivel beszélgetned, ha létrehozol egy utat vagy csatlakozol egyhez.",
+  "Chat is here on every page, not just inside one board. You will have someone to talk to once you make a trip or join one.":
+    "A csevegés minden oldalon itt van, nem csak egy táblán belül. Akkor lesz kivel beszélgetned, ha létrehozol egy utat vagy csatlakozol egyhez.",
   "Now make one": "Most készíts egyet",
-  "Create your first trip and I will show you around the board itself.": "Hozd létre az első utadat, és körbevezetlek magán a táblán is.",
+  "Create your first trip and I will show you around the board itself.":
+    "Hozd létre az első utadat, és körbevezetlek magán a táblán is.",
   "Previous colour": "Előző szín",
   "Next colour": "Következő szín",
   "Previous mark": "Előző jel",
   "Next mark": "Következő jel",
   "Replace your photo?": "Lecseréled a fotódat?",
-  "A drawn avatar takes the place of your uploaded picture, and the picture is deleted. You can always upload another one.": "A rajzolt avatar a feltöltött képed helyére lép, a képet pedig töröljük. Bármikor feltölthetsz egy újat.",
+  "A drawn avatar takes the place of your uploaded picture, and the picture is deleted. You can always upload another one.":
+    "A rajzolt avatar a feltöltött képed helyére lép, a képet pedig töröljük. Bármikor feltölthetsz egy újat.",
   "Use a drawn avatar": "Rajzolt avatart használok",
   "Keep my photo": "Marad a fotóm",
   "Chat menu": "Csevegés menü",
   "Close search": "Keresés bezárása",
   "Search chat": "Keresés a csevegésben",
   "Search this board's chat": "Keresés a tábla csevegésében",
-  "Type to search every conversation on this board.": "Írj be valamit, és rákeresünk a tábla összes beszélgetésében.",
-  "Keep typing. A search needs at least {n} characters.": "Írj tovább. A kereséshez legalább {n} karakter kell.",
+  "Type to search every conversation on this board.":
+    "Írj be valamit, és rákeresünk a tábla összes beszélgetésében.",
+  "Keep typing. A search needs at least {n} characters.":
+    "Írj tovább. A kereséshez legalább {n} karakter kell.",
   "Couldn't run that search.": "A keresés nem futott le.",
   "Searching…": "Keresés…",
   "No messages match that.": "Nincs erre illeszkedő üzenet.",
-  "The first {n} matches. Narrow the search to see fewer.": "Az első {n} találat. Szűkítsd a keresést, ha kevesebbet szeretnél.",
+  "The first {n} matches. Narrow the search to see fewer.":
+    "Az első {n} találat. Szűkítsd a keresést, ha kevesebbet szeretnél.",
   "{n} matching": "{n} találat",
-  "{author} in {channel}: {body}": "{author} a {channel} beszélgetésben: {body}",
+  "{author} in {channel}: {body}":
+    "{author} a {channel} beszélgetésben: {body}",
   "Unmute chat": "Csevegés némításának feloldása",
   "Muted until {time}": "Némítva eddig: {time}",
   "Muted until you turn it back on": "Némítva, amíg vissza nem kapcsolod",
   "Mute chat for an hour": "Csevegés némítása egy órára",
   "Mute chat for a day": "Csevegés némítása egy napra",
-  "Mute chat until I turn it back on": "Csevegés némítása, amíg vissza nem kapcsolom",
-  "Silences this board's badges and mention pop-ups.": "Elnémítja a tábla jelzéseit és az említési buborékokat.",
+  "Mute chat until I turn it back on":
+    "Csevegés némítása, amíg vissza nem kapcsolom",
+  "Silences this board's badges and mention pop-ups.":
+    "Elnémítja a tábla jelzéseit és az említési buborékokat.",
   "Chat picture": "Csevegés képe",
-  "Everyone on this board sees it, wherever the chat appears.": "A tábla minden tagja látja, bárhol jelenik meg a csevegés.",
+  "Everyone on this board sees it, wherever the chat appears.":
+    "A tábla minden tagja látja, bárhol jelenik meg a csevegés.",
   "Change chat picture": "Csevegés képének cseréje",
   "Add a chat picture": "Kép hozzáadása a csevegéshez",
-  "Shown on the bubble and in the conversation list.": "A buborékon és a beszélgetéslistán jelenik meg.",
+  "Shown on the bubble and in the conversation list.":
+    "A buborékon és a beszélgetéslistán jelenik meg.",
   "Delete discussions": "Beszélgetések törlése",
-  "This board has no discussions to delete yet.": "Ezen a táblán még nincs törölhető beszélgetés.",
-  "Everything said in a discussion goes with it. A lane can always be discussed again.": "A beszélgetésben elhangzottak is törlődnek. Egy sávot bármikor újra meg lehet beszélni.",
-  "Delete {n} discussion and everything said in it? This cannot be undone.": "Törölsz {n} beszélgetést és mindent, ami elhangzott benne? Ezt nem lehet visszavonni.",
-  "Delete {n} discussions and everything said in them? This cannot be undone.": "Törölsz {n} beszélgetést és mindent, ami elhangzott bennük? Ezt nem lehet visszavonni.",
+  "This board has no discussions to delete yet.":
+    "Ezen a táblán még nincs törölhető beszélgetés.",
+  "Everything said in a discussion goes with it. A lane can always be discussed again.":
+    "A beszélgetésben elhangzottak is törlődnek. Egy sávot bármikor újra meg lehet beszélni.",
+  "Delete {n} discussion and everything said in it? This cannot be undone.":
+    "Törölsz {n} beszélgetést és mindent, ami elhangzott benne? Ezt nem lehet visszavonni.",
+  "Delete {n} discussions and everything said in them? This cannot be undone.":
+    "Törölsz {n} beszélgetést és mindent, ami elhangzott bennük? Ezt nem lehet visszavonni.",
   "Add item": "Hozzáadás",
-  "Add something just for you": "Adj hozzá valamit, ami csak a tiéd",
+  "Add a personal item": "Személyes tétel hozzáadása",
   "Could not reorder": "Nem sikerült átrendezni",
   "Could not save the item": "Nem sikerült menteni a tételt",
   "Couldn’t load your own items.": "Nem sikerült betölteni a saját tételeidet.",
   "Counts as": "Beszámít ide",
   "Delete “{card}”?": "Törlöd: „{card}”?",
   "Edit your item": "Tétel szerkesztése",
-  "Full at {cap} items. Remove one to add another.": "Megtelt, {cap} tétel van benne. Törölj egyet, ha újat szeretnél.",
-  "Just for me": "Csak nekem",
+  "Full at {cap} items. Remove one to add another.":
+    "Megtelt, {cap} tétel van benne. Törölj egyet, ha újat szeretnél.",
   "Move down": "Lejjebb",
   "Move up": "Feljebb",
   "Nothing in particular": "Semmi különös",
   "Nothing of your own here": "Itt még nincs saját tételed",
-  "Only sets its colour on the charts and the timeline.": "Csak a diagramok és az idővonal színét állítja be.",
+  "Only sets its colour on the charts and the timeline.":
+    "Csak a diagramok és az idővonal színét állítja be.",
   "Only you can see these": "Ezeket csak te látod",
   "Save item": "Tétel mentése",
   "Tagged {lane}": "Címke: {lane}",
   "This can’t be undone.": "Ezt nem lehet visszavonni.",
-  "＋ Add something only you pay for": "＋ Adj hozzá valamit, amit csak te fizetsz",
-  "Just for me: {amount}. Not counted against the target.": "Csak nekem: {amount}. Ez nem számít bele a keretbe.",
-  "Mine": "Az enyém",
+  "＋ Add something only you pay for":
+    "＋ Adj hozzá valamit, amit csak te fizetsz",
+  "Personal: {amount}. Not counted against the target.":
+    "Személyes: {amount}. Ez nem számít bele a keretbe.",
+  Mine: "Az enyém",
   "The trip": "Az utazás",
   "Whose money": "Kinek a pénze",
-  "Set your own budget":
-    "Állíts be saját keretet",
-  "Change your budget":
-    "Saját kereted módosítása",
-  "Your budget":
-    "A te kereted",
-  "What you can spend on this trip":
-    "Amennyit erre az utazásra költhetsz",
+  "Set your own budget": "Állíts be saját keretet",
+  "Change your budget": "Saját kereted módosítása",
+  "Your budget": "A te kereted",
+  "What you can spend on this trip": "Amennyit erre az utazásra költhetsz",
   "Only you can see this. It counts your share of the group's decisions plus your own things, and it is separate from the trip's target.":
     "Ezt csak te látod. A csapat döntéseiből rád eső részt és a saját dolgaidat számolja, és független az utazás céljától.",
-  "Couldn't save that. Try again.":
-    "Nem sikerült elmenteni. Próbáld újra.",
-  "Remove budget":
-    "Keret törlése",
+  "Couldn't save that. Try again.": "Nem sikerült elmenteni. Próbáld újra.",
+  "Remove budget": "Keret törlése",
   "yours, all in": "a te költséged",
 };

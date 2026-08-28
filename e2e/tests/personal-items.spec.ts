@@ -36,7 +36,7 @@ async function secondBrowser(
 
 /** The reader's own column — a landmark, like every lane beside it. */
 function myColumn(page: Page) {
-  return page.getByRole("region", { name: "Just for me" });
+  return page.getByRole("region", { name: "Personal" });
 }
 
 test("a member keeps a private list that nobody else on the board can see", async ({

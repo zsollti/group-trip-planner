@@ -345,7 +345,7 @@ function MineBody({
 }) {
   const [editing, setEditing] = useState(false);
   const own = personalCost(d);
-  const composition = myCostComposition(d, t("Just for me"));
+  const composition = myCostComposition(d, t("Personal"));
   const allIn = viewerAllIn(d);
   // Their own limit wins where they have one. The two are never shown together:
   // a panel stating two targets for one figure is asking the reader to work out
@@ -401,7 +401,7 @@ function MineBody({
        */}
       {mine === null && own.allIn ? (
         <p className="board__tally-foot">
-          {t("Just for me: {amount}. Not counted against the target.", {
+          {t("Personal: {amount}. Not counted against the target.", {
             amount: figure(
               own.allIn.group,
               own.allIn.currency,
